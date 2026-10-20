@@ -16,7 +16,7 @@ FEATURES: dict[str, str] = {
     # keys
     "game_pk": ID, "game_date": ID, "at_bat_number": ID, "pitch_number": ID, "batter": ID,
     # pre-pitch
-    "game_year": PRE, "home_team": PRE, "away_team": PRE, "stand": PRE, "p_throws": PRE,
+    "game_year": PRE, "hawkeye": PRE, "home_team": PRE, "away_team": PRE, "stand": PRE, "p_throws": PRE,
     "weather_temp_f": PRE, "wind_speed_mph": PRE, "day_night": PRE,
     "pitch_type": PRE, "release_speed": PRE, "release_spin_rate": PRE, "plate_x": PRE, "plate_z": PRE,
     # contact
