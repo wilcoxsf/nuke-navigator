@@ -15,6 +15,7 @@ from pathlib import Path
 
 import manual_items
 import manual_trivia
+import manual_trivia2
 
 FT, MI, MPH = 0.3048, 1609.344, 0.44704
 CAT = {
@@ -88,46 +89,41 @@ def fmt_len(m: float) -> str:
     return f"{ft:,.0f} ft" if ft < 5280 else f"{m / MI:,.1f} mi"
 
 
+HEIGHT_CATS = {"tall-things", "statues", "mountains", "churches"}
+HEIGHT_RE = re.compile(r"\b(tower|height|tall|pyramid|building|statue|obelisk|cathedral|church|mountain|sequoia|tree|"
+                       r"hoop|giraffe|chimney|skyscraper|lighthouse|arch)\b", re.I)
+
+
 def finish(rec: dict) -> dict:
-    rec["display"] = fmt_len(rec["value_si"]) if rec["kind"] == "length" else f"{rec['value_si'] / MPH:,.1f} mph"
+    if rec["kind"] == "length":
+        rec["display"] = fmt_len(rec["value_si"])
+        if not rec.get("dim"):
+            rec["dim"] = "height" if rec["category"] in HEIGHT_CATS or HEIGHT_RE.search(rec["name"]) else "length"
+    else:
+        v = rec["value_si"] / MPH
+        rec["display"] = f"{v:,.1f} mph" if v >= 0.05 else f"{rec['value_si'] * 100:.3g} cm/s"
     rec["theme"] = theme_of(rec)
     return rec
 
 
-NICE = [0.1, 0.2, 0.25, 0.3, 0.33, 0.4, 0.5, 0.6, 0.67, 0.7, 0.75, 0.8, 0.9, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8,
-        10, 12, 15, 20, 25, 30, 40, 50]
-
-
-def pick(lib: list[dict], kind: str, amount_si: float, n: int = 6) -> list[tuple[str, str, str, str]]:
-    """Prefer San Francisco and weird items, then famous ones; at most one per category for variety."""
-    scored = []
-    for r in lib:
-        if r["kind"] != kind:
-            continue
-        q = amount_si / r["value_si"]
-        if not (0.1 <= q <= 55):
-            continue
-        err = min(abs(q - c) / c for c in NICE)
-        if err >= 0.05:
-            continue
-        bonus = -0.05 if r["theme"] in ("sf", "weird") else 0.0
-        scored.append((err + bonus - 0.06 * min(r["fame"], 60) / 60, r, q))
-    scored.sort(key=lambda t: t[0])
-    chosen, seen = [], set()
-    for _, r, q in scored:
-        if r["category"] in seen:
-            continue
-        seen.add(r["category"])
-        chosen.append((r["theme"], r["name"], f"{q:.2f}x", r["display"]))
-        if len(chosen) == n:
-            break
-    return chosen
+def slim(rec: dict) -> dict:
+    """Compact record for the app."""
+    out = {"n": rec["name"], "k": rec["kind"][0], "v": rec["value_si"], "t": rec["theme"][0], "c": rec["category"],
+           "f": min(rec["fame"], 100), "r": int(rec["reviewed"]), "u": rec["source_url"]}
+    if rec.get("dim"):
+        out["d"] = rec["dim"]
+    if rec.get("note"):
+        out["x"] = rec["note"]
+    if rec.get("count_ok"):
+        out["o"] = 1
+    return out
 
 
 def main() -> None:
+    """Usage: merge.py <raw_dir> <full_out.json> [<slim_app_out.json>]. The picker lives in the app (comparisons.js)."""
     raw, out = Path(sys.argv[1]), Path(sys.argv[2])
     lib, dropped = load_wikidata(raw)
-    curated = [dict(m, fame=999) for m in manual_items.ITEMS + manual_trivia.ITEMS]
+    curated = [dict(m, fame=999) for m in manual_items.ITEMS + manual_trivia.ITEMS + manual_trivia2.ITEMS]
     curated_names = " | ".join(c["name"].lower() for c in curated)
     before = len(lib)
     lib = [r for r in lib if r["name"].lower() not in curated_names]
@@ -141,13 +137,9 @@ def main() -> None:
     print("by kind and category:", dict(Counter((r["kind"], r["category"]) for r in lib).most_common(30)))
     print("evidence:", dict(Counter(r["evidence"] for r in lib)))
     print("source text read:", sum(r["reviewed"] for r in lib), "| unreviewed:", sum(not r["reviewed"] for r in lib))
-    for kind, amount, label in [
-        ("length", 380 * FT, "380 ft home run"), ("length", 420 * FT, "420 ft home run"), ("length", 465 * FT, "465 ft moonshot"),
-        ("speed", 95 * MPH, "95 mph exit velocity"), ("speed", 108 * MPH, "108 mph exit velocity"), ("speed", 117 * MPH, "117 mph exit velocity"),
-    ]:
-        print(f"\n{label}:")
-        for theme, name, q, disp in pick(lib, kind, amount):
-            print(f"  [{theme:7}] {q:>7} x {name} ({disp})")
+    if len(sys.argv) > 3:
+        Path(sys.argv[3]).write_text(json.dumps([slim(r) for r in lib], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        print("slim app file:", Path(sys.argv[3]), f"{Path(sys.argv[3]).stat().st_size / 1e6:.2f} MB")
 
 
 if __name__ == "__main__":

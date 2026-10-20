@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { loadLibrary, mulberry32, pick } from './comparisons.js'
 
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
@@ -200,9 +201,7 @@ function applyLook() {
   post.uniforms.ink.value.set(look.ink)
   ribbonMat.color.set(look.ribbon)
   burstMat.color.set(look.burst)
-  document.getElementById('spec').style.display = CAPS ? 'flex' : 'none'
-  document.getElementById('tag1').style.display = CAPS ? 'block' : 'none'
-  document.getElementById('tag2').style.display = CAPS ? 'block' : 'none'
+  document.getElementById('strip').style.display = CAPS ? 'none' : 'block' // ?caps=1 hides the strip for clean stills
   document.body.style.background = look.bg
   ocean.visible = !!look.ocean
   if (look.ocean) {
@@ -244,4 +243,35 @@ renderer.setAnimationLoop((t) => {
   post.uniforms.tDepth.value = targets.color.depthTexture
   renderer.render(quadScene, quadCam)
 })
-window.__ready = () => mats.length > 0
+window.__ready = () => mats.length > 0 && window.__cmpReady === true
+
+// ---------- stat strip: a speed and a distance comparison drawn at random from the library ----------
+const STAT = { mph: 105, la: 28, ft: 392 }
+document.getElementById('spec').innerHTML =
+  `<span><b>EXIT SPEED</b>${STAT.mph} mph</span><span><b>LAUNCH</b>${STAT.la}&deg;</span>` +
+  `<span><b>DISTANCE</b>${STAT.ft} ft</span><span><b>BADGE</b>PREDICTED</span><span><b>PARK</b>Oracle 2025</span>`
+const qs = new URLSearchParams(location.search)
+const rand = qs.get('seed') ? mulberry32(Number(qs.get('seed'))) : Math.random
+const recent = []
+let library = null
+function roll() {
+  if (!library) return
+  const rows = [
+    ['speed', STAT.mph * 0.44704, 'cmp-speed', 'src-speed', `${STAT.mph} mph`],
+    ['length', STAT.ft * 0.3048, 'cmp-dist', 'src-dist', `${STAT.ft} ft`],
+  ]
+  for (const [kind, amount, textId, linkId, label] of rows) {
+    const p = pick(library, kind, amount, rand, recent)
+    if (!p) continue
+    recent.push(p.rec.cat, p.rec.name)
+    while (recent.length > 16) recent.shift()
+    document.getElementById(textId).textContent = `${label} = ${p.phrase}`
+    const a = document.getElementById(linkId)
+    a.textContent = p.rec.reviewed ? '●' : '○'
+    a.title = `${p.rec.name}${p.rec.note ? ' | ' + p.rec.note : ''} | ${p.rec.reviewed ? 'source text read' : 'unreviewed source'}`
+    if (p.rec.url) a.href = p.rec.url
+    else a.removeAttribute('href')
+  }
+}
+loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
+document.getElementById('cmp').addEventListener('click', (e) => { if (e.target.tagName !== 'A') roll() })
