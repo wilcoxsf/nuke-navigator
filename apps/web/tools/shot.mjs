@@ -8,7 +8,7 @@ const browser = await chromium.launch({
   headless: true,
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 })
-const page = await browser.newPage({ viewport: { width: Number(w), height: Number(h) } })
+const page = await browser.newPage({ viewport: { width: Number(w), height: Number(h) }, deviceScaleFactor: 2 })
 page.on('console', (m) => { if (m.type() === 'error') console.log('[console error]', m.text()) })
 page.on('pageerror', (e) => console.log('[page error]', e.message))
 await page.goto(`http://localhost:5173/?look=${look}`)

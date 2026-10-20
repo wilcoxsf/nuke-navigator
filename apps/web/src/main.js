@@ -4,14 +4,16 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
-  1: { paper: '#f4ead2', ink: '#1d2a6d', ribbon: '#ff5a3c', burst: '#ffd23f', spec: false, tags: false, dot: 0.9 },
-  2: { paper: '#f4ead2', ink: '#1d2a6d', ribbon: '#ff5a3c', burst: '#ffd23f', spec: true, tags: true, dot: 0.9 },
-  3: { paper: '#f2b04a', ink: '#3a1d1d', ribbon: '#1e8a85', burst: '#f4ead2', spec: false, tags: false, dot: 1.2 },
+  1: { bg: '#ffffff', ink: '#1d2a6d', ribbon: '#ff5a3c', burst: '#ffd23f' }, // white
+  2: { bg: '#7fe3d4', ink: '#0d2b4a', ribbon: '#ff5a3c', burst: '#ffd23f' }, // Darrow sky
+  3: { bg: '#ff5a3c', ink: '#2a0f2e', ribbon: '#ffd23f', burst: '#ffffff' }, // Spider-Verse hot
+  4: { bg: '#1d2a6d', ink: '#0b1236', ribbon: '#ffd23f', burst: '#ff5a3c' }, // ink-navy night
 }
+const CAPS = new URLSearchParams(location.search).get('caps') === '1'
 let look = LOOKS[Number(new URLSearchParams(location.search).get('look')) || 1]
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true })
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 document.body.appendChild(renderer.domElement)
 
 const scene = new THREE.Scene()
@@ -118,21 +120,20 @@ const post = new THREE.ShaderMaterial({
         e += length(texture2D(tNormal, vUv + o[i]).rgb - n0);
         de += abs(lin(texture2D(tDepth, vUv + o[i]).r) - d0);
       }
-      float line = smoothstep(0.55, 1.1, e) + smoothstep(0.06 * d0, 0.14 * d0, de);
+      float line = smoothstep(1.0, 1.7, e) + smoothstep(0.10 * d0, 0.24 * d0, de);
       line = clamp(line, 0., 1.);
       vec3 c = texture2D(tColor, vUv).rgb;
       float L = dot(c, vec3(0.299, 0.587, 0.114));
-      // 45 degree halftone dots in the shadows
-      vec2 g = vUv * res; mat2 r = mat2(0.7071, -0.7071, 0.7071, 0.7071);
-      vec2 cell = fract(r * g / 5.) - 0.5;
-      float rad = (1. - smoothstep(0.35, 0.95, L)) * 0.62 * dotScale;
-      float ht = 1. - smoothstep(rad - 0.08, rad, length(cell));
-      vec3 col = mix(c, c * 0.62, ht * 0.9);
+      // clean diagonal ink hatching in the shadows (no noise, no dots)
+      vec2 g = vUv * res;
+      float stripe = fract((g.x + g.y) / dotScale);
+      float shade = 1. - smoothstep(0.30, 0.80, L);
+      float w = 0.10 + 0.30 * shade;
+      float hl = (1. - smoothstep(w, w + 0.07, stripe)) * smoothstep(0.12, 0.30, shade);
+      vec3 col = mix(c, ink, hl * 0.6);
       float bg = step(0.9999, texture2D(tDepth, vUv).r);
       col = mix(col, paper, bg);
-      float grain = (hash(floor(g * 0.7)) - 0.5) * 0.06;
-      col = col * (1. + grain) * mix(vec3(1.), paper, 0.35);
-      col = mix(col, ink, line * (1. - bg * 0.0));
+      col = mix(col, ink, line);
       gl_FragColor = vec4(pow(col, vec3(1. / 2.2)), 1.);
     }`,
   depthTest: false, depthWrite: false,
@@ -142,15 +143,15 @@ quadScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post))
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
 function applyLook() {
-  scene.background = new THREE.Color(look.paper)
-  post.uniforms.paper.value.set(look.paper).convertSRGBToLinear()
+  scene.background = new THREE.Color(look.bg)
+  post.uniforms.paper.value.set(look.bg).convertSRGBToLinear()
   post.uniforms.ink.value.set(look.ink).convertSRGBToLinear()
-  post.uniforms.dotScale.value = look.dot
   ribbonMat.color.set(look.ribbon)
   burstMat.color.set(look.burst)
-  document.getElementById('spec').style.display = look.spec ? 'flex' : 'none'
-  document.getElementById('tag1').style.display = look.tags ? 'block' : 'none'
-  document.getElementById('tag2').style.display = look.tags ? 'block' : 'none'
+  document.getElementById('spec').style.display = CAPS ? 'flex' : 'none'
+  document.getElementById('tag1').style.display = CAPS ? 'block' : 'none'
+  document.getElementById('tag2').style.display = CAPS ? 'block' : 'none'
+  document.body.style.background = look.bg
 }
 applyLook()
 addEventListener('keydown', (e) => { if (LOOKS[e.key]) { look = LOOKS[e.key]; applyLook() } })
@@ -163,6 +164,7 @@ function resize() {
   const pr = renderer.getPixelRatio()
   makeTargets(Math.floor(w * pr), Math.floor(h * pr))
   post.uniforms.res.value.set(w * pr, h * pr)
+  post.uniforms.dotScale.value = 6 * pr // hatch pitch in device pixels
 }
 addEventListener('resize', resize)
 resize()
