@@ -186,7 +186,11 @@ def main() -> None:
     btr = btr[btr["game_date"] < pd.Timestamp("2025-03-01")]
     base_f = BASE0 + WX + PITCH + HIST + ["bearing_hat"]
     bat_rows = []
-    for name, feats in [("same split, no bat tracking", base_f), ("same split, + bat tracking", base_f + BAT)]:
+    runs = [("same split, no bat tracking", base_f), ("same split, + bat tracking", base_f + BAT)]
+    if min(len(btr), len(bva), len(bte)) == 0:
+        print("no rows for the bat-tracking split; skipping", flush=True)
+        runs = []
+    for name, feats in runs:
         check(feats)
         m = fit_clf(btr, bva, feats)
         p = m.predict_proba(bte[feats])[:, 1]
@@ -215,7 +219,7 @@ def main() -> None:
     lines += [f"- {k}: {v}" for k, v in imp.head(15).items()]
     open(a.out, "w", encoding="utf-8").write("\n".join(lines) + "\n")
     json.dump({"rungs": results, "bat": bat_rows, "notes": notes, "importance": imp.to_dict()}, open(a.out.replace(".md", ".json"), "w"), indent=1)
-    print("\n".join(lines))
+    print("wrote", a.out, flush=True)
 
 
 if __name__ == "__main__":
