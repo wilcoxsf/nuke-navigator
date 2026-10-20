@@ -14,6 +14,9 @@ token.json
 data/
 assets/private/
 
+# machine-specific glue scripts
+local/
+
 # build and tooling
 node_modules/
 dist/

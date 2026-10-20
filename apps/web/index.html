@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Nuke Navigator</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #f4ead2; overflow: hidden; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+      #spec {
+        position: fixed; left: 12px; right: 12px; bottom: 10px; display: none;
+        font: 700 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing: .04em; text-transform: uppercase;
+        color: #1d2a6d; background: #ffd23f; border: 2px solid #1d2a6d; padding: 5px 8px; gap: 14px; flex-wrap: wrap;
+      }
+      #spec span b { background: #1d2a6d; color: #f4ead2; padding: 1px 5px; margin-right: 5px; }
+      .tag {
+        position: fixed; display: none; font: 700 13px/1.1 Arial, Helvetica, sans-serif; color: #1d2a6d;
+        background: #f4ead2; border: 2px solid #1d2a6d; padding: 4px 7px; transform: rotate(-3deg);
+        box-shadow: 3px 3px 0 #ff5a3c;
+      }
+      #look { position: fixed; top: 10px; left: 12px; font: 700 12px Arial, sans-serif; color: #1d2a6d; }
+    </style>
+  </head>
+  <body>
+    <div id="look">LOOK 1 / 2 / 3</div>
+    <div class="tag" id="tag1" style="left: 42%; top: 22%;">RIGHT FIELD: 24 FT OF BRICK</div>
+    <div class="tag" id="tag2" style="left: 14%; top: 58%;">YOU ARE HERE (BEHIND THE PLATE)</div>
+    <div id="spec">
+      <span><b>EXIT SPEED</b>105 mph</span><span><b>LAUNCH</b>28&deg;</span>
+      <span><b>DISTANCE</b>392 ft</span><span><b>BADGE</b>PREDICTED</span><span><b>PARK</b>Oracle 2025</span>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
