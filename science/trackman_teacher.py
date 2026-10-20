@@ -23,7 +23,7 @@ src, out = sys.argv[1].replace("\\", "/"), sys.argv[2]
 df = duckdb.sql(f"SELECT * FROM read_parquet('{src}')").df()
 L = [f"# College TrackMan teacher analysis", "", f"Batted balls loaded: {len(df):,}.", ""]
 
-has = df.dropna(subset=["HitSpinRate", "Direction", "Bearing", "Distance"]).copy()
+has = df.dropna(subset=["HitSpinRate", "HitSpinAxis", "Direction", "Bearing", "Distance"]).copy()
 has = has[(has.ExitSpeed >= 40) & (has.HitSpinRate.between(0, 6000))]
 L.append(f"With measured spin, true direction, landing bearing and distance: {len(has):,}. "
          f"Leagues: {df['League'].value_counts().head(6).to_dict()}.")
