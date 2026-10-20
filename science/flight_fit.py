@@ -31,10 +31,12 @@ RHO, MASS, RAD = 1.2, 0.145, 0.0366
 AREA = np.pi * RAD**2
 
 
-def simulate(p, v0, theta, phi, w_back, w_side, z0, dt=0.01, tmax=9.0):
-    """Vectorised RK4 over many balls. Angles in radians, spin in rad/s, SI units. Returns distance, hang time, bearing."""
+def simulate(p, v0, theta, phi, w_back, w_side, z0, dt=0.01, tmax=9.0, rho=None):
+    """Vectorised RK4 over many balls. Angles in radians, spin in rad/s, SI units, air density rho in kg/m^3 per ball
+    (default 1.2 for all). Returns distance, hang time, bearing."""
     c0, c1, a, b = p
     n = len(v0)
+    q = 0.5 * (np.full(n, RHO) if rho is None else rho) * AREA / MASS
     h = np.stack([np.sin(phi), np.cos(phi), np.zeros(n)], 1)          # horizontal heading (x right, y forward)
     r = np.stack([np.cos(phi), -np.sin(phi), np.zeros(n)], 1)         # to the right of the path
     ez = np.array([0.0, 0.0, 1.0])
@@ -51,10 +53,9 @@ def simulate(p, v0, theta, phi, w_back, w_side, z0, dt=0.01, tmax=9.0):
         S = RAD * wmag / sp
         cd = c0 + c1 * S
         cl = a * S / (1 + b * S)
-        q = 0.5 * RHO * AREA / MASS
-        drag = -q * cd[:, None] * sp[:, None] * vv
+        drag = -q[:, None] * cd[:, None] * sp[:, None] * vv
         cross = np.cross(omega, vv)
-        lift = q * cl[:, None] * sp[:, None] * cross / (wmag[:, None] + 1e-9)
+        lift = q[:, None] * cl[:, None] * sp[:, None] * cross / (wmag[:, None] + 1e-9)
         return drag + lift + np.array([0.0, 0.0, -G])
 
     t = 0.0
