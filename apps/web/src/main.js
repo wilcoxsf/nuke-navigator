@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
   1: { bg: '#ffffff', ink: '#1d2a6d', ribbon: '#ff5a3c', burst: '#ffd23f' }, // white
-  2: { bg: '#ffe2a6', ink: '#0d2b4a', ribbon: '#ffffff', burst: '#ffd23f', ocean: { deep: '#102557', light: '#14306d', crest: '#2f5aa8' } }, // ocean to infinity: dark and quiet, warm sky
+  2: { bg: '#ffe2a6', ink: '#0d2b4a', ribbon: '#ffffff', burst: '#ffd23f', ocean: { deep: '#081633', light: '#0a1b3d', crest: '#173366' } }, // ocean to infinity: very dark, very quiet, small ripples, warm sky
   3: { bg: '#ff5a3c', ink: '#2a0f2e', ribbon: '#ffd23f', burst: '#ffffff' }, // Spider-Verse hot
   4: { bg: '#1d2a6d', ink: '#0b1236', ribbon: '#ffd23f', burst: '#ff5a3c' }, // ink-navy night
 }
@@ -122,15 +122,17 @@ const oceanMat = new THREE.ShaderMaterial({
     void main(){
       vec2 p = vW.xz;
       float d = distance(vW, cameraPosition);
-      float h = sin(p.x * 0.050 + time * 0.9) + sin(p.y * 0.065 - time * 0.7)
-              + sin((p.x + p.y) * 0.032 + time * 0.5) + 0.5 * sin((p.x - p.y) * 0.11 - time * 1.3);
+      float h = sin(p.x * 0.115 + time * 0.8) + sin(p.y * 0.150 - time * 0.6)
+              + sin((p.x + p.y) * 0.074 + time * 0.45) + 0.5 * sin((p.x - p.y) * 0.250 - time * 1.1);
       vec3 col = mix(deep, light, step(0.35, h));
       float w = max(fwidth(h), 1e-4);
       float edge1 = 1. - smoothstep(0.8, 1.8, abs(h - 0.35) / w);
       float edge2 = 1. - smoothstep(0.8, 1.8, abs(h - 1.9) / w);
-      float fade = smoothstep(400., 3200., d);
-      col = mix(col, crest, max(edge1 * 0.55, edge2) * (1. - fade));
-      gl_FragColor = vec4(mix(col, sky, fade), 1.);
+      float calm = smoothstep(260., 1500., d);            // ripples flatten with distance
+      col = mix(col, crest, max(edge1 * 0.55, edge2) * (1. - calm));
+      col = mix(col, deep, calm);
+      float horizon = smoothstep(2300., 3300., d);        // thin clean glow where sea meets sky
+      gl_FragColor = vec4(mix(col, sky, horizon), 1.);
     }`,
 })
 const ocean = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), oceanMat)
