@@ -5,12 +5,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
   1: { bg: '#ffffff', ink: '#1d2a6d', ribbon: '#ff5a3c', burst: '#ffd23f' }, // white
-  2: { bg: '#7fe3d4', ink: '#0d2b4a', ribbon: '#ff5a3c', burst: '#ffd23f' }, // Darrow sky
+  2: { bg: '#7fe3d4', ink: '#0d2b4a', ribbon: '#ffffff', burst: '#ffd23f' }, // Darrow sky
   3: { bg: '#ff5a3c', ink: '#2a0f2e', ribbon: '#ffd23f', burst: '#ffffff' }, // Spider-Verse hot
   4: { bg: '#1d2a6d', ink: '#0b1236', ribbon: '#ffd23f', burst: '#ff5a3c' }, // ink-navy night
 }
 const CAPS = new URLSearchParams(location.search).get('caps') === '1'
-let look = LOOKS[Number(new URLSearchParams(location.search).get('look')) || 1]
+let look = LOOKS[Number(new URLSearchParams(location.search).get('look')) || 2]
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true })
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -38,14 +38,36 @@ const gradient = (() => {
   return t
 })()
 const mats = []
+// Bold flat spot colours: treads (up-facing), risers and walls (side-facing), undersides.
+const PAL = { up: '#ffd23f', side: '#ff8a73', down: '#3b4fa8', field: '#c6ea72', infield: '#ff9d3f', ads: '#1d2a6d' }
+const stadium = []
+function recolor() {
+  const c = new THREE.Color()
+  for (const { mesh, role, ny } of stadium) {
+    const attr = mesh.geometry.attributes.color
+    for (let i = 0; i < ny.length; i++) {
+      const key = role === 'stands' ? (ny[i] > 0.55 ? 'up' : ny[i] < -0.3 ? 'down' : 'side') : role
+      c.set(PAL[key])
+      attr.setXYZ(i, c.r, c.g, c.b)
+    }
+    attr.needsUpdate = true
+  }
+}
 new GLTFLoader().load('/stadium_sf_slim.glb', (gltf) => {
   gltf.scene.traverse((o) => {
     if (o.isMesh) {
-      const old = o.material
-      o.material = new THREE.MeshToonMaterial({ color: old.color, gradientMap: gradient })
+      const name = o.material.name || ''
+      const role = name.includes('Infield') ? 'infield' : name.includes('Field') ? 'field' : name.includes('Ads') ? 'ads' : 'stands'
+      const n = o.geometry.attributes.normal
+      const ny = new Float32Array(n.count)
+      for (let i = 0; i < n.count; i++) ny[i] = n.getY(i)
+      o.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n.count * 3), 3))
+      o.material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient })
       mats.push(o.material)
+      stadium.push({ mesh: o, role, ny })
     }
   })
+  recolor()
   scene.add(gltf.scene)
   const box = new THREE.Box3().setFromObject(gltf.scene)
   document.title = `loaded ${mats.length} materials, box ${box.min.toArray().map((v) => v.toFixed(0))} to ${box.max.toArray().map((v) => v.toFixed(0))}`
@@ -129,8 +151,8 @@ const post = new THREE.ShaderMaterial({
       float stripe = fract((g.x + g.y) / dotScale);
       float shade = 1. - smoothstep(0.30, 0.80, L);
       float w = 0.10 + 0.30 * shade;
-      float hl = (1. - smoothstep(w, w + 0.07, stripe)) * smoothstep(0.12, 0.30, shade);
-      vec3 col = mix(c, ink, hl * 0.6);
+      float hl = (1. - smoothstep(w, w + 0.07, stripe)) * smoothstep(0.55, 0.80, shade);
+      vec3 col = mix(c, ink, hl * 0.5);
       float bg = step(0.9999, texture2D(tDepth, vUv).r);
       col = mix(col, paper, bg);
       col = mix(col, ink, line);
