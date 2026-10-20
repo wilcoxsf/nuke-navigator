@@ -137,8 +137,8 @@ ITEMS += [
 
 # ---- computed estimates (clearly labeled; assumptions in the note) ----
 for key, name, mass, cda, note in [
-    ("harbor-seal", "A harbor seal in free fall (estimate)", 100, 0.35, "assumes 100 kg, drag area 0.35 m2"),
-    ("sea-lion", "A big California sea lion in free fall (estimate)", 350, 0.60, "assumes 350 kg male, drag area 0.60 m2"),
+    ("harbor-seal", "a harbor seal in free fall", 100, 0.35, "assumes 100 kg, drag area 0.35 m2"),
+    ("sea-lion", "a big California sea lion in free fall", 350, 0.60, "assumes 350 kg male, drag area 0.60 m2"),
 ]:
     v = terminal_velocity(mass, cda)
     ITEMS.append(dict(id=f"computed-fall-{key}", name=name, kind="speed", value_si=round(v, 3), category="computed",

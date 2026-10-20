@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { loadLibrary, mulberry32, pick } from './comparisons.js'
+import { pickScenarios } from './scenarios.js'
 
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
@@ -253,6 +254,7 @@ document.getElementById('spec').innerHTML =
 const qs = new URLSearchParams(location.search)
 const rand = qs.get('seed') ? mulberry32(Number(qs.get('seed'))) : Math.random
 const recent = []
+const recentBodies = []
 let library = null
 function roll() {
   if (!library) return
@@ -260,18 +262,17 @@ function roll() {
     ['speed', STAT.mph * 0.44704, 'cmp-speed', 'src-speed', `${STAT.mph} mph`],
     ['length', STAT.ft * 0.3048, 'cmp-dist', 'src-dist', `${STAT.ft} ft`],
   ]
-  for (const [kind, amount, textId, linkId, label] of rows) {
+  for (const [kind, amount, textId, , label] of rows) {
     const p = pick(library, kind, amount, rand, recent)
     if (!p) continue
     recent.push(p.rec.cat, p.rec.name)
     while (recent.length > 16) recent.shift()
     document.getElementById(textId).textContent = `${label} = ${p.phrase}`
-    const a = document.getElementById(linkId)
-    a.textContent = p.rec.reviewed ? '●' : '○'
-    a.title = `${p.rec.name}${p.rec.note ? ' | ' + p.rec.note : ''} | ${p.rec.reviewed ? 'source text read' : 'unreviewed source'}`
-    if (p.rec.url) a.href = p.rec.url
-    else a.removeAttribute('href')
   }
+  const sc = pickScenarios(STAT.mph, STAT.la, rand, 2, recentBodies)
+  recentBodies.length = 0
+  recentBodies.push(...sc.map((s) => s.body.id))
+  document.getElementById('cmp-swing').textContent = sc.map((s) => s.text).join('. ')
 }
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 document.getElementById('cmp').addEventListener('click', (e) => { if (e.target.tagName !== 'A') roll() })

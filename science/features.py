@@ -19,6 +19,16 @@ FEATURES: dict[str, str] = {
     "game_year": PRE, "hawkeye": PRE, "home_team": PRE, "away_team": PRE, "stand": PRE, "p_throws": PRE,
     "weather_temp_f": PRE, "wind_speed_mph": PRE, "day_night": PRE,
     "pitch_type": PRE, "release_speed": PRE, "release_spin_rate": PRE, "plate_x": PRE, "plate_z": PRE,
+    # weather and park (known before first pitch)
+    "om_temp_f": PRE, "om_rh": PRE, "om_pressure_hpa": PRE, "air_density": PRE, "om_wind_u": PRE, "om_wind_v": PRE,
+    "om_wind_mph": PRE, "om_gust_mph": PRE, "om_precip_mm": PRE, "elevation_ft": PRE, "roof": PRE, "turf": PRE,
+    # pitch details (known when the pitch is thrown)
+    "spin_axis": PRE, "effective_speed": PRE, "release_extension": PRE, "pfx_x": PRE, "pfx_z": PRE, "balls": PRE,
+    "strikes": PRE, "zone": PRE,
+    # rolling history from strictly earlier batted balls
+    "b_ev": PRE, "b_la": PRE, "b_hr": PRE, "b_hard": PRE, "b_pull": PRE, "b_n": PRE, "b_bat_speed": PRE, "p_ev": PRE, "p_hr": PRE,
+    # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
+    "bearing_hat": CONTACT,
     # contact
     "launch_speed": CONTACT, "launch_angle": CONTACT,
     "bat_speed": CONTACT, "swing_length": CONTACT, "attack_angle": CONTACT,

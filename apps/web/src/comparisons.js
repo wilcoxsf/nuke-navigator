@@ -2,7 +2,7 @@
 // Picks favor San Francisco and weird items, never repeat a category back to back, and always say
 // "N times as fast as X" or "N times the length of X", never "N Xs".
 
-const NICE = [0.1, 0.2, 0.25, 0.3, 1 / 3, 0.4, 0.5, 0.6, 2 / 3, 0.7, 0.75, 0.8, 0.9, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+const NICE = [0.1, 0.2, 0.25, 0.3, 1 / 3, 0.4, 0.5, 0.6, 2 / 3, 0.7, 0.75, 0.8, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30, 40, 50]
 const WORDS = [[0.1, 'a tenth'], [0.2, 'a fifth'], [0.25, 'a quarter'], [1 / 3, 'a third'], [0.5, 'half'], [2 / 3, 'two-thirds'], [0.75, 'three-quarters']]
 const THEME_WEIGHT = { sf: 25, weird: 25, general: 1 }
 const THE_RE = /\b(Bridge|Tower|Building|Pyramid|Statue|Cathedral|Dam|Canal|Falls|Arch|Wall|Needle|Palace|Titanic|Colosseum|Parthenon|Basilica|Church|Temple|Mosque|Monument|Obelisk|Lighthouse|Hotel)\b/
@@ -59,36 +59,41 @@ function fractionWord(q) {
   return null
 }
 
+// Never "about", never "the same as": near-equal ratios are not offered at all (see pick).
 export function speedPhrase(q, r) {
   const who = withArticle(r)
-  if (q > 55) return `about ${number(q)} times as fast as ${who}`
+  if (q < 0.1) return `1/${number(1 / q)} as fast as ${who}`
+  if (q > 55) return `${number(q)} times as fast as ${who}`
   if (q >= 1.15) return Math.abs(q - 2) < 0.06 ? `twice as fast as ${who}` : `${number(q)} times as fast as ${who}`
-  if (q >= 0.85) return `about as fast as ${who}`
   const w = fractionWord(q)
-  return `${w ?? `about ${Math.round(q * 100)}%`} as fast as ${who}`
+  return `${w ?? `${Math.round(q * 100)}%`} as fast as ${who}`
 }
 
 export function lengthPhrase(q, r) {
   const who = withArticle(r)
   const dim = r.dim
-  if (q > 55) return `about ${number(q)} times the ${dim} of ${who}`
+  if (q < 0.1) return `1/${number(1 / q)} the ${dim} of ${who}`
+  if (q > 55) return `${number(q)} times the ${dim} of ${who}`
   if (q >= 1.15) return Math.abs(q - 2) < 0.06 ? `twice the ${dim} of ${who}` : `${number(q)} times the ${dim} of ${who}`
-  if (q >= 0.85) return `about the same ${dim} as ${who}`
   const w = fractionWord(q)
-  return w ? `${w} the ${dim} of ${who}` : `about ${Math.round(q * 100)}% of the ${dim} of ${who}`
+  return w ? `${w} the ${dim} of ${who}` : `${Math.round(q * 100)}% the ${dim} of ${who}`
 }
 
 export function pick(lib, kind, amountSI, rand = Math.random, recent = []) {
   const cands = []
   for (const r of lib) {
     if (r.kind !== kind) continue
+    if (kind === 'length' && /Oracle Park/.test(r.name)) continue // never compare a ball to the park it was hit in
     const q = amountSI / r.v
     let err = null
     if (q >= 0.1 && q <= 55) {
+      if (Math.abs(q - 1) <= 0.15) continue // no near-ties
       err = Math.min(...NICE.map((c) => Math.abs(q - c) / c))
       if (err >= 0.05) continue
     } else if (r.countOk && q > 55 && q < 1e12) {
-      err = 0.02 // absurd-count mode for tiny or very slow things
+      err = 0.02 // count mode for tiny or very slow things
+    } else if (q < 0.1 && q >= 1e-7 && (r.theme !== 'general' || r.fame >= 40)) {
+      err = 0.02 // reverse mode for giants: "1/635 as fast as Earth orbiting the Sun"
     } else continue
     // curated sf/weird items always count; generic Wikidata items must be reasonably famous
     if (r.theme === 'general' && r.fame < (kind === 'speed' ? 30 : 18)) continue

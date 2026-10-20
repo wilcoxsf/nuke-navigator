@@ -16,6 +16,7 @@ from pathlib import Path
 import manual_items
 import manual_trivia
 import manual_trivia2
+import manual_trivia3
 
 FT, MI, MPH = 0.3048, 1609.344, 0.44704
 CAT = {
@@ -123,7 +124,7 @@ def main() -> None:
     """Usage: merge.py <raw_dir> <full_out.json> [<slim_app_out.json>]. The picker lives in the app (comparisons.js)."""
     raw, out = Path(sys.argv[1]), Path(sys.argv[2])
     lib, dropped = load_wikidata(raw)
-    curated = [dict(m, fame=999) for m in manual_items.ITEMS + manual_trivia.ITEMS + manual_trivia2.ITEMS]
+    curated = [dict(m, fame=999) for m in manual_items.ITEMS + manual_trivia.ITEMS + manual_trivia2.ITEMS + manual_trivia3.ITEMS]
     curated_names = " | ".join(c["name"].lower() for c in curated)
     before = len(lib)
     lib = [r for r in lib if r["name"].lower() not in curated_names]

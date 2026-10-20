@@ -1,11 +1,9 @@
 """Unify the per-season Savant pulls into one typed batted-ball table.
 
-Sources:
-  - data/raw/statcast/statcast_bbe_<year>_raw.parquet   (2015-2019, full 119-column schema, all text)
-  - the Drive parquet statcast_bbe_2020_2026.parquet     (38 columns, already typed)
-Columns missing from a source become NULL. `hawkeye` marks the tracking system (Hawk-Eye from 2020).
+All sources are the raw per-season parquets written by pull_statcast.py (full 119-column Savant schema, all text).
+Optionally the older Drive parquet (38 columns) can be added for years you have not re-pulled.
 
-Usage: python build_dataset.py <raw_statcast_dir> <drive_parquet> <out_parquet>
+Usage: python build_dataset.py <out_parquet> <raw_dir> [<raw_dir> ...] [--drive <drive_parquet>]
 """
 from __future__ import annotations
 
@@ -14,11 +12,18 @@ from pathlib import Path
 
 import duckdb
 
-raw_dir, drive_pq, out = (Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]))
+args = sys.argv[1:]
+drive_pq = None
+if "--drive" in args:
+    i = args.index("--drive")
+    drive_pq = Path(args[i + 1])
+    del args[i : i + 2]
+out = Path(args[0])
+raw_dirs = [Path(a) for a in args[1:]]
 out.parent.mkdir(parents=True, exist_ok=True)
 con = duckdb.connect()
 
-# column -> SQL type; text columns use VARCHAR
+# column -> SQL type
 WANT = {
     "game_pk": "BIGINT", "at_bat_number": "INTEGER", "pitch_number": "INTEGER",
     "home_team": "VARCHAR", "away_team": "VARCHAR", "batter": "BIGINT", "pitcher": "BIGINT",
@@ -30,8 +35,9 @@ WANT = {
     "estimated_slg_using_speedangle": "DOUBLE",
     "bat_speed": "DOUBLE", "swing_length": "DOUBLE", "attack_angle": "DOUBLE", "attack_direction": "DOUBLE",
     "swing_path_tilt": "DOUBLE",
-    "pitch_type": "VARCHAR", "release_speed": "DOUBLE", "release_spin_rate": "DOUBLE",
-    "plate_x": "DOUBLE", "plate_z": "DOUBLE",
+    "pitch_type": "VARCHAR", "release_speed": "DOUBLE", "release_spin_rate": "DOUBLE", "spin_axis": "DOUBLE",
+    "effective_speed": "DOUBLE", "release_extension": "DOUBLE", "plate_x": "DOUBLE", "plate_z": "DOUBLE",
+    "pfx_x": "DOUBLE", "pfx_z": "DOUBLE", "zone": "INTEGER", "balls": "INTEGER", "strikes": "INTEGER",
     "delta_home_win_exp": "DOUBLE", "delta_run_exp": "DOUBLE",
     "home_score": "INTEGER", "away_score": "INTEGER", "outs_when_up": "INTEGER",
 }
@@ -41,24 +47,17 @@ def select_from(source_sql: str, label: str) -> str:
     have = {r[0] for r in con.sql(f"DESCRIBE SELECT * FROM {source_sql}").fetchall()}
     cols = []
     for c, t in WANT.items():
-        if c in have:
-            cols.append(f"TRY_CAST({c} AS {t}) AS {c}")
-        else:
-            cols.append(f"CAST(NULL AS {t}) AS {c}")
-    return (f"SELECT CAST(game_date AS DATE) AS game_date, {', '.join(cols)}, '{label}' AS src "
-            f"FROM {source_sql}")
+        cols.append(f"TRY_CAST({c} AS {t}) AS {c}" if c in have else f"CAST(NULL AS {t}) AS {c}")
+    return f"SELECT CAST(game_date AS DATE) AS game_date, {', '.join(cols)}, '{label}' AS src FROM {source_sql}"
 
 
-raw_glob = (raw_dir / "statcast_bbe_*_raw.parquet").as_posix()
-parts = [
-    select_from(f"read_parquet('{raw_glob}')", "savant_2015_2019"),
-    select_from(f"read_parquet('{drive_pq.as_posix()}')", "drive_2020_2026"),
-]
+parts = [select_from(f"read_parquet('{(d / 'statcast_bbe_*_raw.parquet').as_posix()}')", d.name) for d in raw_dirs]
+if drive_pq:
+    parts.append(select_from(f"read_parquet('{drive_pq.as_posix()}')", "drive_2020_2026"))
 con.sql("CREATE TABLE bbe AS " + " UNION ALL BY NAME ".join(f"({p})" for p in parts))
 con.sql("""
 CREATE TABLE bbe2 AS
-SELECT *, year(game_date) AS game_year, (year(game_date) >= 2020) AS hawkeye,
-       (events = 'home_run') AS is_home_run
+SELECT *, year(game_date) AS game_year, (year(game_date) >= 2020) AS hawkeye, (events = 'home_run') AS is_home_run
 FROM (SELECT *, row_number() OVER (PARTITION BY game_pk, at_bat_number, pitch_number ORDER BY src) AS rn FROM bbe)
 WHERE rn = 1 AND (type = 'X' OR type IS NULL)
 """)
@@ -67,8 +66,8 @@ print(con.sql("""
 SELECT game_year AS yr, count(*) AS rows,
        round(100.0 * avg(CASE WHEN is_home_run THEN 1 ELSE 0 END), 2) AS hr_pct,
        round(100.0 * avg(CASE WHEN launch_speed IS NULL THEN 1 ELSE 0 END), 1) AS null_ev_pct,
-       round(avg(launch_speed), 2) AS mean_ev, round(avg(launch_angle), 2) AS mean_la,
-       round(100.0 * avg(CASE WHEN pitch_type IS NULL THEN 1 ELSE 0 END), 0) AS null_pitch_pct
+       round(100.0 * avg(CASE WHEN pitch_type IS NULL THEN 1 ELSE 0 END), 1) AS null_pitch_pct,
+       round(100.0 * avg(CASE WHEN bat_speed IS NULL THEN 1 ELSE 0 END), 1) AS null_bat_speed_pct
 FROM bbe2 GROUP BY 1 ORDER BY 1
 """).df().to_string(index=False))
 print("total rows:", con.sql("SELECT count(*) FROM bbe2").fetchone()[0], "->", out)
