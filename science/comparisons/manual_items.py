@@ -117,9 +117,6 @@ ITEMS += [
     # terminal velocity examples, Wikipedia: Terminal velocity (page read)
     speed("fall-skydiver-belly", "Skydiver falling belly-down", 55 / MPH, "terminal-velocity", "Wikipedia: Terminal velocity",
           "https://en.wikipedia.org/wiki/Terminal_velocity", "wikipedia-article", True, "page: about 55 m/s (180 ft/s) in free fall"),
-    speed("fall-baumgartner", "Felix Baumgartner's 2012 jump (peak, thin air)", 380 / MPH, "terminal-velocity",
-          "Wikipedia: Terminal velocity", "https://en.wikipedia.org/wiki/Terminal_velocity", "wikipedia-article", True,
-          "page: 380 m/s (1,200 ft/s) from 38,887 m; lower air density means lower drag"),
     speed("fall-srb-parachute", "Space Shuttle booster when its parachutes open", 220, "terminal-velocity",
           "Wikipedia: Terminal velocity", "https://en.wikipedia.org/wiki/Terminal_velocity", "wikipedia-article", True,
           "page: 220 mph when parachutes deploy"),

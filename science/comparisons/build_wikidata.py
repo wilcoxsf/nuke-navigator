@@ -70,6 +70,7 @@ QUERIES: dict[str, tuple[str, str]] = {
     "sf_height": ("length", san_francisco("P2048")),
     "sf_length": ("length", san_francisco("P2043")),
     "speed_any": ("speed", anything("P2052", 8)),
+    "speed_famous": ("speed", anything("P2052", 30)),
 }
 
 
