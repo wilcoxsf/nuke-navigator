@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
   1: { bg: '#ffffff', ink: '#1d2a6d', ribbon: '#ff5a3c', burst: '#ffd23f' }, // white
-  2: { bg: '#7fe3d4', ink: '#0d2b4a', ribbon: '#ffffff', burst: '#ffd23f' }, // Darrow sky
+  2: { bg: '#ffe2a6', ink: '#0d2b4a', ribbon: '#ffffff', burst: '#ffd23f', ocean: { deep: '#1b3a8a', light: '#2f6fd6', crest: '#ffffff' } }, // ocean to infinity, warm sky
   3: { bg: '#ff5a3c', ink: '#2a0f2e', ribbon: '#ffd23f', burst: '#ffffff' }, // Spider-Verse hot
   4: { bg: '#1d2a6d', ink: '#0b1236', ribbon: '#ffd23f', burst: '#ff5a3c' }, // ink-navy night
 }
@@ -17,11 +17,11 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 document.body.appendChild(renderer.domElement)
 
 const scene = new THREE.Scene()
-const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 900)
+const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 6000)
 // Canonical frame: home plate at origin, +Y up, -Z toward center field, +X toward right field.
-camera.position.set(-70, 150, 215)
+camera.position.set(-70, 108, 200)
 const controls = new OrbitControls(camera, renderer.domElement)
-controls.target.set(0, 0, -70)
+controls.target.set(0, 4, -85)
 controls.update()
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0xb59f7a, 1.1))
@@ -110,6 +110,34 @@ const burst = new THREE.Mesh(new THREE.ShapeGeometry(burstShape), burstMat)
 burst.position.copy(landing).add(new THREE.Vector3(0, 6, 0))
 scene.add(burst)
 
+// ---------- ocean to infinity: flat two-tone waves, white crest lines, fades into the sky ----------
+const oceanMat = new THREE.ShaderMaterial({
+  uniforms: {
+    time: { value: 0 }, deep: { value: new THREE.Color() }, light: { value: new THREE.Color() },
+    crest: { value: new THREE.Color() }, sky: { value: new THREE.Color() },
+  },
+  vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+  fragmentShader: /* glsl */ `
+    uniform float time; uniform vec3 deep, light, crest, sky; varying vec3 vW;
+    void main(){
+      vec2 p = vW.xz;
+      float d = distance(vW, cameraPosition);
+      float h = sin(p.x * 0.050 + time * 0.9) + sin(p.y * 0.065 - time * 0.7)
+              + sin((p.x + p.y) * 0.032 + time * 0.5) + 0.5 * sin((p.x - p.y) * 0.11 - time * 1.3);
+      vec3 col = mix(deep, light, step(0.35, h));
+      float w = max(fwidth(h), 1e-4);
+      float edge1 = 1. - smoothstep(0.8, 1.8, abs(h - 0.35) / w);
+      float edge2 = 1. - smoothstep(0.8, 1.8, abs(h - 1.9) / w);
+      float fade = smoothstep(400., 3200., d);
+      col = mix(col, crest, max(edge1 * 0.55, edge2) * (1. - fade));
+      gl_FragColor = vec4(mix(col, sky, fade), 1.);
+    }`,
+})
+const ocean = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), oceanMat)
+ocean.rotation.x = -Math.PI / 2
+ocean.position.y = -5
+scene.add(ocean)
+
 // ---------- ink + paper post-process ----------
 const targets = {}
 function makeTargets(w, h) {
@@ -122,12 +150,12 @@ const post = new THREE.ShaderMaterial({
   uniforms: {
     tColor: { value: null }, tNormal: { value: null }, tDepth: { value: null },
     res: { value: new THREE.Vector2() }, near: { value: camera.near }, far: { value: camera.far },
-    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 },
+    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
   fragmentShader: /* glsl */ `
     uniform sampler2D tColor, tNormal, tDepth; uniform vec2 res; uniform float near, far;
-    uniform vec3 paper, ink; uniform float dotScale;
+    uniform vec3 paper, ink; uniform float dotScale, hatchAmt;
     varying vec2 vUv;
     float lin(float d){ float z = d * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
@@ -143,7 +171,7 @@ const post = new THREE.ShaderMaterial({
         de += abs(lin(texture2D(tDepth, vUv + o[i]).r) - d0);
       }
       float line = smoothstep(1.0, 1.7, e) + smoothstep(0.10 * d0, 0.24 * d0, de);
-      line = clamp(line, 0., 1.);
+      line = clamp(line, 0., 1.) * (1. - smoothstep(600., 1500., d0));
       vec3 c = texture2D(tColor, vUv).rgb;
       float L = dot(c, vec3(0.299, 0.587, 0.114));
       // clean diagonal ink hatching in the shadows (no noise, no dots)
@@ -152,7 +180,7 @@ const post = new THREE.ShaderMaterial({
       float shade = 1. - smoothstep(0.30, 0.80, L);
       float w = 0.10 + 0.30 * shade;
       float hl = (1. - smoothstep(w, w + 0.07, stripe)) * smoothstep(0.55, 0.80, shade);
-      vec3 col = mix(c, ink, hl * 0.5);
+      vec3 col = mix(c, ink, hl * hatchAmt);
       float bg = step(0.9999, texture2D(tDepth, vUv).r);
       col = mix(col, paper, bg);
       col = mix(col, ink, line);
@@ -166,14 +194,21 @@ const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
 function applyLook() {
   scene.background = new THREE.Color(look.bg)
-  post.uniforms.paper.value.set(look.bg).convertSRGBToLinear()
-  post.uniforms.ink.value.set(look.ink).convertSRGBToLinear()
+  post.uniforms.paper.value.set(look.bg)
+  post.uniforms.ink.value.set(look.ink)
   ribbonMat.color.set(look.ribbon)
   burstMat.color.set(look.burst)
   document.getElementById('spec').style.display = CAPS ? 'flex' : 'none'
   document.getElementById('tag1').style.display = CAPS ? 'block' : 'none'
   document.getElementById('tag2').style.display = CAPS ? 'block' : 'none'
   document.body.style.background = look.bg
+  ocean.visible = !!look.ocean
+  if (look.ocean) {
+    oceanMat.uniforms.deep.value.set(look.ocean.deep)
+    oceanMat.uniforms.light.value.set(look.ocean.light)
+    oceanMat.uniforms.crest.value.set(look.ocean.crest)
+    oceanMat.uniforms.sky.value.set(look.bg)
+  }
 }
 applyLook()
 addEventListener('keydown', (e) => { if (LOOKS[e.key]) { look = LOOKS[e.key]; applyLook() } })
@@ -191,7 +226,8 @@ function resize() {
 addEventListener('resize', resize)
 resize()
 
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop((t) => {
+  oceanMat.uniforms.time.value = (window.__fixedTime ?? t / 1000)
   controls.update()
   renderer.setRenderTarget(targets.color)
   scene.overrideMaterial = null
