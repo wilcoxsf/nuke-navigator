@@ -1,0 +1,338 @@
+{
+ "baseline": [
+  0.015110929633613145,
+  12.852797667722822,
+  12.686672472812731
+ ],
+ "rows": [
+  {
+   "id": "H1",
+   "name": "Contact point",
+   "cols": [
+    "intercept_x",
+    "intercept_y",
+    "intercept_x_field",
+    "intercept_dist"
+   ],
+   "expect": "Where the bat met the ball sets gear-effect spin and direction; expect direction and home-run gains.",
+   "delta": [
+    [
+     -2.6635887201413154e-05,
+     -0.00017951111060984885,
+     0.00010956163852434808
+    ],
+    [
+     -0.21853209960095443,
+     -0.2384164004758674,
+     -0.19870289885801515
+    ],
+    [
+     -0.05036349335859867,
+     -0.09303693834492169,
+     -0.006740700484569899
+    ]
+   ],
+   "decision": "KEEP"
+  },
+  {
+   "id": "H2",
+   "name": "Pitch approach and release",
+   "cols": [
+    "vaa",
+    "haa",
+    "plate_speed",
+    "plate_z_rel",
+    "release_pos_x",
+    "release_pos_y",
+    "release_pos_z",
+    "sz_top",
+    "sz_bot",
+    "vx0",
+    "vy0",
+    "vz0",
+    "ax",
+    "ay",
+    "az"
+   ],
+   "expect": "Approach angle sets how the swing path meets the pitch; expect a small gain on launch and distance.",
+   "delta": [
+    [
+     -4.897192904286453e-05,
+     -0.00016963165871396426,
+     9.027933363246873e-05
+    ],
+    [
+     -0.01586218492210215,
+     -0.03146023010207027,
+     -0.00040124968919289227
+    ],
+    [
+     -0.07494935602086493,
+     -0.11711518836719222,
+     -0.026313969701080887
+    ]
+   ],
+   "decision": "MAYBE"
+  },
+  {
+   "id": "H3",
+   "name": "Arm angle and break",
+   "cols": [
+    "arm_angle",
+    "api_break_z_with_gravity",
+    "api_break_x_arm",
+    "api_break_x_batter_in"
+   ],
+   "expect": "Mostly redundant with pitch type and movement already in; expect nothing.",
+   "delta": [
+    [
+     0.00011890130184750406,
+     -7.297522605972937e-06,
+     0.0002507610874272257
+    ],
+    [
+     0.10851486696331412,
+     0.09256641187639812,
+     0.12412651093083482
+    ],
+    [
+     -0.01795487068297764,
+     -0.05768020193870014,
+     0.025599352777522174
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H4",
+   "name": "Contact quality",
+   "cols": [
+    "dyn_loft",
+    "attack_dir_field",
+    "ev_over_pitch",
+    "squared_up",
+    "swing_speed_per_len",
+    "ev_minus_bat",
+    "bat_minus_pitch"
+   ],
+   "expect": "Physics-shaped combinations of bat tracking; dynamic loft should help spin and distance, hand-signed attack direction should help direction.",
+   "delta": [
+    [
+     -9.350800517596867e-07,
+     -0.0001329836583631462,
+     0.00011481516760073951
+    ],
+    [
+     -0.27978262129743253,
+     -0.30114818524344483,
+     -0.2563108002413288
+    ],
+    [
+     -0.10048123134617637,
+     -0.14754684301210377,
+     -0.05978134208052415
+    ]
+   ],
+   "decision": "KEEP"
+  },
+  {
+   "id": "H5",
+   "name": "Batter swing history",
+   "cols": [
+    "sw_attack_angle",
+    "sw_attack_dir",
+    "sw_length",
+    "sw_bat_speed",
+    "sw_intercept_x",
+    "sw_intercept_y"
+   ],
+   "expect": "A batter's typical swing denoises the single-swing measurement; expect a direction gain.",
+   "delta": [
+    [
+     5.3553722654334614e-05,
+     -6.632934748328883e-05,
+     0.0001885886972873738
+    ],
+    [
+     0.062354767676291965,
+     0.046502107415803864,
+     0.07813439917269063
+    ],
+    [
+     -0.01788482358057521,
+     -0.061103888611564953,
+     0.02150370671413306
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H6",
+   "name": "Game context",
+   "cols": [
+    "age_bat",
+    "age_pit",
+    "batter_days_since_prev_game",
+    "pitcher_days_since_prev_game",
+    "n_thruorder_pitcher",
+    "n_priorpa_thisgame_player_at_bat",
+    "score_diff",
+    "outs_when_up",
+    "runners_on",
+    "inning"
+   ],
+   "expect": "Should do nothing for a physical outcome; age may proxy for power. Likely kill.",
+   "delta": [
+    [
+     8.338710205935141e-05,
+     -4.439133992914604e-05,
+     0.00021136643179808434
+    ],
+    [
+     -0.02682772351868877,
+     -0.042208772393529354,
+     -0.01249103163070763
+    ],
+    [
+     0.023632210493280237,
+     -0.014057728784609265,
+     0.06358093993086295
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H7",
+   "name": "Fielding alignment",
+   "cols": [
+    "if_fielding_alignment",
+    "of_fielding_alignment"
+   ],
+   "expect": "Shifts follow batter tendencies already captured; expect nothing.",
+   "delta": [
+    [
+     6.50836494940063e-05,
+     -4.8172357130975e-05,
+     0.00018951229481524852
+    ],
+    [
+     0.07242085878291701,
+     0.05502407528464021,
+     0.08928840045055256
+    ],
+    [
+     0.009352397536267236,
+     -0.028214275560674844,
+     0.04424004014389189
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H8",
+   "name": "Era trend",
+   "cols": [
+    "days_since_2015"
+   ],
+   "expect": "Lets the model see ball and park drift; trees cannot extrapolate, so a screening gain may not survive confirmation.",
+   "delta": [
+    [
+     3.598272228848551e-05,
+     -9.335688494481806e-05,
+     0.00016140925666955014
+    ],
+    [
+     0.016918657596313225,
+     0.0015573060529860063,
+     0.032120194955683495
+    ],
+    [
+     -0.05627899037061886,
+     -0.09433946586318381,
+     -0.014355905763798298
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H9",
+   "name": "Park-year",
+   "cols": [
+    "park_year"
+   ],
+   "expect": "Fence and ball changes by season at each park; expect a small Oracle Park gain at best.",
+   "delta": [
+    [
+     0.00027167426418023434,
+     0.0001267173291359868,
+     0.0004302972587453558
+    ],
+    [
+     0.18619613174052713,
+     0.16793267448808719,
+     0.20242552881389142
+    ],
+    [
+     0.08829413036359501,
+     0.04215541755287087,
+     0.13465410135278483
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H10",
+   "name": "Long history windows",
+   "cols": [
+    "b_ev_500",
+    "b_hard_500",
+    "b_hr_500",
+    "p_ev_500",
+    "p_hr_500"
+   ],
+   "expect": "More stable skill estimates than the 100-ball windows; expect a small gain.",
+   "delta": [
+    [
+     0.0001935963014327007,
+     7.09112350019172e-05,
+     0.00032472134568628687
+    ],
+    [
+     0.06152083645751121,
+     0.044627946480889746,
+     0.07812503083287746
+    ],
+    [
+     0.04566818495309437,
+     0.005816120732914996,
+     0.08520349865673837
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H11",
+   "name": "Recency weights",
+   "cols": [],
+   "expect": "Recent seasons count more (ball, tracking and park shifts); expect a small gain.",
+   "delta": [
+    [
+     1.53095978124609e-06,
+     -0.0001244864894078771,
+     0.00011923831919024661
+    ],
+    [
+     0.024883970839247798,
+     0.010258897037687087,
+     0.038467858546767986
+    ],
+    [
+     -0.00024208575334741964,
+     -0.03703274460734257,
+     0.04085533708006269
+    ]
+   ],
+   "decision": "KILL"
+  }
+ ]
+}
