@@ -53,6 +53,8 @@ FEATURES: dict[str, str] = {
     "phys_dist": CONTACT, "phys_hang": CONTACT, "fence_hat": CONTACT, "margin_hat": CONTACT, "park_cf": PRE, "park_lf": PRE, "park_rf": PRE,
     # park identity and era-correct measured fence geometry (savant_fence_features.py): functions of park, season, estimated bearing and the physics flight
     "venue": PRE, "venue_id": PRE, "fence_s": CONTACT, "wallh_s": CONTACT, "hmax_s": PRE, "margin_s": CONTACT, "req_margin": CONTACT, "net_margin": CONTACT,
+    # contact surprise (contact_surprise.py): measured swing minus the cross-fitted expectation from pitch, hand and the batter's earlier swings
+    "res_ad": CONTACT, "res_ix": CONTACT, "res_iy": CONTACT, "res_aa": CONTACT, "res_bs": CONTACT, "bearing_hat_old": CONTACT,
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

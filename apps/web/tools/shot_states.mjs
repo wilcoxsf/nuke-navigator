@@ -30,7 +30,7 @@ await page.addInitScript(() => { window.__fixedTime = 3.0 })
 page.on('console', (m) => { if (m.type() === 'error') console.log('[console error]', m.text()) })
 page.on('pageerror', (e) => console.log('[page error]', e.message))
 for (const name of want) {
-  await page.goto(`${base}/?mode=dojo&ui=B&${cases[name]}&seed=7&fxt=${process.env.FXT ?? 0.4}`)
+  await page.goto(`${base}/?mode=dojo&ui=${process.env.UI ?? 'B'}&${cases[name]}&seed=7&fxt=${process.env.FXT ?? 0.4}`)
   await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady, null, { timeout: 180000 })
   await page.waitForTimeout(800)
   if (process.env.KRAB) { // frames do not run in the frozen-time mode, so place the crab by hand

@@ -10,6 +10,7 @@ import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
 import { mulberry32 } from './comparisons.js'
 import { initKrab } from './krab.js'
 import { PANEL_CSS, frame, balloon } from './panels.js'
+import { SKINX_CSS } from './skinx.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -19,7 +20,7 @@ let wall = null
 
 const state = {
   ev: Number(Q.get('ev')) || 105, la: Number(Q.get('la')) || 28, dir: Q.get('dir') !== null ? Number(Q.get('dir')) : 30,
-  hand: Q.get('hand') === 'L' ? -1 : 1, temp: Number(Q.get('temp')) || 62, wind: Number(Q.get('wind')) || 0, ui: (Q.get('ui') || 'A').toUpperCase(),
+  hand: Q.get('hand') === 'L' ? -1 : 1, temp: Number(Q.get('temp')) || 62, wind: Number(Q.get('wind')) || 0, ui: (Q.get('ui') || 'X').toUpperCase(),
 }
 
 function airDensity(tF, rh = 60, hPa = 1013) {
@@ -186,6 +187,11 @@ function draw(res) {
   showBeat(-1)
   if (window.__fixedTime !== undefined) { ball.position.copy(pts[pts.length - 1]); finish() }
 }
+function fitVerdict(el) { // skin X: shrink the verdict word until it fits its cell
+  el.style.fontSize = ''
+  if (state.ui !== 'X') return
+  for (let f = 72; f > 28 && (el.scrollHeight > el.clientHeight + 2 || (el.firstChild && el.firstChild.scrollWidth > el.clientWidth + 2)); f -= 4) el.style.fontSize = f + 'px'
+}
 function showBeat(i) { // i = -1: waiting for the first word; the last beat comes with the blast
   if (!anim || anim.shown === i) return
   anim.shown = i
@@ -193,6 +199,7 @@ function showBeat(i) { // i = -1: waiting for the first word; the last beat come
   const last = i === anim.beats.length - 1
   el.className = last ? `st-${anim.tone} ${res0Kind()}` : 'st-wait'
   el.innerHTML = i < 0 ? '<span class="beat">. . .</span>' : `<span class="beat">${anim.beats[i]}</span>`
+  fitVerdict(el)
   balloon(el, last ? anim.tone : 'wait')
   document.getElementById('dj-state').textContent = last ? STATES[anim.key].label : 'TRACKING'
   document.getElementById('dj-sub').textContent = last ? anim.sub : ''
@@ -264,18 +271,22 @@ const CSS = `
 #dojo.ui-C #dj-skins button.on{background:#ff4bd8;color:#14081f}
 `
 window.__dojoFly = fly // exposed for the screenshot and test scripts
-const SKIN_BUTTONS = /(#dojo\.ui-[ABC]) #dj-skins button(\.on)?/g // the vibe buttons wear whichever skin is on
-const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2') + PANEL_CSS
+const SKIN_BUTTONS = /(#dojo\.ui-[ABCX]) #dj-skins button(\.on)?/g // the vibe buttons wear whichever skin is on
+const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2') + PANEL_CSS + SKINX_CSS
 document.getElementById('look')?.remove() // the look switcher label would sit under the Dojo title
 const root = document.createElement('div')
 root.id = 'dojo'
 root.innerHTML = `<style>${CSS_ALL}</style>
 <div id="dj-title">DINGER DOJO</div>
-<div id="dj-skins">SKIN <button data-ui="A">A</button><button data-ui="B">B</button><button data-ui="C">C</button></div>
+<div class="xcell xbar"></div><div class="xcell xv"></div><div class="xcell xc"></div><div class="xcell xr1"></div><div class="xcell xr2"></div>
+<div id="dj-chips"><span>Oracle Park</span><span>Spin: assumed</span><span>Wind: pretend</span></div>
+<div id="dj-skins">SKIN <button data-ui="X">X</button><button data-ui="A">A</button><button data-ui="B">B</button><button data-ui="C">C</button></div>
 ${NN.real && Q.get('vibes') ? '<div id="dj-vibe"><span id="dj-vibename"></span>' + [1, 2, 3, 4, 5].map((n) => `<button data-v="${n}">${n}</button>`).join('') + '</div>' : ''}
 <div id="dj-ctl"></div>
 <div id="dj-out"><div class="tape"><i>VERDICT PLATE 02</i></div><div id="dj-state"></div><div id="dj-verdict"></div><div id="dj-sub"></div><figure id="dj-fig"><figcaption>FIG. 1  FLIGHT, SIDE ELEVATION</figcaption><div id="dj-svg"></div></figure><div id="dj-nums"></div><div id="dj-note"></div></div>`
 document.body.appendChild(root)
+const PRESETS = { homer: { ev: 104, la: 27, dir: -25 }, nuke: { ev: 116, la: 34, dir: -24 }, splash: { ev: 116, la: 28, dir: 24 }, scraper: { ev: 98, la: 28, dir: -32 },
+  wall: { ev: 96, la: 28, dir: -32 }, fly: { ev: 88, la: 40, dir: 8 }, foul: { ev: 102, la: 31, dir: -40 }, liner: { ev: 102, la: 22, dir: -12 }, grounder: { ev: 100, la: 7, dir: 12 }, popup: { ev: 100, la: 55, dir: 4 } }
 const ctl = document.getElementById('dj-ctl')
 frame(ctl, { fill: '#cfe3ee', shadow: '#ffd23f', pattern: 'plus', seed: 3 })
 frame(document.getElementById('dj-out'), { fill: '#d4ead9', shadow: '#ff9a7a', pattern: 'tick', seed: 8 })
@@ -285,7 +296,8 @@ const sliders = [
   ['temp', 'Temperature', 40, 100, 1, (v) => `${v}°F`], ['wind', 'What-if wind', -20, 20, 1, (v) => (v === 0 ? 'calm' : `${Math.abs(v)} mph ${v > 0 ? 'out' : 'in'}`)],
 ]
 ctl.insertAdjacentHTML('beforeend', '<div class="tape"><i>CONTROL PANEL 01</i></div>' + sliders.map(([k, l, lo, hi, st]) => `<div class="row"><label>${l}</label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${st}"><span class="val" id="v-${k}"></span></div>`).join('') +
-  `<div class="row"><label>Batter</label><button id="hand" style="padding:3px 10px"></button></div>`)
+  `<div class="row"><label>Batter</label><button id="hand" style="padding:3px 10px"></button></div>` +
+  `<div class="presets"><button class="go" data-swing>Swing again</button>${Object.keys(PRESETS).slice(0, 7).map((n) => `<button data-preset="${n}">${n}</button>`).join('')}</div>`)
 
 const svgEl = (tag, attrs, text) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ')}>${text ?? ''}</${tag}>`
 function schematic(res) {
@@ -296,16 +308,16 @@ function schematic(res) {
   const xmax = Math.max(pr[pr.length - 1][0], (v.wallFt ?? 0) + 30, 150) * 1.05
   const ymax = Math.max(res.peakFt * 1.15, (v.wallH ?? 0) + 14, 40)
   const X = (r) => x0 + (r / xmax) * (x1 - x0), Y = (h) => yB - (Math.max(h, -4) / ymax) * (yB - yT)
-  const ink = '#1d2a6d', accent = '#ff5a3c'
+  const X_ = state.ui === 'X', ink = X_ ? '#1a1b1c' : '#1d2a6d', accent = X_ ? '#ff5f14' : '#ff5a3c'
   let g = svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' })
-  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `${r}`)
+  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `${r}`)
   g += svgEl('line', { x1: x0 - 4, x2: x1 + 4, y1: yB, y2: yB, stroke: ink, 'stroke-width': 2.2 })
   if (v.wallFt) { // wall: hatched block at its distance and height
     const wx = X(v.wallFt), wh = (v.wallH / ymax) * (yB - yT)
     g += svgEl('rect', { x: wx - 2.5, y: yB - wh, width: 5, height: wh, fill: accent, stroke: ink, 'stroke-width': 1.5 })
     g += svgEl('line', { x1: wx + 8, x2: wx + 8, y1: yB, y2: yB - wh, stroke: ink, 'stroke-width': 1 }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB - wh, y2: yB - wh, stroke: ink }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB, y2: yB, stroke: ink })
     const left = wx > W - 92
-    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
+    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
   }
   const d = pr.filter((_, i) => i % 3 === 0).map(([r, h], i) => `${i ? 'L' : 'M'}${X(r).toFixed(1)} ${Y(h).toFixed(1)}`).join(' ')
   g = `<defs><pattern id="sch-hatch" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M1 2l3 1M5 6l3 1M2 8l2-1M6 1l2 1" stroke="${ink}" stroke-opacity=".45" stroke-width="1.2" fill="none"/></pattern></defs>` + g
@@ -315,13 +327,13 @@ function schematic(res) {
   pr.forEach(([, h], i) => { if (h > pr[ap][1]) ap = i })
   const [ar, ah] = pr[ap]
   g += svgEl('line', { x1: X(ar), x2: X(ar), y1: yB, y2: Y(ah), stroke: ink, 'stroke-dasharray': '3 2' }) + svgEl('circle', { cx: X(ar), cy: Y(ah), r: 3, fill: '#fff', stroke: ink, 'stroke-width': 2 })
-  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
+  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
   const la = (state.la * Math.PI) / 180, R = 20
   g += svgEl('path', { d: `M${x0 + R} ${yB} A${R} ${R} 0 0 0 ${x0 + R * Math.cos(la)} ${yB - R * Math.sin(la)}`, fill: 'none', stroke: accent, 'stroke-width': 2 })
-  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 11, 'font-weight': 400, fill: accent, 'font-family': 'DJHand,Consolas,monospace' }, `A ${state.la}°`)
+  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 11, 'font-weight': 400, fill: accent, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `A ${state.la}°`)
   const [lr] = pr[pr.length - 1]
   g += svgEl('path', { d: `M${X(lr) - 4} ${yB - 4} L${X(lr) + 4} ${yB + 4} M${X(lr) + 4} ${yB - 4} L${X(lr) - 4} ${yB + 4}`, stroke: accent, 'stroke-width': 2.4 })
-  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
+  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`
 }
 function render(res) {
@@ -343,6 +355,7 @@ function update() {
   }
   document.getElementById('hand').textContent = state.hand > 0 ? 'RIGHT-HANDED' : 'LEFT-HANDED'
   root.className = `ui-${state.ui}`
+  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : null)
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
   if (NN.real && Q.get('vibes')) {
     document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`
@@ -369,6 +382,8 @@ window.__dojoProbe = (o) => { // classify a swing without drawing it (for tuning
 ctl.addEventListener('input', (e) => { if (e.target.id?.startsWith('s-')) { state[e.target.id.slice(2)] = Number(e.target.value); update() } })
 document.getElementById('hand').addEventListener('click', () => { state.hand *= -1; update() })
 for (const b of root.querySelectorAll('#dj-skins button')) b.addEventListener('click', () => { state.ui = b.dataset.ui; update() })
+for (const b of root.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { Object.assign(state, PRESETS[b.dataset.preset]); update() })
+for (const b of root.querySelectorAll('[data-swing]')) b.addEventListener('click', () => { const k = Object.keys(PRESETS); Object.assign(state, PRESETS[k[Math.floor(Math.random() * k.length)]]); update() })
 for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('click', () => NN.setVibe(Number(b.dataset.v)))
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here

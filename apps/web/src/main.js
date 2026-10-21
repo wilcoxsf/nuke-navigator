@@ -297,10 +297,16 @@ function applyVibe(n) {
 }
 vibeN = VIBES[Number(QS0.get('vibe'))] ? Number(QS0.get('vibe')) : 1
 
+let winInsets = null // skin X leaves an open window between the panels; the park is centred and scaled to it
 function resize() {
   const w = innerWidth, h = innerHeight
   renderer.setSize(w, h)
   camera.aspect = w / h
+  if (winInsets) {
+    const ww = w - winInsets.l - winInsets.r, wh = h - winInsets.t - winInsets.b
+    camera.setViewOffset(w, h, -((winInsets.l + (w - winInsets.r)) / 2 - w / 2), -((winInsets.t + (h - winInsets.b)) / 2 - h / 2), w, h)
+    camera.zoom = Math.min(1.1, Math.max(0.5, ww / 950))
+  } else { camera.clearViewOffset(); camera.zoom = 1 }
   camera.updateProjectionMatrix()
   const pr = renderer.getPixelRatio()
   makeTargets(Math.floor(w * pr), Math.floor(h * pr))
@@ -365,7 +371,7 @@ function roll() {
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
-  THREE, scene, camera, controls, VIBES, frames: [], setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
+  THREE, scene, camera, controls, VIBES, frames: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
   strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }
