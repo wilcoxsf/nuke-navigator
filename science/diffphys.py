@@ -185,8 +185,11 @@ def main() -> None:
         rng = np.random.default_rng(seed)
         net = DPNet(Z.shape[1], ncat, p0, n_fence)
         phys = [net.logp, net.off]
-        opt = torch.optim.AdamW([{"params": [q for n, q in net.named_parameters() if n not in ("logp", "off")], "lr": 2e-3, "weight_decay": 1e-5},
-                                 {"params": phys, "lr": 5e-3, "weight_decay": 0.0}])
+        groups = [{"params": [q for n, q in net.named_parameters() if n not in ("logp", "off", "fo")], "lr": 2e-3, "weight_decay": 1e-5},
+                  {"params": phys, "lr": 5e-3, "weight_decay": 0.0}]
+        if n_fence:  # fence offsets are in feet: they need a step size of feet, not the network's 0.002
+            groups.append({"params": [net.fo], "lr": 0.25, "weight_decay": 0.0})
+        opt = torch.optim.AdamW(groups)
         bs = 4096
         steps = a.epochs * (len(tri) // bs + 1)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=steps)
