@@ -14,6 +14,7 @@ import { PANEL_CSS, frame, balloon } from './panels.js'
 import { SKINX_CSS } from './skinx.js'
 import { SKINK_CSS } from './skink.js'
 import { LOOKS_K, WINDOWS_K } from './looks_k.js'
+import { initGrid } from './gonergrid.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -37,7 +38,7 @@ function airDensity(tF, rh = 60, hPa = 1013) {
 
 // frame: x toward right field, y toward center field, z up (metres). Returns the path and what happened.
 function fly(s, opt = {}) {
-  const rho = airDensity(s.temp)
+  const rho = airDensity(s.temp, 60, opt.hPa ?? 1013)
   const phi = (s.dir * Math.PI) / 180, th = (s.la * Math.PI) / 180, v0 = s.ev * 0.44704
   const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 849 - 94 * s.dir + (s.dws || 0)) * RPM
   const r = [Math.cos(phi), -Math.sin(phi), 0]
@@ -57,6 +58,7 @@ function fly(s, opt = {}) {
   let t = 0, peak = 1, verdict = null
   const bearingOf = (pp) => (Math.atan2(pp[0], pp[1]) * 180) / Math.PI
   const wallAt = (b) => {
+    if (opt.wallFn) return opt.wallFn(b) // another park's fences (Goner Grid)
     const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i
     const j = Math.min(i + 1, 94)
     return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f]
@@ -127,6 +129,7 @@ const TONE = { GONE: 'gone', NUKE: 'nuke', SPLASH: 'splash', SCRAPER: 'scraper',
 const rngC = Q.get('seed') ? mulberry32(Number(Q.get('seed'))) : Math.random
 const recentHeads = []
 let fx = null
+let grid = null
 const hex = (c) => `#${new THREE.Color(c).getHexString()}`
 // zenith of the flight, marked in the 3D scene: a dashed plumb line down to the ground, a diamond at the top and a lettered height tag
 function placeApex(src, res) {
@@ -421,7 +424,9 @@ function update() {
   document.getElementById('hand').textContent = state.hand > 0 ? 'RIGHT-HANDED' : 'LEFT-HANDED'
   root.className = `ui-${state.ui}${Q.get('dev') ? ' dev' : ''}${state.ui === 'K' ? ' lay-' + LOOKS_K[lookK].layout : ''}`
   if (state.ui === 'K') for (const [k, v] of Object.entries(LOOKS_K[lookK].vars)) document.documentElement.style.setProperty(k, v)
-  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : state.ui === 'K' ? WINDOWS_K[LOOKS_K[lookK].layout] : null)
+  const wk = state.ui === 'K' ? { ...WINDOWS_K[LOOKS_K[lookK].layout] } : null
+  if (wk && grid?.isOn() && Q.get('grid') !== '0') wk.t += 96 // room above the park for the Goner Grid
+  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : wk)
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
   if (NN.real && Q.get('vibes')) {
     document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`
@@ -437,6 +442,7 @@ function update() {
   draw(res)
   radar?.update(res)
   render(res)
+  grid?.refresh()
   window.__dojo = res
   window.__seanceRefresh?.()
 }
@@ -449,13 +455,13 @@ window.__dojoProbe = (o) => { // classify a swing without drawing it (for tuning
 ctl.addEventListener('input', (e) => { if (e.target.id?.startsWith('s-')) { state[e.target.id.slice(2)] = Number(e.target.value); update() } })
 document.getElementById('hand').addEventListener('click', () => { state.hand *= -1; update() })
 for (const b of root.querySelectorAll('#dj-skins button')) b.addEventListener('click', () => { state.ui = b.dataset.ui; update() })
-for (const b of root.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { Object.assign(state, PRESETS[b.dataset.preset]); update() })
+for (const b of root.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { Object.assign(state, PRESETS[b.dataset.preset]); update(); grid?.pulse() })
 for (const b of root.querySelectorAll('[data-radar]')) b.addEventListener('click', () => radar?.toggle())
-for (const b of root.querySelectorAll('[data-swing]')) b.addEventListener('click', () => { const k = Object.keys(PRESETS); Object.assign(state, PRESETS[k[Math.floor(Math.random() * k.length)]]); update() })
+for (const b of root.querySelectorAll('[data-swing]')) b.addEventListener('click', () => { const k = Object.keys(PRESETS); Object.assign(state, PRESETS[k[Math.floor(Math.random() * k.length)]]); update(); grid?.pulse() })
 for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('click', () => NN.setVibe(Number(b.dataset.v)))
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
 addEventListener('keydown', (e) => { if (Q.get('dev') && state.ui === 'K' && e.target.tagName !== 'INPUT' && /^[0-9]$/.test(e.key)) applyLookK(e.key === '0' ? 10 : Number(e.key)) })
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update(); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update(); window.__dojoReady = true })

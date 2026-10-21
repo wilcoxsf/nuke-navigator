@@ -265,6 +265,7 @@ const quadScene = new THREE.Scene()
 quadScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post))
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
+let bgOverride = null // a skin-K look's own background survives vibe changes
 function applyLook() {
   scene.background = new THREE.Color(look.bg)
   post.uniforms.paper.value.set(look.bg)
@@ -288,7 +289,7 @@ function applyVibe(n) {
   const v = VIBES[n]
   vibeU.sat.value = v.sat
   vibeU.hue.value = v.hue
-  look = { ...look, bg: v.bg, ink: v.ink, ribbon: v.ribbon.GONE, burst: v.burst, ocean: v.ocean }
+  look = { ...look, bg: bgOverride ?? v.bg, ink: v.ink, ribbon: v.ribbon.GONE, burst: v.burst, ocean: v.ocean }
   applyLook()
   post.uniforms.hatchAmt.value = v.hatch
   post.uniforms.lineW.value = v.lineW
@@ -379,7 +380,7 @@ loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 window.__nn = {
   THREE, scene, camera, controls, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setDuo: (d) => { if (d) { post.uniforms.duoA.value.set(d[0]); post.uniforms.duoB.value.set(d[1]); post.uniforms.duoAmt.value = d[2] } else post.uniforms.duoAmt.value = 0 },
-  setSat: (v) => { vibeU.sat.value = v }, setBg: (c) => { look = { ...look, bg: c }; applyLook() },
+  setSat: (v) => { vibeU.sat.value = v }, setBg: (c) => { bgOverride = c; look = { ...look, bg: c }; applyLook() },
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
   strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }
