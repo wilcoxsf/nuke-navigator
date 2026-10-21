@@ -35,15 +35,17 @@ ANGLES = [-45.0, -22.5, 0.0, 22.5, 45.0]
 DIMS = ["dim_left_line", "dim_left_center", "dim_center", "dim_right_center", "dim_right_line"]
 
 
-def college_teacher(col: str, sign: int):
+def college_teacher(col: str, sign: int, extra=()):
+    """College-trained spin teacher. `extra` adds TrackMan columns to the inputs (e.g. approach angles and plate location); the caller must
+    pass the same columns, aligned to TrackMan's sign conventions, when predicting."""
     tm = duckdb.sql(f"SELECT * FROM read_parquet('{col}')").df()
-    tm = tm.dropna(subset=["HitSpinRate", "HitSpinAxis", "ExitSpeed", "Angle", "RelSpeed"]).copy()
+    tm = tm.dropna(subset=["HitSpinRate", "HitSpinAxis", "ExitSpeed", "Angle", "RelSpeed"] + list(extra)).copy()
     tm = tm[tm.ExitSpeed.between(60, 125) & tm.Angle.between(10, 55) & tm.HitSpinRate.between(500, 6000)].reset_index(drop=True)
     tm["side_r"] = (tm.BatterSide == "Right").astype(float)
     tm["grp"] = tm.TaggedPitchType.map(TM_GROUP).fillna("other").astype(str).astype(GRP_DTYPE)
     truth = prep(tm.assign(Direction=0.0), sign)
     return {k: lgb.LGBMRegressor(n_estimators=300, learning_rate=0.06, num_leaves=31, min_child_samples=50, subsample=0.8, subsample_freq=1,
-                                 colsample_bytree=0.8, verbose=-1, n_jobs=8).fit(tm[TEACH_X], truth[k]) for k in ("w_back", "w_side")}
+                                 colsample_bytree=0.8, verbose=-1, n_jobs=8).fit(tm[TEACH_X + list(extra)], truth[k]) for k in ("w_back", "w_side")}
 
 
 def fence_at(df: pd.DataFrame, bearing: np.ndarray) -> np.ndarray:
@@ -71,7 +73,8 @@ def main() -> None:
         v2 = HID["H1"]["cols"] + HID["H4"]["cols"]
         needed = set(BASE0 + WX + PITCH + HIST + BAT + v2) | {
             "game_pk", "game_date", "at_bat_number", "pitch_number", "y", "hit_distance_sc", "bearing", "launch_speed", "launch_angle", "release_speed",
-            "stand_r", "pitch_type", "air_density", "home_team", "game_year", "batter", "pitcher", "is_home_run", "hawkeye", "stand"}
+            "stand_r", "pitch_type", "air_density", "home_team", "game_year", "batter", "pitcher", "is_home_run", "hawkeye", "stand",
+            "venue_id", "vaa", "haa", "plate_x", "plate_z"}
         have = set(pq.read_schema(g(a.exp)).names)
         df = pd.read_parquet(g(a.exp), columns=sorted(needed & have))  # only what the bake-off uses: the full table is several GB in memory
         for c in df.select_dtypes("float64").columns:
@@ -123,7 +126,8 @@ def main() -> None:
     if a.exp:  # narrow output: every entrant and the scorer read this file
         out_cols = set(BASE0 + WX + PITCH + HIST + BAT + v2 + PHYS_COLS) | {
             "rid", "split", "game_pk", "game_date", "y", "hit_distance_sc", "bearing", "bearing_hat", "launch_speed", "launch_angle", "release_speed",
-            "stand_r", "pitch_type", "air_density", "home_team", "game_year", "hawkeye", "fence_true", "margin_true"}
+            "stand_r", "pitch_type", "air_density", "home_team", "game_year", "hawkeye", "fence_true", "margin_true",
+            "venue_id", "vaa", "haa", "plate_x", "plate_z", "dim_left_line", "dim_left_center", "dim_center", "dim_right_center", "dim_right_line"}
         df = df[[c for c in df.columns if c in out_cols]]
     df.to_parquet(g(a.out))
     print("wrote", a.out, len(df), "rows", len(df.columns), "columns", f"{time.time() - t0:.0f}s", flush=True)

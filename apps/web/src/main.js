@@ -99,6 +99,7 @@ const pts = flight(105, 28, 38)
 const curve = new THREE.CatmullRomCurve3(pts)
 const ribbonMat = new THREE.MeshBasicMaterial({ color: look.ribbon })
 const ribbon = new THREE.Mesh(new THREE.TubeGeometry(curve, 160, 0.9, 8, false), ribbonMat)
+ribbon.name = 'sampleRibbon'
 scene.add(ribbon)
 const landing = pts[pts.length - 1]
 const burstShape = new THREE.Shape()
@@ -110,6 +111,7 @@ for (let i = 0; i < 24; i++) {
 const burstMat = new THREE.MeshBasicMaterial({ color: look.burst, side: THREE.DoubleSide })
 const burst = new THREE.Mesh(new THREE.ShapeGeometry(burstShape), burstMat)
 burst.position.copy(landing).add(new THREE.Vector3(0, 6, 0))
+burst.name = 'sampleBurst'
 scene.add(burst)
 
 // ---------- ocean to infinity: flat two-tone waves, white crest lines, fades into the sky ----------
@@ -248,9 +250,12 @@ window.__ready = () => mats.length > 0 && window.__cmpReady === true
 
 // ---------- stat strip: a speed and a distance comparison drawn at random from the library ----------
 const STAT = { mph: 105, la: 28, ft: 392 }
-document.getElementById('spec').innerHTML =
-  `<span><b>EXIT SPEED</b>${STAT.mph} mph</span><span><b>LAUNCH</b>${STAT.la}&deg;</span>` +
-  `<span><b>DISTANCE</b>${STAT.ft} ft</span><span><b>BADGE</b>PREDICTED</span><span><b>PARK</b>Oracle 2025</span>`
+function renderSpec() {
+  document.getElementById('spec').innerHTML =
+    `<span><b>EXIT SPEED</b>${STAT.mph} mph</span><span><b>LAUNCH</b>${STAT.la}&deg;</span>` +
+    `<span><b>DISTANCE</b>${STAT.ft} ft</span><span><b>BADGE</b>PREDICTED</span><span><b>PARK</b>Oracle 2025</span>`
+}
+renderSpec()
 const qs = new URLSearchParams(location.search)
 const rand = qs.get('seed') ? mulberry32(Number(qs.get('seed'))) : Math.random
 const recent = []
@@ -275,4 +280,11 @@ function roll() {
   document.getElementById('cmp-swing').textContent = sc.map((s) => s.text).join('. ')
 }
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
+// hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
+window.__nn = {
+  THREE, scene, camera, controls,
+  setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
+  strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
+}
+if (qs.get('mode') === 'dojo') import('./dojo.js')
 document.getElementById('cmp').addEventListener('click', (e) => { if (e.target.tagName !== 'A') roll() })

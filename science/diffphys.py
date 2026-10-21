@@ -77,8 +77,9 @@ def simulate_torch(p, v0, theta, wb, rho, md, ml, z0=1.0):
 
 
 class DPNet(nn.Module):
-    def __init__(self, nz, ncat, p0):
+    def __init__(self, nz, ncat, p0, n_fence=0):
         super().__init__()
+        self.fo = nn.Parameter(torch.zeros(n_fence + 1, 5))  # learned fence offsets (ft) per park-era (row 0 = unseen, kept at zero) and direction bin
         self.emb = nn.ModuleList([nn.Embedding(n, min(16, n // 2 + 1)) for n in ncat])
         w = nz + sum(min(16, n // 2 + 1) for n in ncat)
         self.body = nn.Sequential(nn.Linear(w, 256), nn.SiLU(), nn.Dropout(0.1), nn.Linear(256, 128), nn.SiLU(), nn.Dropout(0.1), nn.Linear(128, 64), nn.SiLU())
@@ -93,7 +94,7 @@ class DPNet(nn.Module):
         self.logp = nn.Parameter(torch.log(torch.tensor(p0, dtype=torch.float32)))
         self.off = nn.Parameter(torch.tensor(20.0))
 
-    def forward(self, z, c, fence, v0, theta, rho, spin_c, inm):
+    def forward(self, z, c, fence, v0, theta, rho, spin_c, inm, vi=None, bi=None):
         h = self.body(torch.cat([z] + [e(c[:, i]) for i, e in enumerate(self.emb)], 1))
         g = self.g(h).squeeze(1)
         tau = F.softplus(self.tau(h).squeeze(1)) + 3.0
@@ -108,7 +109,8 @@ class DPNet(nn.Module):
             df_ = d / FT
             dist_ft[inm] = df_
             landed[inm] = ok
-            logit[inm] = (df_ - fence[inm] - self.off) / tau[inm] + g[inm]
+            fo = torch.zeros_like(g) if vi is None else torch.where(vi > 0, self.fo[vi, bi], torch.zeros_like(g))
+            logit[inm] = (df_ - fence[inm] - self.off - fo[inm]) / tau[inm] + g[inm]
         return logit, dist_ft, landed, spin, md, ml
 
 
@@ -120,6 +122,8 @@ def main() -> None:
     ap.add_argument("--epochs", type=int, default=8)
     ap.add_argument("--seeds", type=int, default=1)
     ap.add_argument("--name", default="diffphys")
+    ap.add_argument("--teacher", choices=["v0", "v3"], default="v0", help="v3 adds approach angles and plate location to the spin teacher")
+    ap.add_argument("--learn-fence", action="store_true", help="learn a fence offset per park, era (before/after 2020) and direction bin")
     a = ap.parse_args()
     torch.set_num_threads(10)
     t0 = time.time()
@@ -132,13 +136,17 @@ def main() -> None:
     p0, sign = cfg["params"], cfg["sign"]
 
     inm = df.phys_dist.notna().to_numpy()
-    teach = college_teacher(a.college.replace("\\", "/"), sign)
+    extra = ["VertApprAngle", "HorzApprAngle", "PlateLocHeight", "PlateLocSide"] if a.teacher == "v3" else []
+    teach = college_teacher(a.college.replace("\\", "/"), sign, extra)
     spin_c = np.zeros(len(df), np.float32)
     ii = np.flatnonzero(inm)
     sub = df.iloc[ii]
-    mx = pd.DataFrame({"ExitSpeed": sub.launch_speed.to_numpy(), "Angle": sub.launch_angle.to_numpy(), "RelSpeed": sub.release_speed.to_numpy(),
-                       "side_r": sub.stand_r.to_numpy(),
-                       "grp": pd.Categorical(sub.pitch_type.astype(str).map(GROUP).fillna("other").astype(str), dtype=GRP_DTYPE)})
+    mxd = {"ExitSpeed": sub.launch_speed.to_numpy(), "Angle": sub.launch_angle.to_numpy(), "RelSpeed": sub.release_speed.to_numpy(),
+           "side_r": sub.stand_r.to_numpy(),
+           "grp": pd.Categorical(sub.pitch_type.astype(str).map(GROUP).fillna("other").astype(str), dtype=GRP_DTYPE)}
+    if extra:  # sign conventions differ between TrackMan and Statcast for plate side and horizontal approach (checked in spin_teacher_v2.py)
+        mxd.update({"VertApprAngle": sub.vaa.to_numpy(), "HorzApprAngle": -sub.haa.to_numpy(), "PlateLocHeight": sub.plate_z.to_numpy(), "PlateLocSide": -sub.plate_x.to_numpy()})
+    mx = pd.DataFrame(mxd)
     spin_c[ii] = (teach["w_back"].predict(mx) / RPM).astype(np.float32)  # rpm
     print(f"teacher spin ready {time.time() - t0:.0f}s", flush=True)
 
@@ -152,6 +160,13 @@ def main() -> None:
     rho = T(df.air_density.fillna(df.air_density.median()).to_numpy(np.float32))
     sc = T(spin_c)
     inmt = torch.from_numpy(inm)
+    # fence-offset index: park id and era (before or after the 2020 renovation); parks and eras with no training balls map to row 0 (zero offset)
+    key = df.venue_id.fillna(-1).astype(int).to_numpy() * 2 + (df.game_year.to_numpy() >= 2020)
+    known = np.unique(key[tr])
+    kmap = {k: i + 1 for i, k in enumerate(known)}
+    vi = T(np.array([kmap.get(k, 0) for k in key], dtype=np.int64)) if a.learn_fence else None
+    bi = T(np.digitize(df.bearing_hat.fillna(0).to_numpy(), [-30, -10, 10, 30]).astype(np.int64))
+    n_fence = len(known) if a.learn_fence else 0
     dist = df.hit_distance_sc.to_numpy(np.float32)
     dm = T((~np.isnan(dist)).astype(np.float32))
     dl = T(np.nan_to_num(dist, nan=0.0))
@@ -159,7 +174,8 @@ def main() -> None:
     def run_rows(net, idx):
         net.eval()
         with torch.no_grad():
-            lg, dd, _, _, _, _ = net(Zt[idx], Ct[idx], fence[idx], v0[idx], theta[idx], rho[idx], sc[idx], inmt[idx])
+            lg, dd, _, _, _, _ = net(Zt[idx], Ct[idx], fence[idx], v0[idx], theta[idx], rho[idx], sc[idx], inmt[idx],
+                                     None if vi is None else vi[idx], bi[idx])
         return torch.sigmoid(lg).numpy(), dd.numpy()
 
     tri, vai, evi = np.flatnonzero(tr), np.flatnonzero(va), np.flatnonzero(ev)
@@ -167,7 +183,7 @@ def main() -> None:
     for seed in range(a.seeds):
         torch.manual_seed(seed)
         rng = np.random.default_rng(seed)
-        net = DPNet(Z.shape[1], ncat, p0)
+        net = DPNet(Z.shape[1], ncat, p0, n_fence)
         phys = [net.logp, net.off]
         opt = torch.optim.AdamW([{"params": [q for n, q in net.named_parameters() if n not in ("logp", "off")], "lr": 2e-3, "weight_decay": 1e-5},
                                  {"params": phys, "lr": 5e-3, "weight_decay": 0.0}])
@@ -180,8 +196,10 @@ def main() -> None:
             perm = rng.permutation(tri)
             for s in range(0, len(perm), bs):
                 b = perm[s:s + bs]
-                lg, dd, landed, spin, md, ml = net(Zt[b], Ct[b], fence[b], v0[b], theta[b], rho[b], sc[b], inmt[b])
+                lg, dd, landed, spin, md, ml = net(Zt[b], Ct[b], fence[b], v0[b], theta[b], rho[b], sc[b], inmt[b], None if vi is None else vi[b], bi[b])
                 loss = F.binary_cross_entropy_with_logits(lg, y[b])
+                if vi is not None:
+                    loss = loss + 1e-4 * (net.fo[1:] ** 2).mean()  # keep fence offsets near zero unless the outcomes insist
                 m = inmt[b] & landed & (dm[b] > 0)
                 if m.any():
                     loss = loss + F.huber_loss(dd[m] / 20.0, dl[b][m] / 20.0, delta=1.0)
@@ -210,6 +228,11 @@ def main() -> None:
     out_dir = Path(a.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame({"rid": df.loc[ev, "rid"].to_numpy(), "p_hr": p_acc, "d_hat": d_acc}).to_parquet(out_dir / f"pred_{a.name}.parquet")
+    if vi is not None:  # the learned fence: extra distance (ft) a ball needs beyond the nominal fence, by park, era and direction bin
+        fo = net.fo.detach().numpy()[1:]
+        rows = [(int(k // 2), int(k % 2), *fo[i].round(1).tolist()) for i, k in enumerate(known)]
+        pd.DataFrame(rows, columns=["venue_id", "era_2020_on", "bin_left_line", "bin_left_center", "bin_center", "bin_right_center", "bin_right_line"]).to_csv(
+            out_dir / f"fence_offsets_{a.name}.csv", index=False)
     print(a.name, "done", info, f"{time.time() - t0:.0f}s", flush=True)
 
 
