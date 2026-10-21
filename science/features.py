@@ -55,6 +55,8 @@ FEATURES: dict[str, str] = {
     "venue": PRE, "venue_id": PRE, "fence_s": CONTACT, "wallh_s": CONTACT, "hmax_s": PRE, "margin_s": CONTACT, "req_margin": CONTACT, "net_margin": CONTACT,
     # contact surprise (contact_surprise.py): measured swing minus the cross-fitted expectation from pitch, hand and the batter's earlier swings
     "res_ad": CONTACT, "res_ix": CONTACT, "res_iy": CONTACT, "res_aa": CONTACT, "res_bs": CONTACT, "bearing_hat_old": CONTACT,
+    # sector probabilities (direction_sectors.py): out-of-fold class probabilities for nine landing-bearing sectors, a function of legal inputs only
+    **{f"sec_{j}": CONTACT for j in range(9)}, "sec_ent": CONTACT,
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

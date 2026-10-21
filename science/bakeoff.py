@@ -25,14 +25,14 @@ CATS = CATS + ["venue"]  # the park itself (v4 feature sets)
 
 L4 = BASE0 + WX + PITCH + HIST + ["bearing_hat"] + BAT
 RECON = os.environ.get("FEATSET", "v1") == "recon"  # reconstruct mode: the ball has landed, so its true bearing and fence distance are allowed
-if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b", "v5", "v5r"):  # round-2 survivors: contact point (H1) and contact quality (H4)
+if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b", "v5", "v5r", "v6"):  # round-2 survivors: contact point (H1) and contact quality (H4)
     from experiments import HID
     L4 = L4 + HID["H1"]["cols"] + HID["H4"]["cols"]
 PHYS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
 SAV = ["fence_s", "wallh_s", "hmax_s", "margin_s", "req_margin", "net_margin"]  # era-correct measured fence and wall height
 FS = os.environ.get("FEATSET", "v1")
 RES = ["res_ad", "res_ix", "res_iy", "res_aa", "res_bs"]  # contact surprise
-FEATS_PHYS = L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else []) + (RES if FS == "v5r" else [])
+FEATS_PHYS = L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else []) + (RES if FS in ("v5r", "v6") else []) + ([f"sec_{j}" for j in range(9)] + ["sec_ent"] if FS == "v6" else [])
 RECON_EXTRA = ["bearing", "fence_true", "margin_true"]
 
 
@@ -85,7 +85,7 @@ def run_logit(df, tr, va, ev):
 def run_xgb(df, feats, tr, va, ev):
     import xgboost as xgb
     p = dict(tree_method="hist", enable_categorical=True, learning_rate=0.05, max_depth=8, min_child_weight=50, subsample=0.8,
-             colsample_bytree=0.7, reg_lambda=2.0, n_estimators=1500, early_stopping_rounds=60, n_jobs=10, max_bin=256)
+             colsample_bytree=0.7, reg_lambda=2.0, n_estimators=1500, early_stopping_rounds=60, n_jobs=10, max_bin=256, random_state=int(os.environ.get("SEED", "0")))
     clf = xgb.XGBClassifier(**p, eval_metric="logloss")
     clf.fit(df.loc[tr, feats], df.loc[tr, "y"], eval_set=[(df.loc[va, feats], df.loc[va, "y"])], verbose=False)
     dtr, dva = tr & df.hit_distance_sc.notna().to_numpy(), va & df.hit_distance_sc.notna().to_numpy()
