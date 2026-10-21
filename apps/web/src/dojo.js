@@ -8,6 +8,7 @@ import { initSeance, findLanding } from './seance.js'
 import { initFx } from './fx.js'
 import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
 import { mulberry32 } from './comparisons.js'
+import { initKrab } from './krab.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -205,6 +206,7 @@ function finish() {
   const pal = { main: kindColor, accent: '#ffd23f', ink: hex(inkOf()) }
   const sc = Math.min(2.2, Math.max(0.8, NN.camera.position.distanceTo(anim.at) / 220))
   fx.explode(anim.tone, anim.at, pal, sc)
+  window.__krab?.react(anim.tone, anim.at)
   if (window.__fixedTime !== undefined) fx.step(Number(Q.get('fxt') ?? 0.4))
 }
 function tick() {
@@ -399,4 +401,4 @@ addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; initSeance({ NN, state, fly, toWorld, colors }); update(); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); update(); window.__dojoReady = true })

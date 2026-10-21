@@ -33,6 +33,11 @@ for (const name of want) {
   await page.goto(`${base}/?mode=dojo&ui=B&${cases[name]}&seed=7&fxt=${process.env.FXT ?? 0.4}`)
   await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady, null, { timeout: 180000 })
   await page.waitForTimeout(800)
+  if (process.env.KRAB) { // frames do not run in the frozen-time mode, so place the crab by hand
+    await page.waitForFunction(() => window.__krabReady, null, { timeout: 60000 })
+    await page.evaluate((p) => window.__krab.snap(p[0], p[1], p[2]), (process.env.KRAB).split(',').map((v, i) => (i < 2 ? Number(v) : v)))
+    await page.waitForTimeout(300)
+  }
   const info = await page.evaluate(() => ({ key: window.__dojo?.key, kind: window.__dojo?.verdict?.kind, ft: Math.round(window.__dojo?.landFt), head: document.getElementById('dj-verdict')?.innerText, sub: document.getElementById('dj-sub')?.innerText, parts: window.__fx?.count() }))
   console.log(name, JSON.stringify(info))
   await page.screenshot({ path: `${outDir}/state-${name}.png` })
