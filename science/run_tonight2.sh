@@ -17,6 +17,9 @@ if [ -n "$SURV" ]; then
   $PY -W ignore experiments.py confirm --data $D/exp_features_h12.parquet --keep H1,H4,$SURV --out exp_confirm_h12.md 2>&1 | tail -14
 fi
 
+echo "== 1b. Oracle Park calibration layer"
+$PY -W ignore round3.py oracle --data $D/exp_features_h12.parquet --out round3_oracle.md 2>&1 | tail -9
+
 echo "== 2. ceiling and specialist"
 $PY -W ignore round3.py ceiling --data $D/exp_features.parquet --out round3_ceiling.md 2>&1 | tail -8
 $PY -W ignore round3.py specialist --data $D/exp_features.parquet --out round3_specialist.md 2>&1 | tail -8

@@ -30,13 +30,15 @@ K_DIST, K_HR, DECAY = 3.0, 10.0, 0.85
 
 
 def quick_fit(df, T, feats, tr, te):
-    """Light home-run and fly-ball-distance models; returns probabilities and distances for rows te."""
+    """Light home-run, fly-ball-distance and landing-bearing models; returns probabilities, distances and bearings for rows te."""
     prm = dict(lgbm_params(False), n_estimators=250, learning_rate=0.1)
     X = df[feats]
     hr = lgb.LGBMClassifier(**prm).fit(X.iloc[tr], T.y[tr]).predict_proba(X.iloc[te])[:, 1]
     td = tr[T.fly[tr]]
     ds = lgb.LGBMRegressor(**prm).fit(X.iloc[td], T.dist[td]).predict(X.iloc[te])
-    return hr, ds
+    tb = tr[T.bear_ok[tr]]
+    br = lgb.LGBMRegressor(objective="l1", **prm).fit(X.iloc[tb], T.bear[tb]).predict(X.iloc[te])
+    return hr, ds, br
 
 
 def memory(a):
@@ -46,11 +48,13 @@ def memory(a):
     n = len(df)
     nt = np.flatnonzero((df.pool != "test").to_numpy())
     te_idx = np.flatnonzero((df.pool == "test").to_numpy())
-    p_hr, d_hat = np.full(n, np.nan), np.full(n, np.nan)
+    p_hr, d_hat, b_hat = np.full(n, np.nan), np.full(n, np.nan), np.full(n, np.nan)
     for k, (a_, b_) in enumerate(GroupKFold(5).split(nt, groups=df.game_pk.to_numpy()[nt])):
-        p_hr[nt[b_]], d_hat[nt[b_]] = quick_fit(df, T, V2, nt[a_], nt[b_])
+        p_hr[nt[b_]], d_hat[nt[b_]], b_hat[nt[b_]] = quick_fit(df, T, V2, nt[a_], nt[b_])
         print(f"  out-of-fold {k + 1}/5 {time.time() - t0:.0f}s", flush=True)
-    p_hr[te_idx], d_hat[te_idx] = quick_fit(df, T, V2, nt, te_idx)
+    p_hr[te_idx], d_hat[te_idx], b_hat[te_idx] = quick_fit(df, T, V2, nt, te_idx)
+    # kept for the Oracle calibration stage (not model inputs): out-of-fold for pre-test games, pre-test models for test games
+    df["oof_p_hr"], df["oof_d_hat"], df["oof_bearing"] = p_hr, d_hat, b_hat
     print(f"  test rows from pre-test models {time.time() - t0:.0f}s", flush=True)
 
     region = ((df.launch_speed >= 85) & df.launch_angle.between(10, 50)).to_numpy()
@@ -148,13 +152,54 @@ def specialist(a):
     print("\n".join(L))
 
 
+def oracle(a):
+    """Does a small Oracle-Park-only correction on top of the general model help? Fitted on Oracle home games before 2025-06-01
+    (out-of-fold probabilities from `memory`), scored on Oracle home games from 2025-06-01 on, paired by game."""
+    from sklearn.linear_model import LogisticRegression
+    df = pd.read_parquet(a.data.replace("\\", "/"))
+    sf = (df.home_team.astype(str) == "SF").to_numpy()
+    p = np.clip(df.oof_p_hr.to_numpy(), 1e-6, 1 - 1e-6)
+    lg = np.log(p / (1 - p))
+    region = df.oof_d_hat.between(300, 460).to_numpy()
+    dir_bin = pd.cut(df.oof_bearing, [-91, -25, -10, 10, 25, 91], labels=False).fillna(2).astype(int).to_numpy()
+    la_bin = pd.cut(df.launch_angle, [-91, 20, 25, 30, 35, 40, 91], labels=False).fillna(2).astype(int).to_numpy()
+    X = np.column_stack([lg, np.eye(5)[dir_bin], np.eye(6)[la_bin]])
+    pre = (df.pool != "test").to_numpy()
+    tr = sf & pre & region
+    te_all = sf & (~pre)
+    y = df.y.to_numpy()
+    clf = LogisticRegression(C=0.3, max_iter=500).fit(X[tr], y[tr])
+    p_corr = p.copy()
+    m = te_all & region
+    p_corr[m] = clf.predict_proba(X[m])[:, 1]
+    e0, e1 = (p - y) ** 2, (p_corr - y) ** 2
+    games = df.game_pk.to_numpy()[te_all]
+    ug, gi = np.unique(games, return_inverse=True)
+    boots = np.random.default_rng(0).multinomial(len(ug), np.ones(len(ug)) / len(ug), size=1000).astype(float)
+    d = e1[te_all] - e0[te_all]
+    s = np.bincount(gi, weights=d, minlength=len(ug))
+    nn = np.bincount(gi, minlength=len(ug)).astype(float)
+    ci = np.percentile((boots @ s) / (boots @ nn), [2.5, 97.5])
+    dist = df.hit_distance_sc.to_numpy()
+    nw = te_all & (dist >= 330) & (dist <= 430)
+    L = ["# Oracle Park calibration layer", "",
+         f"Fit on {int(tr.sum()):,} Oracle home-game balls before 2025-06-01 whose predicted distance is 300-460 ft; scored on {int(te_all.sum()):,} Oracle home-game balls "
+         f"from 2025-06-01 on ({int(nw.sum()):,} near the wall, {len(ug)} games). Inputs: the general model's logit, estimated direction (5 bins), launch angle (6 bins).", "",
+         "| Version | Brier, all Oracle test balls | Near the wall |", "|---|---|---|",
+         f"| General model | {e0[te_all].mean():.5f} | {e0[nw].mean():.4f} |",
+         f"| With the Oracle layer | {e1[te_all].mean():.5f} | {e1[nw].mean():.4f} |", "",
+         f"Difference in Brier, all Oracle test balls: {d.mean():+.5f} (95% interval over games {ci[0]:+.5f} to {ci[1]:+.5f}). Negative means the layer helps."]
+    Path(a.out).write_text("\n".join(L) + "\n", encoding="utf-8")
+    print("\n".join(L))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("stage", choices=["memory", "ceiling", "specialist"])
+    ap.add_argument("stage", choices=["memory", "ceiling", "specialist", "oracle"])
     ap.add_argument("--data", required=True)
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
-    {"memory": memory, "ceiling": ceiling, "specialist": specialist}[a.stage](a)
+    {"memory": memory, "ceiling": ceiling, "specialist": specialist, "oracle": oracle}[a.stage](a)
 
 
 if __name__ == "__main__":
