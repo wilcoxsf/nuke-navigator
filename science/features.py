@@ -58,6 +58,10 @@ FEATURES: dict[str, str] = {
     # sector probabilities (direction_sectors.py): out-of-fold class probabilities for nine landing-bearing sectors, a function of legal inputs only
     **{f"sec_{j}": CONTACT for j in range(9)}, "sec_ent": CONTACT,
     "bearing_hat_c5": CONTACT,
+    # wall-crossing height from the physics flight (fence_height.py) and collision geometry (collision_features.py): functions of legal inputs only
+    "h_fence": CONTACT, "tan_fence": CONTACT, "clear_h": CONTACT, "lands_short": CONTACT,
+    "bat_vz": CONTACT, "bat_vh": CONTACT, "bat_vlat": CONTACT, "p_vz": PRE, "p_vh": PRE, "rel_vz": CONTACT, "rel_vh": CONTACT, "ev_fit_res": CONTACT, "ev_eff": CONTACT,
+    "mix_angle": CONTACT, "la_minus_mix": CONTACT,
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

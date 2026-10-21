@@ -25,14 +25,15 @@ CATS = CATS + ["venue"]  # the park itself (v4 feature sets)
 
 L4 = BASE0 + WX + PITCH + HIST + ["bearing_hat"] + BAT
 RECON = os.environ.get("FEATSET", "v1") == "recon"  # reconstruct mode: the ball has landed, so its true bearing and fence distance are allowed
-if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b", "v5", "v5r", "v6", "v7"):  # round-2 survivors: contact point (H1) and contact quality (H4)
+if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b", "v5", "v5r", "v6", "v7", "v8", "v9"):  # round-2 survivors: contact point (H1) and contact quality (H4)
     from experiments import HID
     L4 = L4 + HID["H1"]["cols"] + HID["H4"]["cols"]
 PHYS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
 SAV = ["fence_s", "wallh_s", "hmax_s", "margin_s", "req_margin", "net_margin"]  # era-correct measured fence and wall height
 FS = os.environ.get("FEATSET", "v1")
 RES = ["res_ad", "res_ix", "res_iy", "res_aa", "res_bs"]  # contact surprise
-FEATS_PHYS = L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else []) + (RES if FS in ("v5r", "v6", "v7") else []) + ([f"sec_{j}" for j in range(9)] + ["sec_ent"] if FS == "v6" else [])
+FEATS_PHYS = (L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else []) + (RES if FS in ("v5r", "v6", "v7", "v8", "v9") else []) + (["h_fence", "tan_fence", "clear_h", "lands_short"] if FS == "v8" else [])
+    + (["bat_vz", "bat_vh", "bat_vlat", "p_vz", "p_vh", "rel_vz", "rel_vh", "ev_fit_res", "ev_eff", "mix_angle", "la_minus_mix"] if FS == "v9" else []) + ([f"sec_{j}" for j in range(9)] + ["sec_ent"] if FS == "v6" else []))
 RECON_EXTRA = ["bearing", "fence_true", "margin_true"]
 
 
@@ -92,8 +93,13 @@ def run_xgb(df, feats, tr, va, ev):
         clf.fit(df.loc[tr, feats], df.loc[tr, "y"], eval_set=[(df.loc[va, feats], df.loc[va, "y"])], verbose=False)
         clf.predict_proba = lambda X: (lambda q: np.column_stack([1 - q, q]))(np.clip(clf.predict(X), 1e-5, 1 - 1e-5))
     else:
+        if os.environ.get("XGB_MONO") == "1":  # more monotone constraints: more exit speed or distance past the fence never lowers the home-run chance
+            p["monotone_constraints"] = "(" + ",".join("1" if f in ("launch_speed", "phys_dist", "margin_hat") else "0" for f in feats) + ")"
         clf = xgb.XGBClassifier(**p, eval_metric="logloss")
-        clf.fit(df.loc[tr, feats], df.loc[tr, "y"], eval_set=[(df.loc[va, feats], df.loc[va, "y"])], verbose=False)
+        w = None
+        if os.environ.get("WTAU"):  # recency weights: a ball from this season counts 1, one from tau years earlier counts 1/e
+            w = np.exp((df.loc[tr, "game_year"].to_numpy(float) - 2026.0) / float(os.environ["WTAU"]))
+        clf.fit(df.loc[tr, feats], df.loc[tr, "y"], sample_weight=w, eval_set=[(df.loc[va, feats], df.loc[va, "y"])], verbose=False)
     dtr, dva = tr & df.hit_distance_sc.notna().to_numpy(), va & df.hit_distance_sc.notna().to_numpy()
     reg = xgb.XGBRegressor(**p, eval_metric="mae")
     reg.fit(df.loc[dtr, feats], df.loc[dtr, "hit_distance_sc"], eval_set=[(df.loc[dva, feats], df.loc[dva, "hit_distance_sc"])], verbose=False)
@@ -221,6 +227,8 @@ def main() -> None:
         keep = (df.split != "train") | (np.random.default_rng(0).random(len(df)) < a.sample)
         df = df[keep].reset_index(drop=True)
     tr, va, ev = (df.split == "train").to_numpy(), (df.split == "val").to_numpy(), (df.split != "train").to_numpy()
+    if os.environ.get("FROM_YEAR"):  # train only on this season and later (the tracking system and parks changed over the years)
+        tr = tr & (df.game_year.to_numpy() >= int(os.environ["FROM_YEAR"]))
     print(a.entrant, "train", int(tr.sum()), "val", int(va.sum()), "test", int((df.split == "test").sum()), flush=True)
 
     feats = L4 if a.entrant == "lgbm" else FEATS_PHYS
