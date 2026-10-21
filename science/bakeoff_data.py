@@ -22,6 +22,9 @@ import duckdb
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
+
+PHYS_COLS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
 
 from flight_fit import MPH, FT, prep, simulate
 from flight_transfer import GROUP, GRP_DTYPE, TM_GROUP, X as TEACH_X
@@ -64,7 +67,15 @@ def main() -> None:
     g = lambda p: p.replace("\\", "/")
 
     if a.exp:  # v2: start from the round-2 experiment table (all engineered features already in it)
-        df = pd.read_parquet(g(a.exp)).drop(columns=["pool"])
+        from experiments import HID
+        v2 = HID["H1"]["cols"] + HID["H4"]["cols"]
+        needed = set(BASE0 + WX + PITCH + HIST + BAT + v2) | {
+            "game_pk", "game_date", "at_bat_number", "pitch_number", "y", "hit_distance_sc", "bearing", "launch_speed", "launch_angle", "release_speed",
+            "stand_r", "pitch_type", "air_density", "home_team", "game_year", "batter", "pitcher", "is_home_run", "hawkeye", "stand"}
+        have = set(pq.read_schema(g(a.exp)).names)
+        df = pd.read_parquet(g(a.exp), columns=sorted(needed & have))  # only what the bake-off uses: the full table is several GB in memory
+        for c in df.select_dtypes("float64").columns:
+            df[c] = df[c].astype("float32")
     else:
         df = load(g(a.bbe), g(a.games), g(a.weather))
     dims = duckdb.sql(f"SELECT DISTINCT ON (game_pk) game_pk, {', '.join(DIMS)} FROM read_parquet('{g(a.games)}') ORDER BY game_pk, official_date DESC").df()
@@ -109,8 +120,13 @@ def main() -> None:
     df["margin_hat"] = df.phys_dist - df.fence_hat
     df["fence_true"] = fence_at(df, df.bearing.fillna(df.bearing_hat).to_numpy())
     df["margin_true"] = df.phys_dist - df.fence_true
+    if a.exp:  # narrow output: every entrant and the scorer read this file
+        out_cols = set(BASE0 + WX + PITCH + HIST + BAT + v2 + PHYS_COLS) | {
+            "rid", "split", "game_pk", "game_date", "y", "hit_distance_sc", "bearing", "bearing_hat", "launch_speed", "launch_angle", "release_speed",
+            "stand_r", "pitch_type", "air_density", "home_team", "game_year", "hawkeye", "fence_true", "margin_true"}
+        df = df[[c for c in df.columns if c in out_cols]]
     df.to_parquet(g(a.out))
-    print("wrote", a.out, len(df), "rows", f"{time.time() - t0:.0f}s", flush=True)
+    print("wrote", a.out, len(df), "rows", len(df.columns), "columns", f"{time.time() - t0:.0f}s", flush=True)
 
 
 if __name__ == "__main__":
