@@ -28,6 +28,8 @@ FEATURES: dict[str, str] = {
     "strikes": PRE, "zone": PRE,
     # rolling history from strictly earlier batted balls
     "b_ev": PRE, "b_la": PRE, "b_hr": PRE, "b_hard": PRE, "b_pull": PRE, "b_n": PRE, "b_bat_speed": PRE, "p_ev": PRE, "p_hr": PRE,
+    # physics and fence features derived only from legal inputs (contact, pitch, weather, park, estimated direction)
+    "phys_dist": CONTACT, "phys_hang": CONTACT, "fence_hat": CONTACT, "margin_hat": CONTACT, "park_cf": PRE, "park_lf": PRE, "park_rf": PRE,
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

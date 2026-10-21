@@ -1,0 +1,142 @@
+{
+ "rungs": [
+  {
+   "name": "L0 contact",
+   "n_features": 5,
+   "trees": 148,
+   "brier": 0.019193083781024058,
+   "logloss": 0.060981866366982496,
+   "auc": 0.9856053696813251,
+   "near_brier": 0.12599457733696168,
+   "sf_brier": 0.015381022660815006,
+   "fly_mae_ft": 15.735422359754308
+  },
+  {
+   "name": "L1 + weather",
+   "n_features": 17,
+   "trees": 148,
+   "brier": 0.01894902463170553,
+   "logloss": 0.06031749016483644,
+   "auc": 0.9859686152377508,
+   "near_brier": 0.12467105769517327,
+   "sf_brier": 0.015342933181773561,
+   "fly_mae_ft": 15.350448398353254
+  },
+  {
+   "name": "L2 + pitch",
+   "n_features": 31,
+   "trees": 240,
+   "brier": 0.017946517157869477,
+   "logloss": 0.057404212234329274,
+   "auc": 0.9873199206656501,
+   "near_brier": 0.11791980974400001,
+   "sf_brier": 0.014363504333643237,
+   "fly_mae_ft": 14.81973855435878
+  },
+  {
+   "name": "L3 + history",
+   "n_features": 39,
+   "trees": 290,
+   "brier": 0.017655805354825825,
+   "logloss": 0.056637087696486864,
+   "auc": 0.9876231614037807,
+   "near_brier": 0.11601666669474225,
+   "sf_brier": 0.014041145985483092,
+   "fly_mae_ft": 14.592243682715731
+  },
+  {
+   "name": "L4 + direction estimate",
+   "n_features": 40,
+   "trees": 256,
+   "brier": 0.01746874518981869,
+   "logloss": 0.056070319841176226,
+   "auc": 0.9879039124723652,
+   "near_brier": 0.11473629956613794,
+   "sf_brier": 0.01396016253026687,
+   "fly_mae_ft": 14.499602609726665
+  },
+  {
+   "name": "R1 LEAKY: L4 + true bearing",
+   "n_features": 41,
+   "trees": 429,
+   "brier": 0.011365782341622348,
+   "logloss": 0.037253987421513736,
+   "auc": 0.9949507046449231,
+   "near_brier": 0.07292632395700129,
+   "sf_brier": 0.009663590228926657
+  },
+  {
+   "name": "R2 LEAKY: R1 + projected distance",
+   "n_features": 42,
+   "trees": 504,
+   "brier": 0.0032445577592886254,
+   "logloss": 0.012074240854939218,
+   "auc": 0.9992400275526606,
+   "near_brier": 0.020907186011770152,
+   "sf_brier": 0.0032699874135934193
+  }
+ ],
+ "bat": [
+  {
+   "name": "same split, no bat tracking",
+   "brier": 0.017811632548062433,
+   "logloss": 0.057709901595114334,
+   "auc": 0.9871609234627585,
+   "near_brier": 0.11626999815671347
+  },
+  {
+   "name": "same split, + bat tracking",
+   "brier": 0.014571813991534783,
+   "logloss": 0.04747498662316222,
+   "auc": 0.9915079450975277,
+   "near_brier": 0.09456238456705705
+  }
+ ],
+ "notes": {
+  "bearing_mae_deg": 18.837689844398177,
+  "bearing_mae_constant_deg": 26.27088546130284,
+  "bearing_r2": 0.34322757606417376
+ },
+ "importance": {
+  "launch_angle": 54.9,
+  "launch_speed": 33.8,
+  "home_team": 2.0,
+  "bearing_hat": 1.8,
+  "stand_r": 0.6,
+  "hawkeye": 0.4,
+  "plate_z": 0.4,
+  "plate_x": 0.4,
+  "air_density": 0.4,
+  "om_temp_f": 0.4,
+  "effective_speed": 0.3,
+  "b_la": 0.3,
+  "b_pull": 0.3,
+  "om_wind_u": 0.3,
+  "release_speed": 0.3,
+  "om_wind_v": 0.3,
+  "b_hard": 0.3,
+  "b_ev": 0.2,
+  "zone": 0.2,
+  "release_spin_rate": 0.2,
+  "spin_axis": 0.2,
+  "b_hr": 0.2,
+  "om_rh": 0.2,
+  "pitch_type": 0.2,
+  "p_ev": 0.2,
+  "pfx_z": 0.2,
+  "pfx_x": 0.1,
+  "p_hr": 0.1,
+  "om_gust_mph": 0.1,
+  "om_wind_mph": 0.1,
+  "om_pressure_hpa": 0.1,
+  "release_extension": 0.1,
+  "elevation_ft": 0.1,
+  "om_precip_mm": 0.1,
+  "strikes": 0.0,
+  "balls": 0.0,
+  "p_throws": 0.0,
+  "b_n": 0.0,
+  "roof": 0.0,
+  "turf": 0.0
+ }
+}

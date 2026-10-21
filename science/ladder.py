@@ -118,6 +118,9 @@ def add_bearing_hat(df, tr_mask, other_masks, feats):
     df.loc[tr.index, "bearing_hat"] = oof
     rest = ~tr_mask
     df.loc[rest, "bearing_hat"] = np.mean([m.predict(df.loc[rest, feats]) for m in models], axis=0)
+    miss = df["bearing_hat"].isna()  # training rows with no landing coordinates get the fold-average estimate
+    if miss.any():
+        df.loc[miss, "bearing_hat"] = np.mean([m.predict(df.loc[miss, feats]) for m in models], axis=0)
     te = other_masks[-1] & ok
     err = mean_absolute_error(df.loc[te, "bearing"], df.loc[te, "bearing_hat"])
     base = mean_absolute_error(df.loc[te, "bearing"], np.full(te.sum(), df.loc[tr_mask & ok, "bearing"].mean()))
