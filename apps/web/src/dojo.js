@@ -1,5 +1,6 @@
 // Dinger Dojo v0: set exit speed, launch angle and direction, watch the ball fly through Oracle Park, and get a verdict against the real wall.
-// Physics: RK4 with drag and Magnus lift, the aerodynamics fitted by the differentiable-physics net (Cd = 0.373 + 0.149 S, CL = 1.05 S / (1 + 2.55 S)),
+// Physics: RK4 with drag and Magnus lift, aerodynamics from the differentiable-physics net (Cd = 0.373 + 0.149 S) with lift calibrated on 30,000 real
+// fly balls (CL = 1.52 S / (1 + 2.55 S); average miss against Statcast projected distance -0.1 ft, typical error 15.8 ft),
 // game air density from temperature and humidity, spin from the linear prior that held up on wood-bat data (backspin -763 + 120 x launch angle rpm,
 // sidespin -849 x hand - 94 x direction rpm). Wall: distance and height by bearing extracted from the park model (right-center height assumed).
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
@@ -35,7 +36,7 @@ function fly(s) {
   const acc = (vv) => {
     const rel = [vv[0] - wind[0], vv[1] - wind[1], vv[2] - wind[2]]
     const sp = Math.hypot(...rel) + 1e-9, S = (RAD * wm) / sp
-    const cd = 0.3728 + 0.1492 * S, cl = (1.0512 * S) / (1 + 2.5479 * S)
+    const cd = 0.3728 + 0.1492 * S, cl = (1.524 * S) / (1 + 2.5479 * S) // lift scaled 1.45x so the average miss on real fly balls is zero (science/dojo_calibrate.py)
     const cr = [om[1] * rel[2] - om[2] * rel[1], om[2] * rel[0] - om[0] * rel[2], om[0] * rel[1] - om[1] * rel[0]]
     return [-q * cd * sp * rel[0] + (q * cl * sp * cr[0]) / wm, -q * cd * sp * rel[1] + (q * cl * sp * cr[1]) / wm, -q * cd * sp * rel[2] + (q * cl * sp * cr[2]) / wm - G]
   }
@@ -148,6 +149,7 @@ const CSS = `
 #dojo.ui-C input[type=range]{accent-color:#ff4bd8}#dojo.ui-C #dj-skins button{background:#14081f;color:#ff4bd8;border:1px solid #ff4bd8}
 #dojo.ui-C #dj-skins button.on{background:#ff4bd8;color:#14081f}
 `
+window.__dojoFly = fly // exposed for the screenshot and test scripts
 document.getElementById('look')?.remove() // the look switcher label would sit under the Dojo title
 const root = document.createElement('div')
 root.id = 'dojo'

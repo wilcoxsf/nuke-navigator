@@ -7,7 +7,7 @@ const [base = 'http://localhost:5174', outDir = 'shots', w = '1400', h = '880'] 
 mkdirSync(outDir, { recursive: true })
 const cases = {
   homer: 'ev=104&la=27&dir=-25',     // to left-center, over the wall
-  wall: 'ev=103&la=21&dir=26',       // a line drive into the right-field wall
+  wall: 'ev=100&la=24&dir=-22',      // a drive that hits the left-center wall just below the top
   inplay: 'ev=96&la=42&dir=-12',     // high fly to left-center, in play
 }
 const browser = await chromium.launch({
