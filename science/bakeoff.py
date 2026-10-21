@@ -22,11 +22,13 @@ from features import assert_clean
 from ladder import BASE0, BAT, CATS, HIST, PITCH, WX
 
 L4 = BASE0 + WX + PITCH + HIST + ["bearing_hat"] + BAT
-if os.environ.get("FEATSET", "v1") == "v2":  # round-2 survivors: contact point (H1) and contact quality (H4)
+RECON = os.environ.get("FEATSET", "v1") == "recon"  # reconstruct mode: the ball has landed, so its true bearing and fence distance are allowed
+if os.environ.get("FEATSET", "v1") in ("v2", "recon"):  # round-2 survivors: contact point (H1) and contact quality (H4)
     from experiments import HID
     L4 = L4 + HID["H1"]["cols"] + HID["H4"]["cols"]
 PHYS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
 FEATS_PHYS = L4 + PHYS
+RECON_EXTRA = ["bearing", "fence_true", "margin_true"]
 
 
 def monotone(feats):
@@ -211,7 +213,9 @@ def main() -> None:
     print(a.entrant, "train", int(tr.sum()), "val", int(va.sum()), "test", int((df.split == "test").sum()), flush=True)
 
     feats = L4 if a.entrant == "lgbm" else FEATS_PHYS
-    if a.entrant != "logit":
+    if RECON:
+        feats = FEATS_PHYS + RECON_EXTRA  # leaky by design: reconstruct-mode scoreboard only
+    elif a.entrant != "logit":
         assert_clean(feats, job=a.entrant)
     if a.entrant == "logit":
         out, info = run_logit(df, tr, va, ev)
