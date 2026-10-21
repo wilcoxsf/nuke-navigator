@@ -1,0 +1,147 @@
+{
+ "baseline": [
+  0.015110929633613145,
+  12.852797667722822,
+  12.686672472812731
+ ],
+ "rows": [
+  {
+   "id": "H12",
+   "name": "In-game residual memory",
+   "cols": [
+    "gm_dist_resid",
+    "gm_dist_ewm",
+    "gm_n",
+    "gm_hr_resid"
+   ],
+   "expect": "Balls in one game share a distance miss (wind, air, ball; split-half r +0.30); expect a small distance gain, larger near the wall. Needs exp_features_h12.parquet from round3.py memory.",
+   "delta": [
+    [
+     0.00013505616698030286,
+     -6.259828878742765e-06,
+     0.00026683029475987636
+    ],
+    [
+     0.07959545169968649,
+     0.06255400642018873,
+     0.09665924539815256
+    ],
+    [
+     -0.008958887988460323,
+     -0.04942547555836884,
+     0.03231574926442243
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H13",
+   "name": "Batter residual memory",
+   "cols": [
+    "bt_dist_resid",
+    "bt_n"
+   ],
+   "expect": "Batters carry a persistent distance miss (split-half r +0.42 to +0.50 on the test period, spread about 3 ft); expect a distance gain near the size of the contact-point gain (about 0.1 to 0.2 ft), plus a small near-wall gain. Residual-based, unlike the raw-average history groups that failed.",
+   "delta": [
+    [
+     9.027696858225836e-06,
+     -0.00011503462518935262,
+     0.00013760296280143568
+    ],
+    [
+     0.04633340203307512,
+     0.02652157867081017,
+     0.06389693032074854
+    ],
+    [
+     -0.11279850364652894,
+     -0.16077065554238326,
+     -0.06536944221665254
+    ]
+   ],
+   "decision": "MAYBE"
+  },
+  {
+   "id": "H14",
+   "name": "Pitcher residual memory",
+   "cols": [
+    "pt_dist_resid",
+    "pt_n"
+   ],
+   "expect": "Weaker than batters (split-half r +0.15 to +0.25); expect little. Likely kill.",
+   "delta": [
+    [
+     7.72512783077575e-05,
+     -4.865790073689095e-05,
+     0.0002040730956470727
+    ],
+    [
+     0.047689900353902824,
+     0.02959662877355248,
+     0.06515408137632472
+    ],
+    [
+     0.014748965305881904,
+     -0.023034582152764372,
+     0.051933828179559764
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H15",
+   "name": "League drift memory",
+   "cols": [
+    "lg_hr_resid",
+    "lg_dist_resid"
+   ],
+   "expect": "The model's near-wall home run rate is off by league-wide amounts that move by month (-3.0 points June 2025, +2.9 June 2026). A shrunk mean of the previous 30 days of home-run misses and 14 days of distance misses should absorb ball and season drift; expect a small Brier gain.",
+   "delta": [
+    [
+     0.0001123362464334045,
+     -1.5758243603887652e-05,
+     0.00024190916466681166
+    ],
+    [
+     0.040489527521040646,
+     0.02205582031996363,
+     0.05738876303050597
+    ],
+    [
+     -0.04215574879039228,
+     -0.08178556914858402,
+     -0.0023013016406515426
+    ]
+   ],
+   "decision": "KILL"
+  },
+  {
+   "id": "H16",
+   "name": "Park by geometry, not team",
+   "cols": [
+    "park_lf",
+    "park_cf",
+    "park_rf"
+   ],
+   "expect": "Team code does not identify a park (the Athletics moved to Sutter Health Park in 2025 and the model still reads Oakland). Dropping it and using fence distances, elevation, roof and turf should fix new-park and fence-change errors; expect a gain at the Athletics, Detroit and similar parks, possibly a loss at parks with idiosyncratic effects the geometry misses.",
+   "delta": [
+    [
+     0.00014498006012451448,
+     1.6506597428026996e-05,
+     0.00028950672674359095
+    ],
+    [
+     -0.02926582745062053,
+     -0.04562718954760522,
+     -0.013552686411226577
+    ],
+    [
+     -0.08063669570666551,
+     -0.12141867379060332,
+     -0.04242551865266721
+    ]
+   ],
+   "decision": "KILL"
+  }
+ ]
+}

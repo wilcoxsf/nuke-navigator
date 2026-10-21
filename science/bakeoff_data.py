@@ -68,6 +68,8 @@ def main() -> None:
     else:
         df = load(g(a.bbe), g(a.games), g(a.weather))
     dims = duckdb.sql(f"SELECT DISTINCT ON (game_pk) game_pk, {', '.join(DIMS)} FROM read_parquet('{g(a.games)}') ORDER BY game_pk, official_date DESC").df()
+    # the experiment table already carries three of the fence columns; drop overlaps so the merge does not create _x/_y duplicates
+    df = df.drop(columns=[c for c in dims.columns if c in df.columns and c != "game_pk"])
     df = df.merge(dims, on="game_pk", how="left").reset_index(drop=True)
     df["rid"] = np.arange(len(df))
     df["split"] = np.where(df.game_date < VAL_START, "train", np.where(df.game_date < TEST_START, "val", "test"))

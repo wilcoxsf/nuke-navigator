@@ -302,6 +302,11 @@ def confirm(a):
         L.append(f"| {nm} | {np.nanmean(E0[:, k]):.{p}f} | {np.nanmean(E1[:, k]):.{p}f} | {dd[0]:+.{p}f} ({dd[1]:+.{p}f}, {dd[2]:+.{p}f}) |")
     L.append(f"| HR Brier, near the wall | {E0[near, 0].mean():.4f} | {E1[near, 0].mean():.4f} | {E1[near, 0].mean() - E0[near, 0].mean():+.5f} |")
     L.append(f"| HR Brier, Oracle Park | {E0[sf, 0].mean():.5f} | {E1[sf, 0].mean():.5f} | {E1[sf, 0].mean() - E0[sf, 0].mean():+.5f} |")
+    home = df.home_team.astype(str).to_numpy()[te]
+    for team in ("ATH", "DET", "LAA", "CIN", "COL"):  # parks the segment scan flagged
+        mt = home == team
+        if mt.sum():
+            L.append(f"| HR Brier, {team} home games ({int(mt.sum()):,} balls) | {E0[mt, 0].mean():.5f} | {E1[mt, 0].mean():.5f} | {E1[mt, 0].mean() - E0[mt, 0].mean():+.5f} |")
     L.append(f"| HR Brier, Jun-Dec 2025 | {E0[half, 0].mean():.5f} | {E1[half, 0].mean():.5f} | {E1[half, 0].mean() - E0[half, 0].mean():+.5f} |")
     L.append(f"| HR Brier, 2026 | {E0[~half, 0].mean():.5f} | {E1[~half, 0].mean():.5f} | {E1[~half, 0].mean() - E0[~half, 0].mean():+.5f} |")
     Path(a.out).write_text("\n".join(L) + "\n", encoding="utf-8")
