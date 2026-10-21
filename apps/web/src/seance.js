@@ -17,26 +17,44 @@ function mulberry(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
 }
 
+let meshes = null
+const ray0 = new THREE.Raycaster()
+ray0.firstHitOnly = true
+THREE.Mesh.prototype.raycast = acceleratedRaycast
+function prepare(NN) {
+  if (meshes?.length) return meshes // an empty list (model not loaded yet) is not cached
+  meshes = []
+  NN.stadium?.traverse((o) => {
+    if (!o.isMesh) return
+    const g = o.geometry, pos = g.attributes.position
+    const f = new Float32Array(pos.count * 3)
+    for (let i = 0; i < pos.count; i++) { f[i * 3] = pos.getX(i); f[i * 3 + 1] = pos.getY(i); f[i * 3 + 2] = pos.getZ(i) }
+    g.setAttribute('position', new THREE.BufferAttribute(f, 3))
+    g.boundsTree = new MeshBVH(g)
+    meshes.push(o)
+  })
+  return meshes
+}
+// Follows a path (list of {p}) past the wall until it meets the stands, the street or the water. Returns the world point, what it is, and the path index.
+export function findLanding(NN, path, toWorld) {
+  const ms = prepare(NN)
+  NN.stadium.updateMatrixWorld(true) // the model arrives before its first render: without this the ray-cast runs on identity matrices
+  const wp = path.map((q, i) => ({ v: toWorld(q.p), i })).filter((_, i) => i % 3 === 0)
+  for (let i = 1; i < wp.length; i++) {
+    if (Math.hypot(wp[i].v.x, wp[i].v.z) < 90) continue
+    const d = wp[i].v.clone().sub(wp[i - 1].v), len = d.length()
+    ray0.set(wp[i - 1].v, d.normalize()); ray0.far = len
+    const h = ray0.intersectObjects(ms, false)[0]
+    if (h) return { point: h.point, kind: 'STANDS', index: wp[i].i }
+  }
+  const last = toWorld(path[path.length - 1].p)
+  // water only for a ball that came down well out toward the bay (right side, at least 410 ft out and 25 degrees toward right); anything else past the wall is the street or the promenade
+  return { point: last, kind: last.x > 25 && Math.hypot(last.x, last.z) > 125 && (Math.atan2(last.x, -last.z) * 180) / Math.PI > 25 ? 'SPLASH' : 'STREET', index: path.length - 1 }
+}
+
 export function initSeance({ NN, state, fly, toWorld, colors }) {
   if (!NN.real) return
   const { scene } = NN
-  THREE.Mesh.prototype.raycast = acceleratedRaycast
-  let meshes = null
-  function prepare() { // BVH per stadium mesh; the quantised attributes are converted to plain floats first
-    if (meshes) return meshes
-    meshes = []
-    NN.stadium?.traverse((o) => {
-      if (!o.isMesh) return
-      const g = o.geometry, pos = g.attributes.position
-      const f = new Float32Array(pos.count * 3)
-      for (let i = 0; i < pos.count; i++) { f[i * 3] = pos.getX(i); f[i * 3 + 1] = pos.getY(i); f[i * 3 + 2] = pos.getZ(i) }
-      g.setAttribute('position', new THREE.BufferAttribute(f, 3))
-      g.boundsTree = new MeshBVH(g)
-      meshes.push(o)
-    })
-    return meshes
-  }
-
   const css = `#dj-seance{position:absolute;left:12px;bottom:128px;width:300px;background:rgba(0,0,0,.55);color:#fff;padding:8px 10px;border-radius:4px;font:12px Arial,sans-serif}
 #dj-seance button{cursor:pointer;font:900 12px Arial;padding:4px 10px;border:2px solid #fff;background:#1d2a6d;color:#fff;letter-spacing:.06em}
 #dj-seance.on button{background:#ffd23f;color:#1d2a6d}
@@ -49,14 +67,12 @@ export function initSeance({ NN, state, fly, toWorld, colors }) {
   document.getElementById('dojo').appendChild(box)
 
   let on = false, group = null
-  const ray = new THREE.Raycaster()
-  ray.firstHitOnly = true
 
   function clear() { if (group) { scene.remove(group); group.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.() }); group = null } }
 
   function run() {
     clear()
-    const ms = prepare()
+    prepare(NN)
     const rng = mulberry(11)
     const col = colors()
     const tally = { GONE: 0, WALL: 0, PLAY: 0, FOUL: 0, SPLASH: 0, STREET: 0 }
@@ -73,19 +89,9 @@ export function initSeance({ NN, state, fly, toWorld, colors }) {
       const path = res.path
       let kind = v.kind, at = null
       if (kind === 'GONE' || kind === 'FOUL') { // follow the ball past the wall until it meets the stands, the street or the water
-        const wp = path.filter((_, i) => i % 3 === 0).map((q) => toWorld(q.p))
-        for (let i = 1; i < wp.length && !at; i++) {
-          if (Math.hypot(wp[i].x, wp[i].z) < 90) continue
-          const d = wp[i].clone().sub(wp[i - 1]), len = d.length()
-          ray.set(wp[i - 1], d.normalize()); ray.far = len
-          const h = ray.intersectObjects(ms, false)[0]
-          if (h) at = h.point
-        }
-        if (!at) { // no structure: splash if it came down on the right-field side, street otherwise
-          const last = toWorld(path[path.length - 1].p)
-          at = last
-          if (kind === 'GONE') kind = last.x > 25 ? 'SPLASH' : 'STREET'
-        }
+        const hit = findLanding(NN, path, toWorld)
+        at = hit.point
+        if (hit.kind !== 'STANDS' && kind === 'GONE') kind = hit.kind
       } else at = toWorld(path[path.length - 1].p)
       tally[kind] = (tally[kind] || 0) + 1
       if (kind === 'GONE' || kind === 'SPLASH' || kind === 'STREET') {

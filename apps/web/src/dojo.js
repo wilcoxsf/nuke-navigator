@@ -4,7 +4,10 @@
 // game air density from temperature and humidity, spin from the linear prior that held up on wood-bat data (backspin -763 + 120 x launch angle rpm,
 // sidespin -849 x hand - 94 x direction rpm). Wall: distance and height by bearing extracted from the park model (right-center height assumed).
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
-import { initSeance } from './seance.js'
+import { initSeance, findLanding } from './seance.js'
+import { initFx } from './fx.js'
+import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
+import { mulberry32 } from './comparisons.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -110,11 +113,19 @@ function burstOutline(b) {
   o.position.z = -0.05
   b.add(o)
 }
+const wallDistAt = (b) => (wall ? wall.wall_ft[Math.round(Math.min(Math.max(b, -47), 47) + 47)] : 0)
+const TONE = { GONE: 'gone', NUKE: 'nuke', SPLASH: 'splash', SCRAPER: 'scraper', WALL: 'wall', CLOSE: 'close', FLY: 'play', WARNING: 'play', LINER: 'play', GROUNDER: 'play', POPUP: 'play', FOUL: 'foul', POLE: 'scraper' }
+const rngC = Q.get('seed') ? mulberry32(Number(Q.get('seed'))) : Math.random
+const recentHeads = []
+let fx = null
+const hex = (c) => `#${new THREE.Color(c).getHexString()}`
 function draw(res) {
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
   if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose() }
-  if (burst) scene.remove(burst)
-  const pts = res.path.filter((_, i) => i % 4 === 0).map((s) => toWorld(s.p))
+  if (burst) { scene.remove(burst); burst = null }
+  fx?.clear()
+  const src = res.visPath ?? res.path
+  const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length < 3) return
   ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
   scene.add(ribbon)
@@ -122,21 +133,50 @@ function draw(res) {
   if (!ball) { ball = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(ball) }
   for (const c of [...ball.children]) ball.remove(c)
   outlineOf(ball, 1.25)
-  const shape = new THREE.Shape()
-  for (let i = 0; i < 24; i++) { const rr = i % 2 ? 4 : 11, a = (i / 24) * Math.PI * 2; shape[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr) }
-  burst = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind], side: THREE.DoubleSide }))
-  burst.position.copy(pts[pts.length - 1]).add(new THREE.Vector3(0, 6, 0))
-  burst.quaternion.copy(NN.camera.quaternion)
-  scene.add(burst)
-  burstOutline(burst)
-  anim = { pts, t0: performance.now(), dur: 2600 }
+  const at = (res.landing?.point ?? pts[pts.length - 1]).clone()
+  at.y = Math.max(at.y, 0.5)
+  const beats = pickHead(res.key, rngC, recentHeads)
+  const v = res.verdict
+  const bw = Math.min(Math.max(res.landB, -47), 47) + 47
+  const vars = {
+    ft: Math.round(res.landFt), ev: state.ev, la: state.la, peak: Math.round(res.peakFt), hang: res.hang.toFixed(1), clear: Math.round(v.clearBy ?? 0),
+    short: Math.round(v.short ?? 0), wall: Math.round(v.wallH ?? 0), wallft: Math.round(wall?.wall_ft?.[Math.round(bw)] ?? 0), cross: Math.round(v.cross ?? 0),
+    off: Math.abs(Math.abs(res.landB) - 45).toFixed(1), side: res.landB < 0 ? 'left' : 'right',
+  }
+  anim = { pts, t0: performance.now(), dur: 2600, beats, sub: fill(pickSub(res.key, rngC), vars), key: res.key, tone: TONE[res.key], at, kind: v.kind, shown: -2, exploded: false }
+  showBeat(-1)
+  if (window.__fixedTime !== undefined) { ball.position.copy(pts[pts.length - 1]); finish() }
+}
+function showBeat(i) { // i = -1: waiting for the first word; the last beat comes with the blast
+  if (!anim || anim.shown === i) return
+  anim.shown = i
+  const el = document.getElementById('dj-verdict')
+  const last = i === anim.beats.length - 1
+  el.className = last ? `st-${anim.tone} ${res0Kind()}` : 'st-wait'
+  el.innerHTML = i < 0 ? '<span class="beat">. . .</span>' : `<span class="beat">${anim.beats[i]}</span>`
+  document.getElementById('dj-state').textContent = last ? STATES[anim.key].label : 'TRACKING'
+  document.getElementById('dj-sub').textContent = last ? anim.sub : ''
+  window.__scoreboard?.show(last ? 'final' : 'beat', anim, i)
+}
+const res0Kind = () => anim?.kind ?? ''
+function finish() {
+  if (!anim || anim.exploded) return
+  anim.exploded = true
+  showBeat(anim.beats.length - 1)
+  if (!fx) return
+  const kindColor = hex(colors()[anim.kind] ?? 0xffffff)
+  const pal = { main: kindColor, accent: '#ffd23f', ink: hex(inkOf()) }
+  const sc = Math.min(2.2, Math.max(0.8, NN.camera.position.distanceTo(anim.at) / 220))
+  fx.explode(anim.tone, anim.at, pal, sc)
+  if (window.__fixedTime !== undefined) fx.step(Number(Q.get('fxt') ?? 0.4))
 }
 function tick() {
   if (anim && ball) {
     const f = Math.min((performance.now() - anim.t0) / anim.dur, 1), i = Math.floor(f * (anim.pts.length - 1))
-    ball.position.copy(anim.pts[i])
-    if (burst) burst.visible = f > 0.97
-    if (window.__fixedTime !== undefined) { ball.position.copy(anim.pts[anim.pts.length - 1]); if (burst) burst.visible = true }
+    if (window.__fixedTime === undefined) ball.position.copy(anim.pts[i])
+    const n = anim.beats.length
+    if (n > 1) for (let k = 0; k < n - 1; k++) if (f >= (k / (n - 1)) * 0.8 && anim.shown < k) showBeat(k)
+    if (f > 0.97 && !anim.exploded) finish()
   }
   requestAnimationFrame(tick)
 }
@@ -166,13 +206,45 @@ const CSS = `
 #dojo.ui-A #dj-verdict.GONE{color:#ff7a59}#dojo.ui-A #dj-verdict.WALL{color:#ffd23f}#dojo.ui-A #dj-verdict.PLAY{color:#7fe3d4}
 #dojo.ui-A input[type=range]{accent-color:#2cc4ff}#dojo.ui-A #dj-skins button{background:#06101c;color:#2cc4ff;border:1px solid #2cc4ff}
 #dojo.ui-A #dj-skins button.on{background:#2cc4ff;color:#06101c}
-#dojo.ui-B #dj-ctl,#dojo.ui-B #dj-out{background:#fff;color:#1d2a6d;border:3px solid #1d2a6d;box-shadow:6px 6px 0 #ff5a3c;transform:rotate(-.6deg)}
-#dojo.ui-B #dj-out{transform:rotate(.8deg);box-shadow:6px 6px 0 #ffd23f}
+#dj-state{font:700 10px Consolas,monospace;letter-spacing:.2em;margin:0 0 3px}
+#dj-sub{font:700 11px Consolas,monospace;letter-spacing:.04em;min-height:14px;margin:0 0 6px}
+#dj-fig,.tape{display:none}
+#dojo.ui-B #dj-ctl,#dojo.ui-B #dj-out{background-color:#fff;background-image:linear-gradient(rgba(29,42,109,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(29,42,109,.08) 1px,transparent 1px);background-size:16px 16px;color:#1d2a6d;border:3px solid #1d2a6d;box-shadow:6px 6px 0 #ff5a3c;transform:rotate(-.5deg)}
+#dojo.ui-B #dj-out{transform:rotate(.6deg);box-shadow:6px 6px 0 #ffd23f;width:310px}
+#dojo.ui-B .tape{display:block;margin:-10px -12px 8px;padding:3px 0;background:repeating-linear-gradient(-45deg,#1d2a6d 0 9px,#ffd23f 9px 18px);border-bottom:3px solid #1d2a6d}
+#dojo.ui-B .tape i{display:inline-block;margin-left:10px;padding:1px 8px;background:#1d2a6d;color:#ffd23f;font:900 10px Consolas,monospace;letter-spacing:.18em;font-style:normal}
 #dojo.ui-B #dj-title{position:absolute;top:8px;left:12px;background:#ffd23f;color:#1d2a6d;border:3px solid #1d2a6d;padding:2px 10px;font:900 18px Arial;letter-spacing:.04em;transform:rotate(-1.5deg);box-shadow:3px 3px 0 #1d2a6d}
-#dojo.ui-B #dj-verdict{font-size:40px;font-style:italic;color:#fff;background:#1d2a6d;padding:6px 10px;text-shadow:3px 3px 0 #ff5a3c;transform:rotate(-1.5deg);display:inline-block}
-#dojo.ui-B #dj-verdict.GONE:before{content:'KA-BLAM! '}#dojo.ui-B #dj-verdict.WALL:before{content:'THUD! '}
-#dojo.ui-B input[type=range]{accent-color:#ff5a3c}#dojo.ui-B #dj-skins button{background:#fff;color:#1d2a6d;border:2px solid #1d2a6d;font-weight:900}
+#dojo.ui-B #dj-ctl{counter-reset:rw}#dojo.ui-B #dj-ctl .row{counter-increment:rw}
+#dojo.ui-B #dj-ctl label{min-width:104px;font:900 11px Consolas,monospace;letter-spacing:.08em}
+#dojo.ui-B #dj-ctl label::before{content:counter(rw);display:inline-block;width:15px;height:15px;line-height:12px;margin-right:6px;text-align:center;border:2px solid #1d2a6d;border-radius:50%;font:900 9px Consolas,monospace}
+#dojo.ui-B .val{background:#1d2a6d;color:#ffd23f;padding:1px 6px;font-family:Consolas,monospace;min-width:62px}
+#dojo.ui-B input[type=range]{-webkit-appearance:none;appearance:none;height:24px;background:linear-gradient(#1d2a6d,#1d2a6d) 0 50%/100% 3px no-repeat,repeating-linear-gradient(90deg,#1d2a6d 0 2px,transparent 2px 12px) 0 100%/100% 6px no-repeat;outline:none}
+#dojo.ui-B input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:24px;background:#ffd23f;border:3px solid #1d2a6d;border-radius:2px;box-shadow:2px 2px 0 #ff5a3c}
+#dojo.ui-B #dj-skins button{background:#fff;color:#1d2a6d;border:2px solid #1d2a6d;font-weight:900}
 #dojo.ui-B #dj-skins button.on{background:#1d2a6d;color:#fff}
+#dojo.ui-B #dj-verdict{font:900 italic 30px/1.05 'Arial Black',Impact,Arial;color:#fff;background:#1d2a6d;padding:16px 20px;margin:2px 0 6px;text-shadow:3px 3px 0 #ff5a3c;min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;clip-path:polygon(0% 14%,5% 0%,13% 10%,23% 0%,33% 9%,45% 0%,55% 10%,67% 0%,77% 9%,89% 0%,96% 12%,100% 40%,96% 60%,100% 84%,92% 100%,80% 90%,68% 100%,56% 91%,44% 100%,32% 90%,20% 100%,10% 90%,0% 100%,4% 60%,0% 40%)}
+#dojo.ui-B #dj-fig{display:block;margin:4px 0 6px;border:2px solid #1d2a6d;background:#fff}
+#dojo.ui-B #dj-fig figcaption{font:700 9px Consolas,monospace;letter-spacing:.14em;padding:1px 6px;background:#1d2a6d;color:#fff}
+#dojo.ui-B #dj-fig svg{display:block;width:100%;height:auto}
+#dojo.ui-B #dj-nums div{font:700 12px Consolas,monospace;border-bottom:1px dotted #1d2a6d55}
+#dojo.ui-B #dj-nums i{display:inline-block;width:14px;height:14px;line-height:11px;margin-right:6px;text-align:center;font:900 9px Consolas,monospace;font-style:normal;border:2px solid #1d2a6d;border-radius:50%}
+#dojo.ui-B #dj-note{font:700 8.5px/1.3 Consolas,monospace;letter-spacing:.06em;text-transform:uppercase;opacity:.75;border-top:2px solid #1d2a6d;padding-top:4px}
+#dj-verdict .beat{display:inline-block;animation:beatPop .38s cubic-bezier(.2,1.6,.4,1) both}
+#dojo.ui-B #dj-verdict.st-wait{background:#1d2a6d;color:#fff;text-shadow:none}
+#dojo.ui-B #dj-verdict.st-gone{background:#ff5a3c;color:#fff;text-shadow:3px 3px 0 #1d2a6d}
+#dojo.ui-B #dj-verdict.st-nuke{background:#e52911;color:#ffd23f;text-shadow:3px 3px 0 #1d2a6d;animation:nuke .14s linear infinite}
+#dojo.ui-B #dj-verdict.st-splash{background:#0aa8d6;color:#fff;text-shadow:3px 3px 0 #0d2b4a;animation:wave 1.3s ease-in-out infinite}
+#dojo.ui-B #dj-verdict.st-scraper{background:#ffd23f;color:#1d2a6d;text-shadow:3px 3px 0 #fff;animation:scrape .09s linear 6}
+#dojo.ui-B #dj-verdict.st-wall{background:#9a5a48;color:#fff;text-shadow:3px 3px 0 #1d2a6d;animation:thud .5s cubic-bezier(.3,1.4,.5,1) both}
+#dojo.ui-B #dj-verdict.st-close{background:#b9bdc6;color:#1d2a6d;text-shadow:3px 3px 0 #fff;animation:shiver .12s linear 8}
+#dojo.ui-B #dj-verdict.st-play{background:#7fe3d4;color:#1d2a6d;text-shadow:3px 3px 0 #fff}
+#dojo.ui-B #dj-verdict.st-foul{background:#c4c4c4;color:#1d2a6d;text-shadow:3px 3px 0 #fff;transform:skewX(-8deg)}
+@keyframes beatPop{0%{transform:scale(.3) rotate(-7deg);opacity:0}60%{transform:scale(1.2) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+@keyframes nuke{0%{transform:translate(2px,-2px) scale(1.04)}25%{transform:translate(-3px,1px) scale(1)}50%{transform:translate(2px,2px) scale(1.05)}75%{transform:translate(-2px,-1px) scale(1)}100%{transform:translate(2px,-2px) scale(1.04)}}
+@keyframes wave{0%,100%{transform:skewX(-6deg) translateY(0)}50%{transform:skewX(6deg) translateY(-4px)}}
+@keyframes scrape{0%{transform:translateX(-2px)}50%{transform:translateX(2px)}100%{transform:translateX(-2px)}}
+@keyframes thud{0%{transform:translateY(-22px) scale(1.2)}35%{transform:translateY(7px) scale(.97)}65%{transform:translateY(-3px)}100%{transform:none}}
+@keyframes shiver{0%{transform:rotate(-1.4deg)}50%{transform:rotate(1.4deg)}100%{transform:rotate(-1.4deg)}}
 #dojo.ui-C #dj-ctl{background:#14081f;color:#ff4bd8;border:2px solid #ff4bd8;box-shadow:0 0 14px #ff4bd8aa;border-radius:14px;top:auto;bottom:122px;left:12px;width:auto;display:flex;gap:18px;flex-wrap:wrap;max-width:calc(100vw - 340px)}
 #dojo.ui-C #dj-ctl .row{margin:2px 0;min-width:240px}#dojo.ui-C #dj-ctl label{color:#c8ff3a}
 #dojo.ui-C #dj-out{background:#000;color:#c8ff3a;border:2px solid #c8ff3a;box-shadow:0 0 14px #c8ff3aaa;border-radius:6px;font-family:'Courier New',monospace;top:44px}
@@ -191,9 +263,9 @@ root.id = 'dojo'
 root.innerHTML = `<style>${CSS_ALL}</style>
 <div id="dj-title">DINGER DOJO</div>
 <div id="dj-skins">SKIN <button data-ui="A">A</button><button data-ui="B">B</button><button data-ui="C">C</button></div>
-${NN.real ? '<div id="dj-vibe"><span id="dj-vibename"></span>' + [1, 2, 3, 4, 5].map((n) => `<button data-v="${n}">${n}</button>`).join('') + '</div>' : ''}
+${NN.real && Q.get('vibes') ? '<div id="dj-vibe"><span id="dj-vibename"></span>' + [1, 2, 3, 4, 5].map((n) => `<button data-v="${n}">${n}</button>`).join('') + '</div>' : ''}
 <div id="dj-ctl"></div>
-<div id="dj-out"><div id="dj-verdict"></div><div id="dj-nums"></div><div id="dj-note"></div></div>`
+<div id="dj-out"><div class="tape"><i>VERDICT PLATE 02</i></div><div id="dj-state"></div><div id="dj-verdict"></div><div id="dj-sub"></div><figure id="dj-fig"><figcaption>FIG. 1  FLIGHT, SIDE ELEVATION</figcaption><div id="dj-svg"></div></figure><div id="dj-nums"></div><div id="dj-note"></div></div>`
 document.body.appendChild(root)
 const ctl = document.getElementById('dj-ctl')
 const sliders = [
@@ -201,22 +273,54 @@ const sliders = [
   ['dir', 'Direction', -50, 50, 1, (v) => (v < -5 ? `${-v}° LF` : v > 5 ? `${v}° RF` : 'CF')],
   ['temp', 'Temperature', 40, 100, 1, (v) => `${v}°F`], ['wind', 'What-if wind', -20, 20, 1, (v) => (v === 0 ? 'calm' : `${Math.abs(v)} mph ${v > 0 ? 'out' : 'in'}`)],
 ]
-ctl.innerHTML = sliders.map(([k, l, lo, hi, st]) => `<div class="row"><label>${l}</label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${st}"><span class="val" id="v-${k}"></span></div>`).join('') +
+ctl.innerHTML = '<div class="tape"><i>CONTROL PANEL 01</i></div>' + sliders.map(([k, l, lo, hi, st]) => `<div class="row"><label>${l}</label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${st}"><span class="val" id="v-${k}"></span></div>`).join('') +
   `<div class="row"><label>Batter</label><button id="hand" style="padding:3px 10px"></button></div>`
 
+const svgEl = (tag, attrs, text) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ')}>${text ?? ''}</${tag}>`
+function schematic(res) {
+  const W = 300, H = 128, x0 = 26, x1 = 290, yB = 106, yT = 14
+  const src = res.visPath ?? res.path
+  const pr = src.map((q) => [Math.hypot(q.p[0], q.p[1]) / FT, q.p[2] / FT])
+  const v = res.verdict
+  const xmax = Math.max(pr[pr.length - 1][0], (v.wallFt ?? 0) + 30, 150) * 1.05
+  const ymax = Math.max(res.peakFt * 1.15, (v.wallH ?? 0) + 14, 40)
+  const X = (r) => x0 + (r / xmax) * (x1 - x0), Y = (h) => yB - (Math.max(h, -4) / ymax) * (yB - yT)
+  const ink = '#1d2a6d', accent = '#ff5a3c'
+  let g = svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' })
+  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': 'Consolas,monospace' }, `${r}`)
+  g += svgEl('line', { x1: x0 - 4, x2: x1 + 4, y1: yB, y2: yB, stroke: ink, 'stroke-width': 2 })
+  if (v.wallFt) { // wall: hatched block at its distance and height
+    const wx = X(v.wallFt), wh = (v.wallH / ymax) * (yB - yT)
+    g += svgEl('rect', { x: wx - 2.5, y: yB - wh, width: 5, height: wh, fill: accent, stroke: ink, 'stroke-width': 1.5 })
+    g += svgEl('line', { x1: wx + 8, x2: wx + 8, y1: yB, y2: yB - wh, stroke: ink, 'stroke-width': 1 }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB - wh, y2: yB - wh, stroke: ink }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB, y2: yB, stroke: ink })
+    const left = wx > W - 92
+    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 8, 'font-weight': 900, fill: ink, 'font-family': 'Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
+  }
+  const d = pr.filter((_, i) => i % 3 === 0).map(([r, h], i) => `${i ? 'L' : 'M'}${X(r).toFixed(1)} ${Y(h).toFixed(1)}`).join(' ')
+  g += svgEl('path', { d, fill: 'none', stroke: ink, 'stroke-width': 5, 'stroke-linecap': 'round' }) + svgEl('path', { d, fill: 'none', stroke: '#ffd23f', 'stroke-width': 2.4, 'stroke-linecap': 'round' })
+  let ap = 0
+  pr.forEach(([, h], i) => { if (h > pr[ap][1]) ap = i })
+  const [ar, ah] = pr[ap]
+  g += svgEl('line', { x1: X(ar), x2: X(ar), y1: yB, y2: Y(ah), stroke: ink, 'stroke-dasharray': '3 2' }) + svgEl('circle', { cx: X(ar), cy: Y(ah), r: 3, fill: '#fff', stroke: ink, 'stroke-width': 2 })
+  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 8, 'font-weight': 900, fill: ink, 'font-family': 'Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
+  const la = (state.la * Math.PI) / 180, R = 20
+  g += svgEl('path', { d: `M${x0 + R} ${yB} A${R} ${R} 0 0 0 ${x0 + R * Math.cos(la)} ${yB - R * Math.sin(la)}`, fill: 'none', stroke: accent, 'stroke-width': 2 })
+  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 8, 'font-weight': 900, fill: accent, 'font-family': 'Consolas,monospace' }, `A ${state.la}°`)
+  const [lr] = pr[pr.length - 1]
+  g += svgEl('path', { d: `M${X(lr) - 4} ${yB - 4} L${X(lr) + 4} ${yB + 4} M${X(lr) + 4} ${yB - 4} L${X(lr) - 4} ${yB + 4}`, stroke: accent, 'stroke-width': 2.4 })
+  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 8, 'font-weight': 900, fill: ink, 'font-family': 'Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`
+}
 function render(res) {
   const v = res.verdict
-  const el = document.getElementById('dj-verdict')
-  el.textContent = v.text
-  el.className = v.kind
-  const rows = [['Distance', `${Math.round(res.landFt)} ft`], ['Peak height', `${Math.round(res.peakFt)} ft`], ['Hang time', `${res.hang.toFixed(1)} s`]]
-  if (v.wallFt) rows.push(['Wall there', `${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft tall`], ['Height at wall', `${v.cross.toFixed(0)} ft`])
-  if (v.kind === 'GONE') rows.push(['Cleared by', `${v.clearBy.toFixed(0)} ft`])
-  if (v.kind === 'WALL') rows.push(['Short by', `${v.short.toFixed(0)} ft`])
-  rows.push(['Backspin / sidespin', `${Math.round(res.wb)} / ${Math.round(res.ws)} rpm`], ['Air density', `${res.rho.toFixed(3)} kg/m³`])
-  document.getElementById('dj-nums').innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('')
-  document.getElementById('dj-note').textContent =
-    'PREDICTION. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'
+  const rows = [['A', 'Launch', `${state.ev} mph, ${state.la}°`], ['D', 'Distance', `${Math.round(res.landFt)} ft`], ['B', 'Peak height', `${Math.round(res.peakFt)} ft`], ['', 'Hang time', `${res.hang.toFixed(1)} s`]]
+  if (v.wallFt) rows.push(['C', 'Wall there', `${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft tall`], ['', 'Height at wall', `${v.cross.toFixed(0)} ft`])
+  if (v.kind === 'GONE') rows.push(['', 'Cleared by', `${v.clearBy.toFixed(0)} ft`])
+  if (v.kind === 'WALL') rows.push(['', 'Short by', `${v.short.toFixed(0)} ft`])
+  rows.push(['', 'Back / sidespin', `${Math.round(res.wb)} / ${Math.round(res.ws)} rpm`], ['', 'Air density', `${res.rho.toFixed(3)} kg/m³`])
+  document.getElementById('dj-nums').innerHTML = rows.map(([k, a, b]) => `<div><span>${k ? `<i>${k}</i>` : ''}${a}</span><b>${b}</b></div>`).join('')
+  document.getElementById('dj-svg').innerHTML = schematic(res)
+  document.getElementById('dj-note').textContent = 'Prediction. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'
   NN.setStat(state.ev, state.la, res.landFt)
 }
 function update() {
@@ -227,21 +331,34 @@ function update() {
   document.getElementById('hand').textContent = state.hand > 0 ? 'RIGHT-HANDED' : 'LEFT-HANDED'
   root.className = `ui-${state.ui}`
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
-  if (NN.real) {
+  if (NN.real && Q.get('vibes')) {
     document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`
     for (const b of root.querySelectorAll('#dj-vibe button')) b.classList.toggle('on', Number(b.dataset.v) === NN.vibe())
   }
   const res = fly(state)
+  if (NN.real && NN.stadium && res.verdict.wallFt && (res.verdict.kind === 'GONE' || res.verdict.kind === 'FOUL')) { // follow it past the wall to the seats, street or water
+    const ext = fly(state, { floor: -8 })
+    res.landing = findLanding(NN, ext.path, toWorld)
+    res.visPath = ext.path.slice(0, res.landing.index + 1)
+  }
+  res.key = classify(res, state, res.landing?.kind === 'SPLASH' ? 'SPLASH' : null, wallDistAt(res.landB))
   draw(res)
   render(res)
   window.__dojo = res
   window.__seanceRefresh?.()
+}
+window.__dojoProbe = (o) => { // classify a swing without drawing it (for tuning the demo cases)
+  const st = { ...state, ...o }, res = fly(st)
+  let landing = null
+  if (NN.real && NN.stadium && res.verdict.wallFt && (res.verdict.kind === 'GONE' || res.verdict.kind === 'FOUL')) landing = findLanding(NN, fly(st, { floor: -8 }).path, toWorld)
+  return { key: classify(res, st, landing?.kind === 'SPLASH' ? 'SPLASH' : null, wallDistAt(res.landB)), ft: Math.round(res.landFt), clear: res.verdict.clearBy, short: res.verdict.short, land: landing?.kind, at: landing && [landing.point.x, landing.point.y, landing.point.z].map((v) => +v.toFixed(1)), idx: landing?.index }
 }
 ctl.addEventListener('input', (e) => { if (e.target.id?.startsWith('s-')) { state[e.target.id.slice(2)] = Number(e.target.value); update() } })
 document.getElementById('hand').addEventListener('click', () => { state.hand *= -1; update() })
 for (const b of root.querySelectorAll('#dj-skins button')) b.addEventListener('click', () => { state.ui = b.dataset.ui; update() })
 for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('click', () => NN.setVibe(Number(b.dataset.v)))
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
-addEventListener('keydown', (e) => { if (NN.real && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
+addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
+addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); initSeance({ NN, state, fly, toWorld, colors }); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; initSeance({ NN, state, fly, toWorld, colors }); update(); window.__dojoReady = true })

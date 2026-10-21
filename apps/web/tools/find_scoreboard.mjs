@@ -30,8 +30,10 @@ const out = await page.evaluate(() => {
   return hits
 })
 const facing = out.filter((h) => h.nz > 0.85 && Math.abs(h.ny) < 0.3)
-const rng = (k, a) => [Math.min(...a.map((h) => h[k])).toFixed(1), Math.max(...a.map((h) => h[k])).toFixed(1)]
-console.log('hits', out.length, 'facing the field', facing.length)
-if (facing.length) console.log('x', rng('x', facing), 'y', rng('y', facing), 'z', rng('z', facing), 'mats', [...new Set(facing.map((h) => h.mat))])
-console.log(JSON.stringify(facing.slice(0, 12)))
+const groups = {}
+for (const h of facing) (groups[h.z.toFixed(1)] ??= []).push(h)
+for (const [z, a] of Object.entries(groups).sort((p, q) => q[1].length - p[1].length).slice(0, 6)) {
+  const r = (k) => [Math.min(...a.map((h) => h[k])).toFixed(1), Math.max(...a.map((h) => h[k])).toFixed(1)]
+  console.log('plane z', z, 'hits', a.length, 'x', r('x'), 'y', r('y'), [...new Set(a.map((h) => h.mat))])
+}
 await browser.close()

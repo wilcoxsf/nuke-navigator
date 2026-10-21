@@ -132,6 +132,7 @@ new GLTFLoader().load(REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (
   if (REAL) applyVibe(vibeN)
   scene.add(gltf.scene)
   window.__nn.stadium = gltf.scene // for the ray-casting in Seat Seance
+  window.dispatchEvent(new Event('nn-stadium'))
   const box = new THREE.Box3().setFromObject(gltf.scene)
   document.title = `loaded ${mats.length} materials, box ${box.min.toArray().map((v) => v.toFixed(0))} to ${box.max.toArray().map((v) => v.toFixed(0))}`
 }, undefined, (err) => { document.title = 'GLB ERROR ' + (err && err.message) })
@@ -217,16 +218,17 @@ const post = new THREE.ShaderMaterial({
   uniforms: {
     tColor: { value: null }, tNormal: { value: null }, tDepth: { value: null },
     res: { value: new THREE.Vector2() }, near: { value: camera.near }, far: { value: camera.far },
-    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 },
+    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 }, shake: { value: new THREE.Vector2() },
   },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+  vertexShader: 'varying vec2 vUvRaw; void main(){ vUvRaw = uv; gl_Position = vec4(position.xy, 0., 1.); }',
   fragmentShader: /* glsl */ `
     uniform sampler2D tColor, tNormal, tDepth; uniform vec2 res; uniform float near, far;
     uniform vec3 paper, ink; uniform float dotScale, hatchAmt, lineW, lineK;
-    varying vec2 vUv;
+    varying vec2 vUvRaw; uniform vec2 shake;
     float lin(float d){ float z = d * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
     void main(){
+      vec2 vUv = vUvRaw + shake; // screen shake lives here, so the world (and the ray-casting on it) never moves
       vec2 px = 1. / res;
       vec3 n0 = texture2D(tNormal, vUv).rgb;
       float e = 0.;
@@ -309,6 +311,9 @@ addEventListener('resize', resize)
 resize()
 
 renderer.setAnimationLoop((t) => {
+  const dt = Math.min(0.05, (t - (window.__lastT ?? t)) / 1000)
+  window.__lastT = t
+  if (window.__fixedTime === undefined) for (const f of window.__nn.frames) f(dt, t / 1000)
   oceanMat.uniforms.time.value = (window.__fixedTime ?? t / 1000)
   controls.update()
   renderer.setRenderTarget(targets.color)
@@ -360,7 +365,7 @@ function roll() {
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
-  THREE, scene, camera, controls, VIBES, setVibe: applyVibe, vibe: () => vibeN, real: REAL,
+  THREE, scene, camera, controls, VIBES, frames: [], setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
   strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }
