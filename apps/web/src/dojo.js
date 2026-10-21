@@ -85,7 +85,7 @@ function fly(s, opt = {}) {
 }
 
 // ---------- scene: path ribbon, ball, landing burst ----------
-let ribbon = null, ball = null, burst = null, anim = null
+let ribbon = null, ball = null, burst = null, anim = null, apex = null
 const toWorld = (p) => new THREE.Vector3(HOME.x + p[0], p[2], HOME.z - p[1])
 function colors() {
   if (NN.real) return Object.fromEntries(Object.entries(NN.VIBES[NN.vibe()].ribbon).map(([k, v]) => [k, new THREE.Color(v)]))
@@ -119,6 +119,42 @@ const rngC = Q.get('seed') ? mulberry32(Number(Q.get('seed'))) : Math.random
 const recentHeads = []
 let fx = null
 const hex = (c) => `#${new THREE.Color(c).getHexString()}`
+// zenith of the flight, marked in the 3D scene: a dashed plumb line down to the ground, a diamond at the top and a lettered height tag
+function placeApex(src, res) {
+  if (apex) { scene.remove(apex); apex.traverse((o) => { o.geometry?.dispose?.(); o.material?.map?.dispose?.() }); apex = null }
+  let ai = 0
+  src.forEach((q, i) => { if (q.p[2] > src[ai].p[2]) ai = i })
+  const top = toWorld(src[ai].p), gnd = top.clone()
+  gnd.y = 0.3
+  const ink = inkOf(), main = new THREE.Color('#ffd23f')
+  apex = new THREE.Group()
+  const dashMat = new THREE.MeshBasicMaterial({ color: ink }), len = top.y - gnd.y, n = Math.max(2, Math.floor(len / 5))
+  for (let k = 0; k < n; k++) {
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, (len / n) * 0.55, 6), dashMat)
+    d.position.set(gnd.x, gnd.y + (k + 0.5) * (len / n), gnd.z)
+    apex.add(d)
+  }
+  const foot = new THREE.Mesh(new THREE.RingGeometry(1.5, 2.2, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: ink, side: THREE.DoubleSide }))
+  foot.position.copy(gnd)
+  apex.add(foot)
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(2.4), new THREE.MeshBasicMaterial({ color: main }))
+  const gemInk = new THREE.Mesh(new THREE.OctahedronGeometry(2.4), new THREE.MeshBasicMaterial({ color: ink, side: THREE.BackSide }))
+  gemInk.scale.setScalar(1.32)
+  gem.add(gemInk)
+  gem.position.copy(top)
+  apex.add(gem)
+  if (fx?.label) {
+    const tag = fx.label(`ZENITH ${Math.round(res.peakFt)} FT`, '#ffd23f', hex(ink))
+    tag.scale.set(26, 8.6, 1)
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(NN.camera.quaternion) // beside the gem, away from the blast word
+    tag.position.copy(top).addScaledVector(right, 17).add(new THREE.Vector3(0, 3, 0))
+    tag.renderOrder = 15
+    apex.add(tag)
+  }
+  apex.userData.at = ai / Math.max(1, src.length - 1)
+  apex.visible = window.__fixedTime !== undefined
+  scene.add(apex)
+}
 function draw(res) {
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
   if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose() }
@@ -130,6 +166,7 @@ function draw(res) {
   ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
   scene.add(ribbon)
   outlineOf(ribbon, 1.7)
+  placeApex(src, res)
   if (!ball) { ball = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(ball) }
   for (const c of [...ball.children]) ball.remove(c)
   outlineOf(ball, 1.25)
@@ -175,6 +212,7 @@ function tick() {
     const f = Math.min((performance.now() - anim.t0) / anim.dur, 1), i = Math.floor(f * (anim.pts.length - 1))
     if (window.__fixedTime === undefined) ball.position.copy(anim.pts[i])
     const n = anim.beats.length
+    if (apex && f >= apex.userData.at) apex.visible = true // the zenith tag appears as the ball passes the top
     if (n > 1) for (let k = 0; k < n - 1; k++) if (f >= (k / (n - 1)) * 0.8 && anim.shown < k) showBeat(k)
     if (f > 0.97 && !anim.exploded) finish()
   }

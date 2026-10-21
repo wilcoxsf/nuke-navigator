@@ -199,6 +199,6 @@ export function initFx(NN) {
   return {
     explode(tone, at, pal, scale) { place(at); explode(tone, at, pal, scale) },
     step(sec) { for (let t = 0; t < sec; t += 1 / 60) step(1 / 60) },
-    clear, count: () => parts.length,
+    clear, count: () => parts.length, label: wordSprite,
   }
 }
