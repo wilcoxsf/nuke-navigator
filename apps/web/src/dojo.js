@@ -4,6 +4,7 @@
 // game air density from temperature and humidity, spin from the linear prior that held up on wood-bat data (backspin -763 + 120 x launch angle rpm,
 // sidespin -849 x hand - 94 x direction rpm). Wall: distance and height by bearing extracted from the park model (right-center height assumed).
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
+import { initSeance } from './seance.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -23,10 +24,10 @@ function airDensity(tF, rh = 60, hPa = 1013) {
 }
 
 // frame: x toward right field, y toward center field, z up (metres). Returns the path and what happened.
-function fly(s) {
+function fly(s, opt = {}) {
   const rho = airDensity(s.temp)
   const phi = (s.dir * Math.PI) / 180, th = (s.la * Math.PI) / 180, v0 = s.ev * 0.44704
-  const wb = Math.max(0, -763 + 120 * s.la) * RPM, ws = (-s.hand * 849 - 94 * s.dir) * RPM
+  const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 849 - 94 * s.dir + (s.dws || 0)) * RPM
   const r = [Math.cos(phi), -Math.sin(phi), 0]
   const om = [wb * r[0], wb * r[1], ws], wm = Math.hypot(...om) + 1e-9
   const wind = [0, (s.wind * 0.44704), 0] // what-if wind along the field (positive = toward center field)
@@ -71,7 +72,8 @@ function fly(s) {
     v = nv
     peak = Math.max(peak, p[2])
     path.push({ p: [...p], t })
-    if (p[2] <= 0 || (verdict && verdict.kind === 'WALL')) break
+    const floor = opt.floor ?? 0, through = verdict && (verdict.kind === 'GONE' || verdict.kind === 'FOUL') // Seat Seance follows homers on past the wall
+    if ((p[2] <= 0 && !(floor < 0 && through)) || p[2] <= floor || (verdict && verdict.kind === 'WALL')) break
   }
   const last = path[path.length - 1].p
   const landFt = Math.hypot(last[0], last[1]) / FT, landB = bearingOf(last)
@@ -233,6 +235,7 @@ function update() {
   draw(res)
   render(res)
   window.__dojo = res
+  window.__seanceRefresh?.()
 }
 ctl.addEventListener('input', (e) => { if (e.target.id?.startsWith('s-')) { state[e.target.id.slice(2)] = Number(e.target.value); update() } })
 document.getElementById('hand').addEventListener('click', () => { state.hand *= -1; update() })
@@ -241,4 +244,4 @@ for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('cl
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
 addEventListener('keydown', (e) => { if (NN.real && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); initSeance({ NN, state, fly, toWorld, colors }); window.__dojoReady = true })

@@ -131,6 +131,7 @@ new GLTFLoader().load(REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (
   recolor()
   if (REAL) applyVibe(vibeN)
   scene.add(gltf.scene)
+  window.__nn.stadium = gltf.scene // for the ray-casting in Seat Seance
   const box = new THREE.Box3().setFromObject(gltf.scene)
   document.title = `loaded ${mats.length} materials, box ${box.min.toArray().map((v) => v.toFixed(0))} to ${box.max.toArray().map((v) => v.toFixed(0))}`
 }, undefined, (err) => { document.title = 'GLB ERROR ' + (err && err.message) })
