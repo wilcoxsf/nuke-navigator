@@ -25,7 +25,7 @@ body:has(#dojo.ui-K.lay-min) #dj-grid{--gl:246px;--gr:14px}
 `
 
 export function initGrid({ state, fly, onChange }) {
-  let data = null, collapsed = false
+  let data = null, collapsed = false, head = ''
   const st = document.createElement('style')
   st.textContent = GRID_CSS
   document.head.appendChild(st)
@@ -53,14 +53,18 @@ export function initGrid({ state, fly, onChange }) {
       return { p, k, v, res, margin }
     }).sort((a, b) => b.margin - a.margin)
     const gone = rows.filter((r) => r.k === 'GONE').length
-    el.querySelector('.n').textContent = `GONE IN ${gone} OF ${rows.length} PARKS`
+    head = `GONE IN ${gone} OF ${rows.length} PARKS`
+    el.querySelector('.n').textContent = head
     el.querySelector('.gt').innerHTML = rows.map(({ p, k, v, margin, res }, i) => {
       const cls = k === 'GONE' ? 'g' : k === 'WALL' ? 'w' : k === 'PLAY' ? 'p' : 'f'
       const val = k === 'GONE' ? `+${Math.round(margin)}` : k === 'WALL' ? `${Math.round(margin)}` : k === 'PLAY' ? 'IN' : 'FL'
       const tip = `${p.name} (${p.season} fences): ${k === 'GONE' ? `over the wall by ${margin.toFixed(1)} ft (wall ${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft tall)` : k === 'WALL' ? `hits the wall ${(-margin).toFixed(1)} ft short of the top (${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft tall)` : k === 'PLAY' ? `stays in play, lands ${Math.round(res.landFt)} ft out` : 'foul'}; air ${res.rho.toFixed(3)} kg/m3`
-      return `<div class="t ${cls}${p.abbr === 'SF' ? ' me' : ''}" style="--i:${i}" title="${tip}">${p.abbr}<u>${val}</u></div>`
+      const sh = k === 'GONE' ? `${p.name}: +${margin.toFixed(0)} ft over a ${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft wall` : k === 'WALL' ? `${p.name}: off the wall, ${(-margin).toFixed(0)} ft short of the top` : k === 'PLAY' ? `${p.name}: in play, ${Math.round(res.landFt)} ft` : `${p.name}: foul`
+      return `<div class="t ${cls}${p.abbr === 'SF' ? ' me' : ''}" style="--i:${i}" title="${tip}" data-tip="${sh}">${p.abbr}<u>${val}</u></div>`
     }).join('')
   }
+  el.querySelector('.gt').addEventListener('mouseover', (e) => { const t = e.target.closest('.t'); if (t) el.querySelector('.n').textContent = t.dataset.tip.toUpperCase() })
+  el.querySelector('.gt').addEventListener('mouseleave', () => { el.querySelector('.n').textContent = head })
   fetch('/parks30.json').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { data = d; refresh() } }).catch(() => {})
   let pt = 0
   const pulse = () => { el.classList.remove('ani'); void el.offsetWidth; el.classList.add('ani'); clearTimeout(pt); pt = setTimeout(() => el.classList.remove('ani'), 1100) }
