@@ -177,6 +177,64 @@ export function initFx(NN) {
     shake = { amp: R.shake * scale, t: 0, dur: 0.6 + 0.4 * R.shake }
   }
 
+  // 2001 impact: everything is thin line or a small flat square in the palette; nothing glows
+  function explode2001(tone, at, scale = 1) {
+    const BONE = '#f4eed8', CY = '#4fd0e0', AM = '#e2823a', LN = '#c4e2ea'
+    const SPEC = {
+      nuke: { rings: 4, spokes: 40, chunks: 36, power: 30, cols: [BONE, AM, CY, BONE], r: 34, shake: 0.5 }, gone: { rings: 3, spokes: 30, chunks: 22, power: 22, cols: [BONE, AM, CY], r: 24, shake: 0.28 },
+      scraper: { rings: 2, spokes: 20, chunks: 12, power: 15, cols: [AM, BONE], r: 16, shake: 0.14 }, wall: { rings: 2, spokes: 14, chunks: 16, power: 14, cols: [AM, LN], r: 15, shake: 0.3 },
+      close: { rings: 2, spokes: 12, chunks: 12, power: 12, cols: [AM, LN], r: 13, shake: 0.2 }, splash: { rings: 4, spokes: 0, chunks: 26, power: 18, cols: [CY, BONE, LN], r: 26, shake: 0.1, water: true },
+      play: { rings: 1, spokes: 0, chunks: 6, power: 7, cols: [LN], r: 8, shake: 0.03 }, foul: { rings: 1, spokes: 0, chunks: 5, power: 6, cols: [LN], r: 8, shake: 0.03 },
+    }
+    const R = SPEC[tone] ?? SPEC.gone
+    const at0 = at.clone()
+    const lm = (c, o = 1) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, side: THREE.DoubleSide, depthWrite: false })
+    // ground rings
+    for (let i = 0; i < R.rings; i++) {
+      const m = new THREE.Mesh(new THREE.RingGeometry(0.985, 1, 96).rotateX(-Math.PI / 2), lm(i % 2 ? CY : BONE))
+      m.position.copy(at0); m.position.y += 0.4
+      let t = -i * 0.12
+      add(m, (dt) => { t += dt; const k = ease(t / 0.9); m.scale.setScalar(Math.max(0.01, 1 + k * R.r * scale * 1.5)); m.material.opacity = t < 0 ? 0 : (1 - k) * 0.9; return t < 0.95 })
+    }
+    // camera-facing ring and spokes
+    const face = new THREE.Group(); face.position.copy(at0)
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.985, 1, 64), lm(BONE)); face.add(ring)
+    if (R.spokes) {
+      const pos = []
+      for (let i = 0; i < R.spokes; i++) { const a = (i / R.spokes) * Math.PI * 2, r0 = 1.15, r1 = i % 2 ? 1.5 : 1.9; pos.push(Math.cos(a) * r0, Math.sin(a) * r0, 0, Math.cos(a) * r1, Math.sin(a) * r1, 0) }
+      const spokes = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)), new THREE.LineBasicMaterial({ color: BONE, transparent: true, opacity: 1, depthWrite: false }))
+      face.add(spokes)
+    }
+    let ft = 0
+    add(face, (dt) => { ft += dt; const k = ease(ft / 0.7); face.scale.setScalar(Math.max(0.01, k * R.r * scale * 0.55)); face.quaternion.copy(camera.quaternion); face.traverse((o) => { if (o.material) o.material.opacity = (1 - ease((ft - 0.15) / 0.55)) }); return ft < 0.75 })
+    // crosshair held on the landing for a moment
+    const cx = []
+    const L = 7 * scale, G = 2 * scale
+    cx.push(-L, 0, 0, -G, 0, 0, G, 0, 0, L, 0, 0, 0, 0, -L, 0, 0, -G, 0, 0, G, 0, 0, L)
+    const cross = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(cx, 3)), new THREE.LineBasicMaterial({ color: CY, transparent: true, opacity: 1, depthWrite: false }))
+    cross.position.copy(at0); cross.position.y += 0.5
+    let ct = 0
+    add(cross, (dt) => { ct += dt; cross.material.opacity = ct < 1.4 ? 1 : 1 - ease((ct - 1.4) / 0.6); return ct < 2.0 })
+    // flat square fragments
+    const geo = new THREE.PlaneGeometry(1, 1)
+    const rnd = (a, b) => a + Math.random() * (b - a)
+    for (let i = 0; i < R.chunks; i++) {
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: R.cols[i % R.cols.length], transparent: true, side: THREE.DoubleSide, depthWrite: false }))
+      m.position.copy(at0)
+      const sc = rnd(0.35, 0.9) * scale; m.scale.setScalar(sc)
+      const a = Math.random() * Math.PI * 2, up = rnd(0.4, 1.0), sp = R.power * rnd(0.4, 1.0)
+      const v = new THREE.Vector3(Math.cos(a) * (1 - up * 0.4) * sp * 0.6, up * sp, Math.sin(a) * (1 - up * 0.4) * sp * 0.6)
+      const w = new THREE.Vector3(rnd(-6, 6), rnd(-6, 6), rnd(-6, 6)); let t = 0
+      add(m, (dt) => { t += dt; v.y -= 20 * dt; m.position.addScaledVector(v, dt); m.rotation.x += w.x * dt; m.rotation.y += w.y * dt; m.rotation.z += w.z * dt; m.material.opacity = Math.max(0, 1 - Math.max(0, t - 0.5) / 0.9); return t < 1.45 })
+    }
+    if (R.water) { // a thin column that rises and falls
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.6, 1, 16, 1, true), lm(CY, 0.55)); col.position.copy(at0); let t = 0
+      add(col, (dt) => { t += dt; const h = Math.sin(Math.min(t / 0.9, 1) * Math.PI) * 22 * scale; col.scale.set(1 + t, Math.max(h, 0.01), 1 + t); col.position.y = at0.y + h / 2; col.material.opacity = 0.55 * (1 - ease((t - 0.4) / 0.5)); return t < 0.95 })
+    }
+    flash = { t: 0, peak: tone === 'nuke' ? 2400 : tone === 'gone' ? 1100 : 0, color: BONE }
+    shake = { amp: R.shake * scale, t: 0, dur: 0.5 }
+  }
+
   function step(dt) {
     for (let i = parts.length - 1; i >= 0; i--) {
       if (!parts[i].update(dt)) {
@@ -197,7 +255,7 @@ export function initFx(NN) {
   function clear() { while (parts.length) { const { obj } = parts.pop(); scene.remove(obj) } light.intensity = 0; NN.setShake(0, 0) }
   NN.frames.push(step)
   return {
-    explode(tone, at, pal, scale) { place(at); explode(tone, at, pal, scale) },
+    explode(tone, at, pal, scale, style) { place(at); if (style === 'k') explode2001(tone, at, scale); else explode(tone, at, pal, scale) },
     step(sec) { for (let t = 0; t < sec; t += 1 / 60) step(1 / 60) },
     clear, count: () => parts.length, label: wordSprite,
   }

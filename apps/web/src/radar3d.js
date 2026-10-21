@@ -11,7 +11,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js'
 
 const FT = 0.3048
-const LINE = '#c4e2ea', BONE = '#f4eed8', AMBER = '#ff8a2a', CYAN = '#4fd0e0'
+const LINE = '#9fc4d0', BONE = '#e8e1c9', AMBER = '#e2823a', CYAN = '#4fd0e0'
 const GY = 0.32 // lines sit a hair above the field
 
 function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
@@ -22,12 +22,12 @@ function dotTexture() {
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.beginPath(); g.arc(16, 16, 14, 0, Math.PI * 2); g.fill()
   return new THREE.CanvasTexture(c)
 }
-function label(text, color = BONE) {
-  const c = document.createElement('canvas'); c.width = 160; c.height = 48
-  const g = c.getContext('2d'); g.font = "700 26px 'Space Grotesk','SG',Arial,sans-serif"; g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 4, 26)
+export function label(text, color = BONE) {
+  const c = document.createElement('canvas'); c.width = 260; c.height = 48
+  const g = c.getContext('2d'); g.font = "400 26px 'STM','Share Tech Mono',Consolas,monospace"; g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 4, 26)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.minFilter = THREE.LinearFilter
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false }))
-  s.scale.set(16, 4.8, 1); s.center.set(0, 0.5); s.renderOrder = 30
+  s.scale.set(26, 4.8, 1); s.center.set(0, 0.5); s.renderOrder = 30
   return s
 }
 
@@ -39,6 +39,7 @@ export function initRadar3D({ NN, state, fly, toWorld, getWall, findLanding }) {
   NN.hideForNormal.push(group) // the ink-outline pass reads normals: keep the overlay out of it
   const mat = (color, opacity = 1) => new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: false, depthTest: true })
   let on = new URLSearchParams(location.search).get('radar') !== '0'
+  let detail = new URLSearchParams(location.search).get('radar') === 'full' // subtle by default; the G key or ?radar=full adds the curtain, labels and cloud
   group.visible = on
 
   const wallFtAt = (b) => { const W = getWall(), k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return W.wall_ft[i] * (1 - f) + W.wall_ft[j] * f }
@@ -60,7 +61,7 @@ export function initRadar3D({ NN, state, fly, toWorld, getWall, findLanding }) {
     if (built || !getWall()) return
     built = true
     const fine = [], strong = [], axis = [], foulL = [], crest = [], ticks = []
-    for (let r = 25; r <= 500; r += 25) {
+    for (let r = 50; r <= 500; r += 50) {
       const arr = r % 100 === 0 ? strong : fine
       for (let b = -46; b < 46; b += 1) {
         if (r > wallFtAt(b) - 4 || r > wallFtAt(b + 1) - 4) continue
@@ -68,15 +69,16 @@ export function initRadar3D({ NN, state, fly, toWorld, getWall, findLanding }) {
       }
     }
     for (let b = -45; b <= 45; b += 15) {
-      const arr = b === 0 ? axis : Math.abs(b) === 45 ? foulL : fine
-      seg(arr, at(15, b), at(wallFtAt(b) - 4, b))
+      if (b === 0) continue
+      const arr = Math.abs(b) === 45 ? foulL : fine
+      seg(arr, at(25, b), at(wallFtAt(b) - 4, b))
     }
     for (let b = -46; b < 46; b += 1) {
       seg(crest, at(wallFtAt(b), b, wallHAt(b) * FT), at(wallFtAt(b + 1), b + 1, wallHAt(b + 1) * FT))
-      if (b % 5 === 0) seg(ticks, at(wallFtAt(b), b, GY), at(wallFtAt(b), b, wallHAt(b) * FT))
+      if (b % 15 === 0) seg(ticks, at(wallFtAt(b), b, GY), at(wallFtAt(b), b, wallHAt(b) * FT))
     }
-    group.add(lines(fine, mat(LINE, 0.55)), thick(strong, LINE, 0.95, 2.2), thick(axis, BONE, 1, 3), thick(foulL, BONE, 1, 3), thick(crest, AMBER, 1, 3.5), lines(ticks, mat(AMBER, 0.8)))
-    for (const r of [100, 200, 300, 400]) { const s = label(`${r}`, LINE); s.position.copy(at(r, 1.2, 1.6)); group.add(s) }
+    group.add(lines(fine, mat(LINE, 0.16)), thick(strong, LINE, 0.28, 1.2), thick(foulL, BONE, 0.34, 1.3), thick(crest, AMBER, 0.55, 1.6), lines(ticks, mat(AMBER, 0.3)))
+    for (const r of [100, 200, 300, 400]) { const s = label(`${r}`, LINE); s.position.copy(at(r, 1.2, 1.6)); s.userData.detail = true; s.visible = detail; group.add(s) }
   }
 
   function clearDyn() {
@@ -88,6 +90,15 @@ export function initRadar3D({ NN, state, fly, toWorld, getWall, findLanding }) {
     if (!built) return
     clearDyn()
     const P = res.visPath ?? res.path
+    group.children.forEach((c) => { if (c.userData.detail) c.visible = detail })
+    if (!detail) { // subtle mode: only the landing marks
+      const land0 = (res.landing?.point ?? toWorld(P[P.length - 1].p)).clone(); if (!res.landing) land0.y = GY
+      const L0 = [], a0 = 3.4, b0 = 1.5
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) L0.push(land0.x + sx * a0, land0.y + 0.1, land0.z + sz * b0, land0.x + sx * a0, land0.y + 0.1, land0.z + sz * a0, land0.x + sx * a0, land0.y + 0.1, land0.z + sz * a0, land0.x + sx * b0, land0.y + 0.1, land0.z + sz * a0)
+      dyn.add(thick(L0, CYAN, 0.6, 1.3))
+      dyn.children.forEach((c) => { if (c.material?.isLineMaterial) c.material.userData.dyn = true })
+      return
+    }
     // flight curtain: ground track to the ball, as a see-through sheet with plumb lines
     const pts = P.filter((_, i) => i % 3 === 0)
     const pos = [], idx = []
@@ -133,7 +144,8 @@ export function initRadar3D({ NN, state, fly, toWorld, getWall, findLanding }) {
     window.dispatchEvent(new CustomEvent('nn-radar', { detail: window.__radar }))
   }
   const dot = dotTexture()
+  function setDetail(v) { detail = v; group.children.forEach((c) => { if (c.userData.detail) c.visible = v }); if (window.__dojo) update(window.__dojo) }
   function set(v) { on = v; group.visible = v; if (v && window.__dojo) update(window.__dojo) }
-  addEventListener('keydown', (e) => { if ((e.key === 'g' || e.key === 'G') && e.target.tagName !== 'INPUT') set(!on) })
-  return { update, set, toggle: () => set(!on), isOn: () => on }
+  addEventListener('keydown', (e) => { if ((e.key === 'g' || e.key === 'G') && e.target.tagName !== 'INPUT') { if (!on) set(true); else if (!detail) setDetail(true); else { setDetail(false); set(false) } } })
+  return { update, set, setDetail, toggle: () => set(!on), isOn: () => on }
 }

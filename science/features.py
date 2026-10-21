@@ -57,6 +57,7 @@ FEATURES: dict[str, str] = {
     "res_ad": CONTACT, "res_ix": CONTACT, "res_iy": CONTACT, "res_aa": CONTACT, "res_bs": CONTACT, "bearing_hat_old": CONTACT,
     # sector probabilities (direction_sectors.py): out-of-fold class probabilities for nine landing-bearing sectors, a function of legal inputs only
     **{f"sec_{j}": CONTACT for j in range(9)}, "sec_ent": CONTACT,
+    "bearing_hat_c5": CONTACT,
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

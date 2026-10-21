@@ -6,12 +6,13 @@
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
 import { initSeance, findLanding } from './seance.js'
 import { initFx } from './fx.js'
-import { initRadar3D } from './radar3d.js'
+import { initRadar3D, label as monoLabel } from './radar3d.js'
 import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
 import { mulberry32 } from './comparisons.js'
 import { initKrab } from './krab.js'
 import { PANEL_CSS, frame, balloon } from './panels.js'
 import { SKINX_CSS } from './skinx.js'
+import { SKINK_CSS } from './skink.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -22,7 +23,7 @@ let radar = null
 
 const state = {
   ev: Number(Q.get('ev')) || 105, la: Number(Q.get('la')) || 28, dir: Q.get('dir') !== null ? Number(Q.get('dir')) : 30,
-  hand: Q.get('hand') === 'L' ? -1 : 1, temp: Number(Q.get('temp')) || 62, wind: Number(Q.get('wind')) || 0, ui: (Q.get('ui') || 'X').toUpperCase(),
+  hand: Q.get('hand') === 'L' ? -1 : 1, temp: Number(Q.get('temp')) || 62, wind: Number(Q.get('wind')) || 0, ui: (Q.get('ui') || 'K').toUpperCase(),
 }
 
 function airDensity(tF, rh = 60, hPa = 1013) {
@@ -133,6 +134,18 @@ function placeApex(src, res) {
   gnd.y = 0.3
   const ink = inkOf(), main = new THREE.Color('#ffd23f')
   apex = new THREE.Group()
+  if (state.ui === 'K') {
+    const bone = new THREE.Color('#e8e1c9'), pl = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([top.x, gnd.y, top.z, top.x, top.y, top.z], 3)), new THREE.LineBasicMaterial({ color: bone, transparent: true, opacity: 0.35 }))
+    apex.add(pl)
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(1.5), new THREE.MeshBasicMaterial({ color: bone }))
+    gem.position.copy(top); apex.add(gem)
+    const tag = monoLabel(`ZENITH ${Math.round(res.peakFt)} FT`, '#e8e1c9')
+    tag.scale.set(24, 4.4, 1)
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(NN.camera.quaternion)
+    tag.position.copy(top).addScaledVector(right, 2.4).add(new THREE.Vector3(0, 5.5, 0)); apex.add(tag)
+    apex.userData.at = ai / Math.max(1, src.length - 1); apex.visible = window.__fixedTime !== undefined; scene.add(apex)
+    return
+  }
   const dashMat = new THREE.MeshBasicMaterial({ color: ink }), len = top.y - gnd.y, n = Math.max(2, Math.floor(len / 5))
   for (let k = 0; k < n; k++) {
     const d = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, (len / n) * 0.55, 6), dashMat)
@@ -189,10 +202,12 @@ function draw(res) {
   showBeat(-1)
   if (window.__fixedTime !== undefined) { ball.position.copy(pts[pts.length - 1]); finish() }
 }
-function fitVerdict(el) { // skin X: shrink the verdict word until it fits its cell
+function fitVerdict(el) { // skins X and K: shrink the verdict word until it fits its cell
   el.style.fontSize = ''
-  if (state.ui !== 'X') return
-  for (let f = 72; f > 28 && (el.scrollHeight > el.clientHeight + 2 || (el.firstChild && el.firstChild.scrollWidth > el.clientWidth + 2)); f -= 4) el.style.fontSize = f + 'px'
+  if (state.ui !== 'X' && state.ui !== 'K') return
+  const top = state.ui === 'K' ? 58 : 72
+  el.style.fontSize = top + 'px'
+  for (let f = top; f > 24 && (el.scrollHeight > el.clientHeight + 2 || (el.firstChild && el.firstChild.scrollWidth > el.clientWidth + 2)); f -= 4) el.style.fontSize = f + 'px'
 }
 function showBeat(i) { // i = -1: waiting for the first word; the last beat comes with the blast
   if (!anim || anim.shown === i) return
@@ -216,7 +231,7 @@ function finish() {
   const kindColor = hex(colors()[anim.kind] ?? 0xffffff)
   const pal = { main: kindColor, accent: '#ffd23f', ink: hex(inkOf()) }
   const sc = Math.min(2.2, Math.max(0.8, NN.camera.position.distanceTo(anim.at) / 220))
-  fx.explode(anim.tone, anim.at, pal, sc)
+  fx.explode(anim.tone, anim.at, pal, sc, state.ui === 'K' ? 'k' : 'comic')
   window.__krab?.react(anim.tone, anim.at)
   if (window.__fixedTime !== undefined) fx.step(Number(Q.get('fxt') ?? 0.4))
 }
@@ -273,8 +288,8 @@ const CSS = `
 #dojo.ui-C #dj-skins button.on{background:#ff4bd8;color:#14081f}
 `
 window.__dojoFly = fly // exposed for the screenshot and test scripts
-const SKIN_BUTTONS = /(#dojo\.ui-[ABCX]) #dj-skins button(\.on)?/g // the vibe buttons wear whichever skin is on
-const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2') + PANEL_CSS + SKINX_CSS
+const SKIN_BUTTONS = /(#dojo\.ui-[ABCXK]) #dj-skins button(\.on)?/g // the vibe buttons wear whichever skin is on
+const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2') + PANEL_CSS + SKINX_CSS + SKINK_CSS
 document.getElementById('look')?.remove() // the look switcher label would sit under the Dojo title
 const root = document.createElement('div')
 root.id = 'dojo'
@@ -282,10 +297,10 @@ root.innerHTML = `<style>${CSS_ALL}</style>
 <div id="dj-title">DINGER DOJO</div>
 <div class="xcell xbar"></div><div class="xcell xv"></div><div class="xcell xc"></div><div class="xcell xr1"></div><div class="xcell xr2"></div>
 <div id="dj-chips"><span>Oracle Park</span><span>Spin: assumed</span><span>Wind: pretend</span></div>
-<div id="dj-skins">SKIN <button data-ui="X">X</button><button data-ui="A">A</button><button data-ui="B">B</button><button data-ui="C">C</button></div>
+<div id="dj-skins">SKIN <button data-ui="K">K</button><button data-ui="X">X</button><button data-ui="A">A</button><button data-ui="B">B</button><button data-ui="C">C</button></div>
 ${NN.real && Q.get('vibes') ? '<div id="dj-vibe"><span id="dj-vibename"></span>' + [1, 2, 3, 4, 5].map((n) => `<button data-v="${n}">${n}</button>`).join('') + '</div>' : ''}
 <div id="dj-ctl"></div>
-<div id="dj-out"><div class="tape"><i>VERDICT PLATE 02</i></div><div id="dj-state"></div><div id="dj-verdict"></div><div id="dj-sub"></div><figure id="dj-fig"><figcaption>FIG. 1  FLIGHT, SIDE ELEVATION</figcaption><div id="dj-svg"></div></figure><div id="dj-nums"></div><div id="dj-note"></div></div>`
+<div id="dj-out"><div class="tape"><i>VERDICT PLATE 02</i></div><div id="dj-slab"><div id="dj-state"></div><div id="dj-verdict"></div><div id="dj-sub"></div></div><figure id="dj-fig"><figcaption>FIG 01; FLIGHT; SIDE ELEVATION</figcaption><div id="dj-svg"></div></figure><div id="dj-nums"></div><div id="dj-p"></div><div id="dj-note"></div></div>`
 document.body.appendChild(root)
 const PRESETS = { homer: { ev: 104, la: 27, dir: -25 }, nuke: { ev: 116, la: 34, dir: -24 }, splash: { ev: 116, la: 28, dir: 24 }, scraper: { ev: 98, la: 28, dir: -32 },
   wall: { ev: 96, la: 28, dir: -32 }, fly: { ev: 88, la: 40, dir: 8 }, foul: { ev: 102, la: 31, dir: -40 }, liner: { ev: 102, la: 22, dir: -12 }, grounder: { ev: 100, la: 7, dir: 12 }, popup: { ev: 100, la: 55, dir: 4 } }
@@ -310,33 +325,69 @@ function schematic(res) {
   const xmax = Math.max(pr[pr.length - 1][0], (v.wallFt ?? 0) + 30, 150) * 1.05
   const ymax = Math.max(res.peakFt * 1.15, (v.wallH ?? 0) + 14, 40)
   const X = (r) => x0 + (r / xmax) * (x1 - x0), Y = (h) => yB - (Math.max(h, -4) / ymax) * (yB - yT)
-  const X_ = state.ui === 'X', ink = X_ ? '#1a1b1c' : '#1d2a6d', accent = X_ ? '#ff5f14' : '#ff5a3c'
-  let g = svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' })
-  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `${r}`)
+  const K_ = state.ui === 'K', X_ = state.ui === 'X', ink = K_ ? '#c4d6dc' : X_ ? '#1a1b1c' : '#1d2a6d', accent = K_ ? '#e2823a' : X_ ? '#ff5f14' : '#ff5a3c'
+  let g = K_ ? '' : svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' })
+  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': state.ui === 'K' ? 'STM,Consolas,monospace' : state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `${r}`)
   g += svgEl('line', { x1: x0 - 4, x2: x1 + 4, y1: yB, y2: yB, stroke: ink, 'stroke-width': 2.2 })
   if (v.wallFt) { // wall: hatched block at its distance and height
     const wx = X(v.wallFt), wh = (v.wallH / ymax) * (yB - yT)
     g += svgEl('rect', { x: wx - 2.5, y: yB - wh, width: 5, height: wh, fill: accent, stroke: ink, 'stroke-width': 1.5 })
     g += svgEl('line', { x1: wx + 8, x2: wx + 8, y1: yB, y2: yB - wh, stroke: ink, 'stroke-width': 1 }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB - wh, y2: yB - wh, stroke: ink }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB, y2: yB, stroke: ink })
     const left = wx > W - 92
-    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
+    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'K' ? 'STM,Consolas,monospace' : state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
   }
   const d = pr.filter((_, i) => i % 3 === 0).map(([r, h], i) => `${i ? 'L' : 'M'}${X(r).toFixed(1)} ${Y(h).toFixed(1)}`).join(' ')
   g = `<defs><pattern id="sch-hatch" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M1 2l3 1M5 6l3 1M2 8l2-1M6 1l2 1" stroke="${ink}" stroke-opacity=".45" stroke-width="1.2" fill="none"/></pattern></defs>` + g
-  g += svgEl('path', { d: `${d} L${X(pr[pr.length - 1][0]).toFixed(1)} ${yB} L${X(0).toFixed(1)} ${yB} Z`, fill: 'url(#sch-hatch)', stroke: 'none' })
+  if (!K_) g += svgEl('path', { d: `${d} L${X(pr[pr.length - 1][0]).toFixed(1)} ${yB} L${X(0).toFixed(1)} ${yB} Z`, fill: 'url(#sch-hatch)', stroke: 'none' })
   g += svgEl('path', { d, fill: 'none', stroke: ink, 'stroke-width': 2.2, 'stroke-linecap': 'round' })
   let ap = 0
   pr.forEach(([, h], i) => { if (h > pr[ap][1]) ap = i })
   const [ar, ah] = pr[ap]
   g += svgEl('line', { x1: X(ar), x2: X(ar), y1: yB, y2: Y(ah), stroke: ink, 'stroke-dasharray': '3 2' }) + svgEl('circle', { cx: X(ar), cy: Y(ah), r: 3, fill: '#fff', stroke: ink, 'stroke-width': 2 })
-  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
+  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'K' ? 'STM,Consolas,monospace' : state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
   const la = (state.la * Math.PI) / 180, R = 20
   g += svgEl('path', { d: `M${x0 + R} ${yB} A${R} ${R} 0 0 0 ${x0 + R * Math.cos(la)} ${yB - R * Math.sin(la)}`, fill: 'none', stroke: accent, 'stroke-width': 2 })
-  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 11, 'font-weight': 400, fill: accent, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `A ${state.la}°`)
+  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 11, 'font-weight': 400, fill: accent, 'font-family': state.ui === 'K' ? 'STM,Consolas,monospace' : state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `A ${state.la}°`)
   const [lr] = pr[pr.length - 1]
   g += svgEl('path', { d: `M${X(lr) - 4} ${yB - 4} L${X(lr) + 4} ${yB + 4} M${X(lr) + 4} ${yB - 4} L${X(lr) - 4} ${yB + 4}`, stroke: accent, 'stroke-width': 2.4 })
-  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
+  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': state.ui === 'K' ? 'STM,Consolas,monospace' : state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`
+}
+const KC = ['#2c63c8', '#3fb6d4', '#2fa39a', '#6e4db0', '#8d9a3c', '#c0332a']
+function spark(vals, lo, hi) {
+  const W = 200, H = 40, d = vals.map((v, i) => `${i ? 'L' : 'M'}${((i / (vals.length - 1)) * (W - 8) + 4).toFixed(1)} ${(H - 4 - ((v - lo) / (hi - lo || 1)) * (H - 8)).toFixed(1)}`).join(' ')
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="#9fc4d0" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg>`
+}
+function numsK(res, rows) { // skin K readouts: a flat label block beside a hairline cell with its trace
+  const P = res.path.filter((_, i) => i % 6 === 0), v = res.verdict
+  const sp = [], el = []
+  for (let i = 1; i < P.length; i++) { const a = P[i - 1], b = P[i], dt = b.t - a.t || 1, vx = (b.p[0] - a.p[0]) / dt, vy = (b.p[1] - a.p[1]) / dt, vz = (b.p[2] - a.p[2]) / dt; sp.push(Math.hypot(vx, vy, vz) / 0.44704); el.push((Math.atan2(vz, Math.hypot(vx, vy)) * 180) / Math.PI) }
+  const ht = P.map((q) => q.p[2] / FT), rg = P.map((q) => Math.hypot(q.p[0], q.p[1]) / FT)
+  const r = Object.fromEntries(rows.map(([, a, b]) => [a, b]))
+  const alarm = ['WALL', 'FOUL'].includes(res.key) || res.key === 'CLOSE'
+  const data = [
+    ['EXIT SPEED', `${state.ev} MPH`, spark(sp, Math.min(...sp) - 4, Math.max(...sp) + 4)],
+    ['LAUNCH', `${state.la}\u00b0`, spark(el, -60, 60)],
+    ['HEIGHT', r['Peak height'], spark(ht, 0, Math.max(...ht) * 1.1)],
+    ['DISTANCE', r.Distance, spark(rg, 0, Math.max(...rg) * 1.05)],
+    ['HANG TIME', r['Hang time'], ''],
+    [v.wallFt ? 'WALL' : 'WALL', v.wallFt ? `${v.kind === 'GONE' ? '+' : v.kind === 'WALL' ? '-' : ''}${Math.round(v.clearBy ?? v.short ?? 0)} FT` : '--', ''],
+  ]
+  return data.map(([a, b, s], i) => `<div class="nr${i === 5 && alarm ? ' alarm' : ''}"><div class="nl" style="background:${i === 5 && !alarm ? '#8f5f1b' : KC[i]}">${a}</div><div class="nv">${s}<span>${b}</span></div></div>`).join('')
+}
+let pTimer = 0
+function gauss01(r) { return Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r()) }
+function spread() { // landing spread, 120 balls with a prediction's real uncertainty (backtest-sized spreads); seeded so a static swing does not flicker
+  clearTimeout(pTimer)
+  pTimer = setTimeout(() => {
+    const el = document.getElementById('dj-p'); if (!el || state.ui !== 'K') return
+    let a = 5 | 0; const r = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+    const c = { hr: 0, play: 0, foul: 0 }
+    for (let i = 0; i < 120; i++) { const g = fly({ ...state, ev: state.ev + 2 * gauss01(r), la: state.la + 3 * gauss01(r), dir: state.dir + 8 * gauss01(r), temp: state.temp + 4 * gauss01(r), wind: state.wind + 4 * gauss01(r) }); const k = g.verdict.kind; c[k === 'GONE' ? 'hr' : k === 'FOUL' ? 'foul' : 'play']++ }
+    const pc = (n) => Math.round((100 * n) / 120)
+    el.innerHTML = `<div class="pl">LANDING SPREAD; 120 BALLS WITH THE UNCERTAINTY OF A PREDICTION</div><div class="pb"><i class="h" style="flex:${c.hr}"></i><i class="p" style="flex:${c.play}"></i><i class="f" style="flex:${c.foul}"></i></div>` +
+      `<div class="pk"><span><b class="h"></b>HOME RUN ${pc(c.hr)}%</span><span><b class="p"></b>IN PLAY ${pc(c.play)}%</span><span><b class="f"></b>FOUL ${pc(c.foul)}%</span></div>`
+  }, 220)
 }
 function render(res) {
   const v = res.verdict
@@ -345,8 +396,9 @@ function render(res) {
   if (v.kind === 'GONE') rows.push(['', 'Cleared by', `${v.clearBy.toFixed(0)} ft`])
   if (v.kind === 'WALL') rows.push(['', 'Short by', `${v.short.toFixed(0)} ft`])
   rows.push(['', 'Spin', `${Math.round(res.wb)} / ${Math.round(res.ws)} rpm`], ['', 'Air density', `${res.rho.toFixed(3)} kg/m³`])
-  document.getElementById('dj-nums').innerHTML = rows.map(([k, a, b]) => `<div><span>${k ? `<i>${k}</i>` : ''}${a}</span><b>${b}</b></div>`).join('')
+  document.getElementById('dj-nums').innerHTML = state.ui === 'K' ? numsK(res, rows) : rows.map(([k, a, b]) => `<div><span>${k ? `<i>${k}</i>` : ''}${a}</span><b>${b}</b></div>`).join('')
   document.getElementById('dj-svg').innerHTML = schematic(res)
+  spread()
   document.getElementById('dj-note').textContent = 'Prediction. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'
   NN.setStat(state.ev, state.la, res.landFt)
 }
@@ -356,8 +408,8 @@ function update() {
     document.getElementById(`v-${k}`).textContent = f(state[k])
   }
   document.getElementById('hand').textContent = state.hand > 0 ? 'RIGHT-HANDED' : 'LEFT-HANDED'
-  root.className = `ui-${state.ui}`
-  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : null)
+  root.className = `ui-${state.ui}${Q.get('dev') ? ' dev' : ''}`
+  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : state.ui === 'K' ? { l: 300, r: 340, t: 44, b: 84, k: 1 } : null)
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
   if (NN.real && Q.get('vibes')) {
     document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`

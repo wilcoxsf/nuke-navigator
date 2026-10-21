@@ -67,11 +67,13 @@ const BASE_VIBE = { name: 'BASE', sat: 1.35, hue: 0, hatch: 0, contrast: 1, line
 const POP_TINT = { seat: '#17835f', deck: '#9aaac0', brick: '#8793a3', under: '#2f3a52' }
 const POP = { ...BASE_VIBE, sat: 1.65, contrast: 1.1, lineW: 1.6, lineK: 1.25, outline: 1, tint: POP_TINT, hemi: [0xffffff, 0xc0a880, 1.15], sun: [0xfff1d6, 2.7],
   ocean: { deep: '#081633', light: '#0a1b3d', crest: '#1f4488' } }
+const K2001 = { ...BASE_VIBE, name: '2001', bg: '#05070a', ink: '#03060a', ocean: null, sat: 1.15, ribbon: { GONE: '#f4eed8', WALL: '#f4eed8', PLAY: '#f4eed8', FOUL: '#a9bcc3' }, burst: '#f4eed8' }
 const VIBES = { // same palette throughout: what changes is outline weight and colour, saturation, contrast, hatching and the cartoon outlines on the flight
   1: BASE_VIBE,
   2: { ...BASE_VIBE, name: 'INKED', lineW: 1.6, lineK: 1.25, outline: 1 },
   3: { ...POP, name: 'POP' },
   4: { ...POP, name: 'NEON EDGE', ink: '#3ff2ff', lineW: 1.4, lineK: 1.4 },
+  6: K2001,
   5: { ...POP, name: 'COMIC', sat: 1.8, contrast: 1.15, lineW: 2.0, lineK: 1.3, hatch: 0.3, ink: '#0a1a3a', outline: 2 },
 }
 const vibeU = { sat: { value: 1.35 }, hue: { value: 0 }, contrast: { value: 1 } } // shared by every textured material so a vibe change shows at once
@@ -295,7 +297,7 @@ function applyVibe(n) {
   paintStructure()
   window.dispatchEvent(new Event('nn-vibe'))
 }
-vibeN = VIBES[Number(QS0.get('vibe'))] ? Number(QS0.get('vibe')) : 1
+vibeN = VIBES[Number(QS0.get('vibe'))] ? Number(QS0.get('vibe')) : (QS0.get('mode') === 'dojo' && (QS0.get('ui') || 'K').toUpperCase() === 'K' ? 6 : 1)
 
 let winInsets = null // skin X leaves an open window between the panels; the park is centred and scaled to it
 function resize() {
@@ -305,7 +307,7 @@ function resize() {
   if (winInsets) {
     const ww = w - winInsets.l - winInsets.r, wh = h - winInsets.t - winInsets.b
     camera.setViewOffset(w, h, -((winInsets.l + (w - winInsets.r)) / 2 - w / 2), -((winInsets.t + (h - winInsets.b)) / 2 - h / 2), w, h)
-    camera.zoom = Math.min(1.1, Math.max(0.5, ww / 950))
+    camera.zoom = Math.min(1.7, Math.max(0.5, ww / (winInsets.k ? 780 : 950)))
   } else { camera.clearViewOffset(); camera.zoom = 1 }
   camera.updateProjectionMatrix()
   const pr = renderer.getPixelRatio()
