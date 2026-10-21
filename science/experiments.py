@@ -60,6 +60,9 @@ HYPOTHESES = [
          expect="More stable skill estimates than the 100-ball windows; expect a small gain."),
     dict(id="H11", name="Recency weights", cols=[], weight="recency",
          expect="Recent seasons count more (ball, tracking and park shifts); expect a small gain."),
+    dict(id="H12", name="In-game residual memory", cols=["gm_dist_resid", "gm_dist_ewm", "gm_n", "gm_hr_resid"],
+         expect="Balls in one game share a distance miss (wind, air, ball; split-half r +0.30); expect a small distance gain, larger near the wall. "
+                "Needs exp_features_h12.parquet from round3.py memory."),
 ]
 HID = {h["id"]: h for h in HYPOTHESES}
 
@@ -180,6 +183,9 @@ def screen(a):
     rows = []
     for h in HYPOTHESES:
         if only and h["id"] not in only:
+            continue
+        if any(c not in df.columns for c in h["cols"]):
+            print(f"{h['id']} skipped: columns missing from this table", flush=True)
             continue
         if h.get("weight") == "recency":
             E = cached(cache, h["id"], lambda: cv_errors(df, T, BASE, folds, weights=recency_weights(df)))

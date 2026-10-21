@@ -10,6 +10,7 @@ Entrants: logit, lgbm, lgbm_phys, xgb, cat, mlp
 from __future__ import annotations
 
 import argparse
+import os
 import time
 from pathlib import Path
 
@@ -21,6 +22,9 @@ from features import assert_clean
 from ladder import BASE0, BAT, CATS, HIST, PITCH, WX
 
 L4 = BASE0 + WX + PITCH + HIST + ["bearing_hat"] + BAT
+if os.environ.get("FEATSET", "v1") == "v2":  # round-2 survivors: contact point (H1) and contact quality (H4)
+    from experiments import HID
+    L4 = L4 + HID["H1"]["cols"] + HID["H4"]["cols"]
 PHYS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
 FEATS_PHYS = L4 + PHYS
 

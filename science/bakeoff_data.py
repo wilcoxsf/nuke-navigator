@@ -55,13 +55,18 @@ def fence_at(df: pd.DataFrame, bearing: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    for k in ("bbe", "games", "weather", "college", "params", "out"):
+    for k in ("games", "college", "params", "out"):
         ap.add_argument(f"--{k}", required=True)
+    for k in ("bbe", "weather", "exp"):
+        ap.add_argument(f"--{k}", default="")
     a = ap.parse_args()
     t0 = time.time()
     g = lambda p: p.replace("\\", "/")
 
-    df = load(g(a.bbe), g(a.games), g(a.weather))
+    if a.exp:  # v2: start from the round-2 experiment table (all engineered features already in it)
+        df = pd.read_parquet(g(a.exp)).drop(columns=["pool"])
+    else:
+        df = load(g(a.bbe), g(a.games), g(a.weather))
     dims = duckdb.sql(f"SELECT DISTINCT ON (game_pk) game_pk, {', '.join(DIMS)} FROM read_parquet('{g(a.games)}') ORDER BY game_pk, official_date DESC").df()
     df = df.merge(dims, on="game_pk", how="left").reset_index(drop=True)
     df["rid"] = np.arange(len(df))
@@ -69,7 +74,11 @@ def main() -> None:
     print("rows", len(df), df.split.value_counts().to_dict(), f"{time.time() - t0:.0f}s", flush=True)
 
     tr = (df.split == "train").to_numpy()
-    notes = add_bearing_hat(df, tr, [(df.split == "val").to_numpy(), (df.split == "test").to_numpy()], BASE0 + PITCH + HIST + WX + BAT)
+    bh_feats = BASE0 + PITCH + HIST + WX + BAT
+    if a.exp:
+        from experiments import HID
+        bh_feats = bh_feats + HID["H1"]["cols"] + HID["H4"]["cols"]
+    notes = add_bearing_hat(df, tr, [(df.split == "val").to_numpy(), (df.split == "test").to_numpy()], bh_feats)
     print("bearing_hat:", {k: round(float(v), 3) for k, v in notes.items()}, f"{time.time() - t0:.0f}s", flush=True)
 
     cfg = json.load(open(a.params))
