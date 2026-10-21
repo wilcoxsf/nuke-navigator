@@ -76,7 +76,9 @@ def main() -> None:
         r = {"name": n, "brier": float(e.mean()), "logloss": float(log_loss(y, np.clip(pr, 1e-6, 1 - 1e-6))), "auc": float(roc_auc_score(y, pr)),
              "near": float(e[near].mean()), "sf": float(e[sf].mean()), "ece": ece(y, pr)}
         if "d_hat" in p:
-            r["fly_mae"] = float(np.abs(p.loc[te.index, "d_hat"].to_numpy()[fly] - te.hit_distance_sc.to_numpy()[fly]).mean())
+            err = np.abs(p.loc[te.index, "d_hat"].to_numpy()[fly] - te.hit_distance_sc.to_numpy()[fly])
+            r["fly_mae"] = float(np.nanmean(err))  # entrants without a distance on every fly ball (diffphys) are scored where they have one
+            r["fly_cover"] = float(np.isfinite(err).mean())
         if "d_hat_resid" in p:
             r["fly_mae_resid"] = float(np.nanmean(np.abs(p.loc[te.index, "d_hat_resid"].to_numpy()[fly] - te.hit_distance_sc.to_numpy()[fly])))
         rows.append(r)
@@ -105,6 +107,8 @@ def main() -> None:
          "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         mae = f"{r['fly_mae']:.2f}" if "fly_mae" in r else ""
+        if r.get("fly_cover", 1.0) < 0.999:
+            mae += f" (on {100 * r['fly_cover']:.1f}% of fly balls)"
         if "fly_mae_resid" in r:
             mae += f" ({r['fly_mae_resid']:.2f} as physics + correction)"
         L.append(f"| {r['name']} | {r['brier']:.5f} | {r['d_all']:+.5f} ({r['d_lo']:+.5f}, {r['d_hi']:+.5f}) | {r['near']:.4f} | {r['sf']:.5f} | "
