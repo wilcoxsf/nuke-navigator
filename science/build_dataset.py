@@ -22,6 +22,7 @@ out = Path(args[0])
 raw_dirs = [Path(a) for a in args[1:]]
 out.parent.mkdir(parents=True, exist_ok=True)
 con = duckdb.connect()
+con.sql("SET threads TO 3")  # leave the laptop usable while this runs
 
 # column -> SQL type
 WANT = {
@@ -40,6 +41,16 @@ WANT = {
     "pfx_x": "DOUBLE", "pfx_z": "DOUBLE", "zone": "INTEGER", "balls": "INTEGER", "strikes": "INTEGER",
     "delta_home_win_exp": "DOUBLE", "delta_run_exp": "DOUBLE",
     "home_score": "INTEGER", "away_score": "INTEGER", "outs_when_up": "INTEGER",
+    # round-2 columns: contact point, pitch trajectory and release, arm angle, context
+    "intercept_ball_minus_batter_pos_x_inches": "DOUBLE", "intercept_ball_minus_batter_pos_y_inches": "DOUBLE",
+    "release_pos_x": "DOUBLE", "release_pos_y": "DOUBLE", "release_pos_z": "DOUBLE",
+    "vx0": "DOUBLE", "vy0": "DOUBLE", "vz0": "DOUBLE", "ax": "DOUBLE", "ay": "DOUBLE", "az": "DOUBLE",
+    "sz_top": "DOUBLE", "sz_bot": "DOUBLE", "arm_angle": "DOUBLE",
+    "api_break_z_with_gravity": "DOUBLE", "api_break_x_arm": "DOUBLE", "api_break_x_batter_in": "DOUBLE",
+    "age_bat": "DOUBLE", "age_pit": "DOUBLE", "n_thruorder_pitcher": "INTEGER", "n_priorpa_thisgame_player_at_bat": "INTEGER",
+    "pitcher_days_since_prev_game": "INTEGER", "batter_days_since_prev_game": "INTEGER",
+    "bat_score": "INTEGER", "fld_score": "INTEGER", "on_1b": "BIGINT", "on_2b": "BIGINT", "on_3b": "BIGINT",
+    "if_fielding_alignment": "VARCHAR", "of_fielding_alignment": "VARCHAR",
 }
 
 
