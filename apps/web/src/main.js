@@ -61,24 +61,20 @@ function recolor() {
 // the Dojo has buttons for it. A vibe sets the structure tints, the saturation and hue turn on every surface, sky, sea, lights, ink and ribbons.
 const QS0 = new URLSearchParams(location.search)
 const REAL = QS0.get('real') ? QS0.get('real') !== '0' : QS0.get('mode') === 'dojo'
-const VIBES = {
-  1: { name: 'BROADCAST', sat: 1.35, hue: 0, hatch: 0, bg: '#ffe2a6', ink: '#0d2b4a', ocean: { deep: '#081633', light: '#0a1b3d', crest: '#173366' },
-    tint: { seat: '#1f6b57', deck: '#8e9db0', brick: '#7f8794', under: '#2f3a52' }, hemi: [0xffffff, 0xb59f7a, 1.1], sun: [0xffffff, 2.4],
-    ribbon: { GONE: '#ff5a3c', WALL: '#ffd23f', PLAY: '#7fe3d4', FOUL: '#b0b0b0' }, burst: '#ffd23f' },
-  2: { name: 'GOLDEN HOUR', sat: 1.6, hue: 0, hatch: 0, bg: '#ff9a5a', ink: '#2a0f2e', ocean: { deep: '#2a0f3a', light: '#3b1850', crest: '#ff7a59' },
-    tint: { seat: '#2a7a5a', deck: '#e0b9a0', brick: '#c0836b', under: '#4a3040' }, hemi: [0xffd9b0, 0x8a4a5a, 1.15], sun: [0xffc47a, 2.8],
-    ribbon: { GONE: '#ffffff', WALL: '#ffe14a', PLAY: '#7fe3d4', FOUL: '#d0b0b0' }, burst: '#ffe14a' },
-  3: { name: 'ACID DUSK', sat: 2.0, hue: 0, hatch: 0.18, bg: '#ff3d9a', ink: '#2b0630', ocean: { deep: '#04323a', light: '#065060', crest: '#37f0d0' },
-    tint: { seat: '#00d9a0', deck: '#a58cff', brick: '#ff6fb0', under: '#26164a' }, hemi: [0xffe6ff, 0x3a1060, 1.1], sun: [0xfff0b0, 2.6],
-    ribbon: { GONE: '#c8ff3a', WALL: '#ffffff', PLAY: '#37f0d0', FOUL: '#d0c0e0' }, burst: '#c8ff3a' },
-  4: { name: 'BLACKLIGHT', sat: 2.3, hue: 0, hatch: 0, bg: '#07030f', ink: '#00ffd0', ocean: { deep: '#0b0420', light: '#14073a', crest: '#00ffa6' },
-    tint: { seat: '#00ff9d', deck: '#3a2f6e', brick: '#2b1e55', under: '#0a0620' }, hemi: [0xb0a4ff, 0x2a1060, 1.5], sun: [0x9a8bff, 2.8],
-    ribbon: { GONE: '#ff2bd6', WALL: '#00ffd0', PLAY: '#00e5ff', FOUL: '#9a8cc0' }, burst: '#ff2bd6' },
-  5: { name: 'FEVER DREAM', sat: 2.8, hue: 2.4, hatch: 0.5, bg: '#ffe600', ink: '#14002b', ocean: { deep: '#5a007a', light: '#b0007a', crest: '#00e5ff' },
-    tint: { seat: '#ffee00', deck: '#ff2bd6', brick: '#00e5ff', under: '#3a0070' }, hemi: [0xffffff, 0xff00aa, 1.2], sun: [0xffffff, 2.6],
-    ribbon: { GONE: '#ffffff', WALL: '#ff2bd6', PLAY: '#14002b', FOUL: '#ffffff' }, burst: '#ff2bd6' },
+const BASE_VIBE = { name: 'BASE', sat: 1.35, hue: 0, hatch: 0, contrast: 1, lineW: 1, lineK: 1, outline: 0, bg: '#ffe2a6', ink: '#0d2b4a',
+  ocean: { deep: '#081633', light: '#0a1b3d', crest: '#173366' }, tint: { seat: '#1f6b57', deck: '#8e9db0', brick: '#7f8794', under: '#2f3a52' },
+  hemi: [0xffffff, 0xb59f7a, 1.1], sun: [0xffffff, 2.4], ribbon: { GONE: '#ff5a3c', WALL: '#ffd23f', PLAY: '#7fe3d4', FOUL: '#b0b0b0' }, burst: '#ffd23f' }
+const POP_TINT = { seat: '#17835f', deck: '#9aaac0', brick: '#8793a3', under: '#2f3a52' }
+const POP = { ...BASE_VIBE, sat: 1.65, contrast: 1.1, lineW: 1.6, lineK: 1.25, outline: 1, tint: POP_TINT, hemi: [0xffffff, 0xc0a880, 1.15], sun: [0xfff1d6, 2.7],
+  ocean: { deep: '#081633', light: '#0a1b3d', crest: '#1f4488' } }
+const VIBES = { // same palette throughout: what changes is outline weight and colour, saturation, contrast, hatching and the cartoon outlines on the flight
+  1: BASE_VIBE,
+  2: { ...BASE_VIBE, name: 'INKED', lineW: 1.6, lineK: 1.25, outline: 1 },
+  3: { ...POP, name: 'POP' },
+  4: { ...POP, name: 'NEON EDGE', ink: '#3ff2ff', lineW: 1.4, lineK: 1.4 },
+  5: { ...POP, name: 'COMIC', sat: 1.8, contrast: 1.15, lineW: 2.0, lineK: 1.3, hatch: 0.3, ink: '#0a1a3a', outline: 2 },
 }
-const vibeU = { sat: { value: 1.35 }, hue: { value: 0 } } // shared by every textured material so a vibe change shows at once
+const vibeU = { sat: { value: 1.35 }, hue: { value: 0 }, contrast: { value: 1 } } // shared by every textured material so a vibe change shows at once
 let vibeN = 1
 const structure = []
 function tintStructure(o) {
@@ -103,12 +99,14 @@ function paintStructure() {
 const realColorChunk = (sh) => { // saturation and hue turn on the final diffuse colour
   sh.uniforms.vSat = vibeU.sat
   sh.uniforms.vHue = vibeU.hue
-  sh.fragmentShader = 'uniform float vSat; uniform float vHue;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+  sh.uniforms.vContrast = vibeU.contrast
+  sh.fragmentShader = 'uniform float vSat; uniform float vHue; uniform float vContrast;\n' + sh.fragmentShader.replace('#include <color_fragment>',
     `#include <color_fragment>
      { vec3 k = normalize(vec3(1.0)); vec3 c = diffuseColor.rgb;
        c = c * cos(vHue) + cross(k, c) * sin(vHue) + k * dot(k, c) * (1.0 - cos(vHue));
        float L = dot(c, vec3(0.299, 0.587, 0.114));
-       diffuseColor.rgb = clamp(mix(vec3(L), c, vSat), 0.0, 1.0); }`)
+       c = clamp(mix(vec3(L), c, vSat), 0.0, 1.0);
+       diffuseColor.rgb = clamp((c - 0.4) * vContrast + 0.4, 0.0, 1.0); }`)
 }
 new GLTFLoader().load(REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (gltf) => {
   gltf.scene.traverse((o) => {
@@ -218,12 +216,12 @@ const post = new THREE.ShaderMaterial({
   uniforms: {
     tColor: { value: null }, tNormal: { value: null }, tDepth: { value: null },
     res: { value: new THREE.Vector2() }, near: { value: camera.near }, far: { value: camera.far },
-    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 },
+    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
   fragmentShader: /* glsl */ `
     uniform sampler2D tColor, tNormal, tDepth; uniform vec2 res; uniform float near, far;
-    uniform vec3 paper, ink; uniform float dotScale, hatchAmt;
+    uniform vec3 paper, ink; uniform float dotScale, hatchAmt, lineW, lineK;
     varying vec2 vUv;
     float lin(float d){ float z = d * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
@@ -231,14 +229,14 @@ const post = new THREE.ShaderMaterial({
       vec2 px = 1. / res;
       vec3 n0 = texture2D(tNormal, vUv).rgb;
       float e = 0.;
-      vec2 o[4]; o[0]=vec2(px.x,0.); o[1]=vec2(-px.x,0.); o[2]=vec2(0.,px.y); o[3]=vec2(0.,-px.y);
+      vec2 o[4]; o[0]=vec2(px.x,0.)*lineW; o[1]=vec2(-px.x,0.)*lineW; o[2]=vec2(0.,px.y)*lineW; o[3]=vec2(0.,-px.y)*lineW;
       float d0 = lin(texture2D(tDepth, vUv).r);
       float de = 0.;
       for (int i = 0; i < 4; i++) {
         e += length(texture2D(tNormal, vUv + o[i]).rgb - n0);
         de += abs(lin(texture2D(tDepth, vUv + o[i]).r) - d0);
       }
-      float line = smoothstep(1.0, 1.7, e) + smoothstep(0.10 * d0, 0.24 * d0, de);
+      float line = smoothstep(1.0 / lineK, 1.7 / lineK, e) + smoothstep(0.10 * d0 / lineK, 0.24 * d0 / lineK, de);
       line = clamp(line, 0., 1.) * (1. - smoothstep(600., 1500., d0));
       vec3 c = texture2D(tColor, vUv).rgb;
       float L = dot(c, vec3(0.299, 0.587, 0.114));
@@ -247,7 +245,7 @@ const post = new THREE.ShaderMaterial({
       float stripe = fract((g.x + g.y) / dotScale);
       float shade = 1. - smoothstep(0.30, 0.80, L);
       float w = 0.10 + 0.30 * shade;
-      float hl = (1. - smoothstep(w, w + 0.07, stripe)) * smoothstep(0.55, 0.80, shade);
+      float hl = (1. - smoothstep(w, w + 0.07, stripe)) * smoothstep(0.55, 0.80, shade) * smoothstep(0.05, 0.14, L);
       vec3 col = mix(c, ink, hl * hatchAmt);
       float bg = step(0.9999, texture2D(tDepth, vUv).r);
       col = mix(col, paper, bg);
@@ -286,6 +284,9 @@ function applyVibe(n) {
   look = { ...look, bg: v.bg, ink: v.ink, ribbon: v.ribbon.GONE, burst: v.burst, ocean: v.ocean }
   applyLook()
   post.uniforms.hatchAmt.value = v.hatch
+  post.uniforms.lineW.value = v.lineW
+  post.uniforms.lineK.value = v.lineK
+  vibeU.contrast.value = v.contrast
   hemiLight.color.set(v.hemi[0]); hemiLight.groundColor.set(v.hemi[1]); hemiLight.intensity = v.hemi[2]
   sun.color.set(v.sun[0]); sun.intensity = v.sun[1]
   paintStructure()

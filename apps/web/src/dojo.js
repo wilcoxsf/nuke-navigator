@@ -86,6 +86,28 @@ function colors() {
   if (NN.real) return Object.fromEntries(Object.entries(NN.VIBES[NN.vibe()].ribbon).map(([k, v]) => [k, new THREE.Color(v)]))
   return { GONE: 0xff5a3c, WALL: 0xffd23f, PLAY: 0x7fe3d4, FOUL: 0xb0b0b0 }
 }
+const inkOf = () => (NN.real ? new THREE.Color(NN.VIBES[NN.vibe()].ink) : new THREE.Color(0x1d2a6d))
+const outlineLevel = () => (NN.real ? NN.VIBES[NN.vibe()].outline : 0)
+// cartoon outline: a slightly larger back-face copy in ink colour (ribbon and ball), a bigger flat copy under the burst
+function outlineOf(mesh, k) {
+  const lv = outlineLevel()
+  if (!lv) return
+  const o = mesh.clone(false)
+  o.position.set(0, 0, 0)
+  o.material = new THREE.MeshBasicMaterial({ color: inkOf(), side: THREE.BackSide })
+  const g = mesh.geometry
+  if (g.type === 'TubeGeometry') { o.geometry = new THREE.TubeGeometry(g.parameters.path, g.parameters.tubularSegments, g.parameters.radius * k * (lv > 1 ? 1.35 : 1), 8, false) }
+  else o.scale.setScalar(k * (lv > 1 ? 1.2 : 1))
+  mesh.add(o)
+}
+function burstOutline(b) {
+  const lv = outlineLevel()
+  if (!lv) return
+  const o = new THREE.Mesh(b.geometry, new THREE.MeshBasicMaterial({ color: inkOf(), side: THREE.DoubleSide }))
+  o.scale.setScalar(lv > 1 ? 1.2 : 1.1)
+  o.position.z = -0.05
+  b.add(o)
+}
 function draw(res) {
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
   if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose() }
@@ -94,13 +116,17 @@ function draw(res) {
   if (pts.length < 3) return
   ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
   scene.add(ribbon)
+  outlineOf(ribbon, 1.7)
   if (!ball) { ball = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(ball) }
+  for (const c of [...ball.children]) ball.remove(c)
+  outlineOf(ball, 1.25)
   const shape = new THREE.Shape()
   for (let i = 0; i < 24; i++) { const rr = i % 2 ? 4 : 11, a = (i / 24) * Math.PI * 2; shape[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr) }
   burst = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind], side: THREE.DoubleSide }))
   burst.position.copy(pts[pts.length - 1]).add(new THREE.Vector3(0, 6, 0))
   burst.quaternion.copy(NN.camera.quaternion)
   scene.add(burst)
+  burstOutline(burst)
   anim = { pts, t0: performance.now(), dur: 2600 }
 }
 function tick() {
