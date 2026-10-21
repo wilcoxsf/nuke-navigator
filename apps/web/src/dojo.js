@@ -82,7 +82,10 @@ function fly(s) {
 // ---------- scene: path ribbon, ball, landing burst ----------
 let ribbon = null, ball = null, burst = null, anim = null
 const toWorld = (p) => new THREE.Vector3(HOME.x + p[0], p[2], HOME.z - p[1])
-function colors() { return { GONE: 0xff5a3c, WALL: 0xffd23f, PLAY: 0x7fe3d4, FOUL: 0xb0b0b0 } }
+function colors() {
+  if (NN.real) return Object.fromEntries(Object.entries(NN.VIBES[NN.vibe()].ribbon).map(([k, v]) => [k, new THREE.Color(v)]))
+  return { GONE: 0xff5a3c, WALL: 0xffd23f, PLAY: 0x7fe3d4, FOUL: 0xb0b0b0 }
+}
 function draw(res) {
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
   if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose() }
@@ -119,8 +122,10 @@ const CSS = `
 #dojo input[type=range]{flex:1;min-width:120px}
 #dojo .val{min-width:54px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 #dojo button{cursor:pointer;font:inherit}
-#dj-skins{position:absolute;top:10px;right:12px;font-size:11px;font-weight:700}
+#dj-skins{position:absolute;top:10px;right:12px;font-size:11px;font-weight:700;background:rgba(255,255,255,.75);color:#1d2a6d;padding:3px 6px;border-radius:3px}
 #dj-skins button{margin-left:4px;padding:3px 8px}
+#dj-vibe{position:absolute;right:12px;bottom:128px;display:flex;gap:4px;align-items:center;font-size:11px;font-weight:700;background:rgba(0,0,0,.5);color:#fff;padding:6px 8px;border-radius:4px}
+#dj-vibe button{padding:3px 9px}#dj-vibename{min-width:104px;text-align:right;letter-spacing:.1em;margin-right:4px}
 #dj-ctl{position:absolute;top:44px;left:12px;width:310px;padding:10px 12px}
 #dj-out{position:absolute;top:44px;right:12px;width:290px;padding:10px 12px}
 #dj-verdict{font-weight:900;line-height:1;margin-bottom:6px}
@@ -150,12 +155,15 @@ const CSS = `
 #dojo.ui-C #dj-skins button.on{background:#ff4bd8;color:#14081f}
 `
 window.__dojoFly = fly // exposed for the screenshot and test scripts
+const SKIN_BUTTONS = /(#dojo\.ui-[ABC]) #dj-skins button(\.on)?/g // the vibe buttons wear whichever skin is on
+const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2')
 document.getElementById('look')?.remove() // the look switcher label would sit under the Dojo title
 const root = document.createElement('div')
 root.id = 'dojo'
-root.innerHTML = `<style>${CSS}</style>
+root.innerHTML = `<style>${CSS_ALL}</style>
 <div id="dj-title">DINGER DOJO</div>
 <div id="dj-skins">SKIN <button data-ui="A">A</button><button data-ui="B">B</button><button data-ui="C">C</button></div>
+${NN.real ? '<div id="dj-vibe"><span id="dj-vibename"></span>' + [1, 2, 3, 4, 5].map((n) => `<button data-v="${n}">${n}</button>`).join('') + '</div>' : ''}
 <div id="dj-ctl"></div>
 <div id="dj-out"><div id="dj-verdict"></div><div id="dj-nums"></div><div id="dj-note"></div></div>`
 document.body.appendChild(root)
@@ -191,6 +199,10 @@ function update() {
   document.getElementById('hand').textContent = state.hand > 0 ? 'RIGHT-HANDED' : 'LEFT-HANDED'
   root.className = `ui-${state.ui}`
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
+  if (NN.real) {
+    document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`
+    for (const b of root.querySelectorAll('#dj-vibe button')) b.classList.toggle('on', Number(b.dataset.v) === NN.vibe())
+  }
   const res = fly(state)
   draw(res)
   render(res)
@@ -199,5 +211,8 @@ function update() {
 ctl.addEventListener('input', (e) => { if (e.target.id?.startsWith('s-')) { state[e.target.id.slice(2)] = Number(e.target.value); update() } })
 document.getElementById('hand').addEventListener('click', () => { state.hand *= -1; update() })
 for (const b of root.querySelectorAll('#dj-skins button')) b.addEventListener('click', () => { state.ui = b.dataset.ui; update() })
+for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('click', () => NN.setVibe(Number(b.dataset.v)))
+addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
+addEventListener('keydown', (e) => { if (NN.real && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
 fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); window.__dojoReady = true })

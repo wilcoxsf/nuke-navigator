@@ -26,7 +26,8 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.target.set(0, 4, -85)
 controls.update()
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb59f7a, 1.1))
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0xb59f7a, 1.1)
+scene.add(hemiLight)
 const sun = new THREE.DirectionalLight(0xffffff, 2.4)
 sun.position.set(-80, 120, 40)
 scene.add(sun)
@@ -55,9 +56,69 @@ function recolor() {
     attr.needsUpdate = true
   }
 }
-new GLTFLoader().load('/stadium_sf_slim.glb', (gltf) => {
+// Real colours: the model's own textures (turf, dirt, warning track, wall padding, baked structure lighting) with the structure tinted by surface type.
+// On by default in Dinger Dojo (?real=0 for the flat spot-colour look elsewhere ?real=1 turns it on). ?vibe=1..5 is how far past "real" the colours go;
+// the Dojo has buttons for it. A vibe sets the structure tints, the saturation and hue turn on every surface, sky, sea, lights, ink and ribbons.
+const QS0 = new URLSearchParams(location.search)
+const REAL = QS0.get('real') ? QS0.get('real') !== '0' : QS0.get('mode') === 'dojo'
+const VIBES = {
+  1: { name: 'BROADCAST', sat: 1.35, hue: 0, hatch: 0, bg: '#ffe2a6', ink: '#0d2b4a', ocean: { deep: '#081633', light: '#0a1b3d', crest: '#173366' },
+    tint: { seat: '#1f6b57', deck: '#8e9db0', brick: '#7f8794', under: '#2f3a52' }, hemi: [0xffffff, 0xb59f7a, 1.1], sun: [0xffffff, 2.4],
+    ribbon: { GONE: '#ff5a3c', WALL: '#ffd23f', PLAY: '#7fe3d4', FOUL: '#b0b0b0' }, burst: '#ffd23f' },
+  2: { name: 'GOLDEN HOUR', sat: 1.6, hue: 0, hatch: 0, bg: '#ff9a5a', ink: '#2a0f2e', ocean: { deep: '#2a0f3a', light: '#3b1850', crest: '#ff7a59' },
+    tint: { seat: '#2a7a5a', deck: '#e0b9a0', brick: '#c0836b', under: '#4a3040' }, hemi: [0xffd9b0, 0x8a4a5a, 1.15], sun: [0xffc47a, 2.8],
+    ribbon: { GONE: '#ffffff', WALL: '#ffe14a', PLAY: '#7fe3d4', FOUL: '#d0b0b0' }, burst: '#ffe14a' },
+  3: { name: 'ACID DUSK', sat: 2.0, hue: 0, hatch: 0.18, bg: '#ff3d9a', ink: '#2b0630', ocean: { deep: '#04323a', light: '#065060', crest: '#37f0d0' },
+    tint: { seat: '#00d9a0', deck: '#a58cff', brick: '#ff6fb0', under: '#26164a' }, hemi: [0xffe6ff, 0x3a1060, 1.1], sun: [0xfff0b0, 2.6],
+    ribbon: { GONE: '#c8ff3a', WALL: '#ffffff', PLAY: '#37f0d0', FOUL: '#d0c0e0' }, burst: '#c8ff3a' },
+  4: { name: 'BLACKLIGHT', sat: 2.3, hue: 0, hatch: 0, bg: '#07030f', ink: '#00ffd0', ocean: { deep: '#0b0420', light: '#14073a', crest: '#00ffa6' },
+    tint: { seat: '#00ff9d', deck: '#3a2f6e', brick: '#2b1e55', under: '#0a0620' }, hemi: [0xb0a4ff, 0x2a1060, 1.5], sun: [0x9a8bff, 2.8],
+    ribbon: { GONE: '#ff2bd6', WALL: '#00ffd0', PLAY: '#00e5ff', FOUL: '#9a8cc0' }, burst: '#ff2bd6' },
+  5: { name: 'FEVER DREAM', sat: 2.8, hue: 2.4, hatch: 0.5, bg: '#ffe600', ink: '#14002b', ocean: { deep: '#5a007a', light: '#b0007a', crest: '#00e5ff' },
+    tint: { seat: '#ffee00', deck: '#ff2bd6', brick: '#00e5ff', under: '#3a0070' }, hemi: [0xffffff, 0xff00aa, 1.2], sun: [0xffffff, 2.6],
+    ribbon: { GONE: '#ffffff', WALL: '#ff2bd6', PLAY: '#14002b', FOUL: '#ffffff' }, burst: '#ff2bd6' },
+}
+const vibeU = { sat: { value: 1.35 }, hue: { value: 0 } } // shared by every textured material so a vibe change shows at once
+let vibeN = 1
+const structure = []
+function tintStructure(o) {
+  const n = o.geometry.attributes.normal
+  const p = o.geometry.attributes.position
+  const ny = new Float32Array(n.count), y = new Float32Array(n.count)
+  for (let i = 0; i < n.count; i++) { ny[i] = n.getY(i); y[i] = p.getY(i) }
+  o.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n.count * 3), 3))
+  structure.push({ mesh: o, ny, y })
+}
+function paintStructure() {
+  const t = VIBES[vibeN].tint, c = new THREE.Color()
+  for (const { mesh, ny, y } of structure) {
+    const attr = mesh.geometry.attributes.color
+    for (let i = 0; i < ny.length; i++) {
+      c.set(t[ny[i] > 0.55 ? (y[i] < 22 ? 'seat' : 'deck') : ny[i] < -0.3 ? 'under' : 'brick'])
+      attr.setXYZ(i, c.r, c.g, c.b)
+    }
+    attr.needsUpdate = true
+  }
+}
+const realColorChunk = (sh) => { // saturation and hue turn on the final diffuse colour
+  sh.uniforms.vSat = vibeU.sat
+  sh.uniforms.vHue = vibeU.hue
+  sh.fragmentShader = 'uniform float vSat; uniform float vHue;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+    `#include <color_fragment>
+     { vec3 k = normalize(vec3(1.0)); vec3 c = diffuseColor.rgb;
+       c = c * cos(vHue) + cross(k, c) * sin(vHue) + k * dot(k, c) * (1.0 - cos(vHue));
+       float L = dot(c, vec3(0.299, 0.587, 0.114));
+       diffuseColor.rgb = clamp(mix(vec3(L), c, vSat), 0.0, 1.0); }`)
+}
+new GLTFLoader().load(REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (gltf) => {
   gltf.scene.traverse((o) => {
-    if (o.isMesh) {
+    if (o.isMesh && REAL) {
+      const name = o.material.name || ''
+      if (name.includes('Greyscale')) { tintStructure(o); o.material.vertexColors = true }
+      o.material.color.setScalar(1)
+      o.material.onBeforeCompile = realColorChunk
+      mats.push(o.material)
+    } else if (o.isMesh) {
       const name = o.material.name || ''
       const role = name.includes('Infield') ? 'infield' : name.includes('Field') ? 'field' : name.includes('Ads') ? 'ads' : 'stands'
       const n = o.geometry.attributes.normal
@@ -70,6 +131,7 @@ new GLTFLoader().load('/stadium_sf_slim.glb', (gltf) => {
     }
   })
   recolor()
+  if (REAL) applyVibe(vibeN)
   scene.add(gltf.scene)
   const box = new THREE.Box3().setFromObject(gltf.scene)
   document.title = `loaded ${mats.length} materials, box ${box.min.toArray().map((v) => v.toFixed(0))} to ${box.max.toArray().map((v) => v.toFixed(0))}`
@@ -215,7 +277,21 @@ function applyLook() {
   }
 }
 applyLook()
-addEventListener('keydown', (e) => { if (LOOKS[e.key]) { look = LOOKS[e.key]; applyLook() } })
+addEventListener('keydown', (e) => { if (!REAL && LOOKS[e.key]) { look = LOOKS[e.key]; applyLook() } })
+function applyVibe(n) {
+  vibeN = n
+  const v = VIBES[n]
+  vibeU.sat.value = v.sat
+  vibeU.hue.value = v.hue
+  look = { ...look, bg: v.bg, ink: v.ink, ribbon: v.ribbon.GONE, burst: v.burst, ocean: v.ocean }
+  applyLook()
+  post.uniforms.hatchAmt.value = v.hatch
+  hemiLight.color.set(v.hemi[0]); hemiLight.groundColor.set(v.hemi[1]); hemiLight.intensity = v.hemi[2]
+  sun.color.set(v.sun[0]); sun.intensity = v.sun[1]
+  paintStructure()
+  window.dispatchEvent(new Event('nn-vibe'))
+}
+vibeN = VIBES[Number(QS0.get('vibe'))] ? Number(QS0.get('vibe')) : 1
 
 function resize() {
   const w = innerWidth, h = innerHeight
@@ -282,7 +358,7 @@ function roll() {
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
-  THREE, scene, camera, controls,
+  THREE, scene, camera, controls, VIBES, setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
   strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }
