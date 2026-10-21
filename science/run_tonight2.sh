@@ -10,11 +10,11 @@ D=../data/derived
 
 echo "== 1. H12 in-game memory"
 $PY -W ignore round3.py memory --data $D/exp_features.parquet --out $D/exp_features_h12.parquet 2>&1 | tail -3
-$PY -W ignore experiments.py screen --only H12 --data $D/exp_features_h12.parquet --out-dir $D/exp --out exp_screen_h12.md 2>&1 | grep -E "^(baseline|H12)"
-DEC=$($PY -c "import json;r=[x for x in json.load(open('exp_screen_h12.json'))['rows'] if x['id']=='H12'];print(r[0]['decision'] if r else 'NONE')")
-echo "H12 screen decision: $DEC"
-if [ "$DEC" = "KEEP" ] || [ "$DEC" = "MAYBE" ]; then
-  $PY -W ignore experiments.py confirm --data $D/exp_features_h12.parquet --keep H1,H4,H12 --out exp_confirm_h12.md 2>&1 | tail -14
+$PY -W ignore experiments.py screen --only H12,H13,H14 --data $D/exp_features_h12.parquet --out-dir $D/exp --out exp_screen_h12.md 2>&1 | grep -E "^(baseline|H1[234])"
+SURV=$($PY -c "import json;print(','.join(x['id'] for x in json.load(open('exp_screen_h12.json'))['rows'] if x['decision'] in ('KEEP','MAYBE')))")
+echo "H12-H14 survivors of screening: ${SURV:-none}"
+if [ -n "$SURV" ]; then
+  $PY -W ignore experiments.py confirm --data $D/exp_features_h12.parquet --keep H1,H4,$SURV --out exp_confirm_h12.md 2>&1 | tail -14
 fi
 
 echo "== 2. ceiling and specialist"

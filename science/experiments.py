@@ -63,6 +63,11 @@ HYPOTHESES = [
     dict(id="H12", name="In-game residual memory", cols=["gm_dist_resid", "gm_dist_ewm", "gm_n", "gm_hr_resid"],
          expect="Balls in one game share a distance miss (wind, air, ball; split-half r +0.30); expect a small distance gain, larger near the wall. "
                 "Needs exp_features_h12.parquet from round3.py memory."),
+    dict(id="H13", name="Batter residual memory", cols=["bt_dist_resid", "bt_n"],
+         expect="Batters carry a persistent distance miss (split-half r +0.42 to +0.50 on the test period, spread about 3 ft); expect a distance gain near the "
+                "size of the contact-point gain (about 0.1 to 0.2 ft), plus a small near-wall gain. Residual-based, unlike the raw-average history groups that failed."),
+    dict(id="H14", name="Pitcher residual memory", cols=["pt_dist_resid", "pt_n"],
+         expect="Weaker than batters (split-half r +0.15 to +0.25); expect little. Likely kill."),
 ]
 HID = {h["id"]: h for h in HYPOTHESES}
 

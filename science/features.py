@@ -44,6 +44,8 @@ FEATURES: dict[str, str] = {
     "ev_minus_bat": CONTACT, "bat_minus_pitch": CONTACT,
     # in-game memory (round3.py): shrunk means of out-of-fold model misses on strictly earlier balls of the same game (usable live)
     "gm_dist_resid": PRE, "gm_dist_ewm": PRE, "gm_n": PRE, "gm_hr_resid": PRE,
+    # player residual memory (round3.py): shrunk mean model miss over the player's strictly earlier balls
+    "bt_dist_resid": PRE, "bt_n": PRE, "pt_dist_resid": PRE, "pt_n": PRE,
     "sw_attack_angle": PRE, "sw_attack_dir": PRE, "sw_length": PRE, "sw_bat_speed": PRE, "sw_intercept_x": PRE, "sw_intercept_y": PRE,
     # physics and fence features derived only from legal inputs (contact, pitch, weather, park, estimated direction)
     "phys_dist": CONTACT, "phys_hang": CONTACT, "fence_hat": CONTACT, "margin_hat": CONTACT, "park_cf": PRE, "park_lf": PRE, "park_rf": PRE,

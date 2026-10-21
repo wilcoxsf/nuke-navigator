@@ -76,6 +76,13 @@ def memory(a):
         if np.isfinite(dres[i]):
             m, w = m * DECAY + dres[i], w * DECAY + 1.0
     df["gm_dist_ewm"] = ew
+    # player residual memory (H13 batter, H14 pitcher): shrunk mean of the model's fly-ball distance miss over that player's strictly
+    # earlier balls, across all earlier games. Split-half reliability of these player means on the test period: batters +0.42 to +0.50, pitchers +0.15 to +0.25.
+    for key, k, tag in (("batter", 15.0, "bt"), ("pitcher", 25.0, "pt")):
+        grp = df[key].to_numpy()
+        s = pd.Series(np.nan_to_num(dres)).groupby(grp).cumsum().to_numpy() - np.nan_to_num(dres)
+        c = pd.Series(np.isfinite(dres).astype(float)).groupby(grp).cumsum().to_numpy() - np.isfinite(dres)
+        df[f"{tag}_dist_resid"], df[f"{tag}_n"] = s / (c + k), c
     df.to_parquet(a.out.replace("\\", "/"))
     chk = df.loc[T.fly, ["gm_dist_resid", "gm_n"]].assign(res=dres[T.fly])
     chk = chk[chk.gm_n >= 3]
