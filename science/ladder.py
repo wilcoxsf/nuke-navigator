@@ -42,7 +42,7 @@ WITH g AS (
   FROM read_parquet('{games}') ORDER BY game_pk, official_date DESC),
 base AS (
   SELECT b.*, g.venue_id, g.elevation_ft, g.roof, g.turf,
-         w.om_temp_f, w.om_rh, w.om_pressure_hpa, w.om_wind_u, w.om_wind_v, w.om_wind_mph, w.om_gust_mph, w.om_precip_mm,
+         w.om_temp_f, w.om_rh, w.om_pressure_hpa, w.om_wind_u, w.om_wind_v, w.om_wind_mph, w.om_gust_mph, w.om_precip_mm, w.om_wind_dir,
          CASE WHEN b.hc_x IS NOT NULL AND b.hc_y IS NOT NULL THEN degrees(atan2(b.hc_x - 125.42, 198.27 - b.hc_y)) END AS bearing
   FROM read_parquet('{bbe}') b
   LEFT JOIN g USING (game_pk)
