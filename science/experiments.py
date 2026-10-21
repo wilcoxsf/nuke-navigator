@@ -68,7 +68,20 @@ HYPOTHESES = [
                 "size of the contact-point gain (about 0.1 to 0.2 ft), plus a small near-wall gain. Residual-based, unlike the raw-average history groups that failed."),
     dict(id="H14", name="Pitcher residual memory", cols=["pt_dist_resid", "pt_n"],
          expect="Weaker than batters (split-half r +0.15 to +0.25); expect little. Likely kill."),
+    dict(id="H15", name="League drift memory", cols=["lg_hr_resid", "lg_dist_resid"],
+         expect="The model's near-wall home run rate is off by league-wide amounts that move by month (-3.0 points June 2025, +2.9 June 2026). "
+                "A shrunk mean of the previous 30 days of home-run misses and 14 days of distance misses should absorb ball and season drift; expect a small Brier gain."),
+    dict(id="H16", name="Park by geometry, not team", cols=["park_lf", "park_cf", "park_rf"], drop=["home_team"],
+         expect="Team code does not identify a park (the Athletics moved to Sutter Health Park in 2025 and the model still reads Oakland). Dropping it and using "
+                "fence distances, elevation, roof and turf should fix new-park and fence-change errors; expect a gain at the Athletics, Detroit and similar parks, "
+                "possibly a loss at parks with idiosyncratic effects the geometry misses."),
 ]
+
+
+def feats_for(sel):
+    """Baseline features, minus anything a selected hypothesis drops, plus the selected groups' columns."""
+    drop = {c for i in sel for c in HID[i].get("drop", [])}
+    return [c for c in BASE if c not in drop] + [c for i in sel if not HID[i].get("weight") for c in HID[i]["cols"]]
 HID = {h["id"]: h for h in HYPOTHESES}
 
 
@@ -195,7 +208,7 @@ def screen(a):
         if h.get("weight") == "recency":
             E = cached(cache, h["id"], lambda: cv_errors(df, T, BASE, folds, weights=recency_weights(df)))
         else:
-            E = cached(cache, h["id"], lambda: cv_errors(df, T, BASE + h["cols"], folds))
+            E = cached(cache, h["id"], lambda: cv_errors(df, T, feats_for([h["id"]]), folds))
         d = boot_delta(E, E0, games, boots)
         rows.append({"id": h["id"], "name": h["name"], "cols": h["cols"], "expect": h["expect"], "delta": d, "decision": decide(d)})
         print(h["id"], h["name"], rows[-1]["decision"], fmt(d), flush=True)
@@ -229,9 +242,6 @@ def combine(a):
     boots = make_boots(len(np.unique(games)))
     cache = Path(a.out_dir) / "screen"
     E0 = cached(cache, "B0", lambda: cv_errors(df, T, BASE, folds))
-
-    def feats_for(sel):
-        return BASE + [c for i in sel if not HID[i].get("weight") for c in HID[i]["cols"]]
 
     def weights_for(sel):
         return recency_weights(df) if any(HID[i].get("weight") == "recency" for i in sel) else None
@@ -267,7 +277,7 @@ def confirm(a):
     tr = np.flatnonzero((df.pool != "test").to_numpy())
     te = np.flatnonzero((df.pool == "test").to_numpy())
     T = Targets(df)
-    feats = BASE + [c for i in sel if not HID[i].get("weight") for c in HID[i]["cols"]]
+    feats = feats_for(sel)
     w = recency_weights(df, df.loc[tr, "game_date"].max()) if any(HID[i].get("weight") == "recency" for i in sel) else None
     print(f"confirm: train {len(tr):,}, test {len(te):,}; final set {sel}", flush=True)
     t0 = time.time()

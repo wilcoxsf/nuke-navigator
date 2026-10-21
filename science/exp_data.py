@@ -92,6 +92,11 @@ def main() -> None:
     t0 = time.time()
     g = lambda p: p.replace("\\", "/")
     df = load(g(a.bbe), g(a.games), g(a.weather))
+    # park geometry from the schedule's venue field info (fence distances at the left line, center and right line)
+    dims = duckdb.sql(f"SELECT DISTINCT ON (game_pk) game_pk, dim_left_line, dim_center, dim_right_line FROM read_parquet('{g(a.games)}') "
+                      "ORDER BY game_pk, official_date DESC").df()
+    df = df.merge(dims, on="game_pk", how="left")
+    df["park_lf"], df["park_cf"], df["park_rf"] = df.dim_left_line, df.dim_center, df.dim_right_line
     if a.limit_year:
         df = df[df.game_year >= a.limit_year]
     df = df.sort_values(["game_date", "game_pk", "at_bat_number", "pitch_number"], kind="stable").reset_index(drop=True)

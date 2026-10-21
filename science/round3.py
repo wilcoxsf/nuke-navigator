@@ -87,6 +87,20 @@ def memory(a):
         s = pd.Series(np.nan_to_num(dres)).groupby(grp).cumsum().to_numpy() - np.nan_to_num(dres)
         c = pd.Series(np.isfinite(dres).astype(float)).groupby(grp).cumsum().to_numpy() - np.isfinite(dres)
         df[f"{tag}_dist_resid"], df[f"{tag}_n"] = s / (c + k), c
+    # league-wide drift (H15): shrunk mean miss over the previous 30 days (home runs, region balls) and 14 days (fly-ball distance); the window
+    # ends the day before the ball's game date, so only earlier dates are used
+    day = df.game_date.dt.normalize()
+    daily = pd.DataFrame({"day": day, "hs": np.nan_to_num(hres), "hc": np.isfinite(hres).astype(float),
+                          "ds": np.nan_to_num(dres), "dc": np.isfinite(dres).astype(float)}).groupby("day").sum()
+    daily = daily.reindex(pd.date_range(daily.index.min(), daily.index.max()), fill_value=0.0)
+
+    def window(num, den, days, k):
+        s = daily[num].rolling(days, min_periods=1).sum().shift(1).fillna(0.0)
+        c = daily[den].rolling(days, min_periods=1).sum().shift(1).fillna(0.0)
+        return s / (c + k)
+    daily["lg_hr_resid"], daily["lg_dist_resid"] = window("hs", "hc", 30, 100.0), window("ds", "dc", 14, 100.0)
+    df["lg_hr_resid"] = daily.loc[day, "lg_hr_resid"].to_numpy()
+    df["lg_dist_resid"] = daily.loc[day, "lg_dist_resid"].to_numpy()
     df.to_parquet(a.out.replace("\\", "/"))
     chk = df.loc[T.fly, ["gm_dist_resid", "gm_n"]].assign(res=dres[T.fly])
     chk = chk[chk.gm_n >= 3]

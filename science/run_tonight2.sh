@@ -10,7 +10,7 @@ D=../data/derived
 
 echo "== 1. H12 in-game memory"
 $PY -W ignore round3.py memory --data $D/exp_features.parquet --out $D/exp_features_h12.parquet 2>&1 | tail -3
-$PY -W ignore experiments.py screen --only H12,H13,H14 --data $D/exp_features_h12.parquet --out-dir $D/exp --out exp_screen_h12.md 2>&1 | grep -E "^(baseline|H1[234])"
+$PY -W ignore experiments.py screen --only H12,H13,H14,H15,H16 --data $D/exp_features_h12.parquet --out-dir $D/exp --out exp_screen_h12.md 2>&1 | grep -E "^(baseline|H1[2-6])"
 SURV=$($PY -c "import json;print(','.join(x['id'] for x in json.load(open('exp_screen_h12.json'))['rows'] if x['decision'] in ('KEEP','MAYBE')))")
 echo "H12-H14 survivors of screening: ${SURV:-none}"
 if [ -n "$SURV" ]; then
