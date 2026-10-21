@@ -38,7 +38,7 @@ export function initRadar3D({ NN, state, fly, toWorld, getWall, findLanding }) {
   scene.add(group)
   NN.hideForNormal.push(group) // the ink-outline pass reads normals: keep the overlay out of it
   const mat = (color, opacity = 1) => new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: false, depthTest: true })
-  let on = new URLSearchParams(location.search).get('radar') !== '0'
+  let on = ['1', 'full'].includes(new URLSearchParams(location.search).get('radar')) // off by default: Andrew dropped the radar on the field (21 Oct 2026)
   let detail = new URLSearchParams(location.search).get('radar') === 'full' // subtle by default; the G key or ?radar=full adds the curtain, labels and cloud
   group.visible = on
 

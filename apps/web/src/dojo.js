@@ -13,6 +13,7 @@ import { initKrab } from './krab.js'
 import { PANEL_CSS, frame, balloon } from './panels.js'
 import { SKINX_CSS } from './skinx.js'
 import { SKINK_CSS } from './skink.js'
+import { LOOKS_K, WINDOWS_K } from './looks_k.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -20,6 +21,8 @@ const FT = 0.3048, RPM = (2 * Math.PI) / 60, G = 9.81, MASS = 0.145, RAD = 0.036
 const HOME = { x: 0.3, z: 1.0 }
 let wall = null
 let radar = null
+let lookK = LOOKS_K[Number(Q.get('k'))] ? Number(Q.get('k')) : 1
+const kv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#ccc'
 
 const state = {
   ev: Number(Q.get('ev')) || 105, la: Number(Q.get('la')) || 28, dir: Q.get('dir') !== null ? Number(Q.get('dir')) : 30,
@@ -205,7 +208,7 @@ function draw(res) {
 function fitVerdict(el) { // skins X and K: shrink the verdict word until it fits its cell
   el.style.fontSize = ''
   if (state.ui !== 'X' && state.ui !== 'K') return
-  const top = state.ui === 'K' ? 58 : 72
+  const top = state.ui === 'K' ? ({ side: 58, dock: 46, min: 42 }[LOOKS_K[lookK].layout]) : 72
   el.style.fontSize = top + 'px'
   for (let f = top; f > 24 && (el.scrollHeight > el.clientHeight + 2 || (el.firstChild && el.firstChild.scrollWidth > el.clientWidth + 2)); f -= 4) el.style.fontSize = f + 'px'
 }
@@ -325,7 +328,7 @@ function schematic(res) {
   const xmax = Math.max(pr[pr.length - 1][0], (v.wallFt ?? 0) + 30, 150) * 1.05
   const ymax = Math.max(res.peakFt * 1.15, (v.wallH ?? 0) + 14, 40)
   const X = (r) => x0 + (r / xmax) * (x1 - x0), Y = (h) => yB - (Math.max(h, -4) / ymax) * (yB - yT)
-  const K_ = state.ui === 'K', X_ = state.ui === 'X', ink = K_ ? '#c4d6dc' : X_ ? '#1a1b1c' : '#1d2a6d', accent = K_ ? '#e2823a' : X_ ? '#ff5f14' : '#ff5a3c'
+  const K_ = state.ui === 'K', X_ = state.ui === 'X', ink = K_ ? kv('--tx') : X_ ? '#1a1b1c' : '#1d2a6d', accent = K_ ? kv('--acc') : X_ ? '#ff5f14' : '#ff5a3c'
   let g = K_ ? '' : svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' })
   for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': state.ui === 'K' ? 'STM,Consolas,monospace' : state.ui === 'X' ? 'SG,Arial,sans-serif' : 'DJHand,Consolas,monospace' }, `${r}`)
   g += svgEl('line', { x1: x0 - 4, x2: x1 + 4, y1: yB, y2: yB, stroke: ink, 'stroke-width': 2.2 })
@@ -356,7 +359,7 @@ function schematic(res) {
 const KC = ['#2c63c8', '#3fb6d4', '#2fa39a', '#6e4db0', '#8d9a3c', '#c0332a']
 function spark(vals, lo, hi) {
   const W = 200, H = 40, d = vals.map((v, i) => `${i ? 'L' : 'M'}${((i / (vals.length - 1)) * (W - 8) + 4).toFixed(1)} ${(H - 4 - ((v - lo) / (hi - lo || 1)) * (H - 8)).toFixed(1)}`).join(' ')
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="#9fc4d0" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg>`
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="${kv('--tx')}" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg>`
 }
 function numsK(res, rows) { // skin K readouts: a flat label block beside a hairline cell with its trace
   const P = res.path.filter((_, i) => i % 6 === 0), v = res.verdict
@@ -373,7 +376,7 @@ function numsK(res, rows) { // skin K readouts: a flat label block beside a hair
     ['HANG TIME', r['Hang time'], ''],
     [v.wallFt ? 'WALL' : 'WALL', v.wallFt ? `${v.kind === 'GONE' ? '+' : v.kind === 'WALL' ? '-' : ''}${Math.round(v.clearBy ?? v.short ?? 0)} FT` : '--', ''],
   ]
-  return data.map(([a, b, s], i) => `<div class="nr${i === 5 && alarm ? ' alarm' : ''}"><div class="nl" style="background:${i === 5 && !alarm ? '#8f5f1b' : KC[i]}">${a}</div><div class="nv">${s}<span>${b}</span></div></div>`).join('')
+  return data.map(([a, b, s], i) => `<div class="nr${i === 5 && alarm ? ' alarm' : ''}"><div class="nl">${a}</div><div class="nv">${s}<span>${b}</span></div></div>`).join('')
 }
 let pTimer = 0
 function gauss01(r) { return Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r()) }
@@ -402,14 +405,23 @@ function render(res) {
   document.getElementById('dj-note').textContent = 'Prediction. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'
   NN.setStat(state.ev, state.la, res.landFt)
 }
+function applyLookK(n) {
+  if (!LOOKS_K[n]) return
+  lookK = n
+  const L = LOOKS_K[n]
+  NN.setSat?.(L.sat); NN.setDuo?.(L.duo); NN.setBg?.(L.bg)
+  update()
+}
+window.__lookK = applyLookK
 function update() {
   for (const [k, , , , , f] of sliders) {
     document.getElementById(`s-${k}`).value = state[k]
     document.getElementById(`v-${k}`).textContent = f(state[k])
   }
   document.getElementById('hand').textContent = state.hand > 0 ? 'RIGHT-HANDED' : 'LEFT-HANDED'
-  root.className = `ui-${state.ui}${Q.get('dev') ? ' dev' : ''}`
-  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : state.ui === 'K' ? { l: 300, r: 340, t: 44, b: 84, k: 1 } : null)
+  root.className = `ui-${state.ui}${Q.get('dev') ? ' dev' : ''}${state.ui === 'K' ? ' lay-' + LOOKS_K[lookK].layout : ''}`
+  if (state.ui === 'K') for (const [k, v] of Object.entries(LOOKS_K[lookK].vars)) document.documentElement.style.setProperty(k, v)
+  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : state.ui === 'K' ? WINDOWS_K[LOOKS_K[lookK].layout] : null)
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
   if (NN.real && Q.get('vibes')) {
     document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`
@@ -442,7 +454,8 @@ for (const b of root.querySelectorAll('[data-radar]')) b.addEventListener('click
 for (const b of root.querySelectorAll('[data-swing]')) b.addEventListener('click', () => { const k = Object.keys(PRESETS); Object.assign(state, PRESETS[k[Math.floor(Math.random() * k.length)]]); update() })
 for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('click', () => NN.setVibe(Number(b.dataset.v)))
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
+addEventListener('keydown', (e) => { if (Q.get('dev') && state.ui === 'K' && e.target.tagName !== 'INPUT' && /^[0-9]$/.test(e.key)) applyLookK(e.key === '0' ? 10 : Number(e.key)) })
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update(); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update(); window.__dojoReady = true })

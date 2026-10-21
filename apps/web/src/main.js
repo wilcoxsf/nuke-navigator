@@ -220,13 +220,13 @@ const post = new THREE.ShaderMaterial({
   uniforms: {
     tColor: { value: null }, tNormal: { value: null }, tDepth: { value: null },
     res: { value: new THREE.Vector2() }, near: { value: camera.near }, far: { value: camera.far },
-    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 }, shake: { value: new THREE.Vector2() },
+    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 }, shake: { value: new THREE.Vector2() }, duoA: { value: new THREE.Color('#000000') }, duoB: { value: new THREE.Color('#ffffff') }, duoAmt: { value: 0 },
   },
   vertexShader: 'varying vec2 vUvRaw; void main(){ vUvRaw = uv; gl_Position = vec4(position.xy, 0., 1.); }',
   fragmentShader: /* glsl */ `
     uniform sampler2D tColor, tNormal, tDepth; uniform vec2 res; uniform float near, far;
     uniform vec3 paper, ink; uniform float dotScale, hatchAmt, lineW, lineK;
-    varying vec2 vUvRaw; uniform vec2 shake;
+    varying vec2 vUvRaw; uniform vec2 shake; uniform vec3 duoA, duoB; uniform float duoAmt;
     float lin(float d){ float z = d * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
     void main(){
@@ -255,6 +255,8 @@ const post = new THREE.ShaderMaterial({
       float bg = step(0.9999, texture2D(tDepth, vUv).r);
       col = mix(col, paper, bg);
       col = mix(col, ink, line);
+      float Lm = dot(col, vec3(0.299, 0.587, 0.114));
+      col = mix(col, mix(duoA, duoB, smoothstep(0.0, 0.55, Lm)), duoAmt); // duotone: the whole scene in two colours
       gl_FragColor = vec4(pow(col, vec3(1. / 2.2)), 1.);
     }`,
   depthTest: false, depthWrite: false,
@@ -307,7 +309,7 @@ function resize() {
   if (winInsets) {
     const ww = w - winInsets.l - winInsets.r, wh = h - winInsets.t - winInsets.b
     camera.setViewOffset(w, h, -((winInsets.l + (w - winInsets.r)) / 2 - w / 2), -((winInsets.t + (h - winInsets.b)) / 2 - h / 2), w, h)
-    camera.zoom = Math.min(1.7, Math.max(0.5, ww / (winInsets.k ? 780 : 950)))
+    camera.zoom = Math.min(1.7, Math.max(0.5, ww / ({ 1: 780, 2: 1500, 3: 1200 }[winInsets.k] ?? 950)))
   } else { camera.clearViewOffset(); camera.zoom = 1 }
   camera.updateProjectionMatrix()
   const pr = renderer.getPixelRatio()
@@ -376,6 +378,8 @@ loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
   THREE, scene, camera, controls, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
+  setDuo: (d) => { if (d) { post.uniforms.duoA.value.set(d[0]); post.uniforms.duoB.value.set(d[1]); post.uniforms.duoAmt.value = d[2] } else post.uniforms.duoAmt.value = 0 },
+  setSat: (v) => { vibeU.sat.value = v }, setBg: (c) => { look = { ...look, bg: c }; applyLook() },
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
   strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }
