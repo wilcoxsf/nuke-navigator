@@ -106,7 +106,7 @@ def main() -> None:
         if not set(extra) & set(UPPER):
             wb = teacher().fit(tm[X], truth["w_back"]).predict(mlf[X])
             ws = teacher().fit(tm[X], truth["w_side"]).predict(mlf[X])
-            d, _, _ = simulate(p, **sim_base, w_back=wb, w_side=np.zeros(len(ml)), rho=rho)
+            d, _, _ = simulate(p, **sim_base, w_back=wb, rho=rho)
             err = np.where(np.isfinite(d), d / FT - y, np.nan)
             row["mae"], row["bias"] = np.nanmean(np.abs(err)), np.nanmean(err)
             ae = np.abs(err)

@@ -29,7 +29,7 @@ PREPRUNE_COMMIT = "41f2f8a80532712349ab6d2a72519b19d5d0bf5b"
 H176_PATHS = ["20250615-CCBLOrleans-1", "20250703-CCBLBourne-1", "20250717-CCBLCotuit-1", "20250704-CCBLWareham-1", "20250709-CCBLOrleans-1",
               "20250703-CCBLHyannis-1", "20250713-CCBLHarwich-2", "20250628-CCBLWareham-1", "20250614-CCBLBrewster-1"]
 KEEP = ["GameID", "PitchUID", "PitchNo", "Date", "League", "Level", "System", "Stadium", "BatterSide", "PitcherThrows", "TaggedPitchType", "PitchCall",
-        "PlayResult", "RelSpeed", "PlateLocHeight", "PlateLocSide", "VertApprAngle", "HorzApprAngle", "ExitSpeed", "Angle", "Direction", "HitSpinRate",
+        "PlayResult", "RelSpeed", "SpinRate", "SpinAxis", "PlateLocHeight", "PlateLocSide", "VertApprAngle", "HorzApprAngle", "ExitSpeed", "Angle", "Direction", "HitSpinRate",
         "HitSpinAxis", "Bearing", "Distance", "HangTime", "ContactPositionX", "ContactPositionY", "ContactPositionZ"]
 session = requests.Session()
 session.headers["User-Agent"] = UA
