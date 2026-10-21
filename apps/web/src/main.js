@@ -327,7 +327,9 @@ renderer.setAnimationLoop((t) => {
   renderer.render(scene, camera)
   renderer.setRenderTarget(targets.normal)
   scene.overrideMaterial = normalMat
+  const hid = window.__nn.hideForNormal.map((o) => [o, o.visible]); hid.forEach(([o]) => { o.visible = false })
   renderer.render(scene, camera)
+  hid.forEach(([o, v]) => { o.visible = v })
   scene.overrideMaterial = null
   renderer.setRenderTarget(null)
   post.uniforms.tColor.value = targets.color.texture
@@ -371,7 +373,7 @@ function roll() {
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
-  THREE, scene, camera, controls, VIBES, frames: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
+  THREE, scene, camera, controls, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
   strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }

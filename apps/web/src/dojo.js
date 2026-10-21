@@ -6,6 +6,7 @@
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
 import { initSeance, findLanding } from './seance.js'
 import { initFx } from './fx.js'
+import { initRadar3D } from './radar3d.js'
 import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
 import { mulberry32 } from './comparisons.js'
 import { initKrab } from './krab.js'
@@ -17,6 +18,7 @@ const Q = new URLSearchParams(location.search)
 const FT = 0.3048, RPM = (2 * Math.PI) / 60, G = 9.81, MASS = 0.145, RAD = 0.0366, AREA = Math.PI * RAD * RAD
 const HOME = { x: 0.3, z: 1.0 }
 let wall = null
+let radar = null
 
 const state = {
   ev: Number(Q.get('ev')) || 105, la: Number(Q.get('la')) || 28, dir: Q.get('dir') !== null ? Number(Q.get('dir')) : 30,
@@ -297,7 +299,7 @@ const sliders = [
 ]
 ctl.insertAdjacentHTML('beforeend', '<div class="tape"><i>CONTROL PANEL 01</i></div>' + sliders.map(([k, l, lo, hi, st]) => `<div class="row"><label>${l}</label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${st}"><span class="val" id="v-${k}"></span></div>`).join('') +
   `<div class="row"><label>Batter</label><button id="hand" style="padding:3px 10px"></button></div>` +
-  `<div class="presets"><button class="go" data-swing>Swing again</button>${Object.keys(PRESETS).slice(0, 7).map((n) => `<button data-preset="${n}">${n}</button>`).join('')}</div>`)
+  `<div class="presets"><button class="go" data-swing>Swing again</button>${Object.keys(PRESETS).slice(0, 7).map((n) => `<button data-preset="${n}">${n}</button>`).join('')}<button data-radar>Radar</button></div>`)
 
 const svgEl = (tag, attrs, text) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ')}>${text ?? ''}</${tag}>`
 function schematic(res) {
@@ -369,6 +371,7 @@ function update() {
   }
   res.key = classify(res, state, res.landing?.kind === 'SPLASH' ? 'SPLASH' : null, wallDistAt(res.landB))
   draw(res)
+  radar?.update(res)
   render(res)
   window.__dojo = res
   window.__seanceRefresh?.()
@@ -383,10 +386,11 @@ ctl.addEventListener('input', (e) => { if (e.target.id?.startsWith('s-')) { stat
 document.getElementById('hand').addEventListener('click', () => { state.hand *= -1; update() })
 for (const b of root.querySelectorAll('#dj-skins button')) b.addEventListener('click', () => { state.ui = b.dataset.ui; update() })
 for (const b of root.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { Object.assign(state, PRESETS[b.dataset.preset]); update() })
+for (const b of root.querySelectorAll('[data-radar]')) b.addEventListener('click', () => radar?.toggle())
 for (const b of root.querySelectorAll('[data-swing]')) b.addEventListener('click', () => { const k = Object.keys(PRESETS); Object.assign(state, PRESETS[k[Math.floor(Math.random() * k.length)]]); update() })
 for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('click', () => NN.setVibe(Number(b.dataset.v)))
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); update(); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update(); window.__dojoReady = true })
