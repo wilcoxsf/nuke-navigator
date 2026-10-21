@@ -9,6 +9,7 @@ import { initFx } from './fx.js'
 import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
 import { mulberry32 } from './comparisons.js'
 import { initKrab } from './krab.js'
+import { PANEL_CSS, frame, balloon } from './panels.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -192,6 +193,7 @@ function showBeat(i) { // i = -1: waiting for the first word; the last beat come
   const last = i === anim.beats.length - 1
   el.className = last ? `st-${anim.tone} ${res0Kind()}` : 'st-wait'
   el.innerHTML = i < 0 ? '<span class="beat">. . .</span>' : `<span class="beat">${anim.beats[i]}</span>`
+  balloon(el, last ? anim.tone : 'wait')
   document.getElementById('dj-state').textContent = last ? STATES[anim.key].label : 'TRACKING'
   document.getElementById('dj-sub').textContent = last ? anim.sub : ''
   window.__scoreboard?.show(last ? 'final' : 'beat', anim, i)
@@ -249,42 +251,9 @@ const CSS = `
 #dj-state{font:700 10px Consolas,monospace;letter-spacing:.2em;margin:0 0 3px}
 #dj-sub{font:700 11px Consolas,monospace;letter-spacing:.04em;min-height:14px;margin:0 0 6px}
 #dj-fig,.tape{display:none}
-#dojo.ui-B #dj-ctl,#dojo.ui-B #dj-out{background-color:#fff;background-image:linear-gradient(rgba(29,42,109,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(29,42,109,.08) 1px,transparent 1px);background-size:16px 16px;color:#1d2a6d;border:3px solid #1d2a6d;box-shadow:6px 6px 0 #ff5a3c;transform:rotate(-.5deg)}
-#dojo.ui-B #dj-out{transform:rotate(.6deg);box-shadow:6px 6px 0 #ffd23f;width:310px}
-#dojo.ui-B .tape{display:block;margin:-10px -12px 8px;padding:3px 0;background:repeating-linear-gradient(-45deg,#1d2a6d 0 9px,#ffd23f 9px 18px);border-bottom:3px solid #1d2a6d}
-#dojo.ui-B .tape i{display:inline-block;margin-left:10px;padding:1px 8px;background:#1d2a6d;color:#ffd23f;font:900 10px Consolas,monospace;letter-spacing:.18em;font-style:normal}
-#dojo.ui-B #dj-title{position:absolute;top:8px;left:12px;background:#ffd23f;color:#1d2a6d;border:3px solid #1d2a6d;padding:2px 10px;font:900 18px Arial;letter-spacing:.04em;transform:rotate(-1.5deg);box-shadow:3px 3px 0 #1d2a6d}
-#dojo.ui-B #dj-ctl{counter-reset:rw}#dojo.ui-B #dj-ctl .row{counter-increment:rw}
-#dojo.ui-B #dj-ctl label{min-width:104px;font:900 11px Consolas,monospace;letter-spacing:.08em}
-#dojo.ui-B #dj-ctl label::before{content:counter(rw);display:inline-block;width:15px;height:15px;line-height:12px;margin-right:6px;text-align:center;border:2px solid #1d2a6d;border-radius:50%;font:900 9px Consolas,monospace}
-#dojo.ui-B .val{background:#1d2a6d;color:#ffd23f;padding:1px 6px;font-family:Consolas,monospace;min-width:62px}
-#dojo.ui-B input[type=range]{-webkit-appearance:none;appearance:none;height:24px;background:linear-gradient(#1d2a6d,#1d2a6d) 0 50%/100% 3px no-repeat,repeating-linear-gradient(90deg,#1d2a6d 0 2px,transparent 2px 12px) 0 100%/100% 6px no-repeat;outline:none}
-#dojo.ui-B input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:24px;background:#ffd23f;border:3px solid #1d2a6d;border-radius:2px;box-shadow:2px 2px 0 #ff5a3c}
-#dojo.ui-B #dj-skins button{background:#fff;color:#1d2a6d;border:2px solid #1d2a6d;font-weight:900}
-#dojo.ui-B #dj-skins button.on{background:#1d2a6d;color:#fff}
-#dojo.ui-B #dj-verdict{font:900 italic 30px/1.05 'Arial Black',Impact,Arial;color:#fff;background:#1d2a6d;padding:16px 20px;margin:2px 0 6px;text-shadow:3px 3px 0 #ff5a3c;min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;clip-path:polygon(0% 14%,5% 0%,13% 10%,23% 0%,33% 9%,45% 0%,55% 10%,67% 0%,77% 9%,89% 0%,96% 12%,100% 40%,96% 60%,100% 84%,92% 100%,80% 90%,68% 100%,56% 91%,44% 100%,32% 90%,20% 100%,10% 90%,0% 100%,4% 60%,0% 40%)}
-#dojo.ui-B #dj-fig{display:block;margin:4px 0 6px;border:2px solid #1d2a6d;background:#fff}
-#dojo.ui-B #dj-fig figcaption{font:700 9px Consolas,monospace;letter-spacing:.14em;padding:1px 6px;background:#1d2a6d;color:#fff}
-#dojo.ui-B #dj-fig svg{display:block;width:100%;height:auto}
-#dojo.ui-B #dj-nums div{font:700 12px Consolas,monospace;border-bottom:1px dotted #1d2a6d55}
-#dojo.ui-B #dj-nums i{display:inline-block;width:14px;height:14px;line-height:11px;margin-right:6px;text-align:center;font:900 9px Consolas,monospace;font-style:normal;border:2px solid #1d2a6d;border-radius:50%}
-#dojo.ui-B #dj-note{font:700 8.5px/1.3 Consolas,monospace;letter-spacing:.06em;text-transform:uppercase;opacity:.75;border-top:2px solid #1d2a6d;padding-top:4px}
-#dj-verdict .beat{display:inline-block;animation:beatPop .38s cubic-bezier(.2,1.6,.4,1) both}
-#dojo.ui-B #dj-verdict.st-wait{background:#1d2a6d;color:#fff;text-shadow:none}
-#dojo.ui-B #dj-verdict.st-gone{background:#ff5a3c;color:#fff;text-shadow:3px 3px 0 #1d2a6d}
-#dojo.ui-B #dj-verdict.st-nuke{background:#e52911;color:#ffd23f;text-shadow:3px 3px 0 #1d2a6d;animation:nuke .14s linear infinite}
-#dojo.ui-B #dj-verdict.st-splash{background:#0aa8d6;color:#fff;text-shadow:3px 3px 0 #0d2b4a;animation:wave 1.3s ease-in-out infinite}
-#dojo.ui-B #dj-verdict.st-scraper{background:#ffd23f;color:#1d2a6d;text-shadow:3px 3px 0 #fff;animation:scrape .09s linear 6}
-#dojo.ui-B #dj-verdict.st-wall{background:#9a5a48;color:#fff;text-shadow:3px 3px 0 #1d2a6d;animation:thud .5s cubic-bezier(.3,1.4,.5,1) both}
-#dojo.ui-B #dj-verdict.st-close{background:#b9bdc6;color:#1d2a6d;text-shadow:3px 3px 0 #fff;animation:shiver .12s linear 8}
-#dojo.ui-B #dj-verdict.st-play{background:#7fe3d4;color:#1d2a6d;text-shadow:3px 3px 0 #fff}
-#dojo.ui-B #dj-verdict.st-foul{background:#c4c4c4;color:#1d2a6d;text-shadow:3px 3px 0 #fff;transform:skewX(-8deg)}
-@keyframes beatPop{0%{transform:scale(.3) rotate(-7deg);opacity:0}60%{transform:scale(1.2) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0)}}
-@keyframes nuke{0%{transform:translate(2px,-2px) scale(1.04)}25%{transform:translate(-3px,1px) scale(1)}50%{transform:translate(2px,2px) scale(1.05)}75%{transform:translate(-2px,-1px) scale(1)}100%{transform:translate(2px,-2px) scale(1.04)}}
-@keyframes wave{0%,100%{transform:skewX(-6deg) translateY(0)}50%{transform:skewX(6deg) translateY(-4px)}}
-@keyframes scrape{0%{transform:translateX(-2px)}50%{transform:translateX(2px)}100%{transform:translateX(-2px)}}
-@keyframes thud{0%{transform:translateY(-22px) scale(1.2)}35%{transform:translateY(7px) scale(.97)}65%{transform:translateY(-3px)}100%{transform:none}}
-@keyframes shiver{0%{transform:rotate(-1.4deg)}50%{transform:rotate(1.4deg)}100%{transform:rotate(-1.4deg)}}
+.frame,.bal{display:none}
+#dojo.ui-B .frame{display:block}
+#dojo.ui-B #dj-verdict .bal{display:block}
 #dojo.ui-C #dj-ctl{background:#14081f;color:#ff4bd8;border:2px solid #ff4bd8;box-shadow:0 0 14px #ff4bd8aa;border-radius:14px;top:auto;bottom:122px;left:12px;width:auto;display:flex;gap:18px;flex-wrap:wrap;max-width:calc(100vw - 340px)}
 #dojo.ui-C #dj-ctl .row{margin:2px 0;min-width:240px}#dojo.ui-C #dj-ctl label{color:#c8ff3a}
 #dojo.ui-C #dj-out{background:#000;color:#c8ff3a;border:2px solid #c8ff3a;box-shadow:0 0 14px #c8ff3aaa;border-radius:6px;font-family:'Courier New',monospace;top:44px}
@@ -296,7 +265,7 @@ const CSS = `
 `
 window.__dojoFly = fly // exposed for the screenshot and test scripts
 const SKIN_BUTTONS = /(#dojo\.ui-[ABC]) #dj-skins button(\.on)?/g // the vibe buttons wear whichever skin is on
-const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2')
+const CSS_ALL = CSS.replace(SKIN_BUTTONS, '$1 #dj-skins button$2,$1 #dj-vibe button$2') + PANEL_CSS
 document.getElementById('look')?.remove() // the look switcher label would sit under the Dojo title
 const root = document.createElement('div')
 root.id = 'dojo'
@@ -308,13 +277,15 @@ ${NN.real && Q.get('vibes') ? '<div id="dj-vibe"><span id="dj-vibename"></span>'
 <div id="dj-out"><div class="tape"><i>VERDICT PLATE 02</i></div><div id="dj-state"></div><div id="dj-verdict"></div><div id="dj-sub"></div><figure id="dj-fig"><figcaption>FIG. 1  FLIGHT, SIDE ELEVATION</figcaption><div id="dj-svg"></div></figure><div id="dj-nums"></div><div id="dj-note"></div></div>`
 document.body.appendChild(root)
 const ctl = document.getElementById('dj-ctl')
+frame(ctl, { fill: '#cfe3ee', shadow: '#ffd23f', pattern: 'plus', seed: 3 })
+frame(document.getElementById('dj-out'), { fill: '#d4ead9', shadow: '#ff9a7a', pattern: 'tick', seed: 8 })
 const sliders = [
   ['ev', 'Exit speed', 60, 125, 1, (v) => `${v} mph`], ['la', 'Launch angle', -10, 60, 1, (v) => `${v}°`],
   ['dir', 'Direction', -50, 50, 1, (v) => (v < -5 ? `${-v}° LF` : v > 5 ? `${v}° RF` : 'CF')],
   ['temp', 'Temperature', 40, 100, 1, (v) => `${v}°F`], ['wind', 'What-if wind', -20, 20, 1, (v) => (v === 0 ? 'calm' : `${Math.abs(v)} mph ${v > 0 ? 'out' : 'in'}`)],
 ]
-ctl.innerHTML = '<div class="tape"><i>CONTROL PANEL 01</i></div>' + sliders.map(([k, l, lo, hi, st]) => `<div class="row"><label>${l}</label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${st}"><span class="val" id="v-${k}"></span></div>`).join('') +
-  `<div class="row"><label>Batter</label><button id="hand" style="padding:3px 10px"></button></div>`
+ctl.insertAdjacentHTML('beforeend', '<div class="tape"><i>CONTROL PANEL 01</i></div>' + sliders.map(([k, l, lo, hi, st]) => `<div class="row"><label>${l}</label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${st}"><span class="val" id="v-${k}"></span></div>`).join('') +
+  `<div class="row"><label>Batter</label><button id="hand" style="padding:3px 10px"></button></div>`)
 
 const svgEl = (tag, attrs, text) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ')}>${text ?? ''}</${tag}>`
 function schematic(res) {
@@ -327,37 +298,39 @@ function schematic(res) {
   const X = (r) => x0 + (r / xmax) * (x1 - x0), Y = (h) => yB - (Math.max(h, -4) / ymax) * (yB - yT)
   const ink = '#1d2a6d', accent = '#ff5a3c'
   let g = svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' })
-  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': 'Consolas,monospace' }, `${r}`)
-  g += svgEl('line', { x1: x0 - 4, x2: x1 + 4, y1: yB, y2: yB, stroke: ink, 'stroke-width': 2 })
+  for (let r = 100; r < xmax; r += 100) g += svgEl('line', { x1: X(r), x2: X(r), y1: yT - 6, y2: yB, stroke: ink, 'stroke-opacity': 0.18, 'stroke-dasharray': '2 3' }) + svgEl('text', { x: X(r), y: yB + 11, 'text-anchor': 'middle', 'font-size': 7, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `${r}`)
+  g += svgEl('line', { x1: x0 - 4, x2: x1 + 4, y1: yB, y2: yB, stroke: ink, 'stroke-width': 2.2 })
   if (v.wallFt) { // wall: hatched block at its distance and height
     const wx = X(v.wallFt), wh = (v.wallH / ymax) * (yB - yT)
     g += svgEl('rect', { x: wx - 2.5, y: yB - wh, width: 5, height: wh, fill: accent, stroke: ink, 'stroke-width': 1.5 })
     g += svgEl('line', { x1: wx + 8, x2: wx + 8, y1: yB, y2: yB - wh, stroke: ink, 'stroke-width': 1 }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB - wh, y2: yB - wh, stroke: ink }) + svgEl('line', { x1: wx + 5, x2: wx + 11, y1: yB, y2: yB, stroke: ink })
     const left = wx > W - 92
-    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 8, 'font-weight': 900, fill: ink, 'font-family': 'Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
+    g += svgEl('text', { x: left ? wx - 6 : wx + 13, y: yB - wh - 5, 'text-anchor': left ? 'end' : 'start', 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `C ${Math.round(v.wallFt)} FT / ${v.wallH.toFixed(0)} FT`)
   }
   const d = pr.filter((_, i) => i % 3 === 0).map(([r, h], i) => `${i ? 'L' : 'M'}${X(r).toFixed(1)} ${Y(h).toFixed(1)}`).join(' ')
-  g += svgEl('path', { d, fill: 'none', stroke: ink, 'stroke-width': 5, 'stroke-linecap': 'round' }) + svgEl('path', { d, fill: 'none', stroke: '#ffd23f', 'stroke-width': 2.4, 'stroke-linecap': 'round' })
+  g = `<defs><pattern id="sch-hatch" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M1 2l3 1M5 6l3 1M2 8l2-1M6 1l2 1" stroke="${ink}" stroke-opacity=".45" stroke-width="1.2" fill="none"/></pattern></defs>` + g
+  g += svgEl('path', { d: `${d} L${X(pr[pr.length - 1][0]).toFixed(1)} ${yB} L${X(0).toFixed(1)} ${yB} Z`, fill: 'url(#sch-hatch)', stroke: 'none' })
+  g += svgEl('path', { d, fill: 'none', stroke: ink, 'stroke-width': 2.2, 'stroke-linecap': 'round' })
   let ap = 0
   pr.forEach(([, h], i) => { if (h > pr[ap][1]) ap = i })
   const [ar, ah] = pr[ap]
   g += svgEl('line', { x1: X(ar), x2: X(ar), y1: yB, y2: Y(ah), stroke: ink, 'stroke-dasharray': '3 2' }) + svgEl('circle', { cx: X(ar), cy: Y(ah), r: 3, fill: '#fff', stroke: ink, 'stroke-width': 2 })
-  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 8, 'font-weight': 900, fill: ink, 'font-family': 'Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
+  g += svgEl('text', { x: X(ar) + 5, y: Y(ah) - 3, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `B ${Math.round(res.peakFt)} FT`)
   const la = (state.la * Math.PI) / 180, R = 20
   g += svgEl('path', { d: `M${x0 + R} ${yB} A${R} ${R} 0 0 0 ${x0 + R * Math.cos(la)} ${yB - R * Math.sin(la)}`, fill: 'none', stroke: accent, 'stroke-width': 2 })
-  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 8, 'font-weight': 900, fill: accent, 'font-family': 'Consolas,monospace' }, `A ${state.la}°`)
+  g += svgEl('text', { x: x0 + R + 4, y: yB - 4, 'font-size': 11, 'font-weight': 400, fill: accent, 'font-family': 'DJHand,Consolas,monospace' }, `A ${state.la}°`)
   const [lr] = pr[pr.length - 1]
   g += svgEl('path', { d: `M${X(lr) - 4} ${yB - 4} L${X(lr) + 4} ${yB + 4} M${X(lr) + 4} ${yB - 4} L${X(lr) - 4} ${yB + 4}`, stroke: accent, 'stroke-width': 2.4 })
-  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 8, 'font-weight': 900, fill: ink, 'font-family': 'Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
+  g += svgEl('text', { x: Math.min(X(lr), x1 - 30), y: yB + 21, 'font-size': 11, 'font-weight': 400, fill: ink, 'font-family': 'DJHand,Consolas,monospace' }, `D ${Math.round(res.landFt)} FT`)
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`
 }
 function render(res) {
   const v = res.verdict
   const rows = [['A', 'Launch', `${state.ev} mph, ${state.la}°`], ['D', 'Distance', `${Math.round(res.landFt)} ft`], ['B', 'Peak height', `${Math.round(res.peakFt)} ft`], ['', 'Hang time', `${res.hang.toFixed(1)} s`]]
-  if (v.wallFt) rows.push(['C', 'Wall there', `${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft tall`], ['', 'Height at wall', `${v.cross.toFixed(0)} ft`])
+  if (v.wallFt) rows.push(['C', 'Wall', `${Math.round(v.wallFt)} ft, ${v.wallH.toFixed(0)} ft tall`], ['', 'Height at wall', `${v.cross.toFixed(0)} ft`])
   if (v.kind === 'GONE') rows.push(['', 'Cleared by', `${v.clearBy.toFixed(0)} ft`])
   if (v.kind === 'WALL') rows.push(['', 'Short by', `${v.short.toFixed(0)} ft`])
-  rows.push(['', 'Back / sidespin', `${Math.round(res.wb)} / ${Math.round(res.ws)} rpm`], ['', 'Air density', `${res.rho.toFixed(3)} kg/m³`])
+  rows.push(['', 'Spin', `${Math.round(res.wb)} / ${Math.round(res.ws)} rpm`], ['', 'Air density', `${res.rho.toFixed(3)} kg/m³`])
   document.getElementById('dj-nums').innerHTML = rows.map(([k, a, b]) => `<div><span>${k ? `<i>${k}</i>` : ''}${a}</span><b>${b}</b></div>`).join('')
   document.getElementById('dj-svg').innerHTML = schematic(res)
   document.getElementById('dj-note').textContent = 'Prediction. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'

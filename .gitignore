@@ -27,3 +27,8 @@ __pycache__/
 .DS_Store
 
 scratch/
+
+science/*.log
+science/catboost_info/
+science/*smoke*
+science/*_interim.json

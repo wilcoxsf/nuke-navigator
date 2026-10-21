@@ -47,7 +47,12 @@ export function initKrab(NN, { wallDistM, url = '/krab.glb' }) {
   }, undefined, () => { window.__krabReady = false })
 
   function place() { holder.position.copy(st.pos) }
-  function say(text, secs = 3.2) { bub.firstChild?.nodeType === 3 && bub.removeChild(bub.firstChild); bub.insertBefore(document.createTextNode(text), tail); st.say = secs; bub.style.display = 'block' }
+  function project() {
+    const v = new THREE.Vector3(st.pos.x, 9, st.pos.z).project(camera)
+    bub.style.left = `${((v.x + 1) / 2) * innerWidth}px`
+    bub.style.top = `${((1 - v.y) / 2) * innerHeight}px`
+  }
+  function say(text, secs = 3.2) { bub.firstChild?.nodeType === 3 && bub.removeChild(bub.firstChild); bub.insertBefore(document.createTextNode(text), tail); st.say = secs; bub.style.display = 'block'; project() }
   function pickWander() {
     const b = rnd(-34, 34), r = rnd(46, 88)
     return new THREE.Vector3(HOME.x + r * Math.sin((b * Math.PI) / 180), 0, HOME.z - r * Math.cos((b * Math.PI) / 180))
@@ -95,11 +100,7 @@ export function initKrab(NN, { wallDistM, url = '/krab.glb' }) {
     }
     if (st.mode !== 'celebrate') holder.position.set(st.pos.x, 0, st.pos.z)
     else holder.position.set(st.pos.x, holder.position.y, st.pos.z)
-    if (bub.style.display === 'block') {
-      const v = new THREE.Vector3(st.pos.x, 9, st.pos.z).project(camera)
-      bub.style.left = `${((v.x + 1) / 2) * innerWidth}px`
-      bub.style.top = `${((1 - v.y) / 2) * innerHeight}px`
-    }
+    if (bub.style.display === 'block') project()
   }
   NN.frames.push(update)
   return {
