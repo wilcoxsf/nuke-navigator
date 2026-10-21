@@ -51,6 +51,8 @@ FEATURES: dict[str, str] = {
     "sw_attack_angle": PRE, "sw_attack_dir": PRE, "sw_length": PRE, "sw_bat_speed": PRE, "sw_intercept_x": PRE, "sw_intercept_y": PRE,
     # physics and fence features derived only from legal inputs (contact, pitch, weather, park, estimated direction)
     "phys_dist": CONTACT, "phys_hang": CONTACT, "fence_hat": CONTACT, "margin_hat": CONTACT, "park_cf": PRE, "park_lf": PRE, "park_rf": PRE,
+    # park identity and era-correct measured fence geometry (savant_fence_features.py): functions of park, season, estimated bearing and the physics flight
+    "venue": PRE, "venue_id": PRE, "fence_s": CONTACT, "wallh_s": CONTACT, "hmax_s": PRE, "margin_s": CONTACT, "req_margin": CONTACT, "net_margin": CONTACT,
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

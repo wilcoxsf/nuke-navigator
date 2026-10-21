@@ -33,26 +33,25 @@ SF_PLATE = (0.3, 1.0)
 
 
 def schedule_dims() -> dict[str, tuple]:
-    df = duckdb.sql("""SELECT home_team_name, venue_name, official_date, dim_left_line, dim_left_center, dim_center, dim_right_center, dim_right_line
-                       FROM read_parquet('C:/Users/andrewwi/dev/nuke-navigator-new/data/raw/game_context/games.parquet') WHERE game_year >= 2025""").df()
+    """Anchors for the home-plate fit: Baseball Savant's measured fence distances (the models were probably built from the same scans) for the park each team
+    used most in 2025-26, falling back to the schedule's numbers when Savant has no row."""
+    games = duckdb.sql("""SELECT home_team_name, venue_id, venue_name, official_date, dim_left_line, dim_left_center, dim_center, dim_right_center, dim_right_line
+                          FROM read_parquet('C:/Users/andrewwi/dev/nuke-navigator-new/data/raw/game_context/games.parquet') WHERE game_year >= 2025""").df()
+    sav = pd.read_csv("C:/Users/andrewwi/dev/nuke-navigator-new/data/derived/parks/savant_fence_by_year.csv")
+    key = {"CWS": "White Sox", "CHC": "Cubs", "LAA": "Angels", "LAD": "Dodgers", "NYM": "Mets", "NYY": "Yankees"}
     out = {}
-    for code, key in NAMES.items():
-        sub = df[df.home_team_name.str.contains(key, case=False, regex=False)]
-        if code == "CWS":
-            sub = df[df.home_team_name.str.contains("White Sox", case=False, regex=False)]
-        if code == "CHC":
-            sub = df[df.home_team_name.str.contains("Cubs", case=False, regex=False)]
-        if code == "LAA":
-            sub = df[df.home_team_name.str.contains("Angels", case=False, regex=False)]
-        if code == "LAD":
-            sub = df[df.home_team_name.str.contains("Dodgers", case=False, regex=False)]
-        if code == "NYM":
-            sub = df[df.home_team_name.str.contains("Mets", case=False, regex=False)]
-        if code == "NYY":
-            sub = df[df.home_team_name.str.contains("Yankees", case=False, regex=False)]
-        if len(sub):
-            r = sub.sort_values("official_date").iloc[-1]
-            out[code] = (r.venue_name, r.dim_left_line, r.dim_left_center, r.dim_center, r.dim_right_center, r.dim_right_line)
+    for code, name in NAMES.items():
+        sub = games[games.home_team_name.str.contains(key.get(code, name), case=False, regex=False)]
+        if not len(sub):
+            continue
+        vid = int(sub.venue_id.mode().iloc[0])
+        row = sub[sub.venue_id == vid].sort_values("official_date").iloc[-1]
+        sv = sav[(sav.venue_id == vid)].sort_values("season")
+        if len(sv):
+            r = sv.iloc[-1]
+            out[code] = (row.venue_name, r.dist_lf_line, r.dist_lf_gap, r.dist_cf, r.dist_rf_gap, r.dist_rf_line, vid, "savant", sv.iloc[-1][["height_lf_line", "height_lf_gap", "height_cf", "height_rf_gap", "height_rf_line"]].tolist())
+        else:
+            out[code] = (row.venue_name, row.dim_left_line, row.dim_left_center, row.dim_center, row.dim_right_center, row.dim_right_line, vid, "schedule", [np.nan] * 5)
     return out
 
 
@@ -129,7 +128,10 @@ def run(code: str, dims: tuple, out_dir: Path) -> dict:
     prof = profile(ray, x0, z0, bearings)
     pd.DataFrame(prof, columns=["bearing_deg", "wall_ft", "height_ft"]).round(1).to_csv(out_dir / f"{code}.csv", index=False)
     d = {b: (w, h) for b, w, h in prof}
-    return dict(team=code, venue=dims[0], plate_x=round(x0, 2), plate_z=round(z0, 2), anchor_err_ft=round(float(err), 1),
+    nodes = [-45.0, -22.0, 0.0, 22.0, 45.0]
+    glb_h = [round(float(d[n][1]), 1) if not np.isnan(d[n][1]) else None for n in nodes]
+    return dict(team=code, venue=dims[0], venue_id=dims[6], anchors=dims[7], plate_x=round(x0, 2), plate_z=round(z0, 2), anchor_err_ft=round(float(err), 1),
+                glb_h5=str(glb_h), savant_h5=str([round(float(v), 1) for v in dims[8]]), glb_d5=str([round(float(d[n][0]), 0) for n in nodes]), savant_d5=str([round(float(v), 0) for v in dims[1:6]]),
                 fit=" | ".join(f"{r[0]:+.0f}:{r[1]:.0f}vs{anchors[r[0]]:.0f}" for r in rows),
                 lf_ft=round(d[-45.0][0], 0), lf_h=round(d[-45.0][1], 1) if not np.isnan(d[-45.0][1]) else None,
                 cf_ft=round(d[0.0][0], 0), cf_h=round(d[0.0][1], 1) if not np.isnan(d[0.0][1]) else None,

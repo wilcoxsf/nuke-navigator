@@ -21,13 +21,17 @@ import pandas as pd
 from features import assert_clean
 from ladder import BASE0, BAT, CATS, HIST, PITCH, WX
 
+CATS = CATS + ["venue"]  # the park itself (v4 feature sets)
+
 L4 = BASE0 + WX + PITCH + HIST + ["bearing_hat"] + BAT
 RECON = os.environ.get("FEATSET", "v1") == "recon"  # reconstruct mode: the ball has landed, so its true bearing and fence distance are allowed
-if os.environ.get("FEATSET", "v1") in ("v2", "recon"):  # round-2 survivors: contact point (H1) and contact quality (H4)
+if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b"):  # round-2 survivors: contact point (H1) and contact quality (H4)
     from experiments import HID
     L4 = L4 + HID["H1"]["cols"] + HID["H4"]["cols"]
 PHYS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
-FEATS_PHYS = L4 + PHYS
+SAV = ["fence_s", "wallh_s", "hmax_s", "margin_s", "req_margin", "net_margin"]  # era-correct measured fence and wall height
+FS = os.environ.get("FEATSET", "v1")
+FEATS_PHYS = L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else [])
 RECON_EXTRA = ["bearing", "fence_true", "margin_true"]
 
 
