@@ -53,7 +53,7 @@ def add_engineered(df: pd.DataFrame) -> None:
     df["ev_over_pitch"] = df.launch_speed / df.release_speed
     # Savant's squared-up definition: exit speed over the most it could be for this pitch and bat speed (constants approximate;
     # the trees rescale them)
-    df["squared_up"] = df.launch_speed / (1.23 * df.release_speed + 0.2116 * df.bat_speed)
+    df["squared_up"] = df.launch_speed / (1.23 * df.bat_speed + 0.2116 * df.release_speed)  # Statcast: max EV = 1.23 x bat speed + 0.2116 x pitch speed (coefficients were swapped before 22 Oct 2026)
     df["swing_speed_per_len"] = df.bat_speed / df.swing_length
     df["ev_minus_bat"] = df.launch_speed - df.bat_speed
     df["bat_minus_pitch"] = df.bat_speed - df.release_speed
