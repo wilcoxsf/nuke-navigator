@@ -310,7 +310,7 @@ function resize() {
   if (winInsets) {
     const ww = w - winInsets.l - winInsets.r, wh = h - winInsets.t - winInsets.b
     camera.setViewOffset(w, h, -((winInsets.l + (w - winInsets.r)) / 2 - w / 2), -((winInsets.t + (h - winInsets.b)) / 2 - h / 2), w, h)
-    camera.zoom = Math.min(1.7, Math.max(0.5, ww / ({ 1: 780, 2: 1500, 3: 1200 }[winInsets.k] ?? 950)))
+    camera.zoom = winInsets.z ?? Math.min(1.7, Math.max(0.5, ww / ({ 1: 780, 2: 1500, 3: 1200 }[winInsets.k] ?? 950))) // cockpits pass their own zoom
   } else { camera.clearViewOffset(); camera.zoom = 1 }
   camera.updateProjectionMatrix()
   const pr = renderer.getPixelRatio()

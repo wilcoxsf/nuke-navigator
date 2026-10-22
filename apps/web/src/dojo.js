@@ -130,6 +130,7 @@ const rngC = Q.get('seed') ? mulberry32(Number(Q.get('seed'))) : Math.random
 const recentHeads = []
 let fx = null
 let grid = null
+let scrubF = null // cockpit 6 drags the ball along its flight
 const hex = (c) => `#${new THREE.Color(c).getHexString()}`
 // zenith of the flight, marked in the 3D scene: a dashed plumb line down to the ground, a diamond at the top and a lettered height tag
 function placeApex(src, res) {
@@ -227,6 +228,7 @@ function showBeat(i) { // i = -1: waiting for the first word; the last beat come
   document.getElementById('dj-state').textContent = last ? STATES[anim.key].label : 'TRACKING'
   document.getElementById('dj-sub').textContent = last ? anim.sub : ''
   window.__scoreboard?.show(last ? 'final' : 'beat', anim, i)
+  { const b = { i, last, text: i < 0 ? '. . .' : anim.beats[i], state: last ? STATES[anim.key].label : 'TRACKING', sub: last ? anim.sub : '', tone: anim.tone, kind: anim.kind, key: anim.key }; window.__cpLastBeat = b; window.__cpBeat?.(b) }
 }
 const res0Kind = () => anim?.kind ?? ''
 function finish() {
@@ -243,7 +245,7 @@ function finish() {
 }
 function tick() {
   if (anim && ball) {
-    const f = Math.min((performance.now() - anim.t0) / anim.dur, 1), i = Math.floor(f * (anim.pts.length - 1))
+    const f = scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1), i = Math.floor(f * (anim.pts.length - 1))
     if (window.__fixedTime === undefined) ball.position.copy(anim.pts[i])
     const n = anim.beats.length
     if (apex && f >= apex.userData.at) apex.visible = true // the zenith tag appears as the ball passes the top
@@ -407,6 +409,7 @@ function render(res) {
   spread()
   document.getElementById('dj-note').textContent = 'Prediction. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'
   NN.setStat(state.ev, state.la, res.landFt)
+  window.__cpRender?.(res)
 }
 function applyLookK(n) {
   if (!LOOKS_K[n]) return
@@ -426,7 +429,7 @@ function update() {
   if (state.ui === 'K') for (const [k, v] of Object.entries(LOOKS_K[lookK].vars)) document.documentElement.style.setProperty(k, v)
   const wk = state.ui === 'K' ? { ...WINDOWS_K[LOOKS_K[lookK].layout] } : null
   if (wk && grid?.isOn() && Q.get('grid') !== '0') wk.t += 96 // room above the park for the Goner Grid
-  NN.setWindow?.(state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : wk)
+  NN.setWindow?.(window.__cpWindow ?? (state.ui === 'X' ? { l: 344, r: 316, t: 56, b: 128 } : wk))
   for (const b of root.querySelectorAll('#dj-skins button')) b.classList.toggle('on', b.dataset.ui === state.ui)
   if (NN.real && Q.get('vibes')) {
     document.getElementById('dj-vibename').textContent = `${NN.vibe()} ${NN.VIBES[NN.vibe()].name}`
@@ -464,4 +467,7 @@ addEventListener('keydown', (e) => { if (Q.get('dev') && state.ui === 'K' && e.t
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update(); window.__dojoReady = true })
+fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
+  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, scrub: (f) => { scrubF = f }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
+  if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }
+  window.__dojoReady = true })
