@@ -4,6 +4,7 @@
 export function initFx(NN) {
   const { THREE, scene, camera } = NN
   const parts = []
+  const SHAKE = false // Andrew hates screen shake (22 Oct 2026): off everywhere; set true to bring it back
   let shake = { amp: 0, t: 0, dur: 0.001 }
   const light = new THREE.PointLight(0xffffff, 0, 90, 1.6)
   scene.add(light)
@@ -249,7 +250,7 @@ export function initFx(NN) {
     if (flash.color) light.color.set(flash.color)
     shake.t += dt
     const k = Math.max(0, 1 - shake.t / shake.dur)
-    NN.setShake((Math.random() - 0.5) * 0.012 * shake.amp * k, (Math.random() - 0.5) * 0.009 * shake.amp * k)
+    if (SHAKE) NN.setShake((Math.random() - 0.5) * 0.012 * shake.amp * k, (Math.random() - 0.5) * 0.009 * shake.amp * k)
   }
   function place(p) { light.position.copy(p).add(new THREE.Vector3(0, 8, 0)) }
   function clear() { while (parts.length) { const { obj } = parts.pop(); scene.remove(obj) } light.intensity = 0; NN.setShake(0, 0) }
