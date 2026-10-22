@@ -220,18 +220,22 @@ const post = new THREE.ShaderMaterial({
   uniforms: {
     tColor: { value: null }, tNormal: { value: null }, tDepth: { value: null },
     res: { value: new THREE.Vector2() }, near: { value: camera.near }, far: { value: camera.far },
-    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 }, shake: { value: new THREE.Vector2() }, duoA: { value: new THREE.Color('#000000') }, duoB: { value: new THREE.Color('#ffffff') }, duoAmt: { value: 0 },
+    paper: { value: new THREE.Color() }, ink: { value: new THREE.Color() }, dotScale: { value: 1 }, hatchAmt: { value: 0 }, lineW: { value: 1 }, lineK: { value: 1 }, shake: { value: new THREE.Vector2() }, duoA: { value: new THREE.Color('#000000') }, duoB: { value: new THREE.Color('#ffffff') }, duoAmt: { value: 0 }, pixSize: { value: 0 }, mode: { value: 0 }, levels: { value: 3 },
   },
   vertexShader: 'varying vec2 vUvRaw; void main(){ vUvRaw = uv; gl_Position = vec4(position.xy, 0., 1.); }',
   fragmentShader: /* glsl */ `
     uniform sampler2D tColor, tNormal, tDepth; uniform vec2 res; uniform float near, far;
     uniform vec3 paper, ink; uniform float dotScale, hatchAmt, lineW, lineK;
     varying vec2 vUvRaw; uniform vec2 shake; uniform vec3 duoA, duoB; uniform float duoAmt;
+    uniform float pixSize, mode, levels;
+    float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2. + a.y * a.y * .75); }
+    float bayer4(vec2 a){ return bayer2(.5 * a) * .25 + bayer2(a); }
     float lin(float d){ float z = d * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
     void main(){
       vec2 vUv = vUvRaw + shake; // screen shake lives here, so the world (and the ray-casting on it) never moves
       vec2 px = 1. / res;
+      if (pixSize > 0.5) { vUv = (floor(vUv * res / pixSize) + 0.5) * pixSize / res; px = pixSize / res; } // pixel blocks: every sample snaps to the block centre
       vec3 n0 = texture2D(tNormal, vUv).rgb;
       float e = 0.;
       vec2 o[4]; o[0]=vec2(px.x,0.)*lineW; o[1]=vec2(-px.x,0.)*lineW; o[2]=vec2(0.,px.y)*lineW; o[3]=vec2(0.,-px.y)*lineW;
@@ -257,6 +261,22 @@ const post = new THREE.ShaderMaterial({
       col = mix(col, ink, line);
       float Lm = dot(col, vec3(0.299, 0.587, 0.114));
       col = mix(col, mix(duoA, duoB, smoothstep(0.0, 0.55, Lm)), duoAmt); // duotone: the whole scene in two colours
+      if (mode > 0.5) {
+        float t = bayer4(floor(vUvRaw * res / max(pixSize, 1.)));
+        float Lc = dot(col, vec3(0.299, 0.587, 0.114));
+        if (mode < 1.5) { // dither: a few flat tones from black to bone, ordered (stable) dots in between
+          float lv = max(levels - 1., 1.);
+          float Lb = bg > 0.5 ? 0. : pow(clamp(Lc, 0., 1.), 0.55); // the void stays pure black
+          Lb = bg > 0.5 ? 0. : Lb; // lift the dark scene so the tones have something to work with
+          col = mix(duoA, duoB, clamp(floor(Lb * lv + t) / lv, 0., 1.));
+          col = mix(col, duoB, step(0.5, line)); // keep the outlines crisp on top of the dots
+        } else { // skeleton: lines of light on a void, a sparse stipple for the ground
+          float s = step(t, Lc * 0.42) * (1. - bg);
+          col = mix(duoA, duoB * 0.55, s);
+          col = mix(col, duoB, step(0.5, line));
+          col = mix(col, duoB, step(0.9, Lc) * (1. - bg)); // very bright things (the flight line) stay solid
+        }
+      }
       gl_FragColor = vec4(pow(col, vec3(1. / 2.2)), 1.);
     }`,
   depthTest: false, depthWrite: false,
@@ -302,6 +322,7 @@ function applyVibe(n) {
 }
 vibeN = VIBES[Number(QS0.get('vibe'))] ? Number(QS0.get('vibe')) : (QS0.get('mode') === 'dojo' && (QS0.get('ui') || 'K').toUpperCase() === 'K' ? 6 : 1)
 
+let pixCss = 0 // pixel block size in CSS pixels (0 = off); set by the skeletal studies
 let winInsets = null // skin X leaves an open window between the panels; the park is centred and scaled to it
 function resize() {
   const w = innerWidth, h = innerHeight
@@ -317,6 +338,7 @@ function resize() {
   makeTargets(Math.floor(w * pr), Math.floor(h * pr))
   post.uniforms.res.value.set(w * pr, h * pr)
   post.uniforms.dotScale.value = 6 * pr // hatch pitch in device pixels
+  post.uniforms.pixSize.value = pixCss * pr
 }
 addEventListener('resize', resize)
 resize()
@@ -379,6 +401,7 @@ loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
   THREE, scene, camera, controls, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
+  setPix: (o = {}) => { pixCss = o.pix ?? 0; post.uniforms.pixSize.value = pixCss * renderer.getPixelRatio(); post.uniforms.mode.value = o.mode ?? 0; post.uniforms.levels.value = o.levels ?? 3; if (o.a) post.uniforms.duoA.value.set(o.a); if (o.b) post.uniforms.duoB.value.set(o.b) },
   setDuo: (d) => { if (d) { post.uniforms.duoA.value.set(d[0]); post.uniforms.duoB.value.set(d[1]); post.uniforms.duoAmt.value = d[2] } else post.uniforms.duoAmt.value = 0 },
   setSat: (v) => { vibeU.sat.value = v }, setBg: (c) => { bgOverride = c; look = { ...look, bg: c }; applyLook() },
   setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },

@@ -188,11 +188,12 @@ function draw(res) {
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length < 3) return
-  ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
+  ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, window.__cpRibbon ?? 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
   scene.add(ribbon)
   outlineOf(ribbon, 1.7)
   placeApex(src, res)
   if (!ball) { ball = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(ball) }
+  ball.visible = true
   for (const c of [...ball.children]) ball.remove(c)
   outlineOf(ball, 1.25)
   const at = (res.landing?.point ?? pts[pts.length - 1]).clone()
@@ -208,6 +209,25 @@ function draw(res) {
   anim = { pts, t0: performance.now(), dur: 2600, beats, sub: fill(pickSub(res.key, rngC), vars), key: res.key, tone: TONE[res.key], at, kind: v.kind, shown: -2, exploded: false }
   showBeat(-1)
   if (window.__fixedTime !== undefined) { ball.position.copy(pts[pts.length - 1]); finish() }
+}
+const previewOn = () => !!window.__cpPreview && !window.__cpFire && (window.__fixedTime === undefined || !!Q.get('prev'))
+function drawPreview(res) { // a study in preview mode: show the flight as a thin ghost line until SWING is pressed
+  for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
+  if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose(); ribbon = null }
+  if (burst) { scene.remove(burst); burst = null }
+  fx?.clear()
+  anim = null
+  if (apex) apex.visible = false
+  if (ball) ball.visible = false
+  const src = res.visPath ?? res.path
+  const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
+  if (pts.length >= 3) {
+    ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, (window.__cpRibbon ?? 0.8) * 0.5, 6, false), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }))
+    scene.add(ribbon)
+  }
+  const b = { i: -1, last: false, text: 'READY', state: 'PREVIEW', sub: 'press swing to commit', tone: 'wait', kind: res.verdict.kind, key: res.key, preview: true }
+  window.__cpLastBeat = b
+  window.__cpBeat?.(b)
 }
 function fitVerdict(el) { // skins X and K: shrink the verdict word until it fits its cell
   el.style.fontSize = ''
@@ -442,6 +462,7 @@ function update() {
     res.visPath = ext.path.slice(0, res.landing.index + 1)
   }
   res.key = classify(res, state, res.landing?.kind === 'SPLASH' ? 'SPLASH' : null, wallDistAt(res.landB))
+  if (previewOn()) { drawPreview(res); render(res); window.__dojo = res; return }
   draw(res)
   radar?.update(res)
   render(res)
@@ -468,6 +489,6 @@ addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // th
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
 fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
-  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, scrub: (f) => { scrubF = f }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
+  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
   if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }
   window.__dojoReady = true })
