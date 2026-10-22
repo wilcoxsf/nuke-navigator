@@ -35,6 +35,7 @@ function prepare(NN) {
   })
   return meshes
 }
+export function warmBVH(NN) { prepare(NN) }
 // Follows a path (list of {p}) past the wall until it meets the stands, the street or the water. Returns the world point, what it is, and the path index.
 export function findLanding(NN, path, toWorld) {
   const ms = prepare(NN)

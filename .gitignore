@@ -33,3 +33,7 @@ science/catboost_info/
 science/*smoke*
 science/*_interim.json
 apps/web/public/parks30.json
+apps/web/public/dists.json
+apps/web/public/replay.json
+apps/web/public/pool.json
+apps/web/public/giants_faces.json

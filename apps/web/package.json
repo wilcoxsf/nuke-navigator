@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "vite build"
+    "build": "vite build && node ops/check_dist.mjs",
+    "check-dist": "node ops/check_dist.mjs"
   },
   "keywords": [],
   "author": "",

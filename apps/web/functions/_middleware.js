@@ -21,11 +21,13 @@ export async function onRequest({ request, env, next }) {
   const url = new URL(request.url);
   const fromUrl = url.searchParams.get('t');
   const m = /(?:^|;\s*)nn_t=([^;]+)/.exec(request.headers.get('Cookie') || '');
-  const token = fromUrl || (m ? m[1] : null);
-  if (await valid(env, token)) {
+  // a stale or mistyped ?t= must not lock out someone whose cookie is still good: try the link token first, then the cookie
+  const urlOk = await valid(env, fromUrl);
+  const token = urlOk ? fromUrl : m && (await valid(env, m[1])) ? m[1] : null;
+  if (token) {
     const res = await next();
     const headers = new Headers(res.headers);
-    if (fromUrl) headers.append('Set-Cookie', `nn_t=${fromUrl}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`);
+    if (urlOk) headers.append('Set-Cookie', `nn_t=${fromUrl}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`);
     headers.set('Cache-Control', 'private, max-age=600');
     headers.set('X-Robots-Tag', 'noindex, nofollow');
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });

@@ -98,4 +98,5 @@ export function tileHTML(rows) {
     return `<i class="tile ${c}${p.abbr === 'SF' ? ' me' : ''}" title="${p.name}">${p.abbr}<u>${val}</u></i>`
   }).join('')
 }
-export const isHR = (b) => !!b && b.last && ['gone', 'nuke', 'splash', 'scraper'].includes(b.tone)
+// a home run is a verdict of GONE; the old tone list counted POLE ("fair by a hair", a FOUL verdict) because its tone is 'scraper'
+export const isHR = (b) => !!b && b.last && (b.kind ? b.kind === 'GONE' : ['gone', 'nuke', 'splash', 'scraper'].includes(b.tone))

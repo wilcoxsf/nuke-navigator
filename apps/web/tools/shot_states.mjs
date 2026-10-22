@@ -30,7 +30,7 @@ await page.addInitScript(() => { window.__fixedTime = 3.0 })
 page.on('console', (m) => { if (m.type() === 'error') console.log('[console error]', m.text()) })
 page.on('pageerror', (e) => console.log('[page error]', e.message))
 for (const name of want) {
-  await page.goto(`${base}/?mode=dojo&ui=${process.env.UI ?? 'B'}&${cases[name]}&seed=7&k=${process.env.LOOK ?? 1}${process.env.CP ? '&cp=' + process.env.CP : ''}${process.env.PREV ? '&prev=1' : ''}&fxt=${process.env.FXT ?? 0.4}`)
+  await page.goto(`${base}/?mode=dojo&ui=${process.env.UI ?? 'B'}&${cases[name]}&seed=7&k=${process.env.LOOK ?? 1}${process.env.CP ? '&cp=' + process.env.CP : ''}${process.env.PREV ? '&prev=1' : ''}${process.env.THEME ? '&theme=' + process.env.THEME : ''}${process.env.LAY ? '&lay=' + process.env.LAY : ''}${process.env.MODE19 ? '&mode19=' + process.env.MODE19 : ''}${process.env.BAT ? '&bat=' + process.env.BAT : ''}${process.env.TAB ? '&tab=' + process.env.TAB : ''}&fxt=${process.env.FXT ?? 0.4}`)
   await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady, null, { timeout: 180000 })
   await page.waitForFunction(() => !new URLSearchParams(location.search).get('cp') || window.__cpReady, null, { timeout: 60000 })
   await page.waitForTimeout(800)

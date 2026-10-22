@@ -4,7 +4,7 @@
 // game air density from temperature and humidity, spin from the linear prior that held up on wood-bat data (backspin -763 + 120 x launch angle rpm,
 // sidespin -849 x hand - 94 x direction rpm). Wall: distance and height by bearing extracted from the park model (right-center height assumed).
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
-import { initSeance, findLanding } from './seance.js'
+import { initSeance, findLanding, warmBVH } from './seance.js'
 import { initFx } from './fx.js'
 import { initRadar3D, label as monoLabel } from './radar3d.js'
 import { STATES, classify, pickHead, pickSub, fill } from './callouts.js'
@@ -38,7 +38,7 @@ function airDensity(tF, rh = 60, hPa = 1013) {
 
 // frame: x toward right field, y toward center field, z up (metres). Returns the path and what happened.
 function fly(s, opt = {}) {
-  const rho = airDensity(s.temp, 60, opt.hPa ?? 1013)
+  const rho = airDensity(s.temp, 60, opt.hPa ?? 1013) * (s.carry ?? 1) // carry: an effective air-density multiplier that matches a real ball's observed distance (replay mode)
   const phi = (s.dir * Math.PI) / 180, th = (s.la * Math.PI) / 180, v0 = s.ev * 0.44704
   const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 849 - 94 * s.dir + (s.dws || 0)) * RPM
   const r = [Math.cos(phi), -Math.sin(phi), 0]
@@ -180,17 +180,44 @@ function placeApex(src, res) {
   apex.visible = window.__fixedTime !== undefined
   scene.add(apex)
 }
+// Wire studies draw the flight as square beads along the path, a dashed ground track with drop lines every few beads, and the stretch of fence the ball crosses lit up
+// (window.__cpBead is the bead size in meters; unset keeps the ribbon)
+function makeBeadTrack(pts, res, color, preview) {
+  const P = new THREE.CatmullRomCurve3(pts).getSpacedPoints(preview ? 40 : 56)
+  const beads = new THREE.Points(new THREE.BufferGeometry().setFromPoints(P), new THREE.PointsMaterial({ color, size: (window.__cpBead ?? 3) * (preview ? 0.6 : 1), sizeAttenuation: true, transparent: true, opacity: preview ? 0.75 : 1 }))
+  const seg = []
+  P.forEach((p, i) => { if (i % 4 === 0 && p.y > 1.5) seg.push(p.x, p.y, p.z, p.x, 0.2, p.z); if (i) seg.push(P[i - 1].x, 0.2, P[i - 1].z, p.x, 0.2, p.z) })
+  const line = (arr, o) => new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)), new THREE.LineBasicMaterial({ color, transparent: true, opacity: o }))
+  beads.add(line(seg, 0.5))
+  const v = res.verdict
+  if (!preview && v.wallFt && window.__cp?.wallAt) {
+    const src = res.visPath ?? res.path, hit = src.find((s) => Math.hypot(s.p[0], s.p[1]) / FT >= v.wallFt)
+    if (hit) {
+      const b0 = (Math.atan2(hit.p[0], hit.p[1]) * 180) / Math.PI, f = []
+      let prev = null
+      for (let bb = b0 - 9; bb <= b0 + 9.01; bb += 1.5) {
+        const w = window.__cp.wallAt(bb)
+        if (!w) continue
+        const r = (bb * Math.PI) / 180, q = toWorld([w[0] * FT * Math.sin(r), w[0] * FT * Math.cos(r), w[1] * FT])
+        if (prev) f.push(prev.x, prev.y, prev.z, q.x, q.y, q.z)
+        prev = q
+      }
+      if (f.length) beads.add(line(f, 1))
+    }
+  }
+  return beads
+}
 function draw(res) {
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
-  if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose() }
+  if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => o.geometry?.dispose()) }
   if (burst) { scene.remove(burst); burst = null }
   fx?.clear()
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length < 3) return
-  ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, window.__cpRibbon ?? 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
+  ribbon = window.__cpBead ? makeBeadTrack(pts, res, colors()[res.verdict.kind], false) : new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, window.__cpRibbon ?? 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
   scene.add(ribbon)
-  outlineOf(ribbon, 1.7)
+  if (!window.__cpBead) outlineOf(ribbon, 1.7)
   placeApex(src, res)
   if (!ball) { ball = new THREE.Mesh(new THREE.SphereGeometry(2.4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(ball) }
   ball.visible = true
@@ -213,7 +240,7 @@ function draw(res) {
 const previewOn = () => !!window.__cpPreview && !window.__cpFire && (window.__fixedTime === undefined || !!Q.get('prev'))
 function drawPreview(res) { // a study in preview mode: show the flight as a thin ghost line until SWING is pressed
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
-  if (ribbon) { scene.remove(ribbon); ribbon.geometry.dispose(); ribbon = null }
+  if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => o.geometry?.dispose()); ribbon = null }
   if (burst) { scene.remove(burst); burst = null }
   fx?.clear()
   anim = null
@@ -222,7 +249,7 @@ function drawPreview(res) { // a study in preview mode: show the flight as a thi
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length >= 3) {
-    ribbon = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, (window.__cpRibbon ?? 0.8) * 0.5, 6, false), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }))
+    ribbon = window.__cpBead ? makeBeadTrack(pts, res, colors().PLAY, true) : new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, (window.__cpRibbon ?? 0.8) * 0.5, 6, false), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }))
     scene.add(ribbon)
   }
   const b = { i: -1, last: false, text: 'READY', state: 'PREVIEW', sub: 'press swing to commit', tone: 'wait', kind: res.verdict.kind, key: res.key, preview: true }
@@ -486,9 +513,10 @@ for (const b of root.querySelectorAll('#dj-vibe button')) b.addEventListener('cl
 addEventListener('nn-vibe', () => { if (window.__dojoReady) update() })
 addEventListener('keydown', (e) => { if (Q.get('dev') && state.ui === 'K' && e.target.tagName !== 'INPUT' && /^[0-9]$/.test(e.key)) applyLookK(e.key === '0' ? 10 : Number(e.key)) })
 addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // the park model arrives after the wall data: redo the landing once it is here
+addEventListener('nn-stadium', () => (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => warmBVH(NN))) // build the ray-cast tree when idle, not on the first home run
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
 fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
-  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
+  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
   if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }
   window.__dojoReady = true })

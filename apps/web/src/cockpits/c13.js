@@ -32,7 +32,7 @@ export async function build(root, api, U) {
   root.innerHTML = `<div class="c13"><div class="hdr"><span class="ps">DINGER DOJO // STUDY 3 // SKELETON DECK</span><span id="c13a"></span></div>
   <div class="pnl clear win" id="c13w"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="ov" id="c13o"></div></div>
   <div class="pnl p term"><span class="t">/ T E R M I N A L /</span><div class="lines" id="c13l"></div>
-    <div class="chips">${pre.map((n) => `<button data-c="preset ${n}">${n}</button>`).join('')}<button data-c="parks">parks</button><button data-c="swing" style="border-color:var(--acc);color:var(--acc)">swing</button></div>
+    <div class="chips">${pre.map((n) => `<button data-c="preset ${n}">${n}</button>`).join('')}<button data-c="parks">parks</button><button data-c="wire">wire</button><button data-c="swing" style="border-color:var(--acc);color:var(--acc)">swing</button></div>
     <div class="prompt" id="c13p"></div></div>
   <div class="pnl p"><span class="t">/ P L A N /</span><div class="fig" id="c13pl"></div></div>
   <div class="pnl p"><span class="t">/ A R C /</span><div class="fig" id="c13ar"></div></div>
@@ -70,8 +70,9 @@ export async function build(root, api, U) {
     if (!t.length) { say('> swing', 'c'); fire(); return }
     const [c, ...a] = t
     const n = (x) => Number(x)
-    if (c === 'help' || c === '?') { say('ev N | la N | dir l25 r10 cf | temp N | wind out 5 in 5 calm', 'h'); say('hand l|r | preset NAME | swing | parks | tally | acc COLOR | clear', 'h'); say('presets: ' + Object.keys(api.PRESETS).join(' '), 'h') }
+    if (c === 'help' || c === '?') { say('ev N | la N | dir l25 r10 cf | temp N | wind out 5 in 5 calm', 'h'); say('hand l|r | preset NAME | swing | parks | tally | acc COLOR | wire [acc|off] | clear', 'h'); say('presets: ' + Object.keys(api.PRESETS).join(' '), 'h') }
     else if (c === 'clear') { lines.length = 0; draw() }
+    else if (c === 'wire') { wire(a[0] === 'off' ? false : a[0] === 'on' || a[0] === 'acc' ? true : !wired, a[0] === 'acc'); say(wired ? 'wireframe park on (wire off to leave)' : 'wireframe park off', 'c') }
     else if (c === 'swing' || c === 'fire') fire()
     else if (c === 'preset') { const p = api.PRESETS[a[0]]; if (p) { Object.assign(api.state, p); api.update(); say(`preset ${a[0]}: ${p.ev} mph ${p.la} deg ${fmtDir(p.dir)}`, 'c') } else say('no such preset', 'r') }
     else if (c === 'parks') { if (!parks.parks.length) return say('no park data', 'r'); const pr = evalParks(parks, api); say(`GONE IN ${pr.filter((r) => r.k === 'GONE').length} OF ${pr.length}`, 'r'); for (let i = 0; i < pr.length; i += 3) say(pr.slice(i, i + 3).map((r) => `${r.p.abbr} ${r.k === 'GONE' ? '+' + Math.round(r.margin) : r.k === 'WALL' ? Math.round(r.margin) : r.k === 'PLAY' ? 'IN' : 'FL'}`.padEnd(10)).join(''), 'h') }
@@ -83,6 +84,18 @@ export async function build(root, api, U) {
     else if (c === 'wind') { const w = a[0] === 'calm' ? 0 : a[0] === 'out' ? n(a[1]) : a[0] === 'in' ? -n(a[1]) : n(a[0]); if (!isNaN(w)) set('wind', w); else say('wind out 5 | in 5 | calm', 'r') }
     else say(`unknown: ${c} (try help)`, 'r')
   }
+  let wired = false // the park drawn as its own hard edges and height contours, faces black, instead of the stippled skeleton shader
+  function wire(on, acc) {
+    wired = on
+    if (on) {
+      api.NN.setPix({ pix: 0, mode: 0 })
+      api.NN.setWire(true, { angle: 60, step: 4, hidden: true, opacity: 0.85, color: acc ? getComputedStyle(root).getPropertyValue('--acc').trim() : '#e9e7dc' })
+    } else {
+      api.NN.setWire(false)
+      api.NN.setPix({ pix: 2, mode: 2, levels: 2, a: '#030403', b: '#e9e7dc' })
+    }
+  }
+  if (new URLSearchParams(location.search).get('wire')) wire(true, false)
   function set2hand(x) { api.state.hand = x && x[0] === 'l' ? -1 : 1; api.update(); say(`hand = ${api.state.hand > 0 ? 'right' : 'left'}`, 'c') }
   function fire() { fireWanted = true; api.fire() }
   addEventListener('keydown', (e) => {

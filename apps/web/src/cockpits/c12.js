@@ -33,7 +33,22 @@ export async function build(root, api, U) {
 #cp .c12 .kh{position:absolute;left:14px;right:14px;bottom:22px;display:grid;gap:5px;font-size:18px;color:var(--dim)}
 #cp .c12 .kh b{color:var(--tx);font-weight:400;display:inline-block;min-width:92px}
 #cp .c12 .strip{grid-column:1/4;grid-row:3;display:grid;grid-template-columns:repeat(6,1fr) 1.4fr;gap:6px}
-#cp .c12 .slot{border:1px solid var(--tx);position:relative;padding:10px 12px 6px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;user-select:none}
+#cp .c12 .slot{--e:var(--dim);border:1px solid var(--tx);position:relative;padding:10px 12px 6px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;user-select:none;
+  background:var(--k);box-shadow:0 5px 0 var(--e);transition:transform .08s steps(2,end),box-shadow .08s steps(2,end)}
+#cp .c12 .slot:hover{transform:translateY(-2px);box-shadow:0 7px 0 var(--e)}
+#cp .c12 .slot.arm{transform:translateY(3px);box-shadow:0 2px 0 var(--e)}
+#cp .c12 .slot:active,#cp .c12 .slot.pr{transform:translateY(5px);box-shadow:0 0 0 var(--e);transition-duration:.03s}
+#cp .c12 .slot.fire{--e:color-mix(in srgb,var(--acc) 55%,#000);box-shadow:0 7px 0 var(--e)}
+#cp .c12 .slot.fire:hover{box-shadow:0 9px 0 var(--e)}
+#cp .c12 .slot.fire.arm{transform:translateY(3px);box-shadow:0 4px 0 var(--e)}
+#cp .c12 .slot.fire:active,#cp .c12 .slot.fire.pr{transform:translateY(7px);box-shadow:0 0 0 var(--e)}
+#cp .c12 .slot .ud i{transition:transform .06s steps(2,end)}
+#cp .c12 .slot .ud i:active{transform:translate(1px,1px);background:var(--acc);border-color:var(--acc);color:var(--k)}
+#cp .c12 .pnl:not(.clear){transition:transform .12s steps(3,end),box-shadow .12s steps(3,end)}
+#cp .c12 .pnl:not(.clear):hover{transform:perspective(800px) translateZ(14px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));box-shadow:var(--sx,3px) var(--sy,3px) 0 #3b3d37;z-index:5}
+#cp .c12 .tile{transition:transform .06s steps(2,end)}
+#cp .c12 .tile:hover{transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--dim)}
+@media (prefers-reduced-motion:reduce){#cp .c12 .slot,#cp .c12 .pnl:not(.clear),#cp .c12 .tile{transition:none}#cp .c12 .pnl:not(.clear):hover{transform:none}}
 #cp .c12 .slot .ps{color:var(--dim)}
 #cp .c12 .slot b{font-weight:400;font-size:40px;line-height:.9}
 #cp .c12 .slot .ud{position:absolute;right:6px;top:6px;display:grid;gap:3px}
@@ -75,8 +90,20 @@ export async function build(root, api, U) {
   const change = (i, d) => {
     const k = SLOTS[i].k
     if (k === 'hand') { api.state.hand *= -1; api.update() } else if (k !== 'swing') setP(api, k, api.state[k] + d)
+    press(i)
   }
-  const fire = () => { fireWanted = true; api.fire() }
+  const press = (i) => { const el = slots[i]; if (!el) return; el.classList.add('pr'); setTimeout(() => el.classList.remove('pr'), 140) } // keyboard presses push the slot down too
+  const fire = () => { press(SLOTS.length - 1); fireWanted = true; api.fire() }
+  // panels pop a little toward you and tilt toward the cursor, in half-degree steps (not smooth) with a hard-edged shadow on the far side
+  for (const p of root.querySelectorAll('.pnl:not(.clear)')) {
+    p.addEventListener('mousemove', (e) => {
+      const r = p.getBoundingClientRect(), nx = (e.clientX - r.left) / r.width - 0.5, ny = (e.clientY - r.top) / r.height - 0.5
+      p.style.setProperty('--ry', `${Math.round(nx * 10) / 2}deg`)
+      p.style.setProperty('--rx', `${-Math.round(ny * 10) / 2}deg`)
+      p.style.setProperty('--sx', `${Math.round(-nx * 8)}px`)
+      p.style.setProperty('--sy', `${Math.round(-ny * 8)}px`)
+    })
+  }
   const arm = (i) => { armed = clamp(i, 0, SLOTS.length - 1); paintSlots() }
   slots.forEach((el, i) => {
     el.addEventListener('click', (e) => {

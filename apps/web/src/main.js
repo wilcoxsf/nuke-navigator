@@ -137,7 +137,14 @@ new GLTFLoader().load(REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (
   window.dispatchEvent(new Event('nn-stadium'))
   const box = new THREE.Box3().setFromObject(gltf.scene)
   document.title = `loaded ${mats.length} materials, box ${box.min.toArray().map((v) => v.toFixed(0))} to ${box.max.toArray().map((v) => v.toFixed(0))}`
-}, undefined, (err) => { document.title = 'GLB ERROR ' + (err && err.message) })
+}, undefined, (err) => {
+  document.title = 'GLB ERROR ' + (err && err.message)
+  const b = document.createElement('div') // say so on screen instead of showing an empty park
+  b.setAttribute('role', 'alert')
+  b.style.cssText = 'position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:99;background:#000;color:#e9e7dc;border:1px solid #e9e7dc;padding:6px 12px;font:14px Consolas,monospace'
+  b.textContent = 'THE STADIUM MODEL DID NOT LOAD. THE PARK VIEW IS EMPTY; EVERYTHING ELSE STILL WORKS.'
+  document.body.appendChild(b)
+})
 
 // ---------- sample flight: drag-only RK4, 105 mph at 28 deg toward right field ----------
 function flight(evMph, laDeg, azDeg) {
@@ -343,10 +350,13 @@ function resize() {
 addEventListener('resize', resize)
 resize()
 
+let renderPaused = false, fpsCap = 0, lastDraw = 0 // studies that hide the park pause the 3D pass; stepped looks can cap the frame rate
 renderer.setAnimationLoop((t) => {
   const dt = Math.min(0.05, (t - (window.__lastT ?? t)) / 1000)
   window.__lastT = t
   if (window.__fixedTime === undefined) for (const f of window.__nn.frames) f(dt, t / 1000)
+  if (renderPaused || (fpsCap && t - lastDraw < 1000 / fpsCap - 3)) return
+  lastDraw = t
   oceanMat.uniforms.time.value = (window.__fixedTime ?? t / 1000)
   controls.update()
   renderer.setRenderTarget(targets.color)
@@ -398,8 +408,103 @@ function roll() {
   document.getElementById('cmp-swing').textContent = sc.map((s) => s.text).join('. ')
 }
 loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
+// Wireframe park: the stadium's hard edges (angle between faces over `angle` degrees) as thin lines. hidden = true draws the faces black so only the near lines show;
+// hidden = false leaves it see-through. Edges are built the first time it is switched on (a second or two), then toggling is free.
+let wireGroup = null
+const wireMat = new THREE.LineBasicMaterial({ color: '#e9e7dc', transparent: true, opacity: 0.8 })
+const wireHeavy = new THREE.LineBasicMaterial({ color: '#e9e7dc', transparent: true, opacity: 1 })
+const wireFace = new THREE.MeshBasicMaterial({ color: '#030403', polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })
+const wireOrig = new Map()
+function setWire(on, o = {}) {
+  const st = window.__nn.stadium
+  if (!st) { window.addEventListener('nn-stadium', () => setWire(on, o), { once: true }); return }
+  if (o.rebuild && wireGroup) { // a different edge angle or contour step
+    scene.remove(wireGroup)
+    wireGroup.traverse((x) => x.geometry?.dispose())
+    window.__nn.hideForNormal.splice(window.__nn.hideForNormal.indexOf(wireGroup), 1)
+    wireGroup = null
+  }
+  if (on && !wireGroup) {
+    wireGroup = new THREE.Group()
+    wireGroup.name = 'wire'
+    st.updateMatrixWorld(true)
+    const step = o.step ?? 3 // metres between height contours (0 = none)
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3()
+    const cont = []
+    const heavy = [], faint = [], hv = new THREE.Vector3(), hx = (o.home ?? [0.3, 1.0])[0], hz = (o.home ?? [0.3, 1.0])[1]
+    st.traverse((m) => {
+      if (!m.isMesh) return
+      if (o.split) { // two weights: low edges near the field and the fence are heavy, the rest of the stands faint
+        const eg = new THREE.EdgesGeometry(m.geometry, o.angle ?? 75), pa = eg.attributes.position
+        for (let i = 0; i + 1 < pa.count; i += 2) {
+          hv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld)
+          const ax = hv.x, ay = hv.y, az = hv.z
+          hv.fromBufferAttribute(pa, i + 1).applyMatrix4(m.matrixWorld)
+          const near = (ay + hv.y) / 2 < (o.heavyY ?? 12) && Math.hypot((ax + hv.x) / 2 - hx, (az + hv.z) / 2 - hz) < (o.heavyR ?? 150)
+          ;(near ? heavy : faint).push(ax, ay, az, hv.x, hv.y, hv.z)
+        }
+        eg.dispose()
+        return
+      }
+      if (o.angle !== 0) {
+        const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, o.angle ?? 55), wireMat)
+        e.matrixAutoUpdate = false
+        e.matrix.copy(m.matrixWorld)
+        e.renderOrder = 5
+        e.frustumCulled = false
+        wireGroup.add(e)
+      }
+      if (!step) return
+      const pos = m.geometry.attributes.position, idx = m.geometry.index
+      const nTri = (idx ? idx.count : pos.count) / 3
+      const vert = (v, i) => v.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m.matrixWorld)
+      for (let t = 0; t < nTri; t++) {
+        vert(a, t * 3); vert(b, t * 3 + 1); vert(c, t * 3 + 2)
+        const lo = Math.min(a.y, b.y, c.y), hi = Math.max(a.y, b.y, c.y)
+        if (hi - lo < 1e-4) continue
+        for (let k = Math.max(1, Math.ceil(lo / step)); k * step < hi; k++) {
+          const y = k * step, pts = []
+          for (const [p, q] of [[a, b], [b, c], [c, a]]) {
+            if ((p.y < y) !== (q.y < y)) { const f = (y - p.y) / (q.y - p.y); pts.push(p.x + f * (q.x - p.x), y, p.z + f * (q.z - p.z)) }
+          }
+          if (pts.length === 6) cont.push(...pts)
+        }
+      }
+    })
+    if (o.split) {
+      for (const [arr, mat, ord] of [[faint, wireMat, 4], [heavy, wireHeavy, 6]]) {
+        const l = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)), mat)
+        l.renderOrder = ord
+        l.frustumCulled = false
+        wireGroup.add(l)
+      }
+    }
+    if (cont.length) {
+      const l = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(cont, 3)), wireMat)
+      l.renderOrder = 5
+      l.frustumCulled = false
+      wireGroup.add(l)
+    }
+    scene.add(wireGroup)
+    window.__nn.hideForNormal.push(wireGroup)
+  }
+  if (o.color) { wireMat.color.set(o.color); wireHeavy.color.set(o.color) }
+  if (o.opacity !== undefined) { wireMat.opacity = o.split ? o.opacity * 0.55 : o.opacity; wireHeavy.opacity = o.opacity }
+  // distance fade: the far stands melt into the ground color (lines and the flight take the fog; the ground color follows the theme)
+  if (on && o.fog) scene.fog = new THREE.Fog(o.face ?? wireFace.color, o.fog[0], o.fog[1])
+  else if (!on) scene.fog = null
+  if (o.face) wireFace.color.set(o.face)
+  if (wireGroup) wireGroup.visible = on
+  st.traverse((m) => {
+    if (!m.isMesh) return
+    if (on) { if (!wireOrig.has(m)) wireOrig.set(m, m.material); m.material = wireFace; m.visible = o.hidden ?? true } else if (wireOrig.has(m)) { m.material = wireOrig.get(m); m.visible = true }
+  })
+  if (!on) wireOrig.clear()
+  ocean.visible = on ? false : !!look.ocean
+}
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
+  setWire, setPaused: (b) => { renderPaused = !!b }, setFpsCap: (n) => { fpsCap = n || 0 },
   THREE, scene, camera, controls, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setPix: (o = {}) => { pixCss = o.pix ?? 0; post.uniforms.pixSize.value = pixCss * renderer.getPixelRatio(); post.uniforms.mode.value = o.mode ?? 0; post.uniforms.levels.value = o.levels ?? 3; if (o.a) post.uniforms.duoA.value.set(o.a); if (o.b) post.uniforms.duoB.value.set(o.b) },
   setDuo: (d) => { if (d) { post.uniforms.duoA.value.set(d[0]); post.uniforms.duoB.value.set(d[1]); post.uniforms.duoAmt.value = d[2] } else post.uniforms.duoAmt.value = 0 },
