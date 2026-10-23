@@ -33,7 +33,7 @@ export function zoneSVG(b, o = {}) {
   const W = o.w ?? 220, H = o.h ?? 190
   if (!b || b.px == null) return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%"><text x="${W / 2}" y="${H / 2}" fill="var(--dim)" font-size="16" text-anchor="middle">NO PITCH</text></svg>`
   const zl = 0.708, st = b.st ?? 3.4, sb = b.sb ?? 1.6
-  const x0 = 6, zw = W * 0.56, S = Math.min(zw / 2.6, (H - 40) / 3.8), cx = x0 + zw / 2, base = H - 24
+  const x0 = 6, zw = W * 0.56, S = Math.min(zw / 2.4, (H - 30) / 3.4), cx = x0 + zw / 2, base = H - 24
   const X = (x) => Math.round(cx + x * S), Y = (z) => Math.round(base - (z - 0.4) * S)
   let g = ''
   g += `<rect x="${X(-zl)}" y="${Y(st)}" width="${X(zl) - X(-zl)}" height="${Y(sb) - Y(st)}" fill="none" stroke="var(--tx)" stroke-width="2"/>`
@@ -270,4 +270,23 @@ export function dotDigits(str) {
   const rows = Array(7).fill('')
   for (const ch of String(str)) { const g = DIG[ch]; if (!g) continue; g.forEach((r, i) => { rows[i] += [...r].map((x) => (x === '1' ? 'o ' : '  ')).join('') + ' ' }) }
   return rows.map((r) => r.replace(/\s+$/, ''))
+}
+
+// ---- only buttons tilt ------------------------------------------------------------------------------------------------------------------------------------------
+// A button leans toward the cursor in 2 degree steps (at most 8) and lifts; pressing it sinks it flat. Nothing else on the screen tilts.
+export const BTN_TILT_CSS = `
+#cp .bt{transition:transform .09s steps(3,end),box-shadow .09s steps(3,end)}
+#cp .bt:hover{transform:perspective(260px) translateY(-2px) rotateX(var(--brx,0deg)) rotateY(var(--bry,0deg))}
+#cp .bt:active,#cp .bt.pr{transform:translateY(5px)}
+@media (prefers-reduced-motion:reduce){#cp .bt:hover{transform:translateY(-2px)}}
+`
+export function tiltButtons(root) {
+  root.addEventListener('mousemove', (e) => {
+    const b = e.target.closest?.('.bt')
+    if (!b) return
+    const r = b.getBoundingClientRect(), nx = (e.clientX - r.left) / r.width - 0.5, ny = (e.clientY - r.top) / r.height - 0.5
+    b.style.setProperty('--bry', `${Math.round(nx * 8) * 2}deg`)
+    b.style.setProperty('--brx', `${-Math.round(ny * 8) * 2}deg`)
+  })
+  root.addEventListener('mouseout', (e) => { const b = e.target.closest?.('.bt'); if (b && !b.contains(e.relatedTarget)) { b.style.setProperty('--bry', '0deg'); b.style.setProperty('--brx', '0deg') } })
 }

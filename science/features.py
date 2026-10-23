@@ -62,6 +62,7 @@ FEATURES: dict[str, str] = {
     "h_fence": CONTACT, "tan_fence": CONTACT, "clear_h": CONTACT, "lands_short": CONTACT,
     "bat_vz": CONTACT, "bat_vh": CONTACT, "bat_vlat": CONTACT, "p_vz": PRE, "p_vh": PRE, "rel_vz": CONTACT, "rel_vh": CONTACT, "ev_fit_res": CONTACT, "ev_eff": CONTACT,
     "mix_angle": CONTACT, "la_minus_mix": CONTACT,
+    "carry_hat": CONTACT, "phys_dist_c": CONTACT, "margin_c": CONTACT, "carry_vs_prior": CONTACT,  # v10: out-of-fold carry model from legal inputs
     # distilled estimate: trained on the post-contact bearing as a label, but it only ever sees legal inputs
     "bearing_hat": CONTACT,
     # contact

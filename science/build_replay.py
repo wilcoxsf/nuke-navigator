@@ -16,7 +16,7 @@ from savant_xhr_compare import ROOT, fly_path
 
 COLS = ["rid", "game_date", "game_pk", "home_team", "away_team", "inning_topbot", "batter", "pitcher", "stand", "p_throws", "type", "events", "launch_speed", "launch_angle", "bearing",
         "hit_distance_sc", "air_density", "om_temp_f", "om_wind_u", "om_wind_v", "om_pressure_hpa", "plate_x", "plate_z", "sz_top", "sz_bot", "release_speed", "release_spin_rate",
-        "spin_axis", "pfx_x", "pfx_z", "pitch_type", "bat_speed", "swing_length", "attack_angle", "attack_direction", "swing_path_tilt", "vaa", "y", "venue_id"]
+        "spin_axis", "pfx_x", "pfx_z", "pitch_type", "bat_speed", "swing_length", "attack_angle", "attack_direction", "swing_path_tilt", "vaa", "y", "venue_id", "inning", "balls", "strikes", "outs_when_up", "on_1b", "on_2b", "on_3b", "estimated_ba_using_speedangle", "estimated_woba_using_speedangle", "estimated_slg_using_speedangle", "launch_speed_angle", "bb_type", "hit_location", "if_fielding_alignment", "of_fielding_alignment", "delta_run_exp", "delta_home_win_exp", "release_extension", "release_pos_x", "release_pos_z", "arm_angle", "effective_speed", "zone", "description", "pitch_number", "age_bat", "age_pit", "home_score", "away_score", "bat_score", "fld_score", "n_thruorder_pitcher", "om_rh", "om_wind_mph", "om_gust_mph", "om_wind_dir", "plate_speed", "intercept_ball_minus_batter_pos_x_inches", "intercept_ball_minus_batter_pos_y_inches", "attack_direction"]
 df = pd.read_parquet(ROOT + "data/derived/exp_features.parquet", columns=COLS)
 df = df[(df.game_date >= "2023-07-14") & (df.type == "X") & df.launch_speed.notna() & df.launch_angle.notna() & df.bearing.between(-44.5, 44.5) & df.hit_distance_sc.notna() & df.air_density.notna()].copy()
 gi = ((df.home_team == "SF") & (df.inning_topbot == "Bot")) | ((df.away_team == "SF") & (df.inning_topbot == "Top"))
@@ -28,7 +28,7 @@ print("Giants batted balls since 2023-07-14:", int(gi.sum()), "| selected:", len
 # carry: match the observed distance with the page's physics (same bisection as savant_xhr_compare2), then convert to the page's own air density (60% humidity, 1013 hPa)
 hand = np.where(sel.stand == "R", 1.0, -1.0)
 la, br = sel.launch_angle.to_numpy(float), sel.bearing.to_numpy(float)
-base = dict(v0=sel.launch_speed.to_numpy(float) * MPH, theta=np.deg2rad(la), phi=np.deg2rad(br), w_back=np.maximum(0, -763 + 120 * la) * RPM, w_side=(-hand * 849 - 94 * br) * RPM)
+base = dict(v0=sel.launch_speed.to_numpy(float) * MPH, theta=np.deg2rad(la), phi=np.deg2rad(br), w_back=np.maximum(0, -763 + 120 * la) * RPM, w_side=(-hand * 864 - 75 * br) * RPM)  # side-spin prior refit 22 Oct on wood-bat TrackMan (turn_validation.py); the page's dojo.js uses the same
 rho0, target = sel.air_density.to_numpy(float), sel.hit_distance_sc.to_numpy(float)
 n = len(sel)
 w_side0 = base["w_side"].copy()
@@ -81,6 +81,11 @@ sel["temp"] = temp
 ids = sorted(set(sel.batter.astype(int)) | set(sel.pitcher.astype(int)))
 H = {"User-Agent": "nuke-navigator-research/0.1 (personal project)"}
 players = {}
+cache = ROOT + "scratch/players_cache.json"
+import os
+if os.path.exists(cache):
+    players = json.load(open(cache))
+ids = [i for i in ids if str(i) not in players]
 for i in range(0, len(ids), 100):
     chunk = ids[i:i + 100]
     time.sleep(2)
@@ -92,7 +97,15 @@ for i in range(0, len(ids), 100):
     for p in r.json().get("people", []):
         players[str(p["id"])] = [p.get("fullName"), p.get("primaryNumber"), (p.get("batSide") or {}).get("code"), (p.get("pitchHand") or {}).get("code")]
 
-sel["g"] = gi.reindex(sel.index).astype(int)
+try:
+    pm = pd.read_parquet(ROOT + "data/derived/v5_v5r/pred_xgb.parquet", columns=["rid", "p_hr"]).rename(columns={"p_hr": "phr_model"})
+    sel = sel.merge(pm, on="rid", how="left")
+    print("model probability available for", int(sel.phr_model.notna().sum()), "of", len(sel), "balls", flush=True)
+except Exception as ex:  # the stack output covers only the validation and test periods
+    print("no model probabilities:", ex, flush=True)
+    sel["phr_model"] = np.nan
+sel["g"] = gi.reindex(sel.index).astype(int) if False else sel.apply(lambda r: int(((r.home_team == "SF") and (r.inning_topbot == "Bot")) or ((r.away_team == "SF") and (r.inning_topbot == "Top"))), axis=1)
+json.dump(players, open(cache, 'w'))
 balls = []
 for r_ in sel.itertuples():
     balls.append({
@@ -107,6 +120,30 @@ for r_ in sel.itertuples():
         "bs": round(float(r_.bat_speed), 1) if r_.bat_speed == r_.bat_speed else None, "aa": round(float(r_.attack_angle), 1) if r_.attack_angle == r_.attack_angle else None,
         "tilt": round(float(r_.swing_path_tilt), 1) if r_.swing_path_tilt == r_.swing_path_tilt else None, "sl": round(float(r_.swing_length), 2) if r_.swing_length == r_.swing_length else None,
         "vaa": round(float(r_.vaa), 1) if r_.vaa == r_.vaa else None,
+    })
+def num(x, d=1):
+    return None if pd.isna(x) else round(float(x), d)
+
+
+def txt(x):
+    return None if pd.isna(x) else str(x)
+
+
+def flag(x):
+    return int(pd.notna(x))
+
+
+for rec, r_ in zip(balls, sel.itertuples()):
+    rec.update({
+        "gm": txt(r_.game_pk), "ht": r_.home_team, "at": r_.away_team, "tb": r_.inning_topbot, "in": num(r_.inning, 0),
+        "bl": num(r_.balls, 0), "sk": num(r_.strikes, 0), "ou": num(r_.outs_when_up, 0), "r1": flag(r_.on_1b), "r2": flag(r_.on_2b), "r3": flag(r_.on_3b),
+        "bsc": num(r_.bat_score, 0), "fsc": num(r_.fld_score, 0), "xba": num(r_.estimated_ba_using_speedangle, 3), "xw": num(r_.estimated_woba_using_speedangle, 3), "xs": num(r_.estimated_slg_using_speedangle, 3),
+        "lsa": num(r_.launch_speed_angle, 0), "bbt": txt(r_.bb_type), "hl": num(r_.hit_location, 0), "ifa": txt(r_.if_fielding_alignment), "ofa": txt(r_.of_fielding_alignment),
+        "dre": num(r_.delta_run_exp, 3), "dwe": num(r_.delta_home_win_exp, 3), "ext": num(r_.release_extension, 1), "rx": num(r_.release_pos_x, 2), "rz": num(r_.release_pos_z, 2), "arm": num(r_.arm_angle, 0),
+        "eff": num(r_.effective_speed, 1), "zn": num(r_.zone, 0), "ds": txt(r_.description), "pn": num(r_.pitch_number, 0), "agb": num(r_.age_bat, 0), "agp": num(r_.age_pit, 0),
+        "tto": num(r_.n_thruorder_pitcher, 0), "rh": num(r_.om_rh, 0), "wm": num(r_.om_wind_mph, 0), "wg": num(r_.om_gust_mph, 0), "wd": num(r_.om_wind_dir, 0), "ps": num(r_.plate_speed, 1),
+        "ix": num(r_.intercept_ball_minus_batter_pos_x_inches, 1), "iy": num(r_.intercept_ball_minus_batter_pos_y_inches, 1), "ad": num(r_.attack_direction, 1), "pm": num(r_.phr_model, 4),
+        "hpa": num(r_.om_pressure_hpa, 0), "rho": num(r_.air_density, 3),
     })
 balls.sort(key=lambda b: (b["d"], b["ev"]), reverse=True)
 meta = {"built": "2026-10-22", "rows": len(balls), "from": "2023-07-14", "note": "Giants HR and balls projected 335 ft or more, plus every HR at Oracle Park; carry = air-density multiplier for the page's physics; pfx in inches (induced break, catcher's view); plate_x catcher's view, feet"}

@@ -2,7 +2,7 @@
 // Physics: RK4 with drag and Magnus lift, aerodynamics from the differentiable-physics net (Cd = 0.373 + 0.149 S) with lift calibrated on 30,000 real
 // fly balls (CL = 1.52 S / (1 + 2.55 S); average miss against Statcast projected distance -0.1 ft, typical error 15.8 ft),
 // game air density from temperature and humidity, spin from the linear prior that held up on wood-bat data (backspin -763 + 120 x launch angle rpm,
-// sidespin -849 x hand - 94 x direction rpm). Wall: distance and height by bearing extracted from the park model (right-center height assumed).
+// sidespin -864 x hand - 75 x direction rpm, refit on 3,742 wood-bat balls with measured spin). Wall: distance and height by bearing extracted from the park model (right-center height assumed).
 // Three interface skins share the same controls: ?mode=dojo&ui=A|B|C. Everything shown is a prediction, never a measurement.
 import { initSeance, findLanding, warmBVH } from './seance.js'
 import { initFx } from './fx.js'
@@ -15,6 +15,7 @@ import { SKINX_CSS } from './skinx.js'
 import { SKINK_CSS } from './skink.js'
 import { LOOKS_K, WINDOWS_K } from './looks_k.js'
 import { initGrid } from './gonergrid.js'
+import { carryLog, loadCarry, wxAdj } from './carry.js'
 const NN = window.__nn
 const { THREE, scene } = NN
 const Q = new URLSearchParams(location.search)
@@ -26,6 +27,7 @@ let lookK = LOOKS_K[Number(Q.get('k'))] ? Number(Q.get('k')) : 1
 const kv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#ccc'
 
 const state = {
+  tab: true, // what-if: learned carry correction (carry.js); replay balls set this false and bring their own carry
   ev: Number(Q.get('ev')) || 105, la: Number(Q.get('la')) || 28, dir: Q.get('dir') !== null ? Number(Q.get('dir')) : 30,
   hand: Q.get('hand') === 'L' ? -1 : 1, temp: Number(Q.get('temp')) || 62, wind: Number(Q.get('wind')) || 0, ui: (Q.get('ui') || 'K').toUpperCase(),
 }
@@ -38,9 +40,10 @@ function airDensity(tF, rh = 60, hPa = 1013) {
 
 // frame: x toward right field, y toward center field, z up (metres). Returns the path and what happened.
 function fly(s, opt = {}) {
-  const rho = airDensity(s.temp, 60, opt.hPa ?? 1013) * (s.carry ?? 1) // carry: an effective air-density multiplier that matches a real ball's observed distance (replay mode)
+  // carry: an effective air-density multiplier. Replay mode matches a real ball's observed distance (s.carry); the what-if sandbox (s.tab) uses the learned mean carry for the exit speed and launch angle (carryOverride is one draw of it)
+  const rho = airDensity(s.temp, 60, opt.hPa ?? 1013) * (s.tab ? Math.exp(s.carryOverride != null ? s.carryOverride + wxAdj(s.temp, opt.hPa ?? 1013) : carryLog(s.ev, s.la, s.temp, opt.hPa ?? 1013)) : (s.carry ?? 1))
   const phi = (s.dir * Math.PI) / 180, th = (s.la * Math.PI) / 180, v0 = s.ev * 0.44704
-  const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 849 - 94 * s.dir + (s.dws || 0)) * RPM
+  const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 864 - 75 * s.dir + (s.dws || 0)) * RPM
   const r = [Math.cos(phi), -Math.sin(phi), 0]
   const om = [wb * r[0], wb * r[1], ws], wm = Math.hypot(...om) + 1e-9
   const wind = [0, (s.wind * 0.44704), 0] // what-if wind along the field (positive = toward center field)
@@ -516,6 +519,7 @@ addEventListener('nn-stadium', () => { if (window.__dojoReady) update() }) // th
 addEventListener('nn-stadium', () => (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => warmBVH(NN))) // build the ray-cast tree when idle, not on the first home run
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
+loadCarry().then(() => { if (wall) { update(); grid?.refresh() } }) // if the wall is not loaded yet, its own load calls update() with the table already in
 fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
   window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
   if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }

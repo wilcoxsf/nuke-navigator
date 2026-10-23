@@ -22,11 +22,12 @@ DT, TMAX = 0.02, 9.0
 SAV = "laa bal bos cws cle kc oak tb tex tor ari chc col lad pit mil sea hou det sf cin sd phi stl nym wsh min nyy mia atl".split()
 
 
-def fly_path(v0, theta, phi, w_back, w_side, rho, z0=1.0, kl=None, return_xy=False):
+def fly_path(v0, theta, phi, w_back, w_side, rho, z0=1.0, kl=None, return_xy=False, kd=None):
     """RK4 like flight_fit.simulate, but keeps the path: returns horizontal range R[n, T] and height Z[n, T] in metres (frozen after landing).
     kl is an optional per-ball multiplier on the lift coefficient (used to match a ball's observed distance)."""
     c0, c1, a, b = PARAMS
     kl = np.ones(len(v0)) if kl is None else kl
+    kd = np.ones(len(v0)) if kd is None else kd
     n = len(v0)
     q = 0.5 * rho * AREA / MASS
     h = np.stack([np.sin(phi), np.cos(phi), np.zeros(n)], 1)
@@ -44,7 +45,7 @@ def fly_path(v0, theta, phi, w_back, w_side, rho, z0=1.0, kl=None, return_xy=Fal
     def acc(vv):
         sp = np.linalg.norm(vv, axis=1) + 1e-9
         S = RAD * wmag / sp
-        cd = c0 + c1 * S
+        cd = kd * (c0 + c1 * S)
         cl = kl * a * S / (1 + b * S)
         drag = -q[:, None] * cd[:, None] * sp[:, None] * vv
         lift = q[:, None] * cl[:, None] * sp[:, None] * np.cross(omega, vv) / (wmag[:, None] + 1e-9)

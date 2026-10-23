@@ -24,6 +24,8 @@ body:has(#dojo.ui-K.lay-dock) #dj-grid{--gl:14px;--gr:14px}
 body:has(#dojo.ui-K.lay-min) #dj-grid{--gl:246px;--gr:14px}
 `
 
+import { bandPeek, bandWord } from './carry.js'
+
 export function initGrid({ state, fly, onChange }) {
   let data = null, collapsed = false, head = ''
   const st = document.createElement('style')
@@ -53,7 +55,8 @@ export function initGrid({ state, fly, onChange }) {
       return { p, k, v, res, margin }
     }).sort((a, b) => b.margin - a.margin)
     const gone = rows.filter((r) => r.k === 'GONE').length
-    head = `GONE IN ${gone} OF ${rows.length} PARKS`
+    const band = bandPeek(state, fly, data.parks, (p) => wallFnOf(p), () => refresh()) // learned carry spread: the count that 80% of real balls like this would give
+    head = `GONE IN ${band ? bandWord(band, rows.length) : `${gone} OF ${rows.length}`} PARKS`
     el.querySelector('.n').textContent = head
     el.querySelector('.gt').innerHTML = rows.map(({ p, k, v, margin, res }, i) => {
       const cls = k === 'GONE' ? 'g' : k === 'WALL' ? 'w' : k === 'PLAY' ? 'p' : 'f'

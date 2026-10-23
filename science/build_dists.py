@@ -51,7 +51,7 @@ CH = 5000
 for a in range(0, len(s), CH):
     sl = slice(a, a + CH)
     R, _ = fly_path(s.launch_speed.to_numpy(float)[sl] * MPH, np.deg2rad(la[sl]), np.deg2rad(br[sl]), np.maximum(0, -763 + 120 * la[sl]) * RPM,
-                    (-hand[sl] * 849 - 94 * br[sl]) * RPM, np.nan_to_num(s.air_density.to_numpy(float)[sl], nan=1.2))
+                    (-hand[sl] * 864 - 75 * br[sl]) * RPM, np.nan_to_num(s.air_density.to_numpy(float)[sl], nan=1.2))
     last = R[:, -1:]
     idx = np.argmax(R >= last - 1e-4, axis=1)
     hang[sl] = idx * DT

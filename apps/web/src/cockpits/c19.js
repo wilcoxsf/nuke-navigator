@@ -165,14 +165,14 @@ export async function build(root, api, U) {
   const filtered = () => (filter === 'giants' ? R.balls.filter((b) => b.g && b.hr) : filter === 'oracle' ? R.balls.filter((b) => b.park === 'SF' && b.hr) : R.balls)
   function applyBall(b) {
     cur = b; edited = false
-    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry, dws: b.dws ?? 0 }) // carry and dws make the physics land the ball where the real one landed
+    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false }) // carry and dws make the physics land the ball where the real one landed
     api.setPreview(true)
     api.update()
   }
   function setMode(m) {
     mode = m
     root.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === m))
-    if (m === 'replay' && R.balls.length) { balls = filtered(); idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; api.state.carry = 1; api.state.dws = 0; api.setPreview(true); api.update() }
+    if (m === 'replay' && R.balls.length) { balls = filtered(); idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; api.state.carry = 1; api.state.dws = 0; api.state.tab = true; api.setPreview(true); api.update() }
     paintChooser()
   }
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser() }
@@ -278,7 +278,7 @@ export async function build(root, api, U) {
       const pr = evalParks(parks, api), gt = E('#c19g'), w = gt.clientWidth || 160
       gt.style.setProperty('--gc', w > 300 ? 10 : w > 220 ? 6 : 5)
       gt.innerHTML = tileHTML(pr)
-      E('#c19n').textContent = `GONE IN ${pr.filter((r) => r.k === 'GONE').length} OF ${pr.length}`
+      E('#c19n').textContent = `GONE IN ${U.goneWord(parks, api, pr)}`
     }
     paintSlots(); paintTally(); paintVerdict(false)
     if (tab === 'face' || !swingTimer || window.__fixedTime !== undefined) paintCard(tab === 'stance' ? 0.5 : undefined)

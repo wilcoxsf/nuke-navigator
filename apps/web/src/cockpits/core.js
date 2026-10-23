@@ -103,6 +103,7 @@ export function windowSync(api, el, o = {}) {
   apply()
   return apply
 }
+import { bandPeek, bandWord } from '../carry.js'
 export const onRender = (fn) => { window.__cpRender = fn }
 export const onBeat = (fn) => { window.__cpBeat = fn }
 // the 30 current parks (fences at five bearings, local air), flown with the live swing
@@ -129,6 +130,11 @@ export function evalParks(data, api) {
     const margin = k === 'GONE' ? v.clearBy : k === 'WALL' ? -v.short : k === 'PLAY' ? -400 + res.landFt / 10 : -900
     return { p, k, v, res, margin }
   }).sort((a, b) => b.margin - a.margin)
+}
+// 'gone in N to M of 30 parks' for the live what-if swing: cached, debounced, updates once when ready (null in replay mode or before the carry table loads)
+export function goneWord(data, api, pr) {
+  const n = pr.filter((r) => r.k === 'GONE').length, b = bandPeek(api.state, api.fly, data.parks, (p) => wallFnOf(data, p), () => api.update())
+  return b ? bandWord(b, pr.length) : `${n} OF ${pr.length}`
 }
 export function fencePoly(data, p, step = 5) {
   const f = wallFnOf(data, p), pts = []
