@@ -18,7 +18,7 @@ async function open(w, h, qs = '', ctxOpts = null) {
   const page = ctx ? await ctx.newPage() : await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 })
   page.on('pageerror', (e) => errs.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')))
   await page.route('**/api.open-meteo.com/**', FIX)
-  await page.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7${qs}`)
+  await page.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7${qs}${/[?&]ir=/.test(qs) ? "" : "&ir=0"}`)
   await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 })
   await page.waitForTimeout(2500)
   page._ctx = ctx
@@ -137,13 +137,13 @@ for (const [w, h] of SIZES) {
     const ty = await page.evaluate(() => document.querySelectorAll('#c25mb .ty').length)
     await page.click('#c25mb .ty[data-c="6"]'); await page.waitForTimeout(600)
     const tyc = await page.evaluate(() => window.__mix25.code())
-    check('the type picker shows every set and applies a click', ty === 11 && /T6$/.test(tyc), `${ty} ${tyc}`)
+    check('the type picker shows every set and applies a click', ty === 11 && /T6 /.test(tyc), `${ty} ${tyc}`)
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(600)
     // the options legend lists every open option with the layout reasons
     await page.click('#c25lg'); await page.waitForTimeout(500)
     const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
-    check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 2 + 11 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
+    check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 2 + 11 + 4 + 3 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -178,7 +178,69 @@ for (const [w, h] of SIZES) {
     check('K brings Karl in', kl.on && /KARL: IN/.test(kl.b), JSON.stringify(kl))
     await page.keyboard.press('k'); await page.waitForTimeout(300)
     X = await layout(page); check('after the effects the dojo still fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
+    // the scoreboard reports the last landing, and the gulls scattered on the home run
+    const sb = await page.evaluate(() => ({ t: window.__mix25.life.text(), g: window.__mix25.life.gulls() }))
+    check('the scoreboard shows the result and the gulls are out', /FT|SPLASH|HOME RUN/.test(sb.t) && sb.g === 10, JSON.stringify(sb))
+    // the effects styles: confetti instead of fireworks, CRT scanlines, the quiet style hides the gulls
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F2')); await page.waitForTimeout(500)
+    await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 112, la: 28, dir: -4, hand: 1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
+    await page.keyboard.press('Enter')
+    let cf = 0
+    for (let k = 0; k < 40 && cf <= 120; k++) { await page.waitForTimeout(400); cf = Math.max(cf, await page.evaluate(() => window.__mix25.fx.count())) }
+    check('F2 CONFETTI rains on a home run', cf > 120, String(cf))
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F4')); await page.waitForTimeout(400)
+    const crt = await page.evaluate(() => ({ cls: document.querySelector('.c25').classList.contains('F4'), bg: getComputedStyle(document.querySelector('.c25'), '::after').backgroundImage }))
+    check('F4 CRT lays scanlines over the screen', crt.cls && /repeating-linear-gradient/.test(crt.bg), JSON.stringify(crt).slice(0, 120))
+    X = await layout(page); check('the CRT screen still has its titles on top', X.titles.length === 0, X.titles.join('; '))
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F3')); await page.waitForTimeout(400)
+    check('F3 QUIET hides the gulls and the board', await page.evaluate(() => window.__mix25.life.board.visible === false))
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F1')); await page.waitForTimeout(400)
+    // STAR MAP: every ball in the filter flown at once
+    await setMode(page, 'replay')
+    await page.click('#c25sm'); let st = null
+    for (let k = 0; k < 60 && !st; k++) { await page.waitForTimeout(500); st = await page.evaluate(() => window.__mix25.stars()) }
+    const smt = await page.evaluate(() => ({ t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), txt: document.querySelector('#c25hb').textContent, n: document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1] }))
+    check('STAR MAP flies every home run in the filter', st && st.n === Number(smt.n) && st.segs > st.n * 5 && /STARMAP/.test(smt.t) && /FLOWN AT ONCE/.test(smt.txt) && /IN ORANGE/.test(smt.txt), JSON.stringify({ st, smt: smt.txt.slice(0, 100) }))
+    X = await layout(page); check('STAR MAP fits its panel', X.fits.length === 0, X.fits.join('; '))
+    await page.click('#c25sm'); await page.waitForTimeout(400)
+    // PRINT IT: a PNG poster download
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.click('#c25pr')])
+    const len = await page.evaluate(() => window.__poster25 ?? 0)
+    check('PRINT IT downloads a poster', !!dl && /^nuke-navigator-.+\.png$/.test(dl.suggestedFilename()) && len > 40000, `${dl?.suggestedFilename()} ${len}`)
+    // PLAY IT in the replay: the pitch flies into the zone, then the flight
+    const c0 = await page.evaluate(() => window.__mix25.fx.count())
+    await page.click('#c25go')
+    let anim = false, fired = false
+    void c0
+    for (let k = 0; k < 50 && !(anim && fired); k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => ({ a: document.querySelector('#c25zg').classList.contains('anim'), f: /TRACKING/.test(window.__mix25.life.text()) || !!window.__cp.anim() })); anim ||= r.a; fired ||= r.f }
+    check('PLAY IT throws the pitch into the zone, then plays the flight', anim && fired, JSON.stringify({ anim, fired }))
+    // the menu title options
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F1M2')); await page.waitForTimeout(300)
+    const m2 = await page.evaluate(() => !!document.querySelector('.c25 .sm .lg2 svg'))
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F1M3')); await page.waitForTimeout(300)
+    const m3 = await page.evaluate(() => !!document.querySelector('.c25 .sm .lg3'))
+    check('M2 ARC and M3 MARQUEE titles build', m2 && m3, JSON.stringify({ m2, m3 }))
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1F1M1'))
   }
+  await page.close()
+}
+// INSTANT REPLAY: after a home run, the same flight again from a broadcast angle, then the camera comes back
+if (!process.env.PHONE_ONLY) {
+  const page = await open(1440, 820, '&menu=0&mix=L1P5A3T1&ir=1')
+  await setMode(page, 'whatif')
+  const cam0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(1)).join())
+  await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 112, la: 28, dir: -4, hand: 1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
+  await page.keyboard.press('Enter')
+  let saw = false, bn = ''
+  for (let k = 0; k < 60 && !saw; k++) { await page.waitForTimeout(500); const r = await page.evaluate(() => ({ r: window.__mix25.replaying(), b: document.querySelector('#c25bn').textContent })); if (r.r) { saw = true; bn = r.b } }
+  const camR = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(1)).join())
+  check('a home run gets an INSTANT REPLAY from another camera', saw && /INSTANT REPLAY/.test(bn) && camR !== cam0, JSON.stringify({ saw, bn, cam0, camR }))
+  let back = false
+  for (let k = 0; k < 120 && !back; k++) { await page.waitForTimeout(500); back = await page.evaluate(() => !window.__mix25.replaying()) }
+  const cam1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(1)).join())
+  check('after the replay the camera comes back', back && cam1 === cam0, JSON.stringify({ back, cam0, cam1 }))
+  await page.keyboard.press('i'); await page.waitForTimeout(300)
+  check('I switches instant replay off', /REPLAY: OFF/.test(await page.evaluate(() => document.querySelector('#c25ir').textContent)))
   await page.close()
 }
 // the SELECT menu: shown on arrival, keys move and choose, Esc comes back, number keys jump
