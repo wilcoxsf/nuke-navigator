@@ -98,7 +98,12 @@ for i in range(0, len(ids), 100):
         players[str(p["id"])] = [p.get("fullName"), p.get("primaryNumber"), (p.get("batSide") or {}).get("code"), (p.get("pitchHand") or {}).get("code")]
 
 try:
-    pm = pd.read_parquet(ROOT + "data/derived/v5_v5r/pred_xgb.parquet", columns=["rid", "p_hr"]).rename(columns={"p_hr": "phr_model"})
+    # best honest odds per ball (26 Oct 2026): the final layer (S3 stack + global, venue and in-game carry recalibration) on the test period,
+    # the S3 stack on the validation slice, and the out-of-fold wide net (v39c mlp_p) before that
+    lay = pd.read_parquet(ROOT + "data/derived/final8/S3_layer.parquet").set_index("rid").p_hr
+    s3 = pd.read_parquet(ROOT + "data/derived/final8/S3.parquet").set_index("rid").p_hr
+    oof = pd.read_parquet(ROOT + "data/derived/bakeoff_features_v39c.parquet", columns=["rid", "mlp_p"]).set_index("rid").mlp_p
+    pm = lay.combine_first(s3).combine_first(oof).rename("phr_model").reset_index()
     sel = sel.merge(pm, on="rid", how="left")
     print("model probability available for", int(sel.phr_model.notna().sum()), "of", len(sel), "balls", flush=True)
 except Exception as ex:  # the stack output covers only the validation and test periods

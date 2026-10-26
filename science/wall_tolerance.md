@@ -1,0 +1,6 @@
+inside 1.5 outside 1.0 height +0.4 m: edges   6205, length   5679 m, empty sectors (under 4 m) 0, contaminated share 13.0%, sector lengths 242 152 223 158 314 188 295 217 164 311 126 39 188 1035 447 515 652 300
+inside 1.5 outside 1.0 height +1.5 m: edges   6516, length   5869 m, empty sectors (under 4 m) 0, contaminated share 12.5%, sector lengths 245 152 223 158 314 188 295 220 189 338 158 39 214 1089 447 515 652 306
+inside 2.5 outside 1.5 height +1.5 m: edges   8354, length   7298 m, empty sectors (under 4 m) 0, contaminated share 10.6%, sector lengths 247 152 223 168 319 215 315 358 189 345 456 39 353 1266 516 782 819 403
+inside 3.0 outside 2.0 height +1.5 m: edges   9309, length   7980 m, empty sectors (under 4 m) 0, contaminated share 10.7%, sector lengths 248 152 223 170 319 243 339 393 189 367 552 46 469 1303 539 966 854 459
+inside 4.0 outside 2.0 height +1.5 m: edges  10327, length   8693 m, empty sectors (under 4 m) 0, contaminated share 10.6%, sector lengths 248 152 223 170 319 243 339 393 189 367 617 47 569 1303 539 1146 1072 562
+inside 3.0 outside 2.0 height +2.5 m: edges   9469, length   8034 m, empty sectors (under 4 m) 0, contaminated share 10.9%, sector lengths 248 152 223 170 319 243 339 393 189 367 559 47 473 1342 539 966 854 463

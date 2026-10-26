@@ -25,15 +25,17 @@ CATS = CATS + ["venue"]  # the park itself (v4 feature sets)
 
 L4 = BASE0 + WX + PITCH + HIST + ["bearing_hat"] + BAT
 RECON = os.environ.get("FEATSET", "v1") == "recon"  # reconstruct mode: the ball has landed, so its true bearing and fence distance are allowed
-if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b", "v5", "v5r", "v6", "v7", "v8", "v9", "v10"):  # round-2 survivors: contact point (H1) and contact quality (H4)
+if os.environ.get("FEATSET", "v1") in ("v2", "recon", "v4", "v4a", "v4b", "v5", "v5r", "v6", "v7", "v8", "v9", "v10", "v13", "v16", "v19", "v21", "v23", "v24", "v25", "v26", "v30", "v31", "v35", "v36", "v37", "v38", "v39", "v41", "v42"):  # round-2 survivors: contact point (H1) and contact quality (H4)
     from experiments import HID
     L4 = L4 + HID["H1"]["cols"] + HID["H4"]["cols"]
 PHYS = ["phys_dist", "phys_hang", "fence_hat", "margin_hat", "park_lf", "park_cf", "park_rf"]
 SAV = ["fence_s", "wallh_s", "hmax_s", "margin_s", "req_margin", "net_margin"]  # era-correct measured fence and wall height
 FS = os.environ.get("FEATSET", "v1")
 RES = ["res_ad", "res_ix", "res_iy", "res_aa", "res_bs"]  # contact surprise
-FEATS_PHYS = (L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else []) + (RES if FS in ("v5r", "v6", "v7", "v8", "v9", "v10") else []) + (["h_fence", "tan_fence", "clear_h", "lands_short"] if FS == "v8" else [])
-    + (["bat_vz", "bat_vh", "bat_vlat", "p_vz", "p_vh", "rel_vz", "rel_vh", "ev_fit_res", "ev_eff", "mix_angle", "la_minus_mix"] if FS == "v9" else []) + ([f"sec_{j}" for j in range(9)] + ["sec_ent"] if FS == "v6" else []) + (["carry_hat", "phys_dist_c", "margin_c", "carry_vs_prior"] if FS == "v10" else []))
+FEATS_PHYS = (L4 + PHYS + (["venue"] if FS in ("v4", "v4a") else []) + (SAV if FS in ("v4", "v4b") else []) + (RES if FS in ("v5r", "v6", "v7", "v8", "v9", "v10", "v13", "v16", "v19", "v21", "v23", "v24", "v25", "v26", "v30", "v31", "v35", "v36", "v37", "v38", "v39", "v41", "v42") else []) + (["h_fence", "tan_fence", "clear_h", "lands_short"] if FS == "v8" else [])
+    + (["bat_vz", "bat_vh", "bat_vlat", "p_vz", "p_vh", "rel_vz", "rel_vh", "ev_fit_res", "ev_eff", "mix_angle", "la_minus_mix"] if FS == "v9" else []) + ([f"sec_{j}" for j in range(9)] + ["sec_ent"] if FS == "v6" else []) + (["carry_hat", "phys_dist_c", "margin_c", "carry_vs_prior"] if FS in ("v10", "v13", "v16", "v21", "v23", "v24", "v25", "v26") else []) + (["carry_sd", "margin_z", "p_clear"] if FS == "v13" else []) + (["h_fence_c", "clear_c", "apex_c", "hang_c"] if FS == "v16" else []) + (["dist_hat", "direct_margin"] if FS == "v19" else []) + (["sigma_b", "dir_unc_ft", "margin_z2"] if FS == "v21" else []) + (["fence_slope", "node_dist", "slope_jump", "fence_tilt", "margin_normal"] if FS == "v23" else [])
+    + (["dist_hat", "direct_margin", "dist_disagree", "margin_disagree"] if FS == "v24" else []) + (["knn_hr", "knn_d"] if FS == "v25" else []) + (["bc_prop", "bc_n"] if FS == "v26" else [])
+    + (["dist_hat", "direct_margin"] if FS in ("v30", "v31", "v35", "v36", "v37", "v38", "v39", "v41", "v42") else []) + (["dist_hat2", "dist_reg", "dist_q10", "dist_q90", "margin2", "margin_reg", "margin_q10", "margin_q90"] if FS in ("v30", "v36", "v37", "v39", "v41", "v42") else []) + (["lg_carry14", "lg_n14", "pk_carry30", "pk_n30"] if FS in ("v35", "v37", "v39", "v41", "v42") else []) + (["dist_bat", "margin_bat"] if FS in ("v36", "v37", "v39", "v41", "v42") else []) + (["mlp_p", "mlp_d", "mlp_b", "mlp_hx", "mlp_hy", "mlp_rv", "mlp_bb0", "mlp_bb1", "mlp_bb2", "mlp_bb3"] if FS in ("v38", "v39", "v42") else []) + (["pk_hr_a120", "pk_hr_a365", "pk_hr_e120"] if FS == "v42" else []) + (["wind_out", "wind_cross", "wind_mph", "roof_closed", "temp_gd"] if FS == "v41" else []) + (['aux_bb_0', 'aux_bb_1', 'aux_bb_2', 'aux_bb_3', 'aux_loc_0', 'aux_loc_1', 'aux_loc_2', 'aux_loc_3', 'aux_loc_4', 'aux_loc_5', 'aux_loc_6', 'aux_loc_7', 'aux_loc_8', 'aux_ev_0', 'aux_ev_1', 'aux_ev_2', 'aux_ev_3', 'aux_rv', 'aux_hcx', 'aux_hcy'] if FS == "v31" else []))
 RECON_EXTRA = ["bearing", "fence_true", "margin_true"]
 
 
@@ -151,6 +153,10 @@ def run_mlp(df, feats, tr, va, ev, seeds=3, epochs=10):
     dm = ~np.isnan(d)
     dmu, dsd = float(np.nanmean(d[tr])), float(np.nanstd(d[tr]))
     ds = np.nan_to_num((d - dmu) / dsd, nan=0.0).astype(np.float32)
+    bw = 0.5 if os.environ.get("MLP_BEARING") == "1" else 0.0  # auxiliary head: landing bearing (scaled by 45), used only as a training signal
+    bb = df.bearing.to_numpy(np.float32)
+    bmask = np.isfinite(bb)
+    bt_np = np.nan_to_num(bb / 45.0, nan=0.0).astype(np.float32)
 
     class Net(nn.Module):
         def __init__(self):
@@ -159,14 +165,15 @@ def run_mlp(df, feats, tr, va, ev, seeds=3, epochs=10):
             w = Z.shape[1] + sum(min(16, n // 2 + 1) for n in ncat)
             self.body = nn.Sequential(nn.Linear(w, 256), nn.SiLU(), nn.Dropout(0.1), nn.Linear(256, 128), nn.SiLU(), nn.Dropout(0.1),
                                       nn.Linear(128, 64), nn.SiLU())
-            self.hr, self.dist = nn.Linear(64, 1), nn.Linear(64, 1)
+            self.hr, self.dist, self.brg = nn.Linear(64, 1), nn.Linear(64, 1), nn.Linear(64, 1)
 
         def forward(self, z, c):
             h = self.body(torch.cat([z] + [e(c[:, i]) for i, e in enumerate(self.emb)], 1))
-            return self.hr(h).squeeze(1), self.dist(h).squeeze(1)
+            return self.hr(h).squeeze(1), self.dist(h).squeeze(1), self.brg(h).squeeze(1)
 
     Zt, Ct = torch.from_numpy(Z), torch.from_numpy(C)
     yt, dt_, dmt = torch.from_numpy(y), torch.from_numpy(ds), torch.from_numpy(dm.astype(np.float32))
+    bt_t, bmt = torch.from_numpy(bt_np), torch.from_numpy(bmask.astype(np.float32))
     tri, vai, evi = np.flatnonzero(tr), np.flatnonzero(va), np.flatnonzero(ev)
     p_acc, d_acc, info = np.zeros(len(evi)), np.zeros(len(evi)), {}
     bce, huber = nn.BCEWithLogitsLoss(), nn.HuberLoss(reduction="none", delta=0.5)
@@ -177,7 +184,7 @@ def run_mlp(df, feats, tr, va, ev, seeds=3, epochs=10):
         with torch.no_grad():
             for s in range(0, len(idx), 65536):
                 ii = idx[s:s + 65536]
-                a, b = net(Zt[ii], Ct[ii])
+                a, b, _ = net(Zt[ii], Ct[ii])
                 ps.append(torch.sigmoid(a).numpy())
                 dsx.append(b.numpy())
         return np.concatenate(ps), np.concatenate(dsx)
@@ -195,8 +202,8 @@ def run_mlp(df, feats, tr, va, ev, seeds=3, epochs=10):
             perm = rng.permutation(tri)
             for s in range(0, len(perm), 4096):
                 ii = perm[s:s + 4096]
-                a, b = net(Zt[ii], Ct[ii])
-                loss = bce(a, yt[ii]) + 0.5 * (huber(b, dt_[ii]) * dmt[ii]).sum() / (dmt[ii].sum() + 1)
+                a, b, c3 = net(Zt[ii], Ct[ii])
+                loss = bce(a, yt[ii]) + 0.5 * (huber(b, dt_[ii]) * dmt[ii]).sum() / (dmt[ii].sum() + 1) + bw * (huber(c3, bt_t[ii]) * bmt[ii]).sum() / (bmt[ii].sum() + 1)
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
@@ -229,6 +236,8 @@ def main() -> None:
     tr, va, ev = (df.split == "train").to_numpy(), (df.split == "val").to_numpy(), (df.split != "train").to_numpy()
     if os.environ.get("FROM_YEAR"):  # train only on this season and later (the tracking system and parks changed over the years)
         tr = tr & (df.game_year.to_numpy() >= int(os.environ["FROM_YEAR"]))
+    if os.environ.get("FROM_DATE"):  # train only from this date on (2023-07-14 is when bat tracking starts, so every training ball has its swing features)
+        tr = tr & (df.game_date.astype(str).to_numpy() >= os.environ["FROM_DATE"])
     print(a.entrant, "train", int(tr.sum()), "val", int(va.sum()), "test", int((df.split == "test").sum()), flush=True)
 
     feats = L4 if a.entrant == "lgbm" else FEATS_PHYS

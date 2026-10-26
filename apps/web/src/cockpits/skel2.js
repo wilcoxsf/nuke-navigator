@@ -12,6 +12,9 @@ export const THEMES = {
   green: { name: 'GREEN', k: '#020503', tx: '#b9f3c3', dim: '#5fa06f', ln: '#1c3024', acc: '#7dff9d' },
   bone: { name: 'BONE', k: '#040404', tx: '#d9d7cc', dim: '#82827a', ln: '#2a2a28', acc: '#ffffff' },
   paper: { name: 'PAPER', k: '#ece7d6', tx: '#1b1a14', dim: '#66634f', ln: '#cfc9b4', acc: '#b3301a', light: true },
+  // added 26 Oct for the Study 24 mixer: blueprint (navy ground, bone lines, orange accent; his GPT Blueprint concept) and ice (cyan accent on black)
+  blueprint: { name: 'BLUEPRINT', k: '#0a1830', tx: '#dfe8f2', dim: '#8ea2bc', ln: '#1d3150', acc: '#ff8a3d' },
+  ice: { name: 'ICE', k: '#020506', tx: '#d6f3ff', dim: '#7f9ea8', ln: '#18282d', acc: '#5fd3ff' },
 }
 export const THEME_CSS = `
 #cp .thm{display:flex;gap:4px;align-items:center;font:8px PS2P,monospace;color:var(--dim)}

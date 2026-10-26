@@ -1,6 +1,6 @@
 // Study 21, ASCII LAB: every character-art style from art.js, live, for any player. Subjects: FACE (the baked MLB headshot tone maps), STANCE (my vector batter at a pose and attack angle),
 // SWING (that batter plus the pitch and the ball's path), GPT (the dotted swing sequences GPT drew, sliced into frames by science/slice_gpt_sheets.py, converted dot for dot).
-// Sizes S M L. Click a tile to pick that style for that subject; picks are remembered (localStorage nn-art-face, -stance, -swing, -gpt) and Study 20 uses them.
+// Sizes S M L. Click a tile to pick that style for that subject; picks are remembered (localStorage nn-art-face, -stance, -swing, -gpt) and Studies 20 and 22 use them. Defaults: braille poster, and braille woodcut for GPT.
 // Everything is text in DejaVu Sans Mono, so it is the same on your screen as in the app.
 import { SKEL_CSS } from './skel.js'
 import { THEME_CSS, JUICE_CSS, themePicker, finishUI } from './skel2.js'
@@ -8,6 +8,7 @@ import { ART_CSS, STYLES, renderArt, faceSource, drawBatter, loadPng, artMetrics
 
 const SIZES = { S: { face: 28, scene: 36, gpt: 16 }, M: { face: 44, scene: 56, gpt: 24 }, L: { face: 64, scene: 80, gpt: 34 } }
 const PLAYERS = ['BUSTER POSEY', 'MADISON BUMGARNER', 'PABLO SANDOVAL', 'BRANDON BELT', 'TRAVIS ISHIKAWA', 'RAFAEL DEVERS', 'BRANDON CRAWFORD', 'HUNTER PENCE', 'LOGAN WEBB', 'MATT CHAPMAN']
+const DEFAULTS = { face: 'braille-poster', stance: 'braille-poster', swing: 'braille-poster', gpt: 'braille-thresh' } // his picks, 23 Oct: braille poster across the board, braille woodcut for GPT's drawings
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v) } catch {} return null }
 
 export async function build(root, api, U) {
@@ -57,7 +58,7 @@ export async function build(root, api, U) {
         : `<h4>POSE</h4><div class="row">${Object.keys(POSE_T).map((k) => btn(`data-pose="${k}"`, k, pose === k)).join('')}</div>
       <h4>BATS</h4><div class="row">${['R', 'L'].map((k) => btn(`data-hand="${k}"`, k, hand === k)).join('')}</div>
       <h4>ATTACK ANGLE ${aa}°</h4><div class="row">${btn('data-aa="-4"', '-')}${btn('data-aa="4"', '+')}</div>`}
-      <div class="picks">PICKED<br>face: <b>${store('nn-art-face') || 'none yet'}</b><br>stance: <b>${store('nn-art-stance') || 'none yet'}</b><br>swing: <b>${store('nn-art-swing') || 'none yet'}</b><br>gpt: <b>${store('nn-art-gpt') || 'none yet'}</b><br><br>Click a tile to pick it for the current subject.</div>`
+      <div class="picks">PICKED<br>face: <b>${(store('nn-art-face') || DEFAULTS.face + ' (default)')}</b><br>stance: <b>${(store('nn-art-stance') || DEFAULTS.stance + ' (default)')}</b><br>swing: <b>${(store('nn-art-swing') || DEFAULTS.swing + ' (default)')}</b><br>gpt: <b>${(store('nn-art-gpt') || DEFAULTS.gpt + ' (default)')}</b><br><br>Click a tile to pick it for the current subject.</div>`
     const on = (sel, key, fn) => E('#c21s').querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => { fn(b.dataset[key]); paint() }))
     on('[data-sub]', 'sub', (v) => { subject = v }); on('[data-size]', 'size', (v) => { size = v }); on('[data-who]', 'who', (v) => { who = v }); on('[data-pose]', 'pose', (v) => { pose = v })
     on('[data-hand]', 'hand', (v) => { hand = v }); on('[data-aa]', 'aa', (v) => { aa = Math.max(-10, Math.min(40, aa + Number(v))) })
@@ -77,14 +78,14 @@ export async function build(root, api, U) {
     const main = E('#c21m')
     main.style.setProperty('--mc', subject === 'gpt' ? 2 : 4)
     main.innerHTML = '<span class="t">/ S T Y L E S /</span>'
-    const pick = store('nn-art-' + subject)
+    const pick = store('nn-art-' + subject) || DEFAULTS[subject]
     let styles = STYLES.filter((s) => !s.dots), srcs // the dot-snap styles are for dotted drawings only
     if (subject === 'gpt') {
       const fr = gptFrames(sheet, gp)
       if (!fr.length) { main.insertAdjacentHTML('beforeend', '<div>NO GPT FRAMES (gpt_art.json missing)</div>'); return }
       srcs = await Promise.all(fr.map((f) => loadPng(f.png)))
       if (my !== token) return
-      styles = [...STYLES.filter((s) => s.dots), ...STYLES.filter((s) => !s.dots)]
+      styles = [STYLES.find((s) => s.id === 'braille-thresh'), ...STYLES.filter((s) => s.dots), ...STYLES.filter((s) => !s.dots && s.id !== 'braille-thresh')]
     } else {
       const src = subject === 'face' ? (faces[who] ? faceSource(faces[who]) : null) : drawBatter({ t: POSE_T[pose], aa, hand, w: subject === 'swing' ? 420 : 300, mirrorW: subject === 'swing' ? 420 : 300, rays: subject === 'swing' ? { la: aa + 14, vaa: -6, len: 120 } : null })
       if (!src) { main.insertAdjacentHTML('beforeend', '<div>NO SOURCE (faces_tone.json missing)</div>'); return }

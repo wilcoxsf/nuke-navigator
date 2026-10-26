@@ -43,6 +43,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--logm", help="cached carry labels (.npy) to skip the 30-minute bisection; labels use the true bearing so they stay valid when bearing_hat changes")
     a = ap.parse_args()
     df = pd.read_parquet(a.data)
     df["air_density"] = df.air_density.fillna(1.2)
@@ -55,13 +56,16 @@ def main() -> None:
     n = len(sub)
     print("carry labels for %d balls" % n, flush=True)
     lo, hi = np.full(n, 0.2), np.full(n, 1.8)
-    for k in range(11):
+    for k in range(0 if a.logm else 11):
         mid = 0.5 * (lo + hi)
         too_far = flown(sub, br, mid, rho0, h) > target
         lo, hi = np.where(too_far, mid, lo), np.where(too_far, hi, mid)
         print("  carry pass", k + 1, flush=True)
     logm = np.full(len(df), np.nan)
     logm[ix] = np.log(0.5 * (lo + hi))
+    if a.logm:
+        logm = np.load(a.logm)
+        assert len(logm) == len(df), "cached labels do not match this table"
     df["logm"] = logm
     np.save(a.out + ".logm.npy", logm)  # keep the 30-minute label pass if a later step fails
     # step 2: out-of-fold carry model

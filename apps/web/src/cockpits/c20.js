@@ -158,7 +158,7 @@ export async function build(root, api, U) {
   // ---- the pieces ----
   function paintCard() {
     const s = api.state, id = cur ? String(cur.b) : null, bat = id ? pname(id) : null, hand = cur ? cur.s : s.hand > 0 ? 'R' : 'L'
-    const fst = styleOf('face', 'quad-fs'), am = artMetrics(fst), src = id && facesRaw[id] ? faceSource(facesRaw[id]) : drawBust(160)
+    const fst = styleOf('face', 'braille-poster'), am = artMetrics(fst), src = id && facesRaw[id] ? faceSource(facesRaw[id]) : drawBust(160)
     const fcols = 32, fs = Math.min(11.5, 190 / (fcols * am.w))
     let art = ''
     if (src) { const r = renderArt(src, fst, fcols, id && facesRaw[id] ? { enh: { stretch: true, k: 1.5, sigma: 18 } } : {}); art = r.lines.join('\n') }
@@ -171,7 +171,7 @@ export async function build(root, api, U) {
     const W = 520, H = 330, host = E('#c20art'), panel = host.parentElement, pw = panel.clientWidth - 24, ph = panel.clientHeight - 64
     const src = drawBatter({ t: 2 / 3, aa, hand, w: W, h: H, mirrorW: W, rays: { la, vaa, len: 200 } })
     if (!src) return
-    const sst = styleOf('swing', 'half-fs'), am = artMetrics(sst), cols = 78, rowsEst = Math.round((cols * am.w * (H / W)) / am.h), fs = Math.max(6, Math.min(13, pw / (cols * am.w), ph / (rowsEst * am.h)))
+    const sst = styleOf('swing', 'braille-poster'), am = artMetrics(sst), cols = 78, rowsEst = Math.round((cols * am.w * (H / W)) / am.h), fs = Math.max(6, Math.min(13, pw / (cols * am.w), ph / (rowsEst * am.h)))
     const r = renderArt(src, sst, cols)
     host.className = am.cls
     host.style.fontSize = fs + 'px'

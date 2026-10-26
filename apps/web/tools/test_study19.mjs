@@ -33,7 +33,7 @@ check('oracle filter applies', /ORACLE HR/.test((await st()).text) && /BALL 1 OF
 // layouts
 for (const k of ['b', 'c', 'd', 'a']) {
   await page.click(`[data-lay="${k}"]`); await page.waitForTimeout(500)
-  const ok = await page.evaluate((k) => { const c = document.querySelector('.c19'); const vis = (sel) => { const e = document.querySelector(sel); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 40 && r.height > 40 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1 } ; return ['.cell.hero', '.cell.verd', '.cell.zone', '.cell.swing', '.cell.card', '.cell.plan', '.cell.arc', '.cell.lg', '.cell.prk', '.cell.ctl'].every(vis) }, k)
+  const ok = await page.evaluate((k) => { const c = document.querySelector('.c19'); const vis = (sel) => { const e = document.querySelector(sel); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 40 && r.height > 40 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1 } ; return ['.cell.hero', '.cell.verd', '.cell.zone', '.cell.swing', '.cell.card', '.cell.lg', '.cell.prk', '.cell.ctl'].every(vis) }, k)
   check(`layout ${k} puts every part on screen`, ok)
 }
 await page.screenshot({ path: `${outDir}/s19-test-a.png` })

@@ -1,0 +1,38 @@
+# Nightly batted-ball collector for Nuke Navigator. NOT deployed, NOT scheduled.
+# Approved 26 Oct 2026 on two conditions: it stays OFF until Andrew turns it on, and it skips the 2026 postseason
+# (the lockbox) until the one-shot lockbox test has been run. See README.md for the enable steps.
+name = "nuke-navigator-cron-daily"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false   # no public URL; the worker only runs on its cron trigger
+
+# ---- Cron trigger: DISABLED ----
+# To enable: create the bucket and namespace below, fill in the ids, uncomment the two lines under [triggers],
+# then run `npx wrangler deploy` from ops/cron-daily. 10:00 to 11:55 UTC every 5 minutes = up to 24 short runs a night
+# (3:00 to 4:55 am Pacific in summer, 2:00 to 3:55 am in winter), after the last West Coast game is final.
+# A typical 15-game night finishes in 8 runs; every later run reads one KV key and exits.
+# [triggers]
+# crons = ["*/5 10-11 * * *"]
+
+[vars]
+ALLOW_POSTSEASON = "0"    # lockbox: keep "0" until the lockbox test has been run; "1" lets postseason games through
+INCLUDE_SPRING = "0"      # "1" also collects spring training (gameType S)
+MAX_FEEDS_PER_RUN = "2"   # game feeds per cron run, sized for the free plan's 10 ms CPU per run (see README); 20 on Workers Paid
+DELAY_MS = "1000"         # pause before each feed request
+MAX_ATTEMPTS = "30"       # runs per date before giving up (counts runs killed part-way)
+# FORCE_DATE = "2026-09-20"   # optional: work on this date instead of yesterday (a finished date is left alone)
+# RETRY_STOPPED = "1"         # optional: retry a date that stopped on 401/403/429
+
+# ---- Storage: PLACEHOLDERS, nothing created or bound yet ----
+# R2 holds one JSON per date (days/YYYY-MM-DD.json, roughly 100-250 KB each).
+# Create with: npx wrangler r2 bucket create nuke-navigator-daily
+# [[r2_buckets]]
+# binding = "DAILY"
+# bucket_name = "nuke-navigator-daily"
+
+# KV holds the small index: day:YYYY-MM-DD -> status summary, latest -> newest complete date,
+# lockbox:first_post_2026 -> first 2026 date whose schedule listed postseason games.
+# Create with: npx wrangler kv namespace create INDEX   (then paste the id it prints)
+# [[kv_namespaces]]
+# binding = "INDEX"
+# id = "PASTE_KV_NAMESPACE_ID_HERE"

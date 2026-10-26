@@ -215,6 +215,7 @@ function draw(res) {
   if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => o.geometry?.dispose()) }
   if (burst) { scene.remove(burst); burst = null }
   fx?.clear()
+  if (window.__cpNoFlight) return // the wire-only study (23) draws the park alone
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length < 3) return
@@ -249,6 +250,7 @@ function drawPreview(res) { // a study in preview mode: show the flight as a thi
   anim = null
   if (apex) apex.visible = false
   if (ball) ball.visible = false
+  if (window.__cpNoFlight) return
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length >= 3) {
@@ -520,7 +522,16 @@ addEventListener('nn-stadium', () => (window.requestIdleCallback || ((f) => setT
 addEventListener('keydown', (e) => { if (NN.real && Q.get('vibes') && '12345'.includes(e.key) && e.target.tagName !== 'INPUT') NN.setVibe(Number(e.key)) })
 
 loadCarry().then(() => { if (wall) { update(); grid?.refresh() } }) // if the wall is not loaded yet, its own load calls update() with the table already in
-fetch('/oracle_wall.json').then((r) => r.json()).then((w) => { wall = w; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }); initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
-  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
+// the flight's wall: the measured crest (science/wall_crest.py, the same line drawn in orange) from -45 to +45 degrees; the old profile only outside that and with ?wall=old
+// (the old profile was 14 to 23 ft too deep in right-center and near the right-field line, so balls drawn over the orange line could read OFF THE WALL)
+const crestWall = (w, c) => {
+  if (!c?.bearing?.length || Q.get('wall') === 'old') return w
+  const at = (b) => { let i = 0; while (i < c.bearing.length - 2 && c.bearing[i + 1] < b) i++; const f = Math.min(Math.max((b - c.bearing[i]) / (c.bearing[i + 1] - c.bearing[i]), 0), 1); return [(c.radius[i] * (1 - f) + c.radius[i + 1] * f) / 0.3048, (c.height[i] * (1 - f) + c.height[i + 1] * f) / 0.3048] }
+  const out = { ...w, wall_ft: [...w.wall_ft], height_ft: [...w.height_ft], note: 'crest from -45 to +45 deg, old profile outside' }
+  for (let b = -45; b <= 45; b++) { const [r, h] = at(b); out.wall_ft[b + 47] = r; out.height_ft[b + 47] = h }
+  return out
+}
+Promise.all([fetch('/oracle_wall.json').then((r) => r.json()), fetch('/oracle_crest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null)]).then(([w, c]) => { wall = crestWall(w, c); update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = Q.get('krab') === '1' ? initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }) : null; // the crab is off for now (?krab=1 brings it back) initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
+  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, toWorld, findLanding: (path) => findLanding(NN, path, toWorld), wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
   if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }
   window.__dojoReady = true })

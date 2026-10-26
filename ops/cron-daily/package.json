@@ -1,0 +1,10 @@
+{
+  "name": "nuke-navigator-cron-daily",
+  "private": true,
+  "type": "module",
+  "description": "Nightly batted-ball collector (Cloudflare Worker, cron disabled). See README.md.",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "dryrun": "node dryrun.mjs"
+  }
+}

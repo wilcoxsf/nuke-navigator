@@ -5,7 +5,7 @@
 // (portrait, or a procedural ASCII batter that swings at the real attack angle), the controls, and the tally. Hover rule: pictures lean (plan, pitch, swing, card), numbers lift
 // (arc, league, parks), buttons sink, the park rotates by dragging, the verdict stamps.
 import { SKEL_CSS, restamp, tileHTML, isHR } from './skel.js'
-import { THEME_CSS, JUICE_CSS, themePicker, pressEl, makeControls, makeSession, loadDists, bigPlan, arcSVG, finishUI, oracleFence, oracleFences } from './skel2.js'
+import { THEME_CSS, JUICE_CSS, themePicker, pressEl, makeControls, makeSession, loadDists, finishUI, oracleFence, oracleFences } from './skel2.js'
 import { dotDigits, HOVER_CSS, hoverRule, rollTo, loadReplay, loadPool, loadFaces, ballsLike, zoneSVG, swingSVG, asciiBatter, asciiBust, barrelMap, histHonest } from './skel3.js'
 
 const PITCH = { FF: 'FOUR-SEAM', SI: 'SINKER', FC: 'CUTTER', SL: 'SLIDER', ST: 'SWEEPER', CU: 'CURVE', KC: 'KNUCKLE-CURVE', CH: 'CHANGEUP', FS: 'SPLITTER', SV: 'SLURVE', KN: 'KNUCKLEBALL', EP: 'EEPHUS', CS: 'SLOW CURVE', FO: 'FORKBALL' }
@@ -13,10 +13,10 @@ const rep = (n, s) => Array(n).fill(s).join(' ')
 const row = (...p) => '"' + p.map(([n, s]) => rep(n, s)).join(' ') + '"'
 const HDR = row([24, 'hdr'])
 const LAY = {
-  a: { rows: '20px 140px 190px minmax(0,1fr) 78px 206px', areas: [HDR, row([18, 'hero'], [6, 'verd']), row([18, 'hero'], [3, 'zone'], [3, 'swing']), row([18, 'hero'], [6, 'card']), row([24, 'ctl']), row([5, 'plan'], [5, 'arc'], [10, 'lg'], [4, 'prk'])], ov: [], name: 'RIGHT RAIL' },
-  b: { rows: '20px minmax(0,1fr) 78px 206px', areas: [HDR, row([24, 'hero']), row([24, 'ctl']), row([4, 'plan'], [4, 'arc'], [3, 'swing'], [3, 'zone'], [7, 'lg'], [3, 'prk'])], ov: ['verd', 'card'], name: 'FLOATING CARD' },
-  c: { rows: '20px minmax(0,1fr) 78px 232px', areas: [HDR, row([24, 'hero']), row([24, 'ctl']), row([4, 'card'], [3, 'zone'], [3, 'swing'], [4, 'plan'], [4, 'arc'], [6, 'lg'])], ov: ['verd', 'prk'], name: 'BOTTOM DOCK' },
-  d: { rows: '20px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 78px 190px', areas: [HDR, row([5, 'card'], [14, 'hero'], [5, 'verd']), row([5, 'zone'], [14, 'hero'], [5, 'lg']), row([5, 'swing'], [14, 'hero'], [5, 'prk']), row([24, 'ctl']), row([9, 'plan'], [15, 'arc'])], ov: [], name: 'THREE COLUMNS' },
+  a: { rows: '20px 140px 190px minmax(0,1fr) 78px 206px', areas: [HDR, row([18, 'hero'], [6, 'verd']), row([18, 'hero'], [3, 'zone'], [3, 'swing']), row([18, 'hero'], [6, 'card']), row([24, 'ctl']), row([16, 'lg'], [8, 'prk'])], ov: [], name: 'RIGHT RAIL' },
+  b: { rows: '20px minmax(0,1fr) 78px 206px', areas: [HDR, row([24, 'hero']), row([24, 'ctl']), row([6, 'swing'], [6, 'zone'], [8, 'lg'], [4, 'prk'])], ov: ['verd', 'card'], name: 'FLOATING CARD' },
+  c: { rows: '20px minmax(0,1fr) 78px 232px', areas: [HDR, row([24, 'hero']), row([24, 'ctl']), row([5, 'card'], [4, 'zone'], [4, 'swing'], [11, 'lg'])], ov: ['verd', 'prk'], name: 'BOTTOM DOCK' },
+  d: { rows: '20px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 78px', areas: [HDR, row([5, 'card'], [14, 'hero'], [5, 'verd']), row([5, 'zone'], [14, 'hero'], [5, 'lg']), row([5, 'swing'], [14, 'hero'], [5, 'prk']), row([24, 'ctl'])], ov: [], name: 'THREE COLUMNS' },
 }
 
 export async function build(root, api, U) {
@@ -124,8 +124,6 @@ export async function build(root, api, U) {
   <div class="cell tilt swing" data-a="swing"><div class="pnl p"><span class="t">/ S W I N G /</span><div class="fig" id="c19s"></div></div></div>
   <div class="cell tilt card" data-a="card"><div class="pnl p"><span class="t">/ B A T T E R /</span><div class="cd" id="c19c"></div><div class="cdt"><span class="bt" data-tab="face">FACE</span><span class="bt" data-tab="stance">STANCE</span></div></div></div>
   <div class="cell ctl" data-a="ctl"><div class="pnl nob p"><div class="strip" id="c19s2">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}"><span class="ps">${i + 1} ${s.label}</span><b></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span></div>`).join('')}<div class="bt hot" data-i="6"><span class="ps">ENTER</span><b>SWING</b></div></div></div></div>
-  <div class="cell tilt plan" data-a="plan"><div class="pnl p"><span class="t">/ P L A N /</span><div class="fig" id="c19p"></div></div></div>
-  <div class="cell lift arc" data-a="arc"><div class="pnl p"><span class="t">/ A R C /</span><div class="fig" id="c19ar"></div></div></div>
   <div class="cell lift lg" data-a="lg"><div class="pnl p"><span class="t">/ V S &nbsp; L E A G U E /</span><div class="lgw" id="c19l"></div></div></div>
   <div class="cell lift prk" data-a="prk"><div class="pnl p"><span class="t">/ P A R K S /</span><div class="gt" id="c19g"></div><div class="gn" id="c19n"></div></div></div></div>`
   const E = (id) => root.querySelector(id), C = E('.c19'), hero = E('#c19h'), ovs = E('#c19ov')
@@ -241,9 +239,7 @@ export async function build(root, api, U) {
   function render(res) {
     last = res
     const s = api.state, v = res.verdict, pv = !!ses.beat?.preview
-    const pf = dim(E('#c19p')), af = dim(E('#c19ar')), zf = dim(E('#c19z')), sf2 = dim(E('#c19s'))
-    E('#c19p').innerHTML = bigPlan(res, api.FT, { w: pf.w, h: pf.h, fences: oracleFences(api, fences), park: pf.w > 300 ? oracleFence(api, parks) : null, bearings: [-45, -22.5, 0, 22.5, 45], preview: pv, ghost: pv ? ses.committed?.path : null, reach: 440 })
-    E('#c19ar').innerHTML = arcSVG(res, api.FT, { w: af.w, h: af.h, preview: pv, ghost: pv ? ses.committed?.path : null })
+    const zf = dim(E('#c19z')), sf2 = dim(E('#c19s'))
     E('#c19z').innerHTML = mode === 'replay' && cur ? zoneSVG(cur, { w: zf.w, h: zf.h }) : ''
     E('#c19s').innerHTML = swingSVG(mode === 'replay' ? cur : null, s, { w: sf2.w, h: sf2.h })
     if (mode !== 'replay' || !cur) {
