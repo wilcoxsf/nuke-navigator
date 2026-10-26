@@ -1,8 +1,10 @@
 """League distributions for the 'where this ball lands' histograms: counts per bin for every 2023-2025 fair ball in play and for the home-run subset, for exit speed,
 launch angle, direction, projected distance, and hang time. Hang time is not in the Statcast pull, so it is modeled: a 30k sample is flown with the page's physics and
 spin prior (savant_xhr_compare.fly_path) and labeled that way in the UI. Writes apps/web/public/dists.json (aggregated counts only).
+With the argument `oracle`, the same for Oracle Park only (venue 2395) into apps/web/public/dists_oracle.json, for the ORACLE ONLY toggle on the histograms.
 """
 import json
+import sys
 
 import numpy as np
 import pandas as pd
@@ -11,11 +13,14 @@ from flight_fit import MPH, RPM
 from savant_xhr_compare import DT, ROOT, fly_path
 
 df = pd.read_parquet(ROOT + "data/derived/exp_features.parquet",
-                     columns=["game_year", "type", "launch_speed", "launch_angle", "bearing", "hit_distance_sc", "air_density", "stand_r", "y"])
+                     columns=["game_year", "venue_id", "type", "launch_speed", "launch_angle", "bearing", "hit_distance_sc", "air_density", "stand_r", "y"])
 df = df[(df.game_year >= 2023) & (df.type == "X") & df.launch_speed.notna() & df.launch_angle.notna() & df.bearing.between(-45, 45)].reset_index(drop=True)
-print("balls in play 2023-2025:", len(df), "HR:", int(df.y.sum()), flush=True)
+ORACLE = len(sys.argv) > 1 and sys.argv[1] == "oracle"
+if ORACLE:
+    df = df[df.venue_id == 2395].reset_index(drop=True)
+print("balls in play 2023-2025" + (" at Oracle" if ORACLE else "") + ":", len(df), "HR:", int(df.y.sum()), flush=True)
 
-out = {"n": int(len(df)), "n_hr": int(df.y.sum()), "years": "2023-2025", "metrics": {}}
+out = {"n": int(len(df)), "n_hr": int(df.y.sum()), "years": "2023-2025", "where": "oracle" if ORACLE else "mlb", "metrics": {}}
 
 
 def hist(name, vals, lo, hi, step, modeled=False, hr=None):
@@ -43,7 +48,7 @@ Hh, _, _ = np.histogram2d(ev_[y], la_[y], [eb, lb])
 out["evla"] = {"ev0": 60, "evstep": 1.25, "la0": -20, "lastep": 5, "all": Ha.astype(int).tolist(), "hr": Hh.astype(int).tolist()}
 print("evla grid", Ha.shape, flush=True)
 
-s = df.sample(30000, random_state=3).reset_index(drop=True)
+s = df.sample(min(30000, len(df)), random_state=3).reset_index(drop=True)
 hand = np.where(s.stand_r == 1, 1.0, -1.0)
 la, br = s.launch_angle.to_numpy(float), s.bearing.to_numpy(float)
 hang = np.zeros(len(s))
@@ -56,5 +61,6 @@ for a in range(0, len(s), CH):
     idx = np.argmax(R >= last - 1e-4, axis=1)
     hang[sl] = idx * DT
 hist("hang", hang, 0, 8, 0.25, modeled=True, hr=s.y.to_numpy() == 1)
-json.dump(out, open(ROOT + "apps/web/public/dists.json", "w"), separators=(",", ":"))
-print("written apps/web/public/dists.json")
+name = "dists_oracle.json" if ORACLE else "dists.json"
+json.dump(out, open(ROOT + "apps/web/public/" + name, "w"), separators=(",", ":"))
+print("written apps/web/public/" + name)

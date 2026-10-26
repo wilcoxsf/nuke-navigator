@@ -241,8 +241,10 @@ function draw(res) {
     short: Math.round(v.short ?? 0), wall: Math.round(v.wallH ?? 0), wallft: Math.round(wall?.wall_ft?.[Math.round(bw)] ?? 0), cross: Math.round(v.cross ?? 0),
     off: Math.abs(Math.abs(res.landB) - 45).toFixed(1), side: res.landB < 0 ? 'left' : 'right',
   }
-  anim = { pts, t0: performance.now(), dur: 2600, beats, sub: fill(pickSub(res.key, rngC), vars), key: res.key, tone: TONE[res.key], at, kind: v.kind, shown: -2, exploded: false }
+  // window.__cpHold (ms): a hit-stop, the ball held at the plate before it leaves; __cpOnFire / __cpOnFly / __cpOnLand: hooks for a study's own effects (Study 25)
+  anim = { pts, t0: performance.now() + (window.__fixedTime === undefined ? window.__cpHold ?? 0 : 0), dur: 2600 * (window.__cpSlow ?? 1) /* __cpSlow: slow motion for an instant replay */, beats, sub: fill(pickSub(res.key, rngC), vars), key: res.key, tone: TONE[res.key], at, kind: v.kind, shown: -2, exploded: false }
   showBeat(-1)
+  window.__cpOnFire?.({ pts, at, key: res.key, kind: v.kind, tone: anim.tone, res })
   if (window.__fixedTime !== undefined) { ball.position.copy(pts[pts.length - 1]); finish() }
 }
 const previewOn = () => !!window.__cpPreview && !window.__cpFire && (window.__fixedTime === undefined || !!Q.get('prev'))
@@ -297,12 +299,13 @@ function finish() {
   const sc = Math.min(2.2, Math.max(0.8, NN.camera.position.distanceTo(anim.at) / 220))
   fx.explode(anim.tone, anim.at, pal, sc, state.ui === 'K' ? 'k' : 'comic')
   window.__krab?.react(anim.tone, anim.at)
+  window.__cpOnLand?.({ at: anim.at, key: anim.key, kind: anim.kind, tone: anim.tone, pts: anim.pts })
   if (window.__fixedTime !== undefined) fx.step(Number(Q.get('fxt') ?? 0.4))
 }
 function tick() {
   if (anim && ball) {
-    const f = scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1), i = Math.floor(f * (anim.pts.length - 1))
-    if (window.__fixedTime === undefined) ball.position.copy(anim.pts[i])
+    const f = scrubF ?? Math.max(0, Math.min((performance.now() - anim.t0) / anim.dur, 1)), i = Math.floor(f * (anim.pts.length - 1))
+    if (window.__fixedTime === undefined) { ball.position.copy(anim.pts[i]); window.__cpOnFly?.(ball.position, f) }
     const n = anim.beats.length
     if (apex && f >= apex.userData.at) apex.visible = true // the zenith tag appears as the ball passes the top
     if (n > 1) for (let k = 0; k < n - 1; k++) if (f >= (k / (n - 1)) * 0.8 && anim.shown < k) showBeat(k)
