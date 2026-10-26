@@ -1,6 +1,10 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js'
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js'
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
+import { buildMarks, smoothWallFn } from './wiremarks.js'
 import { loadLibrary, mulberry32, pick } from './comparisons.js'
 import { pickScenarios } from './scenarios.js'
 
@@ -61,6 +65,9 @@ function recolor() {
 // the Dojo has buttons for it. A vibe sets the structure tints, the saturation and hue turn on every surface, sky, sea, lights, ink and ribbons.
 const QS0 = new URLSearchParams(location.search)
 const REAL = QS0.get('real') ? QS0.get('real') !== '0' : QS0.get('mode') === 'dojo'
+// ?park=TEAM (any of the other 29 parks): its wire-only model and home-run line (apps/web/public/parks/<TEAM>/, private; science/park_register.py, park_crest.py, tools/wire_parks.mjs),
+// registered into this frame (home plate at (0.3, 1.0), centre field -z). No param or park=SF is Oracle exactly as before.
+const PARKX = /^[A-Z]{2,3}$/.test((QS0.get('park') || '').toUpperCase()) && (QS0.get('park') || '').toUpperCase() !== 'SF' ? QS0.get('park').toUpperCase() : null
 const BASE_VIBE = { name: 'BASE', sat: 1.35, hue: 0, hatch: 0, contrast: 1, lineW: 1, lineK: 1, outline: 0, bg: '#ffe2a6', ink: '#0d2b4a',
   ocean: { deep: '#081633', light: '#0a1b3d', crest: '#173366' }, tint: { seat: '#1f6b57', deck: '#8e9db0', brick: '#7f8794', under: '#2f3a52' },
   hemi: [0xffffff, 0xb59f7a, 1.1], sun: [0xffffff, 2.4], ribbon: { GONE: '#ff5a3c', WALL: '#ffd23f', PLAY: '#7fe3d4', FOUL: '#b0b0b0' }, burst: '#ffd23f' }
@@ -110,8 +117,9 @@ const realColorChunk = (sh) => { // saturation and hue turn on the final diffuse
        c = clamp(mix(vec3(L), c, vSat), 0.0, 1.0);
        diffuseColor.rgb = clamp((c - 0.4) * vContrast + 0.4, 0.0, 1.0); }`)
 }
-new GLTFLoader().load(REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (gltf) => {
+new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_color.glb' : '/stadium_sf_slim.glb', (gltf) => {
   gltf.scene.traverse((o) => {
+    if (PARKX) { if (o.isMesh) mats.push(o.material); return } // a park's wire-only model has positions only: nothing to paint
     if (o.isMesh && REAL) {
       const name = o.material.name || ''
       if (name.includes('Greyscale')) { tintStructure(o); o.material.vertexColors = true }
@@ -346,6 +354,7 @@ function resize() {
   post.uniforms.res.value.set(w * pr, h * pr)
   post.uniforms.dotScale.value = 6 * pr // hatch pitch in device pixels
   post.uniforms.pixSize.value = pixCss * pr
+  fatRes()
 }
 addEventListener('resize', resize)
 resize()
@@ -411,11 +420,24 @@ loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
 // Wireframe park: the stadium's hard edges (angle between faces over `angle` degrees) as thin lines. hidden = true draws the faces black so only the near lines show;
 // hidden = false leaves it see-through. Edges are built the first time it is switched on (a second or two), then toggling is free.
 let wireGroup = null
+var funData = PARKX ? { groups: [] } : undefined // the baked full-detail fan attractions (undefined: not asked for yet, null: loading, object: loaded); Oracle only
+var crestData // the home-run line: the crest of the outfield wall from foul pole to foul pole (science/wall_crest.py), same loading states as funData
+var crestRibbonMat = null // the painted top of the wall (same accent colour as the crest line)
+const parkWall = (b) => { // ?park=TEAM: [distance ft, height ft] of the wall at bearing b, read off that park's crest (the same shape as dojo.js wallAt)
+  const c = crestData
+  if (!c?.bearing?.length) return null
+  const B = c.bearing, st = B[1] - B[0], x = Math.min(B[B.length - 1], Math.max(B[0], b)), i = Math.min(B.length - 2, Math.floor((x - B[0]) / st)), f = (x - B[i]) / st
+  return [(c.radius[i] * (1 - f) + c.radius[i + 1] * f) / 0.3048, (c.height[i] * (1 - f) + c.height[i + 1] * f - (c.lift ?? 0)) / 0.3048]
+}
+var wireFat = [] // (var: resize() runs once before this line) // fat-line materials (pixel width, so they need the render size): { mat, kind: 'main' | 'accent' }
+function fatRes() { const pr = renderer.getPixelRatio(); for (const f of wireFat ?? []) f.mat.resolution.set(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr)) }
 const wireMat = new THREE.LineBasicMaterial({ color: '#e9e7dc', transparent: true, opacity: 0.8 })
 const wireHeavy = new THREE.LineBasicMaterial({ color: '#e9e7dc', transparent: true, opacity: 1 })
+const wireGhost = new THREE.LineBasicMaterial({ color: '#e9e7dc', transparent: true, opacity: 0.4, vertexColors: true }) // bowl lines in the ghost and terrace presets: dim, and fading with distance from the plate
 const wireFace = new THREE.MeshBasicMaterial({ color: '#030403', polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })
 const wireOrig = new Map()
 function setWire(on, o = {}) {
+  if (PARKX && o.wall) o = { ...o, wall: parkWall } // the markings follow this park's wall (from its crest), not Oracle's measured profile
   const st = window.__nn.stadium
   if (!st) { window.addEventListener('nn-stadium', () => setWire(on, o), { once: true }); return }
   if (o.rebuild && wireGroup) { // a different edge angle or contour step
@@ -423,6 +445,20 @@ function setWire(on, o = {}) {
     wireGroup.traverse((x) => x.geometry?.dispose())
     window.__nn.hideForNormal.splice(window.__nn.hideForNormal.indexOf(wireGroup), 1)
     wireGroup = null
+    wireFat = []
+    crestRibbonMat = null
+  }
+  if (on && !wireGroup && o.wall && crestData == null && !(o.fun && funData === undefined)) { // the crest of the wall (the home-run line) must be known before the lines are built: undefined starts the load, null (loading) makes any other call wait for it
+    if (crestData === undefined) {
+      crestData = null
+      fetch(PARKX ? `/parks/${PARKX}/crest.json` : '/oracle_crest.json').then((r) => (r.ok ? r.json() : null)).then((d) => { crestData = d ?? { bearing: [] }; if (PARKX) document.title = `${PARKX} (${d?.venue ?? 'no crest'}): ${document.title}`; setWire(on, o) }).catch(() => { crestData = { bearing: [] }; setWire(on, o) })
+    }
+    return
+  }
+  if (on && !wireGroup && o.fun && funData === undefined) { // the colour wireframe of the fan attractions must be known before the white copies are classified
+    funData = null
+    fetch('/fun_oracle.json').then((r) => (r.ok ? r.json() : null)).then((d) => { funData = d ?? { groups: [] }; setWire(on, o) }).catch(() => { funData = { groups: [] }; setWire(on, o) })
+    return
   }
   if (on && !wireGroup) {
     wireGroup = new THREE.Group()
@@ -431,22 +467,39 @@ function setWire(on, o = {}) {
     const step = o.step ?? 3 // metres between height contours (0 = none)
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3()
     const cont = []
-    const heavy = [], faint = [], hv = new THREE.Vector3(), hx = (o.home ?? [0.3, 1.0])[0], hz = (o.home ?? [0.3, 1.0])[1]
+    const heavy = [], faint = [], faintFade = [], hv = new THREE.Vector3(), hx = (o.home ?? [0.3, 1.0])[0], hz = (o.home ?? [0.3, 1.0])[1]
+    // Stands presets (stands: full | clean | ghost | quiet | terrace). SEAT DETAIL is defined by chain length (science/seat_chains.md): hard edges of the STRUCTURE material (SF_Greyscale) are chained end to end where they meet (5 mm) and
+    // continue within 20 degrees; an edge whose chain is shorter than C metres is seat detail (individual seats, rails and fittings). That flags about 80% of the near-field, lower-bowl and upper-deck seat edges at C = 2 m and none of the field, infield
+    // or padding material. Long chains are the row lines and structure. Two protected boxes are never thinned: the scoreboard (the pixel mosaic behind centre field) and the Coke corner (slides, glove, bottle), which get coloured halo outlines instead.
+    const stands = o.stands ?? 'full'
+    const Upos = [], Ucls = [], Hkeys = new Set()
+    const qk = (x, y, z) => Math.round(x * 200) + ',' + Math.round(y * 200) + ',' + Math.round(z * 200)
     st.traverse((m) => {
       if (!m.isMesh) return
-      if (o.split) { // two weights: low edges near the field and the fence are heavy, the rest of the stands faint
+      if (o.split) { // collect every hard edge; they are classified after the traverse, once the chains are known
+        const mname = ((wireOrig.get(m) ?? m.material)?.name) || ''
+        const cls = (PARKX ? /Greyscale|_Atlas_\d/.test(mname) : mname.startsWith('SF_Greyscale')) ? 1 : 0 // structure (seats, decks); Miami's model names it MIA_Atlas_2..4
         const eg = new THREE.EdgesGeometry(m.geometry, o.angle ?? 75), pa = eg.attributes.position
+        const va = new THREE.Vector3(), vb = new THREE.Vector3()
         for (let i = 0; i + 1 < pa.count; i += 2) {
-          hv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld)
-          const ax = hv.x, ay = hv.y, az = hv.z
-          hv.fromBufferAttribute(pa, i + 1).applyMatrix4(m.matrixWorld)
-          const near = (ay + hv.y) / 2 < (o.heavyY ?? 12) && Math.hypot((ax + hv.x) / 2 - hx, (az + hv.z) / 2 - hz) < (o.heavyR ?? 150)
-          ;(near ? heavy : faint).push(ax, ay, az, hv.x, hv.y, hv.z)
+          va.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld)
+          vb.fromBufferAttribute(pa, i + 1).applyMatrix4(m.matrixWorld)
+          const k1 = qk(va.x, va.y, va.z), k2 = qk(vb.x, vb.y, vb.z)
+          Hkeys.add(k1 < k2 ? k1 + '|' + k2 : k2 + '|' + k1)
+          if (!o.faintAngle) { Upos.push(va.x, va.y, va.z, vb.x, vb.y, vb.z); Ucls.push(cls) }
         }
         eg.dispose()
-        return
+        if (o.faintAngle) { // a lower crease angle for the whole universe, so the smooth seating bowl gets drawn too
+          const ef = new THREE.EdgesGeometry(m.geometry, o.faintAngle), pf = ef.attributes.position
+          for (let i = 0; i + 1 < pf.count; i += 2) {
+            va.fromBufferAttribute(pf, i).applyMatrix4(m.matrixWorld)
+            vb.fromBufferAttribute(pf, i + 1).applyMatrix4(m.matrixWorld)
+            Upos.push(va.x, va.y, va.z, vb.x, vb.y, vb.z); Ucls.push(cls)
+          }
+          ef.dispose()
+        }
       }
-      if (o.angle !== 0) {
+      if (o.angle !== 0 && !o.split) {
         const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, o.angle ?? 55), wireMat)
         e.matrixAutoUpdate = false
         e.matrix.copy(m.matrixWorld)
@@ -462,6 +515,7 @@ function setWire(on, o = {}) {
         vert(a, t * 3); vert(b, t * 3 + 1); vert(c, t * 3 + 2)
         const lo = Math.min(a.y, b.y, c.y), hi = Math.max(a.y, b.y, c.y)
         if (hi - lo < 1e-4) continue
+        if (o.contourOuter && Math.hypot((a.x + b.x + c.x) / 3 - hx, (a.z + b.z + c.z) / 3 - hz) < o.contourOuter) continue // contours only on the outer bowl, not on the field
         for (let k = Math.max(1, Math.ceil(lo / step)); k * step < hi; k++) {
           const y = k * step, pts = []
           for (const [p, q] of [[a, b], [b, c], [c, a]]) {
@@ -471,14 +525,189 @@ function setWire(on, o = {}) {
         }
       }
     })
+    let dropped = 0, seatFlagged = 0, protectedN = 0, thinned = 0, funSkipped = 0, nfLen = 0
+    const ghost = [], ghostFade = []
+    let wallArrOut = [], wallLenOut = 0, wallSectorOut = new Array(18).fill(0)
     if (o.split) {
-      for (const [arr, mat, ord] of [[faint, wireMat, 4], [heavy, wireHeavy, 6]]) {
-        const l = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)), mat)
-        l.renderOrder = ord
-        l.frustumCulled = false
-        wireGroup.add(l)
+      const nU = Ucls.length
+      // chains: union-find over edges that share an endpoint (5 mm) and continue within 20 degrees, within one material class
+      const par = new Int32Array(nU).map((_, i) => i)
+      const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x] } return x }
+      const len = new Float32Array(nU), dir = new Float32Array(nU * 3)
+      const ends = new Map()
+      for (let i = 0; i < nU; i++) {
+        const j = i * 6, dx = Upos[j + 3] - Upos[j], dy = Upos[j + 4] - Upos[j + 1], dz = Upos[j + 5] - Upos[j + 2], L = Math.hypot(dx, dy, dz) || 1e-9
+        len[i] = L; dir[i * 3] = dx / L; dir[i * 3 + 1] = dy / L; dir[i * 3 + 2] = dz / L
+        for (const e of [0, 1]) { const k = qk(Upos[j + e * 3], Upos[j + e * 3 + 1], Upos[j + e * 3 + 2]); const l = ends.get(k); if (l) l.push(i * 2 + e); else ends.set(k, [i * 2 + e]) }
       }
+      for (const l of ends.values()) {
+        if (l.length !== 2) continue
+        const i = l[0] >> 1, ei = l[0] & 1, k = l[1] >> 1, ek = l[1] & 1
+        if (i === k || Ucls[i] !== Ucls[k]) continue
+        const si = ei === 1 ? 1 : -1, sk = ek === 0 ? 1 : -1 // direction of travel through the shared point
+        const dot = (dir[i * 3] * si) * (dir[k * 3] * sk) + (dir[i * 3 + 1] * si) * (dir[k * 3 + 1] * sk) + (dir[i * 3 + 2] * si) * (dir[k * 3 + 2] * sk)
+        if (dot > 0.9397) par[find(i)] = find(k)
+      }
+      const root = new Int32Array(nU), clen = new Float32Array(nU)
+      for (let i = 0; i < nU; i++) { root[i] = find(i); clen[root[i]] += len[i] }
+      // protected zones: 1 = scoreboard (left exactly as it is), 2 = Coke corner (its white edges are replaced by the colour wireframe from the full-detail asset)
+      const protectedAt = (x, y, z) => {
+        if (PARKX) return 0 // the scoreboard and Coke-corner boxes are Oracle's
+        const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz), bd = Math.abs((Math.atan2(dx, -dz) * 180) / Math.PI)
+        if (r > 145 && r < 160 && y > 15 && y < 60 && bd < 25) return 1
+        return x > -75 && x < -40 && z > -150 && z < -118 && y > 7 && y < 23 ? 2 : 0
+      }
+      const CELL = 0.5, ck = (x, y, z) => Math.floor(x / CELL) + ',' + Math.floor(y / CELL) + ',' + Math.floor(z / CELL)
+      const funCells = new Set()
+      if (funData) for (const g of funData.groups) for (let t = 0; t + 5 < g.seg.length; t += 6) {
+        for (const f of [0, 0.5, 1]) funCells.add(ck((g.seg[t] + f * (g.seg[t + 3] - g.seg[t])) / 100, (g.seg[t + 1] + f * (g.seg[t + 4] - g.seg[t + 1])) / 100, (g.seg[t + 2] + f * (g.seg[t + 5] - g.seg[t + 2])) / 100))
+      }
+      const nearFun = (x, y, z) => {
+        const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL), cz = Math.floor(z / CELL)
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) if (funCells.has((cx + a) + ',' + (cy + b) + ',' + (cz + c))) return true
+        return false
+      }
+      const C = stands === 'quiet' ? 5 : 2
+      const wallFn = o.wall ? smoothWallFn(o.wall) : null
+      const wallArr = [], wallSector = new Array(18).fill(0)
+      let wallLen = 0
+      const dmin = { clean: 0.8, ghost: 1.0, quiet: 1.5, terrace: 2.5 }[stands] ?? 0 // minimum spacing between kept row lines: clean about 70% of the rows nearest the field stay, ghost about 40%, quiet about 20%, terrace about 8%
+      // pass 1: per-edge flags
+      const prot = new Uint8Array(nU), touch = new Uint8Array(nU)
+      for (let i = 0; i < nU; i++) {
+        const j = i * 6, mx = (Upos[j] + Upos[j + 3]) / 2, my = (Upos[j + 1] + Upos[j + 4]) / 2, mz = (Upos[j + 2] + Upos[j + 5]) / 2
+        if (Ucls[i] === 1) { prot[i] = protectedAt(mx, my, mz); touch[i] = prot[i] === 1 ? 0 : 1 } // only the scoreboard is left untouched; the Coke box's bleacher seats are thinned like all seats
+        if (prot[i]) protectedN++
+      }
+      // pass 2 (ghost, quiet, terrace): greedy line spacing. Chains of touched structure that are not seat detail are visited longest first; a chain is dropped when most of its points lie within dmin of a chain already kept,
+      // so stacked row lines thin to a regular spacing everywhere (the rows nearest the field included) while the longest structural lines always survive.
+      const keepRoot = new Uint8Array(nU)
+      if (dmin) {
+        const byRoot = new Map()
+        for (let i = 0; i < nU; i++) if (touch[i] && clen[root[i]] >= C) { const l = byRoot.get(root[i]); if (l) l.push(i); else byRoot.set(root[i], [i]) }
+        const order = [...byRoot.entries()].sort((p, q) => clen[q[0]] - clen[p[0]])
+        const hash = new Map(), cs = dmin
+        const hk = (x, y, z) => Math.floor(x / cs) + ',' + Math.floor(y / cs) + ',' + Math.floor(z / cs)
+        for (const [rt, idxs] of order) {
+          const pts = []
+          for (const i of idxs) { const j = i * 6, n = Math.max(1, Math.ceil(len[i] / 1.0)); for (let t = 0; t < n; t++) { const f = (t + 0.5) / n; pts.push(Upos[j] + f * (Upos[j + 3] - Upos[j]), Upos[j + 1] + f * (Upos[j + 4] - Upos[j + 1]), Upos[j + 2] + f * (Upos[j + 5] - Upos[j + 2])) } }
+          let near = 0
+          const total = pts.length / 3
+          for (let t = 0; t < pts.length; t += 3) {
+            const cx = Math.floor(pts[t] / cs), cy = Math.floor(pts[t + 1] / cs), cz = Math.floor(pts[t + 2] / cs)
+            let hit = false
+            for (let a = -1; a <= 1 && !hit; a++) for (let b2 = -1; b2 <= 1 && !hit; b2++) for (let c = -1; c <= 1 && !hit; c++) {
+              const l = hash.get((cx + a) + ',' + (cy + b2) + ',' + (cz + c))
+              if (l) for (let u = 0; u < l.length; u += 3) if ((l[u] - pts[t]) ** 2 + (l[u + 1] - pts[t + 1]) ** 2 + (l[u + 2] - pts[t + 2]) ** 2 < cs * cs) { hit = true; break }
+            }
+            if (hit) near++
+          }
+          if (near / total < 0.6) {
+            keepRoot[rt] = 1
+            for (let t = 0; t < pts.length; t += 3) { const k = hk(pts[t], pts[t + 1], pts[t + 2]); const l = hash.get(k); if (l) l.push(pts[t], pts[t + 1], pts[t + 2]); else hash.set(k, [pts[t], pts[t + 1], pts[t + 2]]) }
+          }
+        }
+      }
+      const fadeOf = (x, z) => Math.min(1, Math.max(0.18, 1.15 - Math.hypot(x - hx, z - hz) / 250))
+      const push = (arr, i) => { const j = i * 6; for (let t = 0; t < 6; t++) arr.push(Upos[j + t]) }
+      const pushGhost = (i) => { push(ghost, i); const j = i * 6, f = fadeOf((Upos[j] + Upos[j + 3]) / 2, (Upos[j + 2] + Upos[j + 5]) / 2); ghostFade.push(f, f, f, f, f, f) }
+      // pass 3: classify
+      for (let i = 0; i < nU; i++) {
+        const j = i * 6, mx = (Upos[j] + Upos[j + 3]) / 2, my = (Upos[j + 1] + Upos[j + 4]) / 2, mz = (Upos[j + 2] + Upos[j + 5]) / 2
+        const k1 = qk(Upos[j], Upos[j + 1], Upos[j + 2]), k2 = qk(Upos[j + 3], Upos[j + 4], Upos[j + 5])
+        const hard = Hkeys.has(k1 < k2 ? k1 + '|' + k2 : k2 + '|' + k1)
+        const r = Math.hypot(mx - hx, mz - hz), near = my < (o.heavyY ?? 12) && r < (o.heavyR ?? 150)
+        const cl = clen[root[i]], faintOk = len[i] >= (o.faintMin ?? 0.8), structural = Ucls[i] === 1
+        const isNF = touch[i] && r < 45 && my < 8 // the seats nearest the field (a measure for the test, not a rule)
+        if (prot[i] === 2 && nearFun(mx, my, mz)) { funSkipped++; continue } // the colour wireframe from the asset replaces it
+        const seat = touch[i] && cl < C
+        if (seat) seatFlagged++
+        let pushed = null
+        if (stands === 'full' || !touch[i]) { if (near && hard) { push(heavy, i); pushed = 1 } else if (faintOk) { push(faint, i); pushed = 1 } }
+        else if (stands === 'clean') {
+          if (seat) { if (faintOk) { push(faint, i); pushed = 1 } else dropped++ }
+          else if (!keepRoot[root[i]]) { thinned++; dropped++ }
+          else { push(faint, i); pushed = 1 } // seats nearest the field are thinned like all seats: no field-level exemption
+        } else {
+          if (seat) { if (stands === 'ghost' && cl >= 0.6 && faintOk) { pushGhost(i); pushed = 1 } else dropped++ }
+          else if (!keepRoot[root[i]]) { thinned++; dropped++ } // thinned by the line spacing
+          else if (faintOk || stands !== 'ghost') { pushGhost(i); pushed = 1 }
+          else dropped++
+        }
+        if (pushed && isNF) nfLen += len[i]
+      }
+      if (crestData?.bearing?.length) { // the home-run line: one continuous polyline along the crest of the wall, from the surface of the model itself (science/wall_crest.py)
+        const cb = crestData.bearing, cr = crestData.radius, cy = crestData.height, D2R = Math.PI / 180
+        for (let k = 0; k + 1 < cb.length; k++) {
+          const x0 = hx + cr[k] * Math.sin(cb[k] * D2R), z0 = hz - cr[k] * Math.cos(cb[k] * D2R), x1 = hx + cr[k + 1] * Math.sin(cb[k + 1] * D2R), z1 = hz - cr[k + 1] * Math.cos(cb[k + 1] * D2R)
+          wallArr.push(x0, cy[k], z0, x1, cy[k + 1], z1)
+          const l = Math.hypot(x1 - x0, cy[k + 1] - cy[k], z1 - z0); wallLen += l; wallSector[Math.min(17, Math.max(0, Math.floor((cb[k] + 45) / 5)))] += l
+        }
+      }
+      wallArrOut = wallArr; wallLenOut = wallLen; wallSectorOut = wallSector
     }
+    window.__nn.wireWall = wallArrOut
+    window.__nn.wireStats = { crestSegments: wallArrOut.length / 6, wallEdgeLength: Math.round(wallLenOut), wallSectors: wallSectorOut.map((v) => Math.round(v)), stands, dropped, thinned, seatFlagged, protectedEdges: protectedN, funSkipped, nearFieldSeatLength: Math.round(nfLen), heavyN: heavy.length / 6, ghostN: ghost.length / 6 }
+    const standsFadeOn = ghost.length > 0
+    const addThin = (arr, mat, ord, colors) => {
+      const geo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(arr, 3))
+      if (colors) geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+      const l = new THREE.LineSegments(geo, mat)
+      l.renderOrder = ord
+      l.frustumCulled = false
+      wireGroup.add(l)
+    }
+    // fat lines: a real pixel width (WebGL's own lines are always 1 px); fog applies, so far lines melt like the thin ones
+    const addFat = (arr, px, kind, opacity, ord, fixedColor) => {
+      const g = new LineSegmentsGeometry()
+      g.setPositions(arr)
+      const mat = new LineMaterial({ color: fixedColor ?? (kind === 'accent' ? (o.accent ?? o.color ?? '#e9e7dc') : (o.color ?? '#e9e7dc')), linewidth: px * renderer.getPixelRatio(), transparent: true, opacity, depthTest: true, fog: true })
+      const l = new LineSegments2(g, mat)
+      l.renderOrder = ord
+      l.frustumCulled = false
+      wireGroup.add(l)
+      wireFat.push({ mat, kind })
+    }
+    if (o.split) {
+      addThin(faint, wireMat, 4)
+      if (standsFadeOn) addThin(ghost, wireGhost, 4, ghostFade)
+      if (o.fatHeavy) addFat(heavy, o.fatHeavy, 'main', 1, 6)
+      else addThin(heavy, wireHeavy, 6)
+    }
+    if (wallArrOut.length) addFat(wallArrOut, o.wallPx ?? 4, 'accent', 1, 9) // the home-run line: the crest of the wall, one orange band all the way round
+    if (o.wall && crestData?.ribbon && crestData.snapped) { // the top of the wall painted: a strip draped on the model's own surface (heights found by vertical rays in science/wall_crest.py), only where the surface exists
+      const R = crestData.ribbon, cb = crestData.bearing, ok = crestData.snapped, D2R = Math.PI / 180, pos = [], idx = []
+      const at = (r, y, k) => { const t = cb[k] * D2R; pos.push(hx + r * Math.sin(t), y, hz - r * Math.cos(t)) }
+      for (let k = 0; k < cb.length; k++) { at(R.r_in[k], R.y_in[k], k); at(crestData.radius[k], R.y_mid[k], k); at(R.r_out[k], R.y_out[k], k) }
+      for (let k = 0; k + 1 < cb.length; k++) if (ok[k] && ok[k + 1]) { const a = 3 * k, b = 3 * k + 3; idx.push(a, a + 1, b, b, a + 1, b + 1, a + 1, a + 2, b + 1, b + 1, a + 2, b + 2) }
+      const geo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+      geo.setIndex(idx)
+      crestRibbonMat = new THREE.MeshBasicMaterial({ color: o.accent ?? o.color ?? '#e9e7dc', side: THREE.DoubleSide, depthTest: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, fog: true })
+      const m = new THREE.Mesh(geo, crestRibbonMat)
+      m.renderOrder = 8
+      m.frustumCulled = false
+      wireGroup.add(m)
+      window.__nn.wireStats.ribbonTriangles = idx.length / 3
+    }
+    if (o.marks) { // field markings and the measured wall (wiremarks.js): drawn from real dimensions on the model's own ground
+      const L = buildMarks({ stadium: st, home: o.home ?? [0.3, 1.0], wall: o.wall })
+      if (L.marks.length) addFat(L.marks, o.marksPx ?? 2.4, 'main', 1, 7)
+      if (L.track.length) addThin(L.track, wireMat, 5)
+      window.__nn.wireMarks = L
+      Object.assign(window.__nn.wireStats, { marks: L.marks.length / 6, wall: L.wall.length / 6, track: L.track.length / 6, ticks: L.ticks.length / 6, faint: faint.length / 6, heavy: heavy.length / 6, contours: cont.length / 6 })
+    }
+    if (o.fun && funData?.groups?.length) { // the fan attractions, drawn as a colour wireframe from the original model's full detail: a soft halo under a thick coloured core, one colour per shape group
+      const COL = o.funColors ?? { tubes: '#ff5a4d', rings: '#4dd2ff', figures: '#ffc83d' }
+      let n = 0
+      for (const g of funData.groups) {
+        const arr = g.seg.map((v) => v / 100), c = COL[g.name] ?? '#ffc83d'
+        addFat(arr, 7, 'fixed', 0.18, 7, c) // halo
+        addFat(arr, 2.4, 'fixed', 1, 8, c) // core
+        n += arr.length / 6
+      }
+      Object.assign(window.__nn.wireStats, { funSegments: n })
+    }
+    fatRes()
     if (cont.length) {
       const l = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(cont, 3)), wireMat)
       l.renderOrder = 5
@@ -488,8 +717,8 @@ function setWire(on, o = {}) {
     scene.add(wireGroup)
     window.__nn.hideForNormal.push(wireGroup)
   }
-  if (o.color) { wireMat.color.set(o.color); wireHeavy.color.set(o.color) }
-  if (o.opacity !== undefined) { wireMat.opacity = o.split ? o.opacity * 0.55 : o.opacity; wireHeavy.opacity = o.opacity }
+  if (o.color) { wireMat.color.set(o.color); wireHeavy.color.set(o.color); wireGhost.color.set(o.color); for (const f of wireFat) f.mat.color.set(f.kind === 'accent' ? (o.accent ?? o.color) : o.color); crestRibbonMat?.color.set(o.accent ?? o.color) }
+  if (o.opacity !== undefined) { wireMat.opacity = o.split ? o.opacity * 0.55 : o.opacity; wireHeavy.opacity = o.opacity; wireGhost.opacity = o.opacity * 0.5 }
   // distance fade: the far stands melt into the ground color (lines and the flight take the fog; the ground color follows the theme)
   if (on && o.fog) scene.fog = new THREE.Fog(o.face ?? wireFace.color, o.fog[0], o.fog[1])
   else if (!on) scene.fog = null

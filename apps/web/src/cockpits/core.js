@@ -125,7 +125,7 @@ export function wallFnOf(data, p) {
 }
 export function evalParks(data, api) {
   return data.parks.map((p) => {
-    const res = api.fly(api.state, p.abbr === 'SF' ? {} : { wallFn: wallFnOf(data, p), hPa: p.hpa })
+    const res = api.fly(api.state, p.abbr === (window.__parkX ?? 'SF') ? {} : { wallFn: wallFnOf(data, p), hPa: p.hpa }) // the loaded park flies against its own measured crest
     const v = res.verdict, k = v.kind
     const margin = k === 'GONE' ? v.clearBy : k === 'WALL' ? -v.short : k === 'PLAY' ? -400 + res.landFt / 10 : -900
     return { p, k, v, res, margin }

@@ -340,7 +340,7 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c24"><div class="hdr"><div class="h1"><span class="ps">NUKE NAVIGATOR // DINGER DOJO</span><span class="rt">
     <span class="grp">MODE <span class="bt" data-mode="replay">REPLAY</span><span class="bt" data-mode="whatif">WHAT-IF</span></span>
-    <span class="grp">VIEW <span class="bt" id="c24b">BIRD'S EYE</span></span>
+    <span class="grp">VIEW <span class="bt" id="c24b">BIRD'S EYE</span><span class="bt" id="c24pk">PARK</span></span>
     <span class="grp" id="c24mx">MIX ${ORDER.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c24lg" aria-label="every option">?</span></span></span></div>
     <div class="h2"><span class="grp">IN THE PARK <span class="bt" id="c24lp">LANDING PARTY</span><span class="bt" id="c24se">SEAT SEANCE</span><span class="bt" id="c24sc">SHOT CALLER</span></span>
     <span class="grp">TONIGHT <span class="bt" id="c24bb">BAY BAROMETER</span></span>
@@ -403,6 +403,13 @@ export async function build(root, api, U) {
   E('#c24lp').classList.toggle('on', show === 'lp'); E('#c24se').classList.toggle('on', show === 'se')
   E('#c24bb').addEventListener('click', () => { pressEl(E('#c24bb')); openMod('bay') })
   const wim = await loadWhatIf() // the what-if model (public/whatif_model.json), if built
+  // which park is loaded (?park=TEAM; main.js and dojo.js read the same parameter): its name on the park panel; Oracle-only features hide elsewhere
+  const here = parks.parks.find((p) => p.abbr === (window.__parkX ?? 'SF'))
+  const spaced = (t) => '/ ' + t.toUpperCase().split(' ').map((w) => w.split('').join(' ')).join(' &nbsp; ') + ' /'
+  if (here && here.abbr !== 'SF') { hero.querySelector('.t').innerHTML = spaced(here.name); for (const id of ['#c24lp', '#c24se', '#c24sc', '#c24bb']) E(id).style.display = 'none' }
+  E('#c24pk').textContent = 'PARK: ' + (here?.abbr ?? 'SF')
+  E('#c24pk').addEventListener('click', () => { pressEl(E('#c24pk')); openMod('parks') })
+  const goPark = (abbr) => { const u = new URL(location.href); if (abbr === 'SF') u.searchParams.delete('park'); else u.searchParams.set('park', abbr); u.searchParams.set('mix', mixCode(mix).replace(/ /g, '')); u.searchParams.set('mode24', mode); if (mode === 'replay') { u.searchParams.set('ball', String(idx)); u.searchParams.set('filter', filter) } else { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) u.searchParams.set('w' + k, String(api.state[k])) } location.href = u.toString() }
   E('#c24bl').addEventListener('click', () => { pressEl(E('#c24bl')); openMod('bulletin') })
   E('#c24dd').addEventListener('click', () => { pressEl(E('#c24dd')); openMod('dinger') })
   E('#c24ww').addEventListener('click', () => { pressEl(E('#c24ww')); openMod('witness') })
@@ -467,8 +474,10 @@ export async function build(root, api, U) {
   // ---- odds: the final model for an unedited real ball; the what-if model (or real balls like it) for anything else ----
   function odds() {
     const s = api.state
-    if (mode === 'replay' && cur && !edited && cur.pm != null) return { p: cur.pm, src: 'MODEL' }
-    if (wim && last) { const b = last.landB ?? s.dir, w = api.wallAt?.(b) ?? [400, 8]; return { p: whatIfP(wim, { ev: s.ev, la: s.la, bear: b, hand: s.hand, temp: s.temp, elev: 0, fence: w[0], wallh: w[1] }), src: 'WHAT-IF MODEL' } }
+    // the final model's odds belong to the real ball where it was really hit; anywhere else (another park, an edited or what-if swing) the what-if model at the loaded park
+    const at = window.__parkX ?? 'SF'
+    if (mode === 'replay' && cur && !edited && cur.pm != null && cur.park === at) return { p: cur.pm, src: 'MODEL' }
+    if (wim && last) { const b = last.landB ?? s.dir, w = api.wallAt?.(b) ?? [400, 8], el = parks.parks.find((p) => p.abbr === at)?.elev_ft ?? 0; return { p: whatIfP(wim, { ev: s.ev, la: s.la, bear: b, hand: s.hand, temp: s.temp, elev: el, fence: w[0], wallh: w[1] }), src: at === 'SF' ? 'WHAT-IF MODEL' : 'WHAT-IF MODEL AT ' + at } }
     const l = ballsLike(pool, s.ev, s.la, s.dir)
     return l.n ? { p: l.hr, src: `${l.n} REAL BALLS LIKE THIS` } : { p: null, src: 'NO REAL BALLS THAT CLOSE' }
   }
@@ -497,7 +506,8 @@ export async function build(root, api, U) {
     if (modal === 'parks') {
       E('#c24mt').textContent = '/ T H I R T Y   P A R K S /'
       const pr = evalParks(parks, api)
-      body.innerHTML = `<div style="font-size:20px;margin-bottom:10px;color:var(--acc)">GONE IN ${U.goneWord(parks, api, pr)} PARKS</div><div class="pk">${tileHTML(pr)}</div>`
+      body.innerHTML = `<div style="font-size:20px;margin-bottom:10px;color:var(--acc)">GONE IN ${U.goneWord(parks, api, pr)} PARKS</div><div class="pk">${tileHTML(pr)}</div><div class="baya">CLICK A PARK TO FLY THIS BALL THERE.</div>`
+      body.querySelectorAll('.pk .tile').forEach((t, i) => { t.style.cursor = 'pointer'; t.style.pointerEvents = 'auto'; t.addEventListener('click', () => goPark(pr[i].p.abbr)) })
     } else {
       E('#c24mt').textContent = '/ E V E R Y   S T A T /'
       body.innerHTML = `<div class="allst">${statCols(last).map(([h, rows]) => `<div><h5>${h}</h5>${rows.map(([a, c]) => `<div class="r"><span>${a}</span><b>${c}</b></div>`).join('')}</div>`).join('')}</div>`
@@ -811,7 +821,10 @@ export async function build(root, api, U) {
   root.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode))
   syncCam = windowSync(api, hero, { zoom: 0.95 })
   applyMix()
+  if (q.get('filter')) filter = q.get('filter')
+  if (q.get('ball')) idx = Number(q.get('ball')) || 0
   setMode(mode)
+  if (mode === 'whatif' && q.get('wev')) { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) if (q.get('w' + k) != null) api.state[k] = Number(q.get('w' + k)); api.update() }
   const wantBat = q.get('bat')
   if (wantBat && R.balls.length) { filter = 'all'; balls = R.balls.filter((b) => String(b.b) === wantBat); idx = 0; if (balls.length) { mode = 'replay'; applyBall(balls[0]); paintChooser() } }
   const wantMod = q.get('mod')

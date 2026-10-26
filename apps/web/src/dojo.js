@@ -22,6 +22,10 @@ const Q = new URLSearchParams(location.search)
 const FT = 0.3048, RPM = (2 * Math.PI) / 60, G = 9.81, MASS = 0.145, RAD = 0.0366, AREA = Math.PI * RAD * RAD
 const HOME = { x: 0.3, z: 1.0 }
 let wall = null
+// ?park=TEAM: fly against that park's measured crest and in its air pressure (parks30.json); no param or SF is Oracle
+const PARKX = /^[A-Z]{2,3}$/.test((Q.get('park') || '').toUpperCase()) && (Q.get('park') || '').toUpperCase() !== 'SF' ? Q.get('park').toUpperCase() : null
+let parkHPa = 1013
+window.__parkX = PARKX ?? 'SF'
 let radar = null
 let lookK = LOOKS_K[Number(Q.get('k'))] ? Number(Q.get('k')) : 1
 const kv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#ccc'
@@ -41,7 +45,7 @@ function airDensity(tF, rh = 60, hPa = 1013) {
 // frame: x toward right field, y toward center field, z up (metres). Returns the path and what happened.
 function fly(s, opt = {}) {
   // carry: an effective air-density multiplier. Replay mode matches a real ball's observed distance (s.carry); the what-if sandbox (s.tab) uses the learned mean carry for the exit speed and launch angle (carryOverride is one draw of it)
-  const rho = airDensity(s.temp, 60, opt.hPa ?? 1013) * (s.tab ? Math.exp(s.carryOverride != null ? s.carryOverride + wxAdj(s.temp, opt.hPa ?? 1013) : carryLog(s.ev, s.la, s.temp, opt.hPa ?? 1013)) : (s.carry ?? 1))
+  const rho = airDensity(s.temp, 60, opt.hPa ?? parkHPa) * (s.tab ? Math.exp(s.carryOverride != null ? s.carryOverride + wxAdj(s.temp, opt.hPa ?? parkHPa) : carryLog(s.ev, s.la, s.temp, opt.hPa ?? parkHPa)) : (s.carry ?? 1))
   const phi = (s.dir * Math.PI) / 180, th = (s.la * Math.PI) / 180, v0 = s.ev * 0.44704
   const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 864 - 75 * s.dir + (s.dws || 0)) * RPM
   const r = [Math.cos(phi), -Math.sin(phi), 0]
@@ -531,7 +535,7 @@ const crestWall = (w, c) => {
   for (let b = -45; b <= 45; b++) { const [r, h] = at(b); out.wall_ft[b + 47] = r; out.height_ft[b + 47] = h }
   return out
 }
-Promise.all([fetch('/oracle_wall.json').then((r) => r.json()), fetch('/oracle_crest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null)]).then(([w, c]) => { wall = crestWall(w, c); update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = Q.get('krab') === '1' ? initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }) : null; // the crab is off for now (?krab=1 brings it back) initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
+Promise.all([fetch('/oracle_wall.json').then((r) => r.json()), fetch(PARKX ? `/parks/${PARKX}/crest.json` : '/oracle_crest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null), PARKX ? fetch('/parks30.json').then((r) => (r.ok ? r.json() : null)).catch(() => null) : null]).then(([w, c, p30]) => { wall = crestWall(w, c); const pk = p30?.parks?.find((p) => p.abbr === PARKX); if (pk?.hpa) parkHPa = pk.hpa; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = Q.get('krab') === '1' ? initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }) : null; // the crab is off for now (?krab=1 brings it back) initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
   window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, toWorld, findLanding: (path) => findLanding(NN, path, toWorld), wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
   if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }
   window.__dojoReady = true })

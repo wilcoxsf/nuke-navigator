@@ -95,7 +95,7 @@ export function tileHTML(rows) {
   return rows.map(({ p, k, margin }) => {
     const c = k === 'GONE' ? 'g' : k === 'WALL' ? 'w' : k === 'PLAY' ? 'p' : 'f'
     const val = k === 'GONE' ? `+${n0(margin)}` : k === 'WALL' ? `${n0(margin)}` : k === 'PLAY' ? 'IN' : 'FL'
-    return `<i class="tile ${c}${p.abbr === 'SF' ? ' me' : ''}" title="${p.name}">${p.abbr}<u>${val}</u></i>`
+    return `<i class="tile ${c}${p.abbr === (window.__parkX ?? 'SF') ? ' me' : ''}" title="${p.name}">${p.abbr}<u>${val}</u></i>`
   }).join('')
 }
 // a home run is a verdict of GONE; the old tone list counted POLE ("fair by a hair", a FOUL verdict) because its tone is 'scraper'
