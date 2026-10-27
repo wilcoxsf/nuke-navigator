@@ -203,6 +203,7 @@ export function initFx25(api, col, o = {}) {
     contact, fly,
     land(ev) { trailCol = null; if (ev.key === 'SPLASH') splash(ev.at); if (['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)) { if (style === 'fireworks') fireworks(); else if (style === 'confetti') confetti() } },
     setStyle(v) { style = v }, confetti,
+    bonk(at) { for (let i = 0; i < 40; i++) { const a = rnd(0, Math.PI * 2), up = rnd(6, 16); particle(i % 2 ? '#e4002b' : '#ffffff', at, V(Math.cos(a) * rnd(3, 9), up, Math.sin(a) * rnd(3, 9)), rnd(0.9, 1.4), 1.3, 14) } },
     fireworks, splash, karl, karlOn: () => fogOn,
     count: () => parts.length, kayaks: () => kayaks.length,
     winner: () => winner,

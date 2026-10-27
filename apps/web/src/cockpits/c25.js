@@ -186,6 +186,8 @@ export async function build(root, api, U) {
 #cp .c25 .chip .hd{font-size:24px;line-height:1}
 #cp .c25 .chip.hr .hd{color:var(--acc)}
 #cp .c25 .chip .sb{font-size:15px;color:var(--dim);margin-top:3px}
+#cp .c25 .chip .st{display:inline-block;margin-top:8px;font-family:PS2P,monospace;font-size:12px;letter-spacing:.04em;background:var(--acc);color:var(--k);padding:5px 7px;transform:rotate(-3deg)}
+#cp .c25 .rd .sit{color:var(--tx);font-size:15px;margin-top:6px}
 #cp .c25 .bsel{position:absolute;left:18px;bottom:12px;right:190px;display:grid;gap:4px;font-size:17px}
 #cp .c25.ns .bsel{right:18px}
 #cp .c25 .bsel .r1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -289,6 +291,8 @@ export async function build(root, api, U) {
 #cp .c25 .btab .r b{font-weight:400}
 #cp .c25 .btab .r b.y{color:var(--acc)}
 #cp .c25 .btab .r b.n{color:var(--dim)}
+#cp .c25 .btab .r.mo{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.2fr);font-size:20px}
+#cp .c25 .btab .r.mo b{text-align:right}
 #cp .c25 .ddk{color:var(--acc);font-size:16px}
 #cp .c25 .ddbig{font-size:54px;line-height:1}
 #cp .c25 .dds{color:var(--dim);font-size:18px}
@@ -394,7 +398,7 @@ export async function build(root, api, U) {
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
     <span class="grp"><span class="gl">YOU</span> <span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
-    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="banner" id="c25bn"></div></div>
+    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="banner" id="c25bn"></div></div>
   <div class="pnl p pitch"><span class="t">/ T H E &nbsp; P I T C H /</span><div class="pin"><div class="zg" id="c25zg"></div><div class="pl" id="c25pl"></div></div></div>
   <div class="pnl p batter"><span class="t">/ B A T T E R /</span><div class="bin"><div class="fbox" id="c25f"><pre class="art"></pre></div><div class="info" id="c25i"></div></div></div>
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
@@ -465,7 +469,22 @@ export async function build(root, api, U) {
     const where = off === dt ? 'high' : off === db ? 'low' : inside ? 'inside' : 'away'
     return { inches: off * 12, where, word: NAMES[where], side: where === 'high' ? 'ABOVE THE ZONE' : where === 'low' ? 'BELOW THE ZONE' : where === 'inside' ? 'OFF THE INSIDE EDGE' : 'OFF THE OUTSIDE EDGE' }
   }
-  const filtered = () => (filter === 'giants' ? R.balls.filter((b) => b.g && b.hr) : filter === 'oracle' ? R.balls.filter((b) => b.park === 'SF' && b.hr) : filter === 'menu' ? R.balls.filter((b) => b.hr && offZone(b)) : R.balls)
+  const situation = (b) => {
+    if (!b || b.in == null) return null
+    const on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0), d = (b.bsc ?? 0) - (b.fsc ?? 0), runs = 1 + on
+    const line = [`${b.tb === 'Top' ? 'TOP' : 'BOTTOM'} ${b.in}`, on === 0 ? 'BASES EMPTY' : on === 3 ? 'BASES LOADED' : on + ' ON', d === 0 ? 'TIED' : (d > 0 ? 'UP ' : 'DOWN ') + Math.abs(d), b.bl != null ? `${b.bl}-${b.sk}` : null, b.ou != null ? `${b.ou} OUT` : null, b.dwe != null && b.hr ? `WIN CHANCE ${b.dwe >= 0 ? '+' : '-'}${Math.abs(Math.round(b.dwe * 100))}%` : null].filter(Boolean).join(' · ')
+    let stamp = null
+    if (b.hr) {
+      if (b.tb === 'Bot' && b.in >= 9 && d <= 0 && d + runs > 0) stamp = on === 3 ? 'WALK-OFF SLAM' : 'WALK-OFF'
+      else if (on === 3) stamp = 'GRAND SLAM'
+      else if (d <= 0 && d + runs > 0) stamp = 'GO-AHEAD'
+      else if (d < 0 && d + runs === 0) stamp = 'TIES IT'
+    }
+    return { line, stamp }
+  }
+  const seenDays = () => { try { return JSON.parse(store('nn-witness') ?? '[]') } catch { return [] } }
+  const big = (b) => { const st = situation(b)?.stamp; return b.hr && (/WALK-OFF|GRAND SLAM/.test(st ?? '') || (st === 'GO-AHEAD' && b.in >= 7)) }
+  const filtered = () => (filter === 'big' ? R.balls.filter(big) : filter === 'mine' ? R.balls.filter((b) => b.hr && b.park === 'SF' && seenDays().includes(b.d)) : filter === 'giants' ? R.balls.filter((b) => b.g && b.hr) : filter === 'oracle' ? R.balls.filter((b) => b.park === 'SF' && b.hr) : filter === 'menu' ? R.balls.filter((b) => b.hr && offZone(b)) : R.balls)
 
   // ---- the mixer ----
   const themeKey = () => { if (atOracle) return 'orange'; const k = 'team' + here.abbr; THEMES[k] ??= { ...THEMES.orange, name: here.abbr, acc: TEAM_ACC[here.abbr] ?? THEMES.orange.acc }; return k }
@@ -525,7 +544,7 @@ export async function build(root, api, U) {
     }
     const bn = pname(cur?.b), pn = pname(cur?.p)
     el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="previous ball">&lt;</span><span class="bt" data-st="1" aria-label="next ball">&gt;</span> BALL ${idx + 1} OF ${balls.length}
-      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
+      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
       <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ?? ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); filter = b.dataset.f; balls = filtered(); idx = 0; applyBall(balls[0]); paintChooser() }))
@@ -574,6 +593,7 @@ export async function build(root, api, U) {
       return
     }
     if (modal === 'type') { paintTypes(body); return }
+    if (modal === 'moon') { paintMoon(body); return }
     if (modal === 'bay') { paintBay(body); return }
     if (modal === 'bulletin' || modal === 'dinger') { paintDaily(body); return }
     if (modal === 'witness') { if (!body.querySelector('.wgrid') || !paintModal.keepW) paintWitness(body); paintModal.keepW = true; return }
@@ -588,6 +608,26 @@ export async function build(root, api, U) {
       E('#c25mt').textContent = '/ E V E R Y   S T A T /'
       body.innerHTML = `<div class="allst">${statCols(last).map(([h, rows]) => `<div><h5>${h}</h5>${rows.map(([a, c]) => `<div class="r"><span>${a}</span><b>${c}</b></div>`).join('')}</div>`).join('')}</div>`
     }
+  }
+  // MOONSHOT: the same swing somewhere else. Oracle and Coors are flown by the engine; with no air the flight is the textbook parabola from a 3 ft contact
+  // height (the Moon, Mars with its thin air left out, Jupiter's pull); under the Cove the engine flies it through water (air density times 830)
+  function paintMoon(body) {
+    E('#c25mt').textContent = '/ M O O N S H O T /'
+    if (!last) return
+    const s = api.state, v = s.ev * 0.44704, th = (s.la * Math.PI) / 180, h0 = 0.9
+    const vac = (g) => { const vz = v * Math.sin(th), t = (vz + Math.sqrt(vz * vz + 2 * g * h0)) / g; return [(v * Math.cos(th) * t) / 0.3048, t] }
+    const col = parks.parks.find((p) => p.abbr === 'COL'), cr = col ? api.fly({ ...s }, { hPa: col.hpa, wallFn: U.wallFnOf(parks, col) }) : null
+    let wet = null
+    try { const w = api.fly({ ...s, carry: 830 }, {}); if (isFinite(w.landFt) && w.landFt >= 0) wet = [w.landFt, w.hang] } catch {}
+    const rows = [['ORACLE PARK', last.landFt, last.hang], cr ? ['COORS FIELD, A MILE UP', cr.landFt, cr.hang] : null, ['EARTH WITH NO AIR', ...vac(9.81)], ['MARS', ...vac(3.71)], ['THE MOON', ...vac(1.62)], ['JUPITER', ...vac(24.79)], wet ? ['UNDER MCCOVEY COVE', ...wet] : null].filter(Boolean)
+    const moon = vac(1.62)
+    let phrase = ''
+    if (lib) { const p = pick(lib, 'length', moon[0] * 0.3048, mulberry32(Math.round(moon[0]))); if (p) phrase = 'ON THE MOON IT FLIES ' + p.phrase.toUpperCase() }
+    const fmt = (x) => (x >= 10000 ? (x / 5280).toFixed(1) + ' MI' : Math.round(x).toLocaleString() + ' FT')
+    body.innerHTML = `<div class="bul"><div class="bulh">${Math.round(s.ev)} MPH AT ${Math.round(s.la)}°, THE SAME SWING EVERYWHERE</div>
+      <div class="btab">${rows.map(([w, d, t]) => `<div class="r mo"><span>${w}</span><b class="${w === 'THE MOON' ? 'y' : ''}">${fmt(d)}</b><span>${t.toFixed(1)} S IN THE AIR</span></div>`).join('')}
+      <div class="r mo"><span>DEEP SPACE</span><b class="y">FOREVER</b><span>IT NEVER COMES DOWN</span></div></div>
+      ${phrase ? `<div class="dds">${phrase}</div>` : ''}<div class="baya">THE MOON, MARS AND JUPITER ARE FLOWN WITH NO AIR, FROM A 3 FT CONTACT HEIGHT. EVERYTHING ELSE GOES THROUGH THE FLIGHT ENGINE.</div></div>`
   }
   // the type picker: every pixel type set drawn with the same real pieces of the screen; click one to use it
   function paintTypes(body) {
@@ -735,7 +775,9 @@ export async function build(root, api, U) {
     { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
     { k: 'bay', name: 'BAY BAROMETER', blurb: "TONIGHT'S AIR AT ORACLE, IN FEET OF CARRY", run: () => openMod('bay'), off: () => !atOracle },
     { k: 'parks', name: 'THIRTY PARKS', blurb: 'FLY THIS BALL IN ANY BALLPARK', run: () => openMod('parks') },
-    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, FRAME, ART AND TYPE', run: () => openMod('mix') },
+    { k: 'reel', name: 'HIGHLIGHT REEL', blurb: 'THE WALK-OFFS, GRAND SLAMS AND LATE GO-AHEAD SHOTS, BACK TO BACK', run: () => startReel() },
+    { k: 'moon', name: 'MOONSHOT', blurb: 'THIS SWING ON THE MOON, ON MARS, AT COORS AND UNDER THE COVE', run: () => openMod('moon') },
+    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, FRAME, ART, TYPE, EFFECTS', run: () => openMod('mix') },
   ], { onIdle: attract })
   E('#c25mn').addEventListener('click', () => { pressEl(E('#c25mn')); sound.play('pick'); menu.show(mode === 'replay' ? 'replay' : 'dojo') })
 
@@ -759,6 +801,7 @@ export async function build(root, api, U) {
     else if (e.key === 'i' || e.key === 'I') toggleIR()
     else if (e.key === 'p' || e.key === 'P') printIt()
     else if (e.key === 'n' || e.key === 'N') setShow('sm')
+    else if (e.key === 'u' || e.key === 'U') openMod('moon')
   })
   api.setPreview(true)
 
@@ -948,11 +991,12 @@ export async function build(root, api, U) {
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing
   function paintHead(res) {
     const o = odds(), rd = E('#c25rd'), d = Math.round(res.landFt), pv = !!ses.beat?.preview
-    if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn"></div>` }
+    if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn"></div><span class="sub sit"></span>` }
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
     set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api))} PARKS` : '')
     set('.op', pct(o.p))
+    set('.sit', mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
     set('.osrc', 'HOME RUN ODDS · ' + o.src)
     rd.querySelectorAll('.meter s').forEach((s, i) => s.classList.toggle('on', o.p != null && o.p * 20 > i + 0.5))
     const dEl = E('#c25d')
@@ -977,6 +1021,9 @@ export async function build(root, api, U) {
     const realSub = mode === 'replay' && cur ? (edited ? 'EDITED: NOT THE REAL BALL' : cur.hr ? 'THE REAL BALL: HOME RUN' : 'THE REAL BALL: ' + (cur.ev_ ?? '').replace(/_/g, ' ').toUpperCase()) : 'PREVIEW: THE FLIGHT ENGINE'
     chip.querySelector('.hd').textContent = committed ? b.text : live
     chip.querySelector('.sb').textContent = committed ? (b.sub ?? '') : realSub
+    const stp = mode === 'replay' && cur && !edited ? situation(cur)?.stamp : null, se = chip.querySelector('.st')
+    if (se.textContent !== (stp ?? '')) { se.textContent = stp ?? ''; if (stp) restamp(se) }
+    se.style.display = stp ? '' : 'none'
     if (stampIt) restamp(chip.querySelector('.hd'))
   }
 
@@ -997,25 +1044,29 @@ export async function build(root, api, U) {
     setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); setTimeout(() => api.fire(), 560) }, wait - 560)
   }
   // INSTANT REPLAY: after a home run, the same flight again from a broadcast angle in slow motion, the camera following the ball, then back
-  const ANG = [['CENTER FIELD CAM', [0, 46, -222], [0, 12, -30]], ['FIRST BASE CAM', [128, 52, 26], [-26, 6, -72]], ['BLIMP', [2, 360, -78], [0, 0, -80]], ['THIRD BASE CAM', [-128, 52, 26], [26, 6, -72]]]
-  let saved = null, replayCam = null
+  const ANG = [['CENTER FIELD CAM', [34, 24, -132], [0, 10, -20]], ['FIRST BASE CAM', [128, 52, 26], [-26, 6, -72]], ['BLIMP', [2, 360, -78], [0, 0, -80]], ['THIRD BASE CAM', [-128, 52, 26], [26, 6, -72]], ['BALL CAM', null, null]]
+  let saved = null, replayCam = null, ballPrev = null
   function instantReplay() {
     if (replaying || !irOn) return
     replaying = true
     const a = ANG[irN++ % ANG.length], C = api.NN.camera, T = api.NN.controls.target
     saved = [C.position.clone(), T.clone()]
-    C.position.set(...a[1]); T.set(...a[2]); api.NN.controls.update()
+    if (a[1]) { C.position.set(...a[1]); T.set(...a[2]); api.NN.controls.update() }
+    ballPrev = null
     banner('INSTANT REPLAY', a[0]); life?.show('REPLAY', a[0].replace(' CAM', ''), null)
     window.__cpSlow = 2.2; window.__cpHold = 0
     replayCam = a[0] === 'BLIMP' ? null : a[0]
     api.fire()
+    // a watchdog: if anything cancels the replay flight (a new ball, an edit), end the replay now and give the camera back
+    const t0 = performance.now(), dog = setInterval(() => { if (!replaying) { clearInterval(dog); return } const an = api.anim?.(); if (!an || performance.now() - t0 > 25000) { clearInterval(dog); endReplay(0) } }, 400)
   }
-  function endReplay() {
+  function endReplay(wait = 1600) {
     setTimeout(() => {
       window.__cpSlow = 1; window.__cpHold = 110; replayCam = null
+      const bm = api.ballMesh?.(); if (bm) bm.visible = true
       if (saved) { api.NN.camera.position.copy(saved[0]); api.NN.controls.target.copy(saved[1]); api.NN.controls.update() }
       saved = null; replaying = false
-    }, 1600)
+    }, wait)
   }
   const paintIR = () => { E('#c25ir').classList.toggle('on', irOn); E('#c25ir').textContent = irOn ? 'REPLAY: ON' : 'REPLAY: OFF' }
   const toggleIR = () => { irOn = !irOn; store('nn-ir25', irOn ? '1' : '0'); paintIR(); sound.play('move') }
@@ -1047,20 +1098,47 @@ export async function build(root, api, U) {
     window.__poster25 = url.length
     sound.play('pick'); banner('PRINTED', 'THE POSTER IS IN YOUR DOWNLOADS')
   }
+  let reel = null
+  function startReel() {
+    filter = 'big'; setMode('replay')
+    if (!balls.length) return
+    reel = { i: 0, wasIR: irOn }
+    irOn = false; paintIR()
+    reelNext()
+  }
+  function reelNext() {
+    if (!reel || mode !== 'replay') { stopReel(); return }
+    idx = reel.i % balls.length; applyBall(balls[idx]); paintChooser()
+    const st = situation(balls[idx])?.stamp, n = pname(balls[idx].b)
+    banner(st ?? 'HOME RUN', `${(n ? n[0] : 'BATTER ' + balls[idx].b).toUpperCase()} · ${balls[idx].d}`)
+    setTimeout(() => { if (reel) api.fire() }, 900)
+  }
+  function stopReel() { if (!reel) return; irOn = reel.wasIR; paintIR(); reel = null }
+  addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
+  addEventListener('pointerdown', (e) => { if (reel && e.target?.tagName === 'CANVAS') stopReel() })
   window.__cpOnFire = (ev) => {
     fx.contact(ev)
     life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
     sound.play('crack', { ev: api.state.ev })
   }
-  window.__cpOnFly = (pos, fr) => { fx.fly(pos, fr); if (replayCam) { api.NN.controls.target.lerp(pos, 0.12); api.NN.controls.update() } }
+  window.__cpOnFly = (pos, fr) => {
+    fx.fly(pos, fr)
+    if (replayCam === 'BALL CAM') {
+      const bm = api.ballMesh?.(); if (bm) bm.visible = false
+      if (ballPrev && pos.distanceTo(ballPrev) > 0.05) { const d = pos.clone().sub(ballPrev).normalize(); api.NN.camera.position.copy(pos).addScaledVector(d, -24).add(new api.NN.THREE.Vector3(0, 6, 0)); api.NN.controls.target.copy(pos).addScaledVector(d, 40); api.NN.controls.update() }
+      ballPrev = pos.clone()
+    } else if (replayCam) { api.NN.controls.target.lerp(pos, 0.12); api.NN.controls.update() }
+  }
   window.__cpOnLand = (ev) => {
     const ft = Math.round(window.__dojo?.landFt ?? 0), hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)
     if (replaying) { if (ev.key === 'SPLASH') fx.splash(ev.at); endReplay(); return }
+    if (reel) { reel.i++; setTimeout(reelNext, 2600) }
     fx.land(ev)
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
     if (hr && irOn) setTimeout(instantReplay, 1700)
+    if (atOracle && ev.at && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
     if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
     else if (['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key)) sound.play('fanfare')
     else if (ev.key === 'WALL' || ev.key === 'CLOSE') sound.play('thud')
@@ -1082,7 +1160,7 @@ export async function build(root, api, U) {
   const wantMod = q.get('mod')
   if (wantMod) setTimeout(() => openMod(wantMod), 1200)
   if (q.get('menu') !== '0' && !wantMod) menu.show(mode === 'replay' ? 'replay' : 'dojo')
-  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, offZone, tweak, play, mode: () => mode, replaying: () => replaying, stars: () => smRes }
+  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, offZone, tweak, play, mode: () => mode, replaying: () => replaying, replay: () => instantReplay(), reel: () => reel, stopReel: () => stopReel(), stars: () => smRes }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },

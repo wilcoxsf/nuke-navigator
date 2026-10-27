@@ -126,6 +126,14 @@ for (const [w, h] of SIZES) {
     const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
     check('BACK TO THE REPLAY returns to the same ball', bk.mode === 'replay' && bk.ch === before.ch, JSON.stringify({ bk, before }))
     await page.click('#c25ch [data-f="giants"]'); await page.waitForTimeout(900)
+    // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
+    const si = await page.evaluate(() => document.querySelector('#c25rd .sit').textContent)
+    check('a real ball shows its situation', /(TOP|BOTTOM) \d+ · .*(TIED|UP|DOWN)/.test(si), si)
+    await page.click('#c25ch [data-f="big"]'); await page.waitForTimeout(1200)
+    const bo = await page.evaluate(() => ({ n: Number(document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1]), st: document.querySelector('#c25v .st').textContent }))
+    check('BIG ONES keeps the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
+    X = await layout(page); check('a stamped ball fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
+    await page.click('#c25ch [data-f="giants"]'); await page.waitForTimeout(900)
     // the odds receipt
     await page.keyboard.press('o'); await page.waitForTimeout(800)
     const rc = await page.evaluate(() => ({ t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), rows: document.querySelectorAll('#c25hb .rc .rr').length, txt: document.querySelector('#c25hb').textContent, sw: getComputedStyle(document.querySelector('#c25hw')).display }))
@@ -221,6 +229,14 @@ for (const [w, h] of SIZES) {
     const m3 = await page.evaluate(() => !!document.querySelector('.c25 .sm .lg3'))
     check('M2 ARC and M3 MARQUEE titles build', m2 && m3, JSON.stringify({ m2, m3 }))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F1M1'))
+    // MOONSHOT: the same swing elsewhere
+    await page.keyboard.press('u'); await page.waitForTimeout(800)
+    const mo = await page.evaluate(() => ({ rows: document.querySelectorAll('#c25mb .r.mo').length, txt: document.querySelector('#c25mb').textContent }))
+    check('MOONSHOT flies the swing on the Moon, Mars, at Coors and underwater', mo.rows >= 7 && /THE MOON/.test(mo.txt) && /COORS/.test(mo.txt) && /FOREVER/.test(mo.txt), JSON.stringify(mo).slice(0, 200))
+    const mv = await page.evaluate(() => { const g = [...document.querySelectorAll('#c25mb .r.mo')].map((r) => [r.children[0].textContent, r.children[1].textContent]); return g })
+    const ftOf = (n) => { const r = mv.find(([w]) => w === n); if (!r) return null; const t = r[1]; return /MI/.test(t) ? parseFloat(t) * 5280 : parseFloat(t.replace(/,/g, '')) }
+    check('the Moon goes farther than Mars, Mars farther than Earth with no air, Jupiter shortest of those', ftOf('THE MOON') > ftOf('MARS') && ftOf('MARS') > ftOf('EARTH WITH NO AIR') && ftOf('EARTH WITH NO AIR') > ftOf('JUPITER'), JSON.stringify(mv))
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   }
   await page.close()
 }
@@ -247,7 +263,7 @@ if (!process.env.PHONE_ONLY) {
 if (!process.env.PHONE_ONLY) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with eight modes', m0.open && m0.n === 8 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with ten modes', m0.open && m0.n === 10 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   await page.keyboard.press('ArrowDown'); await page.waitForTimeout(200)
   await page.keyboard.press('Enter'); await page.waitForTimeout(1200)
   const m1 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), mode: window.__mix25.mode() }))
@@ -257,6 +273,15 @@ if (!process.env.PHONE_ONLY) {
   check('Esc brings the menu back on the current mode', m2.open && /DOJO/.test(m2.on), JSON.stringify(m2))
   await page.keyboard.press('1'); await page.waitForTimeout(1200)
   check('a number key jumps straight to that mode', await page.evaluate(() => window.__mix25.mode() === 'replay' && !document.querySelector('.c25 .sm').classList.contains('open')))
+  // HIGHLIGHT REEL plays the big ones one after another
+  await page.click('#c25mn'); await page.waitForTimeout(400)
+  await page.click('.c25 .sm .smi:nth-child(8)')
+  let b1 = null, b2 = null
+  for (let k = 0; k < 80 && !(b1 && b2 && b2 !== b1); k++) { await page.waitForTimeout(500); const r = await page.evaluate(() => ({ on: !!window.__mix25.reel(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] })); if (r.on) { b1 ??= r.ch; b2 = r.ch } }
+  check('HIGHLIGHT REEL moves on to the next big one by itself', !!b1 && b2 !== b1, JSON.stringify({ b1, b2 }))
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400)
+  check('Esc stops the reel', await page.evaluate(() => !window.__mix25.reel()))
+  await page.evaluate(() => window.__mix25.menu.close())
   await page.click('#c25mn'); await page.waitForTimeout(400)
   await page.click('.c25 .sm .smi:nth-child(4)'); await page.waitForTimeout(4000)
   const m3 = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), txt: document.querySelector('#c25mb').textContent.slice(0, 120) }))
@@ -283,6 +308,15 @@ for (const [w, h] of [[390, 844], [360, 740]]) {
       check(`phone ${w}x${h} ${m === 'replay' ? 'DEJA-VU' : 'DOJO'} ${card}`, bad.length === 0, bad.slice(0, 6).join('; '))
     }
   }
+  await page._ctx.close()
+}
+// the SELECT screen on a phone: readable, nothing off the sides, every line reachable
+{
+  const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+  const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
+  check('the SELECT screen fits a phone', sm.open && sm.n === 10 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
+  check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()
 }
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
