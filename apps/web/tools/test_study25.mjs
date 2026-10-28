@@ -123,6 +123,11 @@ for (const [w, h] of SIZES) {
     const tw = await page.evaluate(() => ({ mode: window.__mix25.mode(), strip: getComputedStyle(document.querySelector('.c25>.strip')).display, ch: document.querySelector('#c25ch').textContent, title: document.querySelector('#c25ti').textContent, ball: Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]) }))
     check('TWEAK THE TATER carries the home run into the dojo', tw.mode === 'whatif' && tw.strip !== 'none' && /TWEAKING/.test(tw.ch) && /DINGER DOJO/.test(tw.title) && Math.abs(tw.ball - ev0) <= 1, JSON.stringify(tw).slice(0, 200))
     X = await layout(page); check('the dojo with the strip fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
+    // TWEAK THE TATER has sliders: five of them (not BATTER), and dragging one moves the swing
+    const sld = await page.evaluate(() => { const ss = [...document.querySelectorAll('.c25 .strip .sld')], s0 = window.__cp.state.ev; const sl = ss[0]; sl.value = '900'; sl.dispatchEvent(new Event('input', { bubbles: true })); return { n: ss.length, before: s0, after: window.__cp.state.ev, visible: ss.every((x) => x.getBoundingClientRect().width > 40) } })
+    check('TWEAK THE TATER has a slider on each number, and dragging one changes the swing', sld.n === 5 && sld.visible && sld.after !== sld.before, JSON.stringify(sld))
+    await page.hover('.c25 .strip .bt[data-i="1"]'); await page.waitForTimeout(300)
+    check('no hover tilt on buttons or panels', await page.evaluate(() => !/rotate|matrix3d/.test(getComputedStyle(document.querySelector('.c25 .strip .bt[data-i="1"]')).transform)))
     await page.click('#c25back'); await page.waitForTimeout(1200)
     const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
     check('BACK TO THE REPLAY returns to the same ball', bk.mode === 'replay' && bk.ch === before.ch, JSON.stringify({ bk, before }))
@@ -153,15 +158,15 @@ for (const [w, h] of SIZES) {
     const t10 = await page.evaluate(() => window.__mix25.code())
     await page.evaluate(() => window.__mix25.set('L1P5A3T7')); await page.waitForTimeout(300)
     const t7 = await page.evaluate(() => window.__mix25.code())
-    check('a cut type code (T10) falls back to T1, a hidden one (T7) still loads', /T1 /.test(t10) && /T7 /.test(t7), `${t10} | ${t7}`)
+    check('a cut type code (T10) falls back to the default T16, a hidden one (T7) still loads', /T16 /.test(t10) && /T7 /.test(t7), `${t10} | ${t7}`)
     await page.keyboard.press('t'); await page.waitForTimeout(300)
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(600)
     // the options legend lists every open option with the layout reasons
     await page.click('#c25lg'); await page.waitForTimeout(500)
     const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
-    // L3 P2 A6 T6 F3 I4 R4 S3 K3 B5 Z2 H2 M3
-    check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 6 + 6 + 3 + 4 + 4 + 3 + 3 + 5 + 2 + 2 + 3 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
+    // L3 P2 A6 T6 F3 I4 R4 Y5 S3 K3 B5 Z2 H2 M3
+    check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 6 + 6 + 3 + 4 + 4 + 5 + 3 + 3 + 5 + 2 + 2 + 3 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -331,20 +336,30 @@ if (!process.env.PHONE_ONLY) {
     const X = await layout(page); check('I' + I + ' titles sit on top and fit', X.titles.length === 0 && X.overlaps.length === 0, X.titles.concat(X.overlaps).join('; '))
   }
   await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S1I1')); await page.waitForTimeout(400)
-  // PITCH CAM: PLAY IT cuts behind the plate, draws the pitch, then the swing flies and the camera is back where it was
+  // PITCH ARC: PLAY IT draws the pitch on the park (the camera never moves, 28 Oct), in the pitch color, then the hit flies; the arc stays up for the flight
   {
+    await page.evaluate(() => window.__mix25.set('L2P5A2T16I2R1S1Z1')); await page.waitForTimeout(400)
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'ST' && b.hx > 12)); await page.waitForTimeout(800)
     const c0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
     await page.click('#c25go')
-    let behind = null, dots = 0
-    for (let k = 0; k < 60 && !behind; k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => { const pc = window.__mix25.pitchCam(), w = window.__cp.toWorld([0, -5.5, 1.9]); return pc.busy() ? { d: window.__cp.NN.camera.position.distanceTo(w), n: pc.shown() } : null }); if (r) behind = r }
-    for (let k = 0; k < 40; k++) { await page.waitForTimeout(150); const n = await page.evaluate(() => window.__mix25.pitchCam().shown()); dots = Math.max(dots, n); if (!(await page.evaluate(() => window.__mix25.pitchCam().busy()))) break }
+    let drew = false, moved = 0
+    for (let k = 0; k < 60 && !drew; k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => { const c = window.__cp.NN.camera.position.toArray(); return { busy: window.__mix25.pitchCam().busy(), n: window.__mix25.pitchCam().shown(), c } }); moved = Math.max(moved, Math.hypot(r.c[0] - c0[0], r.c[1] - c0[1], r.c[2] - c0[2])); if (r.busy && r.n > 10) drew = true }
     let flew = false
-    for (let k = 0; k < 40 && !flew; k++) { await page.waitForTimeout(200); flew = await page.evaluate(() => !!window.__cp.anim()) }
-    dots = await page.evaluate(() => window.__mix25.pitchCam().lastDots()) // path dots the cam drew in that pitch (40 when it played through)
-    const c1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray()), back = Math.hypot(c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2])
-    check('PITCH CAM: behind the plate for the pitch, its path drawn, then the swing from the broadcast view', behind && behind.d < 0.5 && dots === 40 && flew && back < 0.5, JSON.stringify({ behind, dots, flew, back }))
+    for (let k = 0; k < 60 && !flew; k++) { await page.waitForTimeout(200); flew = await page.evaluate(() => !!window.__cp.anim()) }
+    const dots = await page.evaluate(() => window.__mix25.pitchCam().lastDots()), up = await page.evaluate(() => window.__mix25.pitchCam().shown())
+    check('PITCH ARC: the pitch is drawn on the park in full (40 dots), the camera stays put, then the hit flies with the arc still up', drew && dots === 40 && moved < 0.5 && flew && up >= 40, JSON.stringify({ drew, dots, moved, flew, up }))
     for (let k = 0; k < 60 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(300)
+    // the engine's ball is drawn at 0.42 of its old size
+    check('the ball in flight is drawn smaller (0.42 of the engine size)', await page.evaluate(() => Math.abs(window.__cp.ballMesh().scale.x - 0.42) < 1e-6))
+  }
+  // the break arrow uses the movement the pitch had (gravity in): a four-seamer's arrow comes down onto the ball; the pitch color is on the arrow and the side view
+  {
+    await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'FF' && b.hz > 14)); await page.waitForTimeout(800)
+    const fa = await page.evaluate(() => { const g = document.querySelector('#c25zg .pa'), pc = getComputedStyle(document.querySelector('.c25')).getPropertyValue('--pc').trim(); return { dy: +g?.dataset.dy, col: g?.querySelector('line')?.getAttribute('stroke'), pc, side: [...document.querySelectorAll('#c25sv line')].some((l) => l.getAttribute('stroke') === 'var(--pc,var(--dim))'), drop: document.querySelector('#c25pl').textContent.match(/DROP\s*(\d+) IN/)?.[1] } })
+    check('a four-seamer drops onto the ball (gravity in), in the pitch color, matching the side view', fa.dy > 0 && fa.col === 'var(--pc)' && fa.pc === '#6da7de' && fa.side && Number(fa.drop) >= 5 && Number(fa.drop) <= 30, JSON.stringify(fa))
+    for (const Y of [2, 3, 4, 5]) { await page.evaluate((c) => window.__mix25.set(c), 'L2P5A2T16I2R1Z1Y' + Y); await page.waitForTimeout(300) }
+    check('Y5 BONE makes the pitch the text color', await page.evaluate(() => /var\(--tx\)|^#?[0-9a-f]{6}$/i.test(getComputedStyle(document.querySelector('.c25')).getPropertyValue('--pc').trim())))
+    await page.evaluate(() => window.__mix25.set('L2P5A2T16I2R1S1Z1Y1')); await page.waitForTimeout(300)
   }
   // after TWEAK THE TATER the dojo keeps the original game's bug; a fresh dojo swing has none
   await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S1')); await page.waitForTimeout(400)
@@ -365,6 +380,10 @@ if (!process.env.PHONE_ONLY) {
     const a = P(-g.width / 2, 0), z = P(g.width / 2, 0)
     return { size: L.size, ledPx: Math.hypot(z[0] - a[0], z[1] - a[1]) / L.size[0] }
   })
+  const bp = await page.evaluate(() => { const b = window.__mix25.life.board.position, h = window.__cp.toWorld([0, 0, 0]); return { r: Math.hypot(b.x - h.x, b.z - h.z), y: b.y - h.y } })
+  check('the LED board sits on the real scoreboard face (148.5 m out, 40 m up), not in front of it', Math.abs(bp.r - 148.5) < 0.5 && Math.abs(bp.y - 40) < 0.5, JSON.stringify(bp))
+  const wt = await page.evaluate(() => { const W = window.__mix25.water(), c = W.lines.geometry.attributes.color.array; let gray = true; for (let i = 0; i < c.length; i += 3) if (c[i] > 0.01 && Math.abs(c[i] - c[i + 2]) > 0.25 * c[i + 2]) gray = false; return { gray, depthOnly: W.sea.material.colorWrite === false } })
+  check('the bay is black water with grey ripples (no blue)', wt.gray && wt.depthOnly, JSON.stringify(wt))
   check('the LED board is 72 x 22 and each LED is at least 2 screen pixels at 1440 (L2)', lb.size[0] === 72 && lb.size[1] === 22 && lb.ledPx >= 2, JSON.stringify(lb))
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
@@ -435,6 +454,11 @@ if (!process.env.PHONE_ONLY) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
   check('the SELECT menu opens on arrival with ten modes', m0.open && m0.n === 10 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
+  const sc0 = await page.evaluate(() => { const c = document.querySelector('.c25 .sm canvas.ins2'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return { n, sig: Array.from(d.filter((_, i) => i % 97 === 3)).join('') } })
+  await page.waitForTimeout(700)
+  const sc1 = await page.evaluate(() => { const c = document.querySelector('.c25 .sm canvas.ins2'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; return Array.from(d.filter((_, i) => i % 97 === 3)).join('') })
+  check('the menu plays its pitcher-batter scene at the bottom (no more 1 PLAYER FREE PLAY)', sc0.n > 150 && sc1 !== sc0.sig && !/FREE PLAY/.test(await page.evaluate(() => document.querySelector('.c25 .sm').textContent)), JSON.stringify({ n: sc0.n, changed: sc1 !== sc0.sig }))
   await page.keyboard.press('ArrowDown'); await page.waitForTimeout(200)
   await page.keyboard.press('Enter'); await page.waitForTimeout(1200)
   const m1 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), mode: window.__mix25.mode() }))

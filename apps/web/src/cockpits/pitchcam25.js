@@ -1,7 +1,7 @@
-// Study 25 PITCH CAM (H1, 28 Oct): PLAY IT cuts behind home plate for the pitch, drawn on its real path with its real break, then cuts back for the swing.
+// Study 25 pitch path (28 Oct): PLAY IT draws the pitch on the park on its real path with its real break (PITCH ARC, H1), then the hit flies.
 // The path is the same constant-acceleration model Statcast fits: from the release point (release_pos_x, 60.5 ft minus extension, release_pos_z) to the plate at y = 17/12 ft,
-// with the speed falling from release_speed to plate_speed (that fixes the drag along y and the flight time), and spin's push taken from pfx_x and pfx_z, which Savant
-// measures from y = 40 ft to the plate. The crossing point and the break are matched by construction; the approach angle (vaa) is not used, so it checks the fit.
+// with the speed falling from release_speed to plate_speed (that fixes the drag along y and the flight time), and spin's push taken from pfx_x and pfx_z over the whole
+// flight. The crossing point and the break are matched by construction; the approach angle (vaa) is not used, so it checks the fit (0.07 deg median error).
 // Statcast x is the catcher's view (positive toward first base), which is the plate frame's lateral axis here; y runs from the plate to the mound.
 const FT = 0.3048, MPH = 1.46667, G = 32.174
 export function pitchPath(b) {
@@ -10,8 +10,8 @@ export function pitchPath(b) {
   const ay = (vyT * vyT - vy0 * vy0) / (2 * (yT - y0)), T = (vyT - vy0) / ay
   if (!(T > 0.25 && T < 0.9)) return null
   // time from y = 40 ft to the plate, where Savant measures the movement
-  const t40 = (() => { const d = vy0 * vy0 + 2 * ay * (40 - y0); const t = (-vy0 - Math.sqrt(Math.max(0, d))) / ay; return T - (t > 0 && t < T ? t : 0) })()
-  const ax = (2 * (b.hx / 12)) / (t40 * t40), az = (2 * (b.hz / 12)) / (t40 * t40) - G
+  // spin's push over the whole flight, release to plate (that window matches Savant's approach angle to 0.07 deg median on these balls; a 40 ft window was 0.7 deg off)
+  const ax = (2 * (b.hx / 12)) / (T * T), az = (2 * (b.hz / 12)) / (T * T) - G
   const vx0 = (b.px - b.rx - 0.5 * ax * T * T) / T, vz0 = (b.pz - b.rz - 0.5 * az * T * T) / T
   const at = (t) => [b.rx + vx0 * t + 0.5 * ax * t * t, y0 + vy0 * t + 0.5 * ay * t * t, b.rz + vz0 * t + 0.5 * az * t * t]
   const pts = Array.from({ length: 41 }, (_, i) => at((T * i) / 40).map((v) => v * FT))
@@ -20,41 +20,39 @@ export function pitchPath(b) {
   const ghost = [b.px - b.hx / 12, yT, b.pz - b.hz / 12].map((v) => v * FT)
   return { pts, T, vaaFit, ghost }
 }
-export function initPitchCam(api, col) {
-  const { THREE, scene, camera, controls } = api.NN
+// the break the pitch had from release to the plate, the way Savant's movement charts show it: sideways (pfx_x) and vertical with gravity left in (pfx_z minus the
+// drop gravity alone gives over the flight), in inches, catcher's view. Four-seamers here drop a median 14.8 in; nothing is shown "as if it had no spin".
+export function breakOf(b) {
+  if (b?.hx == null || b?.hz == null || b.pv == null) return null
+  const y0 = 60.5 - (b.ext ?? 6.3), vy0 = -b.pv * MPH, vyT = -(b.ps ?? b.pv * 0.92) * MPH, ay = (vyT * vyT - vy0 * vy0) / (2 * (17 / 12 - y0)), T = (vyT - vy0) / ay
+  return { h: b.hx, v: b.hz - 0.5 * G * T * T * 12, T }
+}
+// PITCH ARC (H1): the pitch drawn on the park itself, from the broadcast view, in the pitch color, then the hit flies. (28 Oct: the cut to a camera behind the
+// plate is gone; Andrew wants the big 3D park throughout.) The arc stays until the next pitch, so the two flights read together.
+export function initPitchArc(api, col) {
+  const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
   let live = [], run = null, lastDots = 0
   const mats = {}
   const mat = (c) => (mats[c] ??= new THREE.SpriteMaterial({ color: c, depthTest: false, depthWrite: false, fog: false }))
   const sprite = (c, size, p) => { const s = new THREE.Sprite(mat(c)); s.scale.setScalar(size); s.position.copy(p); s.renderOrder = 30; scene.add(s); live.push(s); return s }
-  // the pitch flies in slow motion (dur seconds for its real flight time), the ghost dot appears where a spinless pitch would have crossed, a short hold, then the camera goes back
-  api.NN.frames.push((dt) => {
+  const clear = () => { for (const s of live) scene.remove(s); live = [] }
+  // the pitch takes dur seconds of wall clock (its real flight is about 0.4 s; slowed so it reads), the arc fills in behind the ball, a short hold, then done()
+  api.NN.frames.push(() => {
     if (!run) return
-    const r = run
-    r.t = (performance.now() - r.t0) / 1000 // the wall clock, so the cut lasts the same at any frame rate
-    const f = Math.min(1, r.t / r.dur), n = Math.floor(f * 40)
-    while (r.shown < n) { r.shown++; sprite(r.c.acc, 0.07, toWorld(r.P.pts[r.shown])) }
+    const r = run, t = (performance.now() - r.t0) / 1000, f = Math.min(1, t / r.dur), n = Math.floor(f * 40)
+    while (r.shown < n) { r.shown++; sprite(r.c, 0.75, toWorld(r.P.pts[r.shown])) }
     r.ball.position.copy(toWorld(r.P.pts[n]))
-    if (f >= 1 && !r.ghost) r.ghost = sprite(r.c.tx, 0.09, toWorld(r.P.ghost))
-    if (r.t >= r.dur + r.hold) stop(true)
+    if (t >= r.dur + r.hold) { run = null; lastDots = r.shown; scene.remove(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() }
   })
-  function stop(finished) {
-    if (!run) return
-    const r = run; run = null; lastDots = r.shown
-    for (const s of live) scene.remove(s)
-    live = []
-    camera.position.copy(r.saved[0]); controls.target.copy(r.saved[1]); controls.update()
-    if (finished) r.done?.()
-  }
-  // plays the pitch, then calls done(); returns false (and plays nothing) when this ball has no fit
+  // plays the pitch, then calls done(); returns false (and draws nothing) when this ball has no fitted path
   function play(b, done, o = {}) {
     const P = pitchPath(b)
     if (!P || run) return false
-    const saved = [camera.position.clone(), controls.target.clone()]
-    camera.position.copy(toWorld([0, -5.5, 1.9])); controls.target.copy(toWorld([0, 14, 1.4])); controls.update()
-    run = { P, done, saved, c: col(), dur: o.dur ?? 1.3, hold: o.hold ?? 0.45, t: 0, t0: performance.now(), shown: 0, ghost: null }
-    run.ball = sprite('#ffffff', 0.22, toWorld(P.pts[0]))
+    clear()
+    run = { P, done, c: o.color ?? col().pc ?? col().tx, dur: o.dur ?? 0.9, hold: o.hold ?? 0.25, t0: performance.now(), shown: 0 }
+    run.ball = sprite('#ffffff', 1.1, toWorld(P.pts[0]))
     return true
   }
-  return { play, stop: () => stop(false), busy: () => !!run, shown: () => live.length, lastDots: () => lastDots }
+  return { play, clear, stop: () => { if (run) { run = null; clear() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots }
 }

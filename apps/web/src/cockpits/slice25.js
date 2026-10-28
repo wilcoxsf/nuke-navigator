@@ -1,17 +1,19 @@
 // Study 25 CONTACT, SIDE ON: a horizontal slice through the strike zone at the moment of contact, seen from the side (catcher on the left, the field on the right).
 // Three lines through the contact point, all drawn at their true angle and with length set by speed on one shared scale, so a longer line is a faster thing:
-//   the pitch coming in (approach angle, pitch speed; dim and dashed), the bat coming through (attack angle, bat speed), the ball going out (launch angle, exit speed; accent).
+//   the pitch coming in (approach angle, pitch speed; dashed, in the pitch color), the bat coming through (attack angle, bat speed), the ball going out (launch angle, exit speed; accent).
 // Contact height is the pitch's height at the front of the plate (plate_z); the bracket is this batter's own zone (sz_bot to sz_top). With no bat tracking on a ball the
 // bat line is left off; a what-if swing has no real pitch or bat, so only the ball is drawn.
 export function sliceSVG(o, W, H) {
   W = Math.max(60, Math.floor(W)); H = Math.max(40, Math.floor(H))
+  // compact (28 Oct, Andrew: "way less stretched horizontally"): the drawing uses at most about twice its height in width, centered in the box
+  const W0 = W, ox = Math.max(0, Math.round((W0 - Math.min(W0, Math.max(120, Math.round((H - 20) * 2)))) / 2)); W = W0 - 2 * ox
   const ground = H - 14, ftS = Math.min((H - 30) / 4.6, W * 0.13), cx = Math.round(W * 0.4)
   const pz = Math.max(0.6, Math.min(4.2, o.pz ?? 2.4)), cy = ground - pz * ftS, Y = (z) => ground - z * ftS
   const rad = (d) => (d * Math.PI) / 180
   const ball = { v: o.ev, a: rad(o.la) }, bat = o.bs != null && o.aa != null ? { v: o.bs, a: rad(o.aa) } : null, pitch = o.pv != null && o.vaa != null ? { v: o.pv, a: rad(-o.vaa) } : null
   // one px-per-mph scale that keeps every line inside the box
   let k = 3
-  const lim = (num, den) => { if (den > 1e-6) k = Math.min(k, num / den) }
+  const lim = (num, den) => { if (den > 1e-6) k = Math.min(k, (0.55 * num) / den) } // just over half the room: short vectors (28 Oct)
   lim(W - 10 - cx, ball.v * Math.cos(ball.a))
   if (ball.a > 0) lim(cy - 16, ball.v * Math.sin(ball.a)); else lim(ground - 3 - cy, ball.v * -Math.sin(ball.a))
   if (bat) { lim(cx - 10, bat.v * Math.cos(bat.a)); if (bat.a > 0) lim(ground - 3 - cy, bat.v * Math.sin(bat.a)); else lim(cy - 16, bat.v * -Math.sin(bat.a)) }
@@ -23,7 +25,7 @@ export function sliceSVG(o, W, H) {
   }
   const fs = 'style="font-size:calc(13px * var(--ts))"'
   let g = ''
-  g += `<line x1="0" x2="${W}" y1="${ground + 0.5}" y2="${ground + 0.5}" stroke="var(--dim)"/>`
+  g += `<line x1="${-ox}" x2="${W + ox}" y1="${ground + 0.5}" y2="${ground + 0.5}" stroke="var(--dim)"/>`
   g += `<rect x="${cx - 26}" y="${ground - 1}" width="26" height="4" fill="var(--tx)"/>` // the plate, front edge at the contact point
   g += `<line x1="0" x2="${W}" y1="${cy.toFixed(1)}" y2="${cy.toFixed(1)}" stroke="var(--ln)" stroke-dasharray="2 4"/>` // level, so the angles read
   if (o.sb != null && o.st != null) {
@@ -35,8 +37,8 @@ export function sliceSVG(o, W, H) {
   const sg = (d) => (d > 0.5 ? '+' : d < -0.5 ? '-' : '') + Math.abs(Math.round(d)) + '°'
   if (pitch) {
     const [x0, y0] = end(pitch, 1)
-    g += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${cx}" y2="${cy.toFixed(1)}" stroke="var(--dim)" stroke-width="2" stroke-dasharray="5 4"/>` + arrow(x0, y0, cx + 4, cy - 4 * Math.tan(pitch.a), 'var(--dim)')
-    g += lab(Math.min(W - 4, x0), Math.max(y0, cy) + 20, `PITCH ${Math.round(pitch.v)} MPH ${sg(o.vaa)}`, 'var(--dim)', 'end')
+    g += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${cx}" y2="${cy.toFixed(1)}" stroke="var(--pc,var(--dim))" stroke-width="2" stroke-dasharray="5 4"/>` + arrow(x0, y0, cx + 4, cy - 4 * Math.tan(pitch.a), 'var(--pc,var(--dim))')
+    g += lab(Math.min(W - 4, x0), Math.max(y0, cy) + 20, `PITCH ${Math.round(pitch.v)} MPH ${sg(o.vaa)}`, 'var(--pc,var(--dim))', 'end')
   }
   if (bat) {
     const [x0, y0] = end(bat, -1)
@@ -55,7 +57,7 @@ export function sliceSVG(o, W, H) {
   if (ball.a > 0) tops.push(end(ball, 1)[1] - 22)
   if (pitch) tops.push(end(pitch, 1)[1] - 6)
   const top = Math.max(0, Math.min(...tops)), dy = -top / 2
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" shape-rendering="crispEdges"><g transform="translate(0 ${dy.toFixed(1)})">${g}</g></svg>`
+  return `<svg viewBox="0 0 ${W0} ${H}" width="${W0}" height="${H}" shape-rendering="crispEdges"><g transform="translate(${ox} ${dy.toFixed(1)})">${g}</g></svg>`
 }
 
 // one line under the slice: how the bat's path met the pitch's path (a bat swinging up at the same angle the pitch comes down is "on plane")

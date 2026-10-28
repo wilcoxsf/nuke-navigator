@@ -1,5 +1,5 @@
 // Study 25 bay water (B, 28 Oct, Andrew: "a really subtle bay animation in the back for water undulating"): faint arcs over McCovey Cove and the bay beyond right
-// field (bearings 25 to 95 degrees, 130 to 420 m out), drawn as thin lines at the water's level, dark blue, brightening a little where the motion is.
+// field (bearings 25 to 95 degrees, 130 to 420 m out), drawn as thin grey lines on black water at its level, brightening a little where the motion is.
 //   B1 SWELL: the arcs rise and fall about 0.6 m on a 9 s cycle, lighter on the crests   B2 SHIMMER: still, a few short pieces brighten and fade
 //   B3 SHORE LINES: three faint bands roll in toward the ballpark and fade at the seawall   B4 WAKES: still, and now and then a faint V crosses the Cove   B0 STILL
 // Still under prefers-reduced-motion. The stadium hides what is behind it, so most of it shows past the right-field arcade.
@@ -30,12 +30,15 @@ export function initWater25(api, o = {}) {
   for (let k = 0; k <= NB; k++) { const b = B0 - 2 + (k / NB) * (B1 - B0 + 4); for (const r of [rIn, rOut]) { const [x, z] = P(r, b); seaPts.push(x, water - 0.05, z) } }
   for (let k = 0; k < NB; k++) { const a = 2 * k; seaIdx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) }
   const seaGeo = new THREE.BufferGeometry(); seaGeo.setAttribute('position', new THREE.Float32BufferAttribute(seaPts, 3)); seaGeo.setIndex(seaIdx)
-  const sea = new THREE.Mesh(seaGeo, new THREE.MeshBasicMaterial({ color: '#050d12', fog: false, side: THREE.DoubleSide }))
+  // the water: pure black (depth only, no color), a shade darker than the near-black land, with the grey ripples on it; it gives the arcs depth to sit on. (A colored
+  // surface does not work here: the post shader hatches anything dark grey, so no color matches the background.)
+  const sea = new THREE.Mesh(seaGeo, new THREE.MeshBasicMaterial({ fog: false, side: THREE.DoubleSide, colorWrite: false }))
   sea.renderOrder = -2; scene.add(sea); window.__nn?.hideForNormal.push(sea) // drawn before the arcs, which write no depth
-  const BLUE = new THREE.Color('#5fd3ff'), BASE = 0.1, HI = 0.42
+  // black water, grey-white ripples (28 Oct, Andrew: not blue); the line color is the theme's text color, scaled down
+  const INK = new THREE.Color(o.ink ?? '#e8e2d4'), BASE = 0.1, HI = 0.34
   const still = matchMedia?.('(prefers-reduced-motion: reduce)').matches
   let mode = o.mode ?? 1, t = 0, cost = [], boat = null
-  const setC = (j, v) => { const c = BLUE; for (const q of [0, 3]) { colr[j * 6 + q] = c.r * v; colr[j * 6 + q + 1] = c.g * v; colr[j * 6 + q + 2] = c.b * v } }
+  const setC = (j, v) => { const c = INK; for (const q of [0, 3]) { colr[j * 6 + q] = c.r * v; colr[j * 6 + q + 1] = c.g * v; colr[j * 6 + q + 2] = c.b * v } }
   const setY = (j, y0, y1) => { pos[j * 6 + 1] = y0; pos[j * 6 + 4] = y1 }
   function update(dt) {
     const s0 = performance.now()

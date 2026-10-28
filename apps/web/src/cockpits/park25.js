@@ -4,7 +4,7 @@
 //   CRAZY CRAB (a wall scraper or a ball just short)   SEA LION (a splash hit)   SPLASH ODOMETER (the splash count rolls over)   CABLE CAR (430 ft or more)
 //   KARL (the fog eats the board)   GULL HEIST and GOLDEN GATE (idle)   GOLF SHOT, TOMAHAWK, CHASE SCENE, INSIDE JOB (the four OFF THE MENU home runs)
 //   WALK-OFF   GRAND SLAM   GO-AHEAD and TIES IT (a scoreline flip)   MOONSHOT   TWEAK THE TATER   SO CLOSE (a dojo swing that just missed)
-// The board is 72 x 22 LEDs, each 0.8 m (a little over 2 screen pixels at 1440 wide, measured); one animation plays at a time, with at most two waiting.
+// The board is 72 x 22 LEDs, each 0.82 m (a little over 2 screen pixels at 1440 wide, measured); one animation plays at a time, with at most two waiting.
 export function initPark25(api, col, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
@@ -12,7 +12,7 @@ export function initPark25(api, col, o = {}) {
   const parts = []
 
   // ---- the LED board: a buffer of color codes per LED, drawn as round bulbs ----
-  const GW = 72, GH = 22, S = 10, LED = 0.8
+  const GW = 72, GH = 22, S = 10, LED = 0.82
   const buf = new Uint8Array(GW * GH)
   const grid = document.createElement('canvas'); grid.width = GW; grid.height = GH
   const gx = grid.getContext('2d', { willReadFrequently: true })
@@ -20,8 +20,9 @@ export function initPark25(api, col, o = {}) {
   const ox = out.getContext('2d')
   const tex = new THREE.CanvasTexture(out); tex.magFilter = THREE.LinearFilter; tex.colorSpace = THREE.SRGBColorSpace
   const board = new THREE.Mesh(new THREE.PlaneGeometry(GW * LED, GH * LED), new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide }))
-  const bearing = o.boardBearing ?? 0, bh = o.boardH ?? 30
-  board.position.copy(at(bearing, o.boardR ?? 141, bh))
+  // mounted on the real board's face in the park model (149 to 152 m out, 30 to 50 m up, about 62 m wide), a hair in front of it (28 Oct: it had floated 8 m in front)
+  const bearing = o.boardBearing ?? 0, bh = o.boardH ?? 40
+  board.position.copy(at(bearing, o.boardR ?? 148.5, bh))
   board.lookAt(at(bearing, 0, bh))
   scene.add(board)
   // palette: a = the text color of the moment (accent, or bone while flashing), o = accent, w = bone, then fixed colors for the sprites

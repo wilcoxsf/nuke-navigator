@@ -8,7 +8,9 @@
 // 28 Oct, his picks and asks: L2 and P5 by default; instant replay, fireworks, CRT and three type sets cut; a MENU button with its ESC keycap; a pitch-movement arrow on
 //   the zone (R); a score bug with the win chance before and after and the swing's WPA (S); Karl toned down (K); the bay moving behind the park (B, water25.js);
 //   landing moments where the ball comes down (F1, moments25.js) and an optional camera push (Z); a library of scoreboard animations (park25.js); pixel icons for the
-//   panel titles (I); faces drawn on a canvas at screen resolution (A2, A4 to A7, faces25.js); and PITCH CAM, the pitch on its fitted path from behind the plate (H, pitchcam25.js).
+//   panel titles (I); faces drawn on a canvas at screen resolution (A2, A4 to A7, faces25.js); and the pitch on its fitted path (pitchcam25.js).
+// 28 Oct, second round: the arrow shows the break the pitch had (gravity in), not an as-if-spinless one; a pitch color (Y) for the arrow, the side view and the
+//   PITCH ARC drawn on the park on PLAY IT (H, no more cut behind the plate); black water; T16, I2 and A2 as defaults; no hover tilt; sliders in the dojo strip.
 import { SKEL_CSS, restamp, tileHTML, isHR } from './skel.js'
 import { THEME_CSS, JUICE_CSS, THEMES, applyTheme, pressEl, makeControls, makeSession, finishUI, loadDists } from './skel2.js'
 import { BTN_TILT_CSS, tiltButtons, loadReplay, loadPool, ballsLike, rollTo } from './skel3.js'
@@ -30,7 +32,7 @@ import { initPark25 } from './park25.js'
 import { initMoments25 } from './moments25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
-import { initPitchCam } from './pitchcam25.js'
+import { initPitchArc, pitchPath, breakOf } from './pitchcam25.js'
 import { constellation, posterPNG } from './show25.js'
 
 const LSA = { 1: 'WEAK', 2: 'TOPPED', 3: 'UNDER', 4: 'FLARE OR BURNER', 5: 'SOLID CONTACT', 6: 'BARREL' }
@@ -48,10 +50,11 @@ const ICONS = {
     2: ['....##.a', '....##.#', '...####.', '..#.##..', '...##...', '...###..', '..#...#.', '.#.....#'],
     3: ['...##.', '...##.', '.####.', '..##..', '.#..#.', '#....#'],
   },
+  // the contact panel: a bat meeting the ball (28 Oct, Andrew asked for a bat and ball here)
   slice: {
-    1: ['.#......', '..#.##..', '...###..', '....##..', '...###..', '...##...', '..#..#..', '.#....#.'],
-    2: ['....##..', '....##..', '######.a', '...###..', '...##...', '..#.##..', '.#...#..', '#.....#.'],
-    3: ['..##..', '..##..', '#####a', '..##..', '.#..#.', '#....#'],
+    1: ['.....##.', '....###.', '...###..', '..###.##', '.###..##', '###.....', '##......', '#.......'],
+    2: ['.....##.', '....###.', '...###aa', '..###.aa', '.###....', '###.....', '##......', '#.......'],
+    3: ['...##.', '..###.', '.###aa', '###.aa', '##....', '#.....'],
   },
   hists: {
     1: ['........', '.....#..', '.....#..', '...#.#..', '...#.#.#', '.#.#.#.#', '.#.#.#.#', '########'],
@@ -90,16 +93,24 @@ export const AXES = {
     { c: 3, name: 'QUIET', desc: 'no landing moments and no gulls: the trail, the splash and the scoreboard only', style: 'none' },
   ] },
   I: { name: 'PANEL ICONS', opts: [
-    { c: 1, name: 'SET', desc: 'pixel icons for titles: the pitcher set, the batter in his stance, plain bars' },
-    { c: 2, name: 'ACTION', desc: 'the pitcher at release, the batter at contact, the bars with this ball lit' },
+    { c: 1, name: 'SET', desc: 'pixel icons for titles: the pitcher set, a bat and ball, plain bars' },
+    { c: 2, name: 'ACTION', desc: 'the pitcher at release, the bat meeting the ball, the bars with this ball lit (your pick)' },
     { c: 3, name: 'TINY', desc: 'smaller versions of ACTION, for tight headers' },
     { c: 0, name: 'WORDS', desc: 'the spaced-out text titles from 27 Oct' },
   ] },
   R: { name: 'PITCH ARROW', opts: [
-    { c: 1, name: 'INTO THE BALL', desc: 'from where a spinless pitch would have crossed, to where it did: the movement, at true scale (R key)' },
-    { c: 2, name: 'OUT OF THE BALL', desc: 'the same arrow starting at the ball, pointing the way it was breaking' },
-    { c: 3, name: 'COMET', desc: 'a short fading pixel tail behind the ball, along the movement' },
+    { c: 1, name: 'BREAK', desc: 'one arrow from where the pitch was headed 40 ft out to where it crossed: the bend it really had, gravity included (R key)' },
+    { c: 2, name: 'SIDE + DROP', desc: 'the same bend in its two parts: the sideways break along the top, then the drop (or rise) into the ball' },
+    { c: 3, name: 'PATH', desc: 'the pitch itself over its last 40 ft, as the catcher saw it' },
     { c: 0, name: 'OFF', desc: 'no arrow' },
+  ] },
+  // the pitch's own color (28 Oct): the arrow on the zone, the pitch line in the side view, the pitch arc in the park; the hit keeps the accent
+  Y: { name: 'PITCH COLOR', opts: [
+    { c: 1, name: 'SKY', desc: 'a clear mid blue, the opposite of the orange hit', col: '#6da7de' },
+    { c: 2, name: 'SEA GLASS', desc: 'a pale green-blue, like the Cove', col: '#8fd0c4' },
+    { c: 3, name: 'LILAC', desc: 'a soft violet, distinct from everything else on screen', col: '#a79be0' },
+    { c: 4, name: 'STEEL', desc: 'a quiet grey-blue, the least loud', col: '#8aa3b8' },
+    { c: 5, name: 'BONE', desc: 'the text color: the pitch in plain ink, the hit in orange', col: null },
   ] },
   S: { name: 'SITUATION', opts: [
     { c: 1, name: 'SCORE BUG', desc: 'a TV-style bug in the park corner: inning, outs, runners, count, score, and the win chance before and after' },
@@ -118,13 +129,13 @@ export const AXES = {
     { c: 4, name: 'WAKES', desc: 'still water; now and then a faint V-wake crosses the Cove' },
     { c: 0, name: 'STILL', desc: 'no motion on the water' },
   ] },
-  Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake' }] },
-  H: { name: 'PITCH CAM', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT cuts behind home plate for the pitch, with its real path and break, then back for the swing' }, { c: 0, name: 'OFF', desc: 'PLAY IT stays on the broadcast view' }] },
+  Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put (Z key)' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake (Z key; on by default since 28 Oct)' }] },
+  H: { name: 'PITCH ARC', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT draws the pitch on the park on its real path and break, in the pitch color, then the hit flies' }, { c: 0, name: 'OFF', desc: 'PLAY IT goes straight to the hit' }] },
   M: { name: 'MENU TITLE', opts: [{ c: 1, name: 'STACKED', desc: 'the name in two big lines' }, { c: 2, name: 'ARC', desc: 'a pixel home-run arc over the name' }, { c: 3, name: 'MARQUEE', desc: 'the name inside a border of chasing bulbs' }] },
 }
-const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'S', 'K', 'B', 'Z', 'H', 'M']
+const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'M']
 const HDR_AX = ['L', 'P', 'A', 'T', 'F', 'I'] // the rest live in the ? legend and their own keys
-const DEF = { L: 2, P: 5, A: 2, T: 1, F: 1, I: 1, R: 1, S: 1, K: 1, B: 1, Z: 1, H: 1, M: 1 }
+const DEF = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 1, Y: 1, S: 1, K: 1, B: 1, Z: 2, H: 1, M: 1 } // 28 Oct picks: A2, T16, I2 ACTION, the push on
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
@@ -199,7 +210,7 @@ const PHONE_CSS = `
 #cp .c25 .hists .hsw{top:4px}
 #cp .c25 .strip .bt .ps{display:block;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #cp .c25 .strip{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:6px}
-#cp .c25 .strip .bt{padding:4px 26px 2px 6px}
+#cp .c25 .strip .bt{padding:4px 26px 14px 6px}#cp .c25 .strip .bt .sld{left:6px;right:26px;bottom:2px}
 #cp .c25 .strip .bt b{font-size:calc(17px * var(--ts))}
 #cp .c25 .strip .bt .ud{right:3px;gap:2px}
 #cp .c25 .strip .bt .ud i{width:16px;height:13px;line-height:11px}
@@ -410,7 +421,13 @@ export async function build(root, api, U) {
 #cp .c25 .wd.on sup{color:var(--k)}
 #cp .c25 .wsum{display:grid;gap:4px}
 #cp .c25 .strip{position:relative;display:grid;grid-template-columns:repeat(6,1fr) 1.4fr;gap:10px;padding-bottom:6px}
-#cp .c25 .strip .bt{padding:8px 34px 4px 10px;display:flex;flex-direction:column;justify-content:space-between;position:relative;min-width:0}
+#cp .c25 .strip .bt{padding:8px 34px 18px 10px;display:flex;flex-direction:column;justify-content:space-between;position:relative;min-width:0}
+#cp .c25 .strip .bt .sld{position:absolute;left:10px;right:34px;bottom:4px;height:12px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;pointer-events:auto}
+#cp .c25 .strip .bt .sld::-webkit-slider-runnable-track{height:2px;background:var(--dim)}
+#cp .c25 .strip .bt .sld::-moz-range-track{height:2px;background:var(--dim)}
+#cp .c25 .strip .bt .sld::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height:12px;margin-top:-5px;background:var(--acc);border:0;border-radius:0}
+#cp .c25 .strip .bt .sld::-moz-range-thumb{width:8px;height:12px;background:var(--acc);border:0;border-radius:0}
+#cp .c25 .strip .bt.arm .sld::-webkit-slider-runnable-track{background:var(--k)}
 #cp .c25 .strip .bt .ps{color:var(--dim);white-space:nowrap}
 #cp .c25 .strip .bt.arm .ps{color:var(--k)}
 #cp .c25 .strip .bt b{font-weight:400;font-size:26px;line-height:.9;white-space:nowrap;overflow:hidden}
@@ -478,7 +495,7 @@ export async function build(root, api, U) {
 `
   // every px font size in this study scales with the type set (T); labels in the label face keep their own size
   const scaled = (s) => s.replace(/font-size:(\d+(?:\.\d+)?)px/g, 'font-size:calc($1px * var(--ts))')
-  css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + BTN_TILT_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PHONE_CSS)
+  css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PHONE_CSS)
   root.classList.add('skel')
   window.__cpBead = 3.4
   window.__cpHold = 110 // the hit-stop: the ball waits at the plate for 110 ms before it leaves
@@ -486,7 +503,7 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U), ses = makeSession(api)
   const q = new URLSearchParams(location.search)
   const mix = parseMix(q.get('mix') ?? store('nn-mix25') ?? '')
-  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null
+  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'giants', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
@@ -504,7 +521,7 @@ export async function build(root, api, U) {
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
   <div class="pnl p hists" id="c25hi"><span class="t">/ V S &nbsp; A L L /</span><span class="hsw" id="c25hw"><span class="bt" data-w="mlb">ALL</span><span class="bt" data-w="sf">ORACLE</span></span><div id="c25hb"></div></div>
   <div class="ptabs p" id="c25pt">${[['batter', 'BATTER'], ['pitch', 'PITCH'], ['slice', 'CONTACT'], ['hists', 'VS ALL']].map(([k, l]) => `<span class="bt" data-card="${k}">${l}</span>`).join('')}</div>
-  <div class="strip p" id="c25sl">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}"><span class="ps">${i + 1} ${s.label}</span><b class="num"></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span></div>`).join('')}<div class="bt hot" data-i="6"><span class="ps">ENTER</span><b>SWING</b></div></div>
+  <div class="strip p" id="c25sl">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}"><span class="ps">${i + 1} ${s.label}</span><b class="num"></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span>${s.k === 'hand' ? '' : `<input type="range" class="sld" min="0" max="1000" step="1" aria-label="${s.label}">`}</div>`).join('')}<div class="bt hot" data-i="6"><span class="ps">ENTER</span><b>SWING</b></div></div>
   <div class="mod" id="c25m"><div class="box"><span class="bt x" id="c25cl" aria-label="close">CLOSE</span><h3 id="c25mt"></h3><div id="c25mb"></div></div></div></div>`
   const E = (id) => root.querySelector(id), hero = E('#c25h'), grid = E('.c25')
   const setCard = (k) => { grid.dataset.card = k; root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.classList.toggle('on', b.dataset.card === k)); if (last) render(last) }
@@ -520,7 +537,7 @@ export async function build(root, api, U) {
     api.NN.setWire(true, { split: true, angle: 78, step: 0, hidden: true, opacity: 0.9, color: t.tx, face: t.k, fog: [230, 560], rebuild: !!showWire.built, ...rich })
     showWire.built = true
   }
-  tiltButtons(root)
+  // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
   const camTo = (k) => { const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top') }
@@ -615,6 +632,7 @@ export async function build(root, api, U) {
     if (fx?.karlOn() && fx.karlLevel() !== mix.K) fx.karl(true, mix.K)
     if (water && water.mode() !== mix.B) water.setMode(mix.B)
     if (mix.R) lastR = mix.R // the R key brings back whichever arrow was last on
+    grid.style.setProperty('--pc', optOf('Y', mix.Y).col ?? 'var(--tx)')
     paintTitles()
     menu?.setLogo(mix.M)
     for (const [k, v] of Object.entries(typeVars(optOf('T', mix.T).T))) grid.style.setProperty('--' + k, v)
@@ -646,6 +664,7 @@ export async function build(root, api, U) {
 
   function applyBall(b) {
     cur = b; edited = false
+    pitchCam?.clear() // the last pitch arc belongs to the last ball
     if (life) { const n = pname(b.b); life.idle(`${(n ? n[0] : 'BATTER ' + b.b).toUpperCase()}  ·  ${b.d}  ·  ${b.ft} FT`) }
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false })
     api.setPreview(true); api.update()
@@ -697,7 +716,9 @@ export async function build(root, api, U) {
   })
   const fire = () => { if (mode === 'replay') { play(); return } pressEl(slots[6]); ses.fire() }
   ctl.bind(fire, 'h')
-  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < 6); if (i < 6) el.querySelector('b').textContent = ctl.text(ctl.SLOTS[i].k) })
+  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < 6); if (i < 6) { el.querySelector('b').textContent = ctl.text(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } })
+  // sliders (28 Oct, Andrew: TWEAK THE TATER should have sliders): drag a slot's slider to set it; its keys stay with the slider, not the strip's arrow keys
+  slots.forEach((el, i) => { const sl = el.querySelector('.sld'); if (!sl) return; sl.addEventListener('input', () => { ctl.arm(i); ctl.setFrac(i, Number(sl.value) / 1000); ctl.onChange() }); sl.addEventListener('keydown', (e) => e.stopPropagation()); sl.addEventListener('wheel', (e) => e.stopPropagation()) })
 
   // ---- odds: the final model for an unedited real ball where it was hit; the what-if model (or real balls like it) for anything else ----
   const elevAt = () => parks.parks.find((p) => p.abbr === (window.__parkX ?? 'SF'))?.elev_ft ?? 0
@@ -887,7 +908,7 @@ export async function build(root, api, U) {
     const pr = parks.parks.length ? evalParks(parks, api) : [], gone = pr.length ? U.goneWord(parks, api, pr) : '--'
     return [
       ['GAME', [['BATTER', bn ? `${bn[0]}${bn[1] ? ' #' + bn[1] : ''}` : b ? '#' + b.b : 'YOUR SWING'], ['BATS', b ? b.s : s.hand > 0 ? 'R' : 'L'], ['PITCHER', pn ? pn[0] : '--'], ['THROWS', b?.t ?? '--'], ['DATE', b?.d ?? '--'], ['PARK', b ? (b.park === 'SF' ? 'ORACLE PARK' : b.park) : 'ORACLE PARK'], ['INNING', b ? `${b.tb === 'Top' ? 'TOP' : 'BOT'} ${b.in ?? '--'}` : '--'], ['COUNT', b && b.bl != null ? `${b.bl}-${b.sk}` : '--'], ['OUTS', f(b?.ou, 0)], ['RUNNERS ON', runners], ['SCORE (BAT-FLD)', b && b.bsc != null ? `${b.bsc}-${b.fsc}` : '--'], ['TIME THROUGH ORDER', f(b?.tto, 0)], ['BATTER AGE', f(b?.agb, 0)], ['PITCHER AGE', f(b?.agp, 0)]]],
-      ['PITCH', [['TYPE', b ? PITCH[b.pt] ?? b.pt ?? '--' : '--'], ['SPEED', f(b?.pv, 1, ' MPH')], ['EFFECTIVE SPEED', f(b?.eff, 1, ' MPH')], ['SPIN RATE', f(b?.rpm, 0, ' RPM')], ['SPIN TILT', b ? clock(b.ax) : '--'], ['SPIN AXIS', f(b?.ax, 0, '°')], ['RELEASE SIDE', f(b?.rx, 2, ' FT')], ['RELEASE HEIGHT', f(b?.rz, 2, ' FT')], ['EXTENSION', f(b?.ext, 1, ' FT')], ['ARM ANGLE', f(b?.arm, 0, '°')], ['PLATE X', f(b?.px, 2, ' FT')], ['PLATE Z', f(b?.pz, 2, ' FT')], ['ZONE', f(b?.zn, 0)], ['BREAK H / V', b && b.hx != null ? `${b.hx.toFixed(0)} / ${b.hz?.toFixed(0)} IN` : '--'], ['APPROACH ANGLE', f(b?.vaa, 1, '°')]]],
+      ['PITCH', [['TYPE', b ? PITCH[b.pt] ?? b.pt ?? '--' : '--'], ['SPEED', f(b?.pv, 1, ' MPH')], ['EFFECTIVE SPEED', f(b?.eff, 1, ' MPH')], ['SPIN RATE', f(b?.rpm, 0, ' RPM')], ['SPIN TILT', b ? clock(b.ax) : '--'], ['SPIN AXIS', f(b?.ax, 0, '°')], ['RELEASE SIDE', f(b?.rx, 2, ' FT')], ['RELEASE HEIGHT', f(b?.rz, 2, ' FT')], ['EXTENSION', f(b?.ext, 1, ' FT')], ['ARM ANGLE', f(b?.arm, 0, '°')], ['PLATE X', f(b?.px, 2, ' FT')], ['PLATE Z', f(b?.pz, 2, ' FT')], ['ZONE', f(b?.zn, 0)], ['SIDE BREAK', b && b.hx != null ? `${b.hx.toFixed(1)} IN` : '--'], ['VERTICAL BREAK', b && breakOf(b) ? `${breakOf(b).v.toFixed(1)} IN` : '--'], ['INDUCED VERTICAL BREAK', b && b.hz != null ? `${b.hz.toFixed(1)} IN` : '--'], ['APPROACH ANGLE', f(b?.vaa, 1, '°')]]],
       ['SWING AND CONTACT', [['BAT SPEED', f(b?.bs, 1, ' MPH')], ['SWING LENGTH', f(b?.sl, 1, ' FT')], ['ATTACK ANGLE', f(b?.aa, 1, '°')], ['ATTACK DIRECTION', f(b?.ad, 1, '°')], ['SWING TILT', f(b?.tilt, 0, '°')], ['INTERCEPT X / Y', b && b.ix != null ? `${b.ix.toFixed(1)} / ${b.iy?.toFixed(1)} IN` : '--'], ['EXIT SPEED', `${(b?.ev ?? s.ev).toFixed(1)} MPH`], ['LAUNCH ANGLE', `${(b?.la ?? s.la).toFixed(1)}°`], ['GAP (LAUNCH - ATTACK)', b?.aa != null ? `${(b.la - b.aa).toFixed(1)}°` : '--'], ['LANDING BEARING', `${(b?.dir ?? s.dir).toFixed(1)}°`], ['HIT LOCATION', f(b?.hl, 0)], ['BALL TYPE', b?.bbt ? b.bbt.replace(/_/g, ' ').toUpperCase() : '--'], ['CONTACT QUALITY', b?.lsa ? LSA[b.lsa] ?? b.lsa : '--']]],
       ['RESULT AND VALUE', [['OUTCOME', b ? (b.ev_ ?? '').replace(/_/g, ' ').toUpperCase() : '--'], ['HOME RUN ODDS', o.p != null ? pct(o.p) + '%' : '--'], ['ODDS FROM', o.src], ['PROJECTED DISTANCE', b ? `${b.ft} FT` : '--'], ['EXPECTED AVG', f(b?.xba, 3)], ['EXPECTED WOBA', f(b?.xw, 3)], ['EXPECTED SLG', f(b?.xs, 3)], ['RUN VALUE', b?.dre != null ? (b.dre >= 0 ? '+' : '') + b.dre.toFixed(3) : '--'], ['WIN VALUE', b?.dwe != null ? (b.dwe >= 0 ? '+' : '') + (b.dwe * 100).toFixed(1) + '%' : '--'], ['ENGINE VERDICT', v.kind === 'GONE' ? 'HOME RUN' : v.kind === 'WALL' ? 'OFF THE WALL' : v.kind === 'FOUL' ? 'FOUL' : 'IN PLAY'], ['PARKS WHERE GONE', gone], ['WALL HERE', v.wallFt ? `${Math.round(v.wallFt)} FT, ${v.wallH.toFixed(0)} FT HIGH` : '--'], [v.kind === 'GONE' ? 'CLEARED BY' : 'SHORT BY', v.wallFt ? `${(v.kind === 'GONE' ? v.clearBy : v.short ?? 0).toFixed(1)} FT` : '--']]],
       ['FLIGHT AND AIR', [['SIMULATED DISTANCE', `${Math.round(res.landFt)} FT`], ['APEX', `${Math.round(res.peakFt)} FT`], ['HANG TIME', `${res.hang.toFixed(2)} S`], ['CARRY FACTOR', b ? b.carry.toFixed(3) : '1.000'], ['SIDE SPIN OFFSET', b ? `${b.dws} RPM` : '0 RPM'], ['AIR DENSITY', res.rho.toFixed(3)], ['TEMPERATURE', `${Math.round(s.temp)} F`], ['HUMIDITY', f(b?.rh, 0, '%')], ['PRESSURE', f(b?.hpa, 0, ' HPA')], ['WIND', b?.wm != null ? `${b.wm} MPH` : '--'], ['WIND DIRECTION', f(b?.wd, 0, '°')], ['GUSTS', f(b?.wg, 0, ' MPH')], ['BACKSPIN (PRIOR)', `${Math.round(res.wb)} RPM`], ['SIDE SPIN (PRIOR)', `${Math.round(res.ws)} RPM`]]],
@@ -938,6 +959,7 @@ export async function build(root, api, U) {
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
     else if (e.key === 'p' || e.key === 'P') printIt()
     else if (e.key === 'n' || e.key === 'N') setShow('sm')
+    else if (e.key === 'z' || e.key === 'Z') { mix.Z = mix.Z === 2 ? 1 : 2; sound.play('move'); applyMix('Z'); banner(mix.Z === 2 ? 'PUSH ON' : 'PUSH OFF', 'THE CAMERA ' + (mix.Z === 2 ? 'EASES TO THE LANDING' : 'STAYS PUT') + ' (Z)') }
     else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
     else if (e.key === 'u' || e.key === 'U') openMod('moon')
   })
@@ -1008,30 +1030,37 @@ export async function build(root, api, U) {
     g += `<rect x="${X(-zl).toFixed(1)}" y="${Y(st).toFixed(1)}" width="${(2 * zl * S).toFixed(1)}" height="${((st - sb) * S).toFixed(1)}" fill="none" stroke="var(--tx)" stroke-width="2"/>`
     const px = Math.max(-xr + 0.06, Math.min(xr - 0.06, b.px)), pz = Math.max(zb + 0.06, Math.min(zt - 0.06, b.pz)), rr = Math.max(5, 0.121 * S)
     if (off) { const ex = Math.max(-zl, Math.min(zl, px)), ez = Math.max(sb, Math.min(st, pz)); g += `<line x1="${X(px).toFixed(1)}" y1="${Y(pz).toFixed(1)}" x2="${X(ex).toFixed(1)}" y2="${Y(ez).toFixed(1)}" stroke="var(--acc)" stroke-width="2" stroke-dasharray="3 3"/>` }
-    g += moveArrow(b, X(px), Y(pz), S, W, H, rr)
+    g += moveArrow(b, X, Y, X(px), Y(pz), S, W, H, rr)
     g += `<rect class="pb" style="--dx:${(cx - X(px)).toFixed(1)}px;--dy:${(Y((st + sb) / 2) - Y(pz)).toFixed(1)}px" x="${(X(px) - rr).toFixed(1)}" y="${(Y(pz) - rr).toFixed(1)}" width="${(2 * rr).toFixed(1)}" height="${(2 * rr).toFixed(1)}" fill="var(--acc)" stroke="var(--k)" stroke-width="1.5"/>`
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges">${g}</svg>`
   }
-  // the pitch arrow (R): how far spin pushed the pitch off a spinless path by the time it crossed, at true scale on the zone (hx, hz are Savant's pfx_x and pfx_z in
-  // inches, catcher's view like the zone, gravity taken out). R1 runs from where a spinless pitch would have crossed into the ball; R2 starts at the ball and points
-  // the way it was breaking; R3 is a short fading tail. The far end is clipped at the box edge so a 20-inch sweeper still fits.
-  function moveArrow(b, bx, by, S, W, H, rr) {
-    if (!mix.R || b.hx == null || b.hz == null) return ''
-    const dx = (b.hx / 12) * S, dy = -(b.hz / 12) * S, L = Math.hypot(dx, dy)
-    if (L < rr + 4) return ''
-    const ux = dx / L, uy = dy / L, gap = rr + 2
+  // the pitch arrow (R, redone 28 Oct: Andrew wants the movement the pitch had, not an as-if-spinless one): its break over the last 40 ft, at true scale on the zone,
+  // sideways and vertical with gravity left in (breakOf, pitchcam25.js), catcher's view, in the pitch color (Y). R1 is one arrow from where the pitch was headed 40 ft out
+  // to where it crossed; R2 is the same as its two parts, sideways then down (or up); R3 is the path itself over its last 40 ft. Far ends are clipped at the box edge.
+  function moveArrow(b, X, Y, bx, by, S, W, H, rr) {
+    const k = breakOf(b)
+    if (!mix.R || !k) return ''
+    const dx = (k.h / 12) * S, dy = -(k.v / 12) * S, L = Math.hypot(dx, dy), gap = rr + 2
+    const inBox = (x, y) => x >= 3 && x <= W - 3 && y >= 3 && y <= H - 3
     const clip = (x0, y0, x1, y1) => { let t1 = 1; for (const [p, q] of [[x1 - x0, x0 - 3], [-(x1 - x0), W - 3 - x0], [y1 - y0, y0 - 3], [-(y1 - y0), H - 3 - y0]]) { if (p < 0) t1 = Math.min(t1, -q / p) } t1 = Math.max(0, t1); return [x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1] }
-    const ln = (x0, y0, x1, y1, w = 2) => `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--acc)" stroke-width="${w}"/>`
-    const head = (x, y, vx, vy) => { const a = 0.6, k = 7; return [[Math.cos(a), Math.sin(a)], [Math.cos(-a), Math.sin(-a)]].map(([c, s]) => ln(x, y, x - k * (vx * c - vy * s), y - k * (vx * s + vy * c))).join('') }
+    const ln = (x0, y0, x1, y1, w = 2, dash = '') => `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--pc)" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`
+    const head = (x, y, vx, vy) => { const a = 0.6, n = 7; return [[Math.cos(a), Math.sin(a)], [Math.cos(-a), Math.sin(-a)]].map(([c, s2]) => ln(x, y, x - n * (vx * c - vy * s2), y - n * (vx * s2 + vy * c))).join('') }
     let g = ''
     if (mix.R === 1) {
-      const hx = bx - ux * gap, hy = by - uy * gap, [tx, ty] = clip(hx, hy, bx - dx, by - dy)
-      g = ln(tx, ty, hx, hy) + head(hx, hy, ux, uy) + `<rect x="${(tx - 2).toFixed(1)}" y="${(ty - 2).toFixed(1)}" width="4" height="4" fill="none" stroke="var(--acc)" stroke-width="1"/>`
+      if (L < gap + 4) return ''
+      const ux = dx / L, uy = dy / L, hx = bx - ux * gap, hy = by - uy * gap, [tx, ty] = clip(hx, hy, bx - dx, by - dy)
+      g = ln(tx, ty, hx, hy) + head(hx, hy, ux, uy)
     } else if (mix.R === 2) {
-      const sx = bx + ux * gap, sy = by + uy * gap, [ex, ey] = clip(sx, sy, sx + dx, sy + dy)
-      g = ln(sx, sy, ex, ey) + head(ex, ey, ux, uy)
+      // the sideways leg along the top (dashed, from where it was headed), then the vertical leg down (or up) into the ball
+      const sy = by - dy, vy = Math.sign(dy) || 1, ey = by - vy * gap
+      const [s0x, s0y] = clip(bx, sy, bx - dx, sy)
+      if (Math.abs(dx) > 2) g += ln(s0x, s0y, bx, sy, 2, '4 3')
+      if (Math.abs(dy) > gap + 3) { const [cx2, cy2] = clip(bx, ey, bx, sy); g += ln(cx2, cy2, bx, ey) + head(bx, ey, 0, vy) }
     } else {
-      for (let i = 1; i <= 5; i++) { const k = gap + ((L - gap) * i) / 5, x = bx - ux * k, y = by - uy * k, s = Math.max(2, rr * 1.4 * (1 - i / 6)); if (x < 3 || x > W - 3 || y < 3 || y > H - 3) break; g += `<rect x="${(x - s / 2).toFixed(1)}" y="${(y - s / 2).toFixed(1)}" width="${s.toFixed(1)}" height="${s.toFixed(1)}" fill="var(--acc)" fill-opacity="${(1 - i / 6).toFixed(2)}"/>` }
+      const P = pitchPath(b)
+      if (!P) return ''
+      const pts = P.pts.filter((p) => p[1] / 0.3048 <= 40).map((p) => [X(p[0] / 0.3048), Y(p[2] / 0.3048)]).filter(([x, y]) => inBox(x, y) && Math.hypot(x - bx, y - by) > gap)
+      pts.forEach(([x, y], i) => { const sz = 2 + (2 * i) / Math.max(1, pts.length - 1); g += `<rect x="${(x - sz / 2).toFixed(1)}" y="${(y - sz / 2).toFixed(1)}" width="${sz.toFixed(1)}" height="${sz.toFixed(1)}" fill="var(--pc)"/>` })
     }
     return `<g class="pa" data-r="${mix.R}" data-dx="${dx.toFixed(1)}" data-dy="${dy.toFixed(1)}">${g}</g>`
   }
@@ -1044,11 +1073,11 @@ export async function build(root, api, U) {
       return
     }
     zg.style.display = ''
-    const off = offZone(b), pn = pname(b.p)
+    const off = offZone(b), pn = pname(b.p), bk = breakOf(b)
     zg.innerHTML = zone(b, zg.clientWidth || 136, zg.clientHeight || 120, off)
     zg.classList.toggle('anim', performance.now() - pitchIn < 700)
     // most important first: rows drop from the end when the panel is short
-    const rows = [['SPEED', f(b.pv, 1, ' MPH')], ['SPIN', f(b.rpm, 0, ' RPM')], ['BREAK', b.hx != null ? `${b.hx.toFixed(0)} / ${b.hz?.toFixed(0)} IN` : '--'], ['APPROACH', f(b.vaa, 1, '°')], ['COUNT', b.bl != null ? `${b.bl}-${b.sk}` : '--'],
+    const rows = [['SPEED', f(b.pv, 1, ' MPH')], ['SPIN', f(b.rpm, 0, ' RPM')], ['BREAK', bk ? `${Math.abs(bk.h).toFixed(0)} IN ${(b.t === 'L' ? bk.h > 0 : bk.h < 0) ? 'ARM' : 'GLOVE'} SIDE` : '--'], [bk && bk.v > 0 ? 'RISE' : 'DROP', bk ? `${Math.abs(bk.v).toFixed(0)} IN` : '--'], ['APPROACH', f(b.vaa, 1, '°')], ['COUNT', b.bl != null ? `${b.bl}-${b.sk}` : '--'],
       ['PITCHER', pn ? pn[0].toUpperCase() : '--', 1], ['THROWS', b.t === 'L' ? 'LEFT' : b.t === 'R' ? 'RIGHT' : '--'], ['HEIGHT', f(b.pz, 2, ' FT')], ['SIDE', f(b.px, 2, ' FT')], ['SPIN TILT', clock(b.ax)], ['EFFECTIVE', f(b.eff, 1, ' MPH')], ['EXTENSION', f(b.ext, 1, ' FT')], ['RELEASE H', f(b.rz, 2, ' FT')], ['ARM ANGLE', f(b.arm, 0, '°')]]
     const tag = off ? (b.hr ? `<div class="om"><b>${NAMES.offMenu}: ${off.word}</b>${off.inches.toFixed(1)} IN ${off.side}</div>` : `<div class="om">OUT OF THE ZONE: ${off.inches.toFixed(1)} IN ${off.side}</div>`) : ''
     pl.innerHTML = `<div class="hd">${(PITCH[b.pt] ?? b.pt ?? 'PITCH').toUpperCase()}</div>` + tag + rows.map(([a, c, wide]) => `<div class="r${wide ? ' wide' : ''}"><span>${a}</span><b>${c}</b></div>`).join('')
@@ -1211,15 +1240,15 @@ export async function build(root, api, U) {
   }
 
   // ---- effects and sound: hit-stop, contact spark and flash, trail, fireworks on a home run, the Cove splash and its kayaks, Karl's fog ----
-  const colors = () => { const cs = getComputedStyle(root); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim() } }
+  const colors = () => { const cs = getComputedStyle(root), gs = getComputedStyle(grid); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), pc: gs.getPropertyValue('--pc').trim() } }
   let splashes = Number(store('nn-splash25') ?? 0) || 0
   const banner = (big, small) => { const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go') }
   fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
   let pendingSplash = false
   life = atOracle ? initPark25(api, colors, {}) : null
-  water = atOracle ? initWater25(api, { mode: mix.B }) : null
-  const pitchCam = initPitchCam(api, colors)
-  addEventListener('pointerdown', (e) => { if (pitchCam.busy() && e.target?.tagName === 'CANVAS') { pitchCam.stop(); window.__cpNoFlight = false; api.update() } })
+  water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
+  pitchCam = initPitchArc(api, colors)
+  addEventListener('pointerdown', (e) => { if (pitchCam.busy() && e.target?.tagName === 'CANVAS') pitchCam.stop() })
   const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, onBoard: () => life?.play('glitch') })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   let push = null
@@ -1245,10 +1274,8 @@ export async function build(root, api, U) {
     if (mode !== 'replay' || !cur) return
     let wait = 560
     if (cur.b !== lastJingle) { lastJingle = cur.b; if (sound.on()) { sound.play('jingle', { id: cur.b }); wait = 1900 } }
-    // H1 PITCH CAM: behind the plate for the pitch on its fitted path, then back to the broadcast view for the swing
-    // (the hit's preview track starts at the plate, right in front of that camera, so it is cleared for the cut with the engine's no-flight switch and comes back with the swing)
-    const camThenFire = () => { window.__cpNoFlight = true; api.update(); const ok = pitchCam.play(cur, () => { window.__cpNoFlight = false; api.fire() }); if (!ok) { window.__cpNoFlight = false; api.update() } return ok }
-    setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && !bird && camThenFire())) setTimeout(() => api.fire(), 560) }, wait - 560)
+    // H1 PITCH ARC: the pitch drawn on the park on its fitted path, then the hit
+    setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && pitchCam.play(cur, () => api.fire()))) setTimeout(() => api.fire(), 560) }, wait - 560)
   }
   // PRINT IT: a poster of the ball on screen, as a PNG download
   async function printIt() {
@@ -1300,7 +1327,8 @@ export async function build(root, api, U) {
   window.__cpOnFire = (ev) => {
     fires++
     endPush()
-    const bm = api.ballMesh?.(); if (bm) bm.visible = true // a glove or the sea lion may have taken the last one
+    // a glove or the sea lion may have taken the last one; and the engine's ball (a 2.4 m radius, so it shows from anywhere) is drawn at 0.42 of that (Andrew: "way too big")
+    const bm = api.ballMesh?.(); if (bm) { bm.visible = true; bm.scale.setScalar(0.42) }
     fx.contact(ev)
     life?.clear()
     life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())

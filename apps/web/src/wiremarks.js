@@ -78,8 +78,8 @@ export function buildMarks({ stadium, home = [0.3, 1.0], wall = null }) {
   line('marks', [c1, second, [-c1[0], c1[1]]], false, 2) // first to second to third
   // pitcher's mound (9 foot radius, centre 59 feet out), rubber (24 by 6 inches, front edge 60.5 feet out), infield arc (95 feet from the mound)
   const mv = 59 * FT
-  // the model's mound is flat, so the mound is drawn as rings that climb to 10 inches at the rubber
-  for (const [r, h] of [[9, 0], [7, 0.07], [5, 0.15], [3, 0.22]]) { lift0 = 0.05 + h; circle('marks', 0, mv, r * FT, 64) }
+  // the mound's edge only (28 Oct: the inner rings that climbed to the rubber merged into a blob of circles at broadcast distance, Andrew: "weird circles on the mound")
+  lift0 = 0.05; circle('marks', 0, mv, 9 * FT, 64)
   lift0 = 0.05 + 10 * IN
   line('marks', [[-12 * IN, 60 * FT + 0.5 * FT - 6 * IN], [12 * IN, 60 * FT + 0.5 * FT - 6 * IN], [12 * IN, 60.5 * FT], [-12 * IN, 60.5 * FT]], true, 0.4)
   lift0 = 0.05
