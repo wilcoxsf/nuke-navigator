@@ -27,7 +27,7 @@ export const MENU_CSS = `
 @keyframes smchase{to{background-position:14px 0}}
 @media (prefers-reduced-motion:reduce){#cp .c25 .sm .lg3{animation:none}}
 @media (prefers-reduced-motion:reduce){#cp .c25 .sm .smi.on .cur,#cp .c25 .sm .ins{animation:none}}
-@media (max-width:600px){#cp .c25 .sm .smi{grid-template-columns:18px minmax(0,1fr);gap:4px 10px}#cp .c25 .sm .smi span{grid-column:2;white-space:normal;font-size:calc(15px * var(--ts))}}
+@media (max-width:600px){#cp .c25 .sm .smi{grid-template-columns:18px minmax(0,1fr);gap:4px 10px}#cp .c25 .sm .smi .cur{grid-column:1}#cp .c25 .sm .smi b{grid-column:2}#cp .c25 .sm .smi span:not(.cur){grid-column:2;white-space:normal;font-size:calc(15px * var(--ts))}}
 `
 
 // items: [{ k, name, blurb, run(), off?() }]; the menu owns the keyboard while it is open

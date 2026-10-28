@@ -78,8 +78,9 @@ export async function posterPNG(d) {
   const rows = d.rows
   rows.forEach(([a, b], i) => { const x = i % 2 ? W / 2 + 20 : 70, y = 1480 + Math.floor(i / 2) * 36; txt(a, x, y, '26px VT', C.dim); txt(b, x + 500, y, '26px VT', C.tx, 'right') })
   if (d.tag) { g.font = '18px PS2P'; const w = g.measureText(d.tag).width + 24; g.fillStyle = C.acc; g.fillRect(70, 252, w, 36); txt(d.tag, 82, 280, '18px PS2P', C.k) }
-  // the face, as character art, top right of the map
-  if (d.face?.length) {
+  // the face, top right of the map: a canvas style's own drawing (redrawn by the page at 300 px), or character art
+  if (d.faceImg) g.drawImage(d.faceImg, W - 70 - 300, 280, 300, 300)
+  else if (d.face?.length) {
     const lines = d.face.slice(0, 48), cols = Math.max(...lines.map((x) => x.length)), fs = Math.min(14, 300 / (cols * 0.62), 300 / (lines.length * 1.05))
     g.font = `${fs}px ${d.faceFont ?? 'monospace'}`; g.fillStyle = C.tx; g.textAlign = 'left'
     lines.forEach((l, i) => g.fillText(l, W - 70 - cols * fs * 0.62, 280 + i * fs * 1.05))

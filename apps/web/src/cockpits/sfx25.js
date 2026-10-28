@@ -52,9 +52,10 @@ export const sound = {
       else if (kind === 'launch') noise(t, 0.7, { type: 'bandpass', f: 500, q: 3 }, 0.03, 2400, 0.25)
       else if (kind === 'pop') { noise(t, 0.12, { type: 'lowpass', f: 1800 }, 0.12); tone('sine', 140, t, 0.2, 0.08, 50); for (let i = 0; i < 6; i++) noise(t + 0.12 + Math.random() * 0.5, 0.03, { type: 'highpass', f: 3000 }, 0.03) }
       else if (kind === 'crowd') { noise(t, 2.6, { type: 'bandpass', f: 900, q: 0.5 }, 0.045, 700, 0.45) }
+      else if (kind === 'ring') { tone('triangle', 1320, t, 1.3, 0.035); tone('sine', 1985, t, 0.9, 0.02) }
       else if (kind === 'water') noise(t, 0.6, { type: 'lowpass', f: 3200 }, 0.1, 350)
       else if (kind === 'jingle') { const J = jingleNotes(o.id); J.mel.forEach((f, i) => { if (f) tone('square', f, t + i * J.beat, J.beat * 0.9, 0.03) }); J.bass.forEach((f, i) => tone('triangle', f, t + i * 4 * J.beat, J.beat * 3.6, 0.06)); return }
-      else if (kind === 'horn') { for (const f of [98, 147]) { const os = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain(); os.type = 'sawtooth'; os.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = 520; env(g, t, 0.35, 0.05, 1.4, 0.7); os.connect(lp).connect(g).connect(ac.destination); os.start(t); os.stop(t + 2.6) } }
+      else if (kind === 'horn') { for (const f of [98, 147]) { const os = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain(); os.type = 'sawtooth'; os.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = 520; env(g, t, 0.35, 0.05 * (o.vol ?? 1), 1.4, 0.7); os.connect(lp).connect(g).connect(ac.destination); os.start(t); os.stop(t + 2.6) } }
     } catch {}
   },
 }

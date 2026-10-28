@@ -33,7 +33,7 @@ const layout = (page) => page.evaluate(() => {
   const names = Object.keys(P)
   for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) if (inter(R(P[names[i]]), R(P[names[j]]))) out.overlaps.push(names[i] + ' x ' + names[j])
   for (const k of names) { const r = R(P[k]); if (r.w && (r.l < -1 || r.t < -1 || r.r > innerWidth + 1 || r.b > innerHeight + 1)) out.overlaps.push(k + ' off screen') }
-  const ov = ['#c25rd', '#c25v', '#c25ch', '#c25t'].map((s) => [s, R(Q(s))])
+  const ov = ['#c25rd', '#c25v', '#c25ch', '#c25t', '#c25bug'].map((s) => [s, R(Q(s))])
   for (let i = 0; i < ov.length; i++) for (let j = i + 1; j < ov.length; j++) if (inter(ov[i][1], ov[j][1])) out.overlaps.push(ov[i][0] + ' x ' + ov[j][0])
   for (const [s, r] of ov) { const pr = R(P.park); if (r && r.w && (r.r > pr.r + 1 || r.b > pr.b + 1 || r.l < pr.l - 1)) out.overlaps.push(s + ' outside the park') }
   // the park is the hero: it gets the biggest share of the screen
@@ -50,6 +50,7 @@ const layout = (page) => page.evaluate(() => {
     const sw = Q('#c25hw'), swr = R(sw); if (t.closest('.hists') && swr?.w && inter(r, swr)) out.titles.push('hist title under the ALL MLB / ORACLE switch')
   }
   { const box = R(Q('#c25f')), pre = R(Q('#c25f pre')); if (box && pre && box.w && (pre.w > box.w + 2 || pre.h > box.h + 2)) out.fits.push(`face ${Math.round(pre.w)}x${Math.round(pre.h)} in ${Math.round(box.w)}x${Math.round(box.h)}`) }
+  { const box = R(Q('#c25f')), cv = Q('#c25f canvas'); if (cv && cv.style.display !== 'none') { const r = R(cv); if (r.w > box.w + 2 || r.h > box.h + 2) out.fits.push('face canvas bigger than its box') } }
   { const box = R(Q('#c25sv')), sv = R(Q('#c25sv svg')); if (box && sv && box.w && (sv.w > box.w + 2 || sv.h > box.h + 2)) out.fits.push('side-on drawing bigger than its box') }
   for (const sel of ['#c25hb', '.c25 .pitch .pin', '.c25 .batter .bin', '#c25pl']) { const p = Q(sel); if (p && p.clientHeight && p.scrollHeight > p.clientHeight + 2) out.fits.push(sel + ' spills ' + p.scrollHeight + '>' + p.clientHeight) }
   { const sl = R(P.slice), cap = R(Q('#c25cap')); if (sl?.w && cap && cap.b > sl.b + 1) out.fits.push('contact caption spills') }
@@ -88,7 +89,7 @@ for (const [w, h] of SIZES) {
     // every pixel type set fits, in the replay and the dojo, on the as-asked layout and the broadcast one
     for (const m of ['replay', 'whatif']) {
       await setMode(page, m)
-      for (const L of [1, 3]) for (const T of [1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
+      for (const L of [1, 2, 3]) for (const T of [1, 6, 15, 16, 17, 18]) {
         const code = `L${L}P5A3T${T}`
         await page.evaluate((c) => window.__mix25.set(c), code); await page.waitForTimeout(700)
         const X = await layout(page), bad = X.overlaps.concat(X.fits, X.titles)
@@ -127,8 +128,8 @@ for (const [w, h] of SIZES) {
     check('BACK TO THE REPLAY returns to the same ball', bk.mode === 'replay' && bk.ch === before.ch, JSON.stringify({ bk, before }))
     await page.click('#c25ch [data-f="giants"]'); await page.waitForTimeout(900)
     // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
-    const si = await page.evaluate(() => document.querySelector('#c25rd .sit').textContent)
-    check('a real ball shows its situation', /(TOP|BOTTOM) \d+ · .*(TIED|UP|DOWN)/.test(si), si)
+    const si = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
+    check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WPA/.test(si), si)
     await page.click('#c25ch [data-f="big"]'); await page.waitForTimeout(1200)
     const bo = await page.evaluate(() => ({ n: Number(document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1]), st: document.querySelector('#c25v .st').textContent }))
     check('BIG ONES keeps the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
@@ -145,13 +146,22 @@ for (const [w, h] of SIZES) {
     const ty = await page.evaluate(() => document.querySelectorAll('#c25mb .ty').length)
     await page.click('#c25mb .ty[data-c="6"]'); await page.waitForTimeout(600)
     const tyc = await page.evaluate(() => window.__mix25.code())
-    check('the type picker shows every set and applies a click', ty === 11 && /T6 /.test(tyc), `${ty} ${tyc}`)
+    check('the type picker shows the six kept sets and applies a click', ty === 6 && /T6 /.test(tyc), `${ty} ${tyc}`)
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+    // the cut sets fall back to the default; a hidden set still loads from an old code
+    await page.evaluate(() => window.__mix25.set('L1P5A3T10')); await page.waitForTimeout(300)
+    const t10 = await page.evaluate(() => window.__mix25.code())
+    await page.evaluate(() => window.__mix25.set('L1P5A3T7')); await page.waitForTimeout(300)
+    const t7 = await page.evaluate(() => window.__mix25.code())
+    check('a cut type code (T10) falls back to T1, a hidden one (T7) still loads', /T1 /.test(t10) && /T7 /.test(t7), `${t10} | ${t7}`)
+    await page.keyboard.press('t'); await page.waitForTimeout(300)
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(600)
     // the options legend lists every open option with the layout reasons
     await page.click('#c25lg'); await page.waitForTimeout(500)
     const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
-    check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 2 + 11 + 4 + 3 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
+    // L3 P2 A6 T6 F3 I4 R4 S3 K3 B5 Z2 H2 M3
+    check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 6 + 6 + 3 + 4 + 4 + 3 + 3 + 5 + 2 + 2 + 3 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -166,11 +176,8 @@ for (const [w, h] of SIZES) {
     await page.keyboard.press('Enter'); await page.waitForTimeout(350)
     const ft1 = await page.evaluate(() => window.__mix25.fx.count())
     check('a swing throws the contact spark and starts the trail', ft1 > ft0 + 10, `${ft0} -> ${ft1}`)
-    let fwMax = 0
-    for (let k = 0; k < 40 && fwMax <= 60; k++) { await page.waitForTimeout(400); fwMax = Math.max(fwMax, await page.evaluate(() => window.__mix25.fx.count())) }
-    const key1 = await page.evaluate(() => window.__dojo?.key)
-    check('a home run shoots fireworks over center field', fwMax > 60, JSON.stringify({ fwMax, key1 }))
-    await page.waitForTimeout(6000)
+    for (let k = 0; k < 60 && (await page.evaluate(() => !!window.__cp.anim())); k++) await page.waitForTimeout(400)
+    await page.waitForTimeout(4000)
     check('the kayaks are waiting in McCovey Cove', (await page.evaluate(() => window.__mix25.fx.kayaks())) === 6)
     await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 116, la: 28, dir: 24, hand: -1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
     const key0 = await page.evaluate(() => window.__dojo?.key)
@@ -181,15 +188,25 @@ for (const [w, h] of SIZES) {
     let win = false
     for (let k = 0; k < 50 && !win; k++) { await page.waitForTimeout(500); win = await page.evaluate(() => !!window.__mix25.fx.winner()) }
     check('a kayak reaches the splash', key0 !== 'SPLASH' || win)
-    await page.keyboard.press('k'); await page.waitForTimeout(800)
-    const kl = await page.evaluate(() => ({ on: window.__mix25.fx.karlOn(), b: document.querySelector('#c25kl').textContent }))
-    check('K brings Karl in', kl.on && /KARL: IN/.test(kl.b), JSON.stringify(kl))
+    await page.keyboard.press('k'); await page.waitForTimeout(1500)
+    const kl = await page.evaluate(() => ({ on: window.__mix25.fx.karlOn(), lv: window.__mix25.fx.karlLevel(), b: document.querySelector('#c25kl').textContent, banks: window.__mix25.fx.karlBanks() }))
+    const kd = Math.min(...kl.banks.map((x) => x.d)), kh = Math.max(...kl.banks.map((x) => x.h)), ko = Math.max(...kl.banks.map((x) => x.op))
+    check('K brings Karl in, K1 WHISPER by default', kl.on && kl.lv === 1 && /KARL: IN/.test(kl.b), JSON.stringify({ on: kl.on, lv: kl.lv, b: kl.b }))
+    check('K1 fog stays faint, low, and at least 120 m out (clear of the infield and the climb)', kd >= 120 && kh <= 13 && ko <= 0.081 && ko > 0, JSON.stringify({ kd, kh, ko }))
+    await page.waitForTimeout(4000)
+    const kd2 = Math.min(...(await page.evaluate(() => window.__mix25.fx.karlBanks())).map((x) => x.d))
+    check('the fog banks drift round their ring and never come nearer the plate', kd2 >= 120, String(kd2))
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1K3'))
+    let k3 = false // the fog fades in on frame time, which runs slowly under the software renderer
+    for (let k = 0; k < 30 && !k3; k++) { await page.waitForTimeout(500); k3 = await page.evaluate(() => window.__mix25.fx.karlLevel() === 3 && Math.max(...window.__mix25.fx.karlBanks().map((x) => x.op)) > 0.2) }
+    check('K3 PEA SOUP brings back the 27 Oct fog', k3)
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1K1'))
     await page.keyboard.press('k'); await page.waitForTimeout(300)
     X = await layout(page); check('after the effects the dojo still fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
     // the scoreboard reports the last landing, and the gulls scattered on the home run
     const sb = await page.evaluate(() => ({ t: window.__mix25.life.text(), g: window.__mix25.life.gulls() }))
     check('the scoreboard shows the result and the gulls are out', /FT|SPLASH|HOME RUN/.test(sb.t) && sb.g === 10, JSON.stringify(sb))
-    // the effects styles: confetti instead of fireworks, CRT scanlines, the quiet style hides the gulls
+    // the landing styles: confetti, and the quiet style hides the gulls
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F2')); await page.waitForTimeout(500)
     await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 112, la: 28, dir: -4, hand: 1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
     await page.keyboard.press('Enter')
@@ -197,11 +214,9 @@ for (const [w, h] of SIZES) {
     for (let k = 0; k < 40 && cf <= 120; k++) { await page.waitForTimeout(400); cf = Math.max(cf, await page.evaluate(() => window.__mix25.fx.count())) }
     check('F2 CONFETTI rains on a home run', cf > 120, String(cf))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F4')); await page.waitForTimeout(400)
-    const crt = await page.evaluate(() => ({ cls: document.querySelector('.c25').classList.contains('F4'), bg: getComputedStyle(document.querySelector('.c25'), '::after').backgroundImage }))
-    check('F4 CRT lays scanlines over the screen', crt.cls && /repeating-linear-gradient/.test(crt.bg), JSON.stringify(crt).slice(0, 120))
-    X = await layout(page); check('the CRT screen still has its titles on top', X.titles.length === 0, X.titles.join('; '))
+    check('F4 CRT is gone (the code falls back to F1)', await page.evaluate(() => /F1 /.test(window.__mix25.code()) && !document.querySelector('.c25').classList.contains('F4')))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F3')); await page.waitForTimeout(400)
-    check('F3 QUIET hides the gulls and the board', await page.evaluate(() => window.__mix25.life.board.visible === false))
+    check('F3 QUIET hides the gulls but keeps the scoreboard', await page.evaluate(() => window.__mix25.life.board.visible === true && window.__cp.NN.scene.children.filter((c) => c.isLineSegments && c.geometry.attributes.position.count === 4).every((g) => !g.visible)))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F1')); await page.waitForTimeout(400)
     // STAR MAP: every ball in the filter flown at once
     await setMode(page, 'replay')
@@ -220,7 +235,7 @@ for (const [w, h] of SIZES) {
     await page.click('#c25go')
     let anim = false, fired = false
     void c0
-    for (let k = 0; k < 50 && !(anim && fired); k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => ({ a: document.querySelector('#c25zg').classList.contains('anim'), f: /TRACKING/.test(window.__mix25.life.text()) || !!window.__cp.anim() })); anim ||= r.a; fired ||= r.f }
+    for (let k = 0; k < 120 && !(anim && fired); k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => ({ a: document.querySelector('#c25zg').classList.contains('anim'), f: /TRACKING/.test(window.__mix25.life.text()) || !!window.__cp.anim() })); anim ||= r.a; fired ||= r.f }
     check('PLAY IT throws the pitch into the zone, then plays the flight', anim && fired, JSON.stringify({ anim, fired }))
     // the menu title options
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F1M2')); await page.waitForTimeout(300)
@@ -240,23 +255,179 @@ for (const [w, h] of SIZES) {
   }
   await page.close()
 }
-// INSTANT REPLAY: after a home run, the same flight again from a broadcast angle, then the camera comes back
+// the pitch arrow (R), the score bug (S) and the WPA numbers, checked against replay.json by hand-picked balls; instant replay is gone
 if (!process.env.PHONE_ONLY) {
-  const page = await open(1440, 820, '&menu=0&mix=L1P5A3T1&ir=1')
-  await setMode(page, 'whatif')
-  const cam0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(1)).join())
-  await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 112, la: 28, dir: -4, hand: 1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
-  await page.keyboard.press('Enter')
-  let saw = false, bn = ''
-  for (let k = 0; k < 60 && !saw; k++) { await page.waitForTimeout(500); const r = await page.evaluate(() => ({ r: window.__mix25.replaying(), b: document.querySelector('#c25bn').textContent })); if (r.r) { saw = true; bn = r.b } }
-  const camR = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(1)).join())
-  check('a home run gets an INSTANT REPLAY from another camera', saw && /INSTANT REPLAY/.test(bn) && camR !== cam0, JSON.stringify({ saw, bn, cam0, camR }))
-  let back = false
-  for (let k = 0; k < 120 && !back; k++) { await page.waitForTimeout(500); back = await page.evaluate(() => !window.__mix25.replaying()) }
-  const cam1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(1)).join())
-  check('after the replay the camera comes back', back && cam1 === cam0, JSON.stringify({ back, cam0, cam1 }))
-  await page.keyboard.press('i'); await page.waitForTimeout(300)
-  check('I switches instant replay off', /REPLAY: OFF/.test(await page.evaluate(() => document.querySelector('#c25ir').textContent)))
+  const fs = await import('fs')
+  const RJ = JSON.parse(fs.readFileSync(new URL('../public/replay.json', import.meta.url), 'utf8')).balls
+  const wpa = (b) => (b.tb === 'Top' ? -b.dwe : b.dwe)
+  const page = await open(1440, 820, '&menu=0&mix=L2P5A2T1')
+  check('instant replay is gone (no REPLAY button)', await page.evaluate(() => !document.querySelector('#c25ir')))
+  // R1 on a right-handed sinker: the arrow runs from arm side into the ball and its head stops at the ball's edge
+  await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.t === 'R' && b.pt === 'SI' && b.hx < -12)); await page.waitForTimeout(900)
+  const ar = await page.evaluate(() => {
+    const g = document.querySelector('#c25zg .pa'), ball = document.querySelector('#c25zg .pb'), svg = document.querySelector('#c25zg svg')
+    if (!g || !ball) return null
+    const ln = g.querySelector('line'), bx = +ball.getAttribute('x') + +ball.getAttribute('width') / 2, by = +ball.getAttribute('y') + +ball.getAttribute('height') / 2, rr = +ball.getAttribute('width') / 2
+    const vb = svg.getAttribute('viewBox').split(' ').map(Number)
+    const xs = [...g.querySelectorAll('line')].flatMap((l) => [+l.getAttribute('x1'), +l.getAttribute('x2')]), ys = [...g.querySelectorAll('line')].flatMap((l) => [+l.getAttribute('y1'), +l.getAttribute('y2')])
+    // a right-handed sinker moves toward the catcher's left (pfx_x negative), so a spinless pitch would have crossed to the right of the ball: the tail sits there
+    return { r: g.dataset.r, dx: +g.dataset.dx, headGap: Math.hypot(+ln.getAttribute('x2') - bx, +ln.getAttribute('y2') - by) - rr, tailRightOfBall: +ln.getAttribute('x1') > bx, inBox: Math.min(...xs) >= 0 && Math.max(...xs) <= vb[2] && Math.min(...ys) >= 0 && Math.max(...ys) <= vb[3] }
+  })
+  check('R1: a right-handed sinker breaks arm side (catcher\'s left), the arrow comes in from the right and stops at the ball', ar && ar.r === '1' && ar.dx < 0 && ar.tailRightOfBall && Math.abs(ar.headGap - 2) <= 1 && ar.inBox, JSON.stringify(ar))
+  for (const R of [2, 3, 0]) {
+    await page.evaluate((c) => window.__mix25.set(c), `L2P5A2T1R${R}`); await page.waitForTimeout(500)
+    const n = await page.evaluate(() => document.querySelectorAll('#c25zg .pa').length)
+    check(`R${R} ${R ? 'draws its arrow' : 'draws no arrow'}`, R ? n === 1 : n === 0, String(n))
+  }
+  await page.keyboard.press('r'); await page.waitForTimeout(400)
+  check('the R key brings the arrow back', await page.evaluate(() => document.querySelectorAll('#c25zg .pa').length === 1 && /R3/.test(window.__mix25.code())))
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S1')); await page.waitForTimeout(400)
+  // five balls checked by hand against replay.json: the bug's before and after win chance and WPA
+  const picks = [
+    ['a walk-off', (b) => b.hr && b.tb === 'Bot' && b.in >= 9 && b.bwe + b.dwe > 0.999],
+    ['a road grand slam', (b) => b.hr && b.tb === 'Top' && b.r1 && b.r2 && b.r3],
+    ['a garbage-time home run', (b) => b.hr && Math.abs(wpa(b)) < 0.01 && Math.abs(b.bsc - b.fsc) >= 6],
+    ['a go-ahead home run', (b) => b.hr && b.bsc <= b.fsc && b.bsc + 1 + (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0) > b.fsc && b.in < 9],
+    ['a game-tying home run', (b) => b.hr && b.bsc < b.fsc && b.bsc + 1 + (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0) === b.fsc],
+  ]
+  for (const [lab, pred] of picks) {
+    const want = RJ.find(pred)
+    if (!want) { check(`WPA: ${lab} exists in the replay set`, false); continue }
+    await page.evaluate((s) => window.__mix25.ball(new Function('b', 'return ' + s)), `b.d === '${want.d}' && b.b === ${want.b} && b.pn === ${want.pn} && b.in === ${want.in}`); await page.waitForTimeout(700)
+    const t = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
+    const w0 = Math.round(want.bwe * 100), w1 = Math.round(Math.max(0, Math.min(1, want.bwe + wpa(want))) * 100), w = Math.round(wpa(want) * 100)
+    const ok = t.includes(`WIN CHANCE ${w0}% → ${w1}%`) && t.includes(`${w >= 0 ? '+' : '-'}${Math.abs(w)}% WPA`)
+    check(`WPA: ${lab} (${want.d}) reads ${w0}% → ${w1}%, ${w >= 0 ? '+' : ''}${w}%`, ok, t)
+  }
+  // the bug sits clear of the flight: every point of the projected path stays outside it
+  const clear = await page.evaluate(() => {
+    const cp = window.__cp, res = window.__dojo, path = res?.visPath ?? res?.path, cam = cp.NN.camera, c = cp.NN.renderer?.domElement ?? document.querySelector('canvas')
+    if (!path) return { err: 'no path' }
+    const cr = c.getBoundingClientRect(), bug = document.querySelector('#c25bug').getBoundingClientRect()
+    let hits = 0
+    for (const p of path) { const v = cp.toWorld(p.p).project(cam), x = cr.left + ((v.x + 1) / 2) * cr.width, y = cr.top + ((1 - v.y) / 2) * cr.height; if (x > bug.left && x < bug.right && y > bug.top && y < bug.bottom) hits++ }
+    return { hits, n: path.length, bug: [bug.left, bug.top, bug.width, bug.height].map(Math.round) }
+  })
+  check('the score bug never covers the flight', clear.hits === 0 && clear.n > 10, JSON.stringify(clear))
+  let X = await layout(page); check('L2 with the score bug fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S2')); await page.waitForTimeout(500)
+  const s2 = await page.evaluate(() => ({ sit: document.querySelector('#c25rd .sit').textContent, bug: getComputedStyle(document.querySelector('#c25bug')).display }))
+  check('S2 READOUT LINE puts the situation and WPA under the distance', /WPA/.test(s2.sit) && s2.bug === 'none', JSON.stringify(s2))
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S3')); await page.waitForTimeout(800)
+  const s3 = await page.evaluate(() => ({ t: document.querySelector('#c25bugc').textContent, d: getComputedStyle(document.querySelector('#c25bugc')).display, park: getComputedStyle(document.querySelector('#c25bug')).display }))
+  check('S3 BATTER CARD puts the bug under the face', /WPA/.test(s3.t) && s3.d === 'grid' && s3.park === 'none', JSON.stringify(s3).slice(0, 160))
+  X = await layout(page); check('S3 fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
+  // the faces: the five canvas styles each draw and fit; the braille one still renders as text
+  for (const A of [2, 4, 5, 6, 7, 3]) {
+    await page.evaluate((c) => window.__mix25.set(c), 'L2P5A' + A + 'T1R1S1'); await page.waitForTimeout(900)
+    const f = await page.evaluate(() => { const cv = document.querySelector('#c25f canvas'), pre = document.querySelector('#c25f pre'), box = document.querySelector('#c25f').getBoundingClientRect(); const on = cv && cv.style.display !== 'none'; let ink = 0; if (on) { const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; for (let i = 3; i < d.length; i += 4) if (d[i] > 40) ink++ } const r = on ? cv.getBoundingClientRect() : pre.getBoundingClientRect(); return { on, ink: on ? ink / (cv.width * cv.height) : null, text: !on && pre.textContent.length, fit: r.width <= box.width + 2 && r.height <= box.height + 2 } })
+    check('A' + A + (A === 3 ? ' WOODCUT renders as braille text' : ' draws the face on a canvas that fits its box'), f.fit && (A === 3 ? !f.on && f.text > 200 : f.on && f.ink > 0.05 && f.ink < 0.9), JSON.stringify(f))
+  }
+  // the panel icons: a pitcher, a batter, bars; I0 brings the words back
+  for (const I of [1, 2, 3, 0]) {
+    await page.evaluate((c) => window.__mix25.set(c), 'L2P5A2T1R1S1I' + I); await page.waitForTimeout(500)
+    const ic = await page.evaluate(() => ['pitch', 'slice', 'hists'].map((k) => { const t = document.querySelector('.c25>.' + k + '>.t'); return { svg: !!t.querySelector('svg.ico'), label: t.querySelector('svg')?.getAttribute('aria-label') ?? t.textContent.replace(/\s+/g, ''), rects: t.querySelectorAll('rect').length } }))
+    check('I' + I + (I ? ' puts pixel icons on the three titles' : ' brings back the words'), I ? ic.every((x) => x.svg && x.rects >= 12) && ic[0].label === 'THE PITCH' : ic.every((x) => !x.svg) && /THEPITCH/.test(ic[0].label), JSON.stringify(ic))
+    const X = await layout(page); check('I' + I + ' titles sit on top and fit', X.titles.length === 0 && X.overlaps.length === 0, X.titles.concat(X.overlaps).join('; '))
+  }
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S1I1')); await page.waitForTimeout(400)
+  // PITCH CAM: PLAY IT cuts behind the plate, draws the pitch, then the swing flies and the camera is back where it was
+  {
+    await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'ST' && b.hx > 12)); await page.waitForTimeout(800)
+    const c0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
+    await page.click('#c25go')
+    let behind = null, dots = 0
+    for (let k = 0; k < 60 && !behind; k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => { const pc = window.__mix25.pitchCam(), w = window.__cp.toWorld([0, -5.5, 1.9]); return pc.busy() ? { d: window.__cp.NN.camera.position.distanceTo(w), n: pc.shown() } : null }); if (r) behind = r }
+    for (let k = 0; k < 40; k++) { await page.waitForTimeout(150); const n = await page.evaluate(() => window.__mix25.pitchCam().shown()); dots = Math.max(dots, n); if (!(await page.evaluate(() => window.__mix25.pitchCam().busy()))) break }
+    let flew = false
+    for (let k = 0; k < 40 && !flew; k++) { await page.waitForTimeout(200); flew = await page.evaluate(() => !!window.__cp.anim()) }
+    dots = await page.evaluate(() => window.__mix25.pitchCam().lastDots()) // path dots the cam drew in that pitch (40 when it played through)
+    const c1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray()), back = Math.hypot(c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2])
+    check('PITCH CAM: behind the plate for the pitch, its path drawn, then the swing from the broadcast view', behind && behind.d < 0.5 && dots === 40 && flew && back < 0.5, JSON.stringify({ behind, dots, flew, back }))
+    for (let k = 0; k < 60 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(300)
+  }
+  // after TWEAK THE TATER the dojo keeps the original game's bug; a fresh dojo swing has none
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S1')); await page.waitForTimeout(400)
+  await page.click('#c25tw'); await page.waitForTimeout(1000)
+  const tb = await page.evaluate(() => getComputedStyle(document.querySelector('#c25bug')).display)
+  await page.keyboard.press('m'); await page.waitForTimeout(600); await page.keyboard.press('m'); await page.waitForTimeout(900)
+  const fb = await page.evaluate(() => ({ m: window.__mix25.mode(), d: getComputedStyle(document.querySelector('#c25bug')).display }))
+  check('the dojo shows the original game after TWEAK THE TATER, and no bug for a fresh swing', tb === 'grid' && (fb.m !== 'whatif' || fb.d === 'none'), JSON.stringify({ tb, fb }))
+  await page.close()
+}
+// the scoreboard library and the landing moments, from real flights
+if (!process.env.PHONE_ONLY) {
+  const page = await open(1440, 820, '&menu=0&mix=L2P5A2T1F1Z1')
+  const lb = await page.evaluate(() => {
+    const L = window.__mix25.life, b = L.board, cam = window.__cp.NN.camera, c = document.querySelector('canvas').getBoundingClientRect(), g = b.geometry.parameters
+    b.updateMatrixWorld()
+    const P = (x, y) => { const v = new window.__cp.THREE.Vector3(x, y, 0).applyMatrix4(b.matrixWorld).project(cam); return [c.left + ((v.x + 1) / 2) * c.width, c.top + ((1 - v.y) / 2) * c.height] }
+    const a = P(-g.width / 2, 0), z = P(g.width / 2, 0)
+    return { size: L.size, ledPx: Math.hypot(z[0] - a[0], z[1] - a[1]) / L.size[0] }
+  })
+  check('the LED board is 72 x 22 and each LED is at least 2 screen pixels at 1440 (L2)', lb.size[0] === 72 && lb.size[1] === 22 && lb.ledPx >= 2, JSON.stringify(lb))
+  const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
+  const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
+  const dead = pk.filter((x) => x.r.some((v) => v < 12)).map((x) => x.n)
+  check(`all ${pk.length} board animations draw something all the way through`, pk.length >= 18 && dead.length === 0, JSON.stringify(dead))
+  await page.evaluate(() => window.__mix25.life.play('crab')); let done = false
+  for (let k = 0; k < 120 && !done; k++) { await page.waitForTimeout(500); done = await page.evaluate(() => window.__mix25.life.played().includes('crab') && !window.__mix25.life.anim()) } // the board runs on frame time, slow under the software renderer
+  const after = await page.evaluate(() => ({ lit: window.__mix25.life.litCount(), t: window.__mix25.life.text() }))
+  check('an animation plays through and the board goes back to its text', done && after.lit > 20, JSON.stringify(after))
+  // real flights: a seats home run, a splash, a scraper, a wall ball (found with the engine's own probe)
+  const swing = async (st) => {
+    if ((await page.evaluate(() => window.__mix25.mode())) !== 'whatif') { await page.keyboard.press('m'); await page.waitForTimeout(900) }
+    await page.evaluate((s) => { Object.assign(window.__cp.state, s); window.__cp.update() }, st); await page.waitForTimeout(500)
+    // nothing may still be in the air (a slow landing must not be read as this swing's), then swing and wait for one more landing
+    const flying = () => page.evaluate(() => { const a = window.__cp.anim(); return !!a && !a.exploded })
+    for (let k = 0; k < 200 && (await flying()); k++) await page.waitForTimeout(300)
+    const l0 = await page.evaluate(() => window.__mix25.lands())
+    await page.keyboard.press('Enter')
+    for (let k = 0; k < 200 && (await page.evaluate((n) => window.__mix25.lands() === n, l0)); k++) await page.waitForTimeout(300)
+    await page.waitForTimeout(400)
+    return page.evaluate(() => ({ key: window.__dojo.key, land: window.__dojo.landing?.kind, moment: window.__mix25.lastMoment(), boxes: window.__mix25.moments.boxes() }))
+  }
+  await page.evaluate(() => window.__mix25.moments.setBobble(0))
+  const s1 = await swing({ ev: 108, la: 27, dir: -18, hand: 1, temp: 70, wind: 0 })
+  check('a home run into the seats: a glove comes up where it lands, on screen', s1.moment === 'seats' && s1.boxes.length >= 1 && s1.boxes.every((b) => b.d < 2 && b.on), JSON.stringify(s1))
+  await page.waitForTimeout(3500)
+  const s2 = await swing({ ev: 116, la: 28, dir: 24, hand: -1, temp: 70, wind: 0 })
+  check('a splash hit: the sea lion surfaces in the Cove, on screen', s2.key !== 'SPLASH' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
+  let q = []
+  for (let k = 0; k < 40 && !(q.includes('seal') && q.includes('odometer')); k++) { await page.waitForTimeout(500); q = await page.evaluate(() => [...window.__mix25.life.played(), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
+  check('a splash hit plays SEA LION then the SPLASH ODOMETER on the board', s2.key !== 'SPLASH' || (q.includes('seal') && q.includes('odometer')), JSON.stringify({ key: s2.key, q }))
+  const find = (key, la, dir) => page.evaluate(([key, la, dir]) => { for (let ev = 88; ev <= 112; ev += 0.25) { const r = window.__dojoProbe({ ev, la, dir, hand: 1, temp: 70, wind: 0, carry: 1, dws: 0 }); if (r.key === key) return ev } return null }, [key, la, dir])
+  const evW = await find('WALL', 30, 0), evS = await find('SCRAPER', 30, 0)
+  if (evW) { const s3 = await swing({ ev: evW, la: 30, dir: 0, hand: 1, temp: 70, wind: 0 }); check('a ball off the wall: dust and the ball dropping, at the wall', s3.moment === 'dust' && s3.boxes.some((b) => b.on), JSON.stringify(s3)) } else check('found a WALL swing to test', false)
+  await page.waitForTimeout(3000)
+  if (evS) {
+    await swing({ ev: evS, la: 30, dir: 0, hand: 1, temp: 70, wind: 0 })
+    let cq = []
+    for (let k = 0; k < 30 && !cq.includes('crab'); k++) { await page.waitForTimeout(500); cq = await page.evaluate(() => [...window.__mix25.life.played().slice(1), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
+    check('a wall scraper sends CRAZY CRAB across the board', cq.includes('crab'), JSON.stringify(cq))
+  } else check('found a SCRAPER swing to test', false)
+  // OFF THE MENU in the replay: a GOLF SHOT home run plays the golfer
+  await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && window.__mix25.offZone(b)?.where === 'low')); await page.waitForTimeout(800)
+  await page.click('#c25go')
+  let gq = []
+  for (let k = 0; k < 60 && !gq.includes('golf'); k++) { await page.waitForTimeout(500); gq = await page.evaluate(() => [...window.__mix25.life.played(), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
+  check('an OFF THE MENU low pitch home run plays GOLF SHOT on the board', gq.includes('golf'), JSON.stringify(gq.slice(-5)))
+  // TWEAK THE TATER plays its board gag
+  await page.click('#c25tw'); await page.waitForTimeout(600)
+  check('TWEAK THE TATER plays the potato on the board', await page.evaluate(() => [window.__mix25.life.anim(), ...window.__mix25.life.queued(), ...window.__mix25.life.played()].includes('tater')))
+  // Z2 PUSH eases the camera toward the landing and brings it back
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1F1Z2')); await page.waitForTimeout(500)
+  const cam0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
+  await swing({ ev: 108, la: 27, dir: -18, hand: 1, temp: 70, wind: 0 })
+  const camMid = await page.evaluate(() => ({ p: window.__cp.NN.camera.position.toArray(), on: window.__mix25.pushing() }))
+  let home = false
+  for (let k = 0; k < 30 && !home; k++) { await page.waitForTimeout(400); home = await page.evaluate(() => !window.__mix25.pushing()) }
+  const cam1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+  check('Z2 PUSH moves the camera toward the landing, then puts it back', camMid.on && dist(camMid.p, cam0) > 5 && home && dist(cam1, cam0) < 0.5, JSON.stringify({ mid: dist(camMid.p, cam0), back: dist(cam1, cam0) }))
+  await page.evaluate(() => window.__mix25.set('L2P5A2T1F2Z1')); await page.waitForTimeout(400)
+  const s5 = await swing({ ev: 108, la: 27, dir: -18, hand: 1, temp: 70, wind: 0 })
+  check('F2 CONFETTI has no landing moment', s5.moment === null, JSON.stringify(s5))
   await page.close()
 }
 // the SELECT menu: shown on arrival, keys move and choose, Esc comes back, number keys jump
@@ -273,6 +444,12 @@ if (!process.env.PHONE_ONLY) {
   check('Esc brings the menu back on the current mode', m2.open && /DOJO/.test(m2.on), JSON.stringify(m2))
   await page.keyboard.press('1'); await page.waitForTimeout(1200)
   check('a number key jumps straight to that mode', await page.evaluate(() => window.__mix25.mode() === 'replay' && !document.querySelector('.c25 .sm').classList.contains('open')))
+  // findable (28 Oct): the MENU button wears its ESC keycap at the top left, the title opens it too, and a one-time hint follows the first close
+  const mb = await page.evaluate(() => { const b = document.querySelector('#c25mn').getBoundingClientRect(), t = document.querySelector('#c25ti').getBoundingClientRect(); return { txt: document.querySelector('#c25mn').textContent, l: b.left, t: b.top, rightOfTitle: b.left > t.left, hint: document.querySelector('#c25mh').classList.contains('go'), seen: localStorage.getItem('nn-mhint25') } })
+  check('the MENU button sits top left with its ESC keycap; the first close showed the ESC hint once', /MENU\s*ESC/.test(mb.txt) && mb.l < 40 && mb.t < 30 && !mb.rightOfTitle && mb.seen === '1', JSON.stringify(mb))
+  await page.click('#c25ti'); await page.waitForTimeout(400)
+  check('clicking the title opens the menu', await page.evaluate(() => document.querySelector('.c25 .sm').classList.contains('open')))
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   // HIGHLIGHT REEL plays the big ones one after another
   await page.click('#c25mn'); await page.waitForTimeout(400)
   await page.click('.c25 .sm .smi:nth-child(8)')

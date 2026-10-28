@@ -1,6 +1,6 @@
 // Study 25 effects in the park (no screen shake, nothing glows: flat squares and thin rings in the theme colors, with stepped fades so they read as pixels):
 //   contact: a spark of squares at the plate during the hit-stop    flight: a pixel trail behind the ball
-//   home run: fireworks over center field, the way Oracle shoots them    splash hit: ripple rings and droplets in McCovey Cove, and the Cove's kayakers race to the ball
+//   home run: confetti (F2) or the landing moments (moments25.js)    splash hit: ripple rings and droplets in McCovey Cove, and the Cove's kayakers race to the ball
 //   Karl: dithered fog banks drift across the park and the wireframe hazes over
 // Positions come from the engine's own toWorld (meters, home plate at the origin, y up).
 export function initFx25(api, col, o = {}) {
@@ -39,38 +39,7 @@ export function initFx25(api, col, o = {}) {
     particle(trailCol, pos, V(0, 0, 0), 0.75, 1.5, 0)
   }
 
-  // ---- fireworks over center field ----
-  function shell(delay, bear, dist, h, c1, c2) {
-    let t = -delay, phase = 0, at = null
-    const r = (bear * Math.PI) / 180, base = toWorld([dist * Math.sin(r), dist * Math.cos(r), 0]), top = toWorld([dist * Math.sin(r), dist * Math.cos(r), h])
-    parts.push((dt) => {
-      t += dt
-      if (t < 0) return true
-      if (phase === 0) { o.sound?.('launch'); phase = 1 }
-      if (phase === 1) {
-        const k = Math.min(1, t / 0.75), p = base.clone().lerp(top, 1 - (1 - k) ** 2)
-        if (Math.random() < 0.7) particle(c2, p, V(rnd(-1, 1), -3, rnd(-1, 1)), 0.4, 0.9, 0)
-        if (k >= 1) { phase = 2; at = top }
-        return true
-      }
-      if (phase === 2) {
-        o.sound?.('pop')
-        const n = 44
-        for (let i = 0; i < n; i++) {
-          const th = Math.acos(rnd(-1, 1)), ph = rnd(0, Math.PI * 2), sp = rnd(17, 24)
-          particle(i % 3 ? c1 : c2, at, V(Math.sin(th) * Math.cos(ph) * sp, Math.cos(th) * sp, Math.sin(th) * Math.sin(ph) * sp), rnd(1.3, 1.9), 1.6, 6, 1.4)
-        }
-        phase = 3
-      }
-      return false
-    })
-  }
-  function fireworks() {
-    const c = col()
-    const plan = [[0, -14, 165, 70], [0.35, 10, 175, 82], [0.7, -2, 185, 92], [1.15, 18, 160, 64], [1.5, -22, 170, 76]]
-    plan.forEach(([d, b, r, h], i) => shell(d, b, r, h, i % 2 ? c.tx : c.acc, i % 2 ? c.acc : c.tx))
-    o.sound?.('crowd')
-  }
+  // (fireworks over center field were cut on 28 Oct: invisible from the broadcast camera; the landing moments in moments25.js replace them)
 
   // ---- confetti (the F2 effects option): orange and bone squares fluttering down over the infield ----
   function confetti() {
@@ -81,7 +50,7 @@ export function initFx25(api, col, o = {}) {
     }
     o.sound?.('crowd')
   }
-  let style = o.style ?? 'fireworks'
+  let style = o.style ?? 'moments'
 
   // ---- McCovey Cove: kayaks waiting in the water beyond right field ----
   const kayaks = []
@@ -102,14 +71,14 @@ export function initFx25(api, col, o = {}) {
     const padGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0.8, -2.6, 0, 0.8, 2.6, 0, 0, 0, 0, 1.6, 0], 3))
     for (let i = 0; i < 6; i++) {
       const g = new THREE.Group()
-      const lm = new THREE.LineBasicMaterial({ color: col().tx, fog: false })
+      const lm = new THREE.LineBasicMaterial({ color: col().tx, fog: false, depthWrite: false }) // no depth write and no normal pass, or the post shader inks the hull black
       g.add(new THREE.LineSegments(hullGeo, lm))
       const pad = new THREE.LineSegments(padGeo, lm); pad.position.y = 0.6; g.add(pad)
       const head = new THREE.Sprite(sq(col().acc, STEPS)); head.position.y = 2.1; head.scale.setScalar(0.9); g.add(head)
       const p = pts[i % pts.length].clone().add(V(rnd(-14, 14), 0, rnd(-14, 14)))
       p.y = water + 0.4
       g.position.copy(p); g.rotation.y = rnd(0, Math.PI * 2)
-      scene.add(g)
+      scene.add(g); window.__nn?.hideForNormal.push(g)
       kayaks.push({ g, pad, home: p.clone(), ph: rnd(0, 6), target: null, sp: rnd(5.5, 9), back: 0 })
     }
     let t = 0
@@ -167,27 +136,39 @@ export function initFx25(api, col, o = {}) {
     }
     const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; return t
   })()
-  function karl(on) {
-    if (on === fogOn) return
-    fogOn = on
+  // K1 WHISPER and K2 MARINE LAYER (28 Oct, Andrew: "too bright and imposing"): cold grey-blue, thin banks low over the bay and the outfield, none closer than 125 m
+  // to the plate, so the infield and the ball's climb stay clear; K3 PEA SOUP is the 27 Oct fog. op = sprite opacity, near / far scale the scene's distance haze.
+  const KARL = { 1: { op: 0.08, near: 0.85, far: 0.92, horn: 0.35 }, 2: { op: 0.15, near: 0.72, far: 0.82, horn: 0.5 }, 3: { op: 0.32, near: 0.5, far: 0.68, horn: 1, old: true } }
+  let fogLevel = 1, banks = []
+  function karl(on, level = fogLevel) {
+    if (on === fogOn && level === fogLevel) return
+    if (fogOn && fogGroup) { scene.remove(fogGroup); fogGroup = null }
+    fogOn = on; fogLevel = level
     if (on) {
-      o.sound?.('horn')
+      const K = KARL[level] ?? KARL[1]
+      o.sound?.('horn', { vol: K.horn })
       fogGroup = new THREE.Group()
-      const m = new THREE.SpriteMaterial({ map: fogTex, color: col().tx, transparent: true, opacity: 0, depthWrite: false, fog: false })
-      const banks = []
+      const m = new THREE.SpriteMaterial({ map: fogTex, color: K.old ? col().tx : '#9aa9ba', transparent: true, opacity: 0, depthWrite: false, fog: false })
+      banks = []
       for (let i = 0; i < 11; i++) {
-        const s = new THREE.Sprite(m), b = rnd(-60, 60), r = rnd(40, 200)
-        s.position.copy(toWorld([r * Math.sin((b * Math.PI) / 180), r * Math.cos((b * Math.PI) / 180), rnd(18, 60)]))
-        s.scale.set(rnd(120, 220), rnd(40, 70), 1); fogGroup.add(s); banks.push({ s, v: rnd(2.5, 5) })
+        const s = new THREE.Sprite(m), b = K.old ? rnd(-60, 60) : rnd(-55, 65), r = K.old ? rnd(40, 200) : rnd(125, 240), h = K.old ? rnd(18, 60) : rnd(3, 13)
+        s.position.copy(toWorld([r * Math.sin((b * Math.PI) / 180), r * Math.cos((b * Math.PI) / 180), h]))
+        if (K.old) s.scale.set(rnd(120, 220), rnd(40, 70), 1); else s.scale.set(rnd(90, 170), rnd(12, 22), 1)
+        fogGroup.add(s); banks.push({ s, v: rnd(2.5, 5), r, h, b, old: K.old })
       }
       scene.add(fogGroup)
-      if (scene.fog) { fog0 ??= [scene.fog.near, scene.fog.far]; scene.fog.near = fog0[0] * 0.5; scene.fog.far = fog0[1] * 0.68 }
+      if (scene.fog) { fog0 ??= [scene.fog.near, scene.fog.far]; scene.fog.near = fog0[0] * K.near; scene.fog.far = fog0[1] * K.far }
       let t = 0
       const g = fogGroup
       parts.push((dt) => {
         if (g !== fogGroup) { scene.remove(g); return false }
-        t += dt; m.opacity = Math.min(0.32, t * 0.2)
-        for (const k of banks) { k.s.position.x += k.v * dt; if (k.s.position.x > 260) k.s.position.x = -260 }
+        t += dt; m.opacity = Math.min(K.op, t * 0.2)
+        // K1 and K2 drift round their own ring (left field toward the bay), so a bank never comes nearer the plate; K3 slides sideways as on 27 Oct
+        for (const k of banks) {
+          if (k.old) { k.s.position.x += k.v * dt; if (k.s.position.x > 260) k.s.position.x = -260; continue }
+          k.b += ((k.v / k.r) * 180 * dt) / Math.PI; if (k.b > 70) k.b = -60
+          const br = (k.b * Math.PI) / 180; k.s.position.copy(toWorld([k.r * Math.sin(br), k.r * Math.cos(br), k.h]))
+        }
         return true
       })
     } else {
@@ -201,10 +182,12 @@ export function initFx25(api, col, o = {}) {
   buildKayaks()
   return {
     contact, fly,
-    land(ev) { trailCol = null; if (ev.key === 'SPLASH') splash(ev.at); if (['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)) { if (style === 'fireworks') fireworks(); else if (style === 'confetti') confetti() } },
-    setStyle(v) { style = v }, confetti,
+    land(ev) { trailCol = null; if (ev.key === 'SPLASH') splash(ev.at); if (['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key) && style === 'confetti') confetti() },
+    setStyle(v) { style = v }, style: () => style, confetti, particle, sq, STEPS,
     bonk(at) { for (let i = 0; i < 40; i++) { const a = rnd(0, Math.PI * 2), up = rnd(6, 16); particle(i % 2 ? '#e4002b' : '#ffffff', at, V(Math.cos(a) * rnd(3, 9), up, Math.sin(a) * rnd(3, 9)), rnd(0.9, 1.4), 1.3, 14) } },
-    fireworks, splash, karl, karlOn: () => fogOn,
+    splash, karl, karlOn: () => fogOn, karlLevel: () => fogLevel,
+    // for the tests: each bank's distance from the plate in meters (the sideways drift can only take it farther) and its height, and the sprite opacity
+    karlBanks: () => banks.map((k) => { const w = k.s.position, p0 = toWorld([0, 0, 0]); return { d: Math.hypot(w.x - p0.x, w.z - p0.z), h: k.h, op: k.s.material.opacity } }),
     count: () => parts.length, kayaks: () => kayaks.length,
     winner: () => winner,
   }

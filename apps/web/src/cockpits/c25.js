@@ -5,6 +5,10 @@
 //   ORACLE ONLY switch; the replay (DINGER DEJA-VU) has no number strip and a TWEAK THE TATER button that carries the home run into the Dojo; a SELECT menu
 //   chooses the mode; another park takes its team's color; sound and pixel effects (hit-stop, trail, fireworks, Cove splash and kayaks, Karl's fog); an ODDS
 //   RECEIPT mockup. Still open on the mixer: L (layout), P (frame: P1 LEGEND or P5 CORNERS), A (art: A2 POSTER or A3 WOODCUT), T (pixel type sets, type25.js).
+// 28 Oct, his picks and asks: L2 and P5 by default; instant replay, fireworks, CRT and three type sets cut; a MENU button with its ESC keycap; a pitch-movement arrow on
+//   the zone (R); a score bug with the win chance before and after and the swing's WPA (S); Karl toned down (K); the bay moving behind the park (B, water25.js);
+//   landing moments where the ball comes down (F1, moments25.js) and an optional camera push (Z); a library of scoreboard animations (park25.js); pixel icons for the
+//   panel titles (I); faces drawn on a canvas at screen resolution (A2, A4 to A7, faces25.js); and PITCH CAM, the pitch on its fitted path from behind the plate (H, pitchcam25.js).
 import { SKEL_CSS, restamp, tileHTML, isHR } from './skel.js'
 import { THEME_CSS, JUICE_CSS, THEMES, applyTheme, pressEl, makeControls, makeSession, finishUI, loadDists } from './skel2.js'
 import { BTN_TILT_CSS, tiltButtons, loadReplay, loadPool, ballsLike, rollTo } from './skel3.js'
@@ -23,6 +27,10 @@ import { MENU_CSS, selectMenu } from './menu25.js'
 import { sound } from './sfx25.js'
 import { initFx25 } from './fx25.js'
 import { initPark25 } from './park25.js'
+import { initMoments25 } from './moments25.js'
+import { initWater25 } from './water25.js'
+import { drawFace, FACE_STYLES } from './faces25.js'
+import { initPitchCam } from './pitchcam25.js'
 import { constellation, posterPNG } from './show25.js'
 
 const LSA = { 1: 'WEAK', 2: 'TOPPED', 3: 'UNDER', 4: 'FLARE OR BURNER', 5: 'SOLID CONTACT', 6: 'BARREL' }
@@ -32,6 +40,28 @@ const f = (v, d = 1, u = '') => (v == null || v !== v ? '--' : (typeof v === 'nu
 const clock = (ax) => { if (ax == null) return '--'; const h = ((((ax + 180) / 30) % 12) + 12) % 12, hh = Math.floor(h) || 12, mm = Math.round((h % 1) * 60); return `${hh}:${String(mm === 60 ? 59 : mm).padStart(2, '0')}` }
 // names Andrew chose on 26 Oct; one place to change them
 const NAMES = { offMenu: 'OFF THE MENU', low: 'GOLF SHOT', high: 'TOMAHAWK', away: 'CHASE SCENE', inside: 'INSIDE JOB', tweak: 'TWEAK THE TATER', replay: 'DINGER DÉJÀ-VU', dojo: 'DINGER DOJO' }
+
+// panel icons (I, 28 Oct, Andrew: a pitcher for the pitch, a batter for the contact, bars for the histograms), drawn as pixels: # the title color, a the accent
+const ICONS = {
+  pitch: {
+    1: ['...##...', '...##...', '..####..', '..#.##..', '...##...', '...##...', '..#..#..', '..#..#..'],
+    2: ['....##.a', '....##.#', '...####.', '..#.##..', '...##...', '...###..', '..#...#.', '.#.....#'],
+    3: ['...##.', '...##.', '.####.', '..##..', '.#..#.', '#....#'],
+  },
+  slice: {
+    1: ['.#......', '..#.##..', '...###..', '....##..', '...###..', '...##...', '..#..#..', '.#....#.'],
+    2: ['....##..', '....##..', '######.a', '...###..', '...##...', '..#.##..', '.#...#..', '#.....#.'],
+    3: ['..##..', '..##..', '#####a', '..##..', '.#..#.', '#....#'],
+  },
+  hists: {
+    1: ['........', '.....#..', '.....#..', '...#.#..', '...#.#.#', '.#.#.#.#', '.#.#.#.#', '########'],
+    2: ['........', '.....a..', '.....a..', '...#.a..', '...#.a.#', '.#.#.a.#', '.#.#.a.#', '########'],
+    3: ['....a.', '..#.a.', '..#.a#', '#.#.a#', '#.#.a#', '######'],
+  },
+}
+const PANEL_WORDS = { pitch: '/ T H E &nbsp; P I T C H /', slice: '/ C O N T A C T , &nbsp; S I D E &nbsp; O N /', hists: '/ V S &nbsp; A L L /' }
+const PANEL_NAMES = { pitch: 'THE PITCH', slice: 'CONTACT, SIDE ON', hists: 'VS ALL' }
+const iconSVG = (rows, px, name) => `<svg class="ico" width="${rows[0].length * px}" height="${rows.length * px}" viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" role="img" aria-label="${name}"><title>${name}</title>${rows.flatMap((r, y) => [...r].map((c, x) => (c === '.' ? '' : `<rect x="${x}" y="${y}" width="1" height="1" fill="${c === 'a' ? 'var(--acc)' : 'currentColor'}"/>`))).join('')}</svg>`
 
 // another park borrows its team's color as the accent (readable on the near-black ground); Oracle keeps C1 orange
 const TEAM_ACC = { ARI: '#e0455a', ATL: '#e8365a', ATH: '#efb21e', BAL: '#f2691e', BOS: '#e24a55', CHC: '#4a7dff', CWS: '#c4ced4', CIN: '#e8344c', CLE: '#ef3e4a', COL: '#9b6bff', DET: '#fa6a2e', HOU: '#eb6e1f', KC: '#74b4fa', LAA: '#e3304a', LAD: '#3d8fe0', MIA: '#00a3e0', MIL: '#ffc52f', MIN: '#e63a62', NYM: '#ff5910', NYY: '#8fb3e8', PHI: '#ef3340', PIT: '#fdb827', SD: '#ffc425', SEA: '#14b8a6', STL: '#e8455d', TB: '#8fbce6', TEX: '#e33b47', TOR: '#3f8ae6', WSH: '#e0303c' }
@@ -44,22 +74,61 @@ export const AXES = {
     { c: 3, name: 'BROADCAST', desc: 'the park across the top at its biggest, four cards under it: batter, pitch, contact, how it ranks', why: 'it reads left to right in the order it happened, like a TV replay package, and the park gets the most room' },
   ] },
   P: { name: 'PANEL FRAME', opts: [{ c: 1, name: 'LEGEND', desc: 'title set into the top border' }, { c: 5, name: 'CORNERS', desc: 'crop-mark corners only, title inside' }] },
-  A: { name: 'ART', opts: [{ c: 2, name: 'POSTER', desc: 'braille dots after a hard contrast stretch', id: 'braille-poster' }, { c: 3, name: 'WOODCUT', desc: 'braille, adaptive threshold, high contrast', id: 'braille-thresh' }] },
-  T: { name: 'TYPE', opts: TYPES.map((t) => ({ c: t.c, name: t.name, desc: t.desc, T: t })) },
-  F: { name: 'EFFECTS', opts: [
-    { c: 1, name: 'FIREWORKS', desc: 'fireworks over center field on a home run; the scoreboard lights up and the gulls scatter', style: 'fireworks' },
-    { c: 2, name: 'CONFETTI', desc: 'orange and bone confetti flutters down on a home run instead', style: 'confetti' },
-    { c: 3, name: 'QUIET', desc: 'no fireworks and no gulls: the trail, the splash and the scoreboard only', style: 'none' },
-    { c: 4, name: 'CRT', desc: 'fireworks, plus scanlines over the whole screen like an old arcade monitor', style: 'fireworks' },
+  // A2 and A4 to A7 draw on a canvas at screen resolution (faces25.js); A3 is the braille text style from 27 Oct
+  A: { name: 'ART', opts: [
+    { c: 2, name: 'POSTER', desc: 'your pick, now drawn a dot every 1.5 pixels (it was a braille character every 2.5)', canvas: 'poster' },
+    { c: 3, name: 'WOODCUT', desc: 'braille text, adaptive threshold, high contrast (27 Oct)', id: 'braille-thresh' },
+    { c: 4, name: 'HEDCUT', desc: FACE_STYLES.hedcut.note, canvas: 'hedcut' },
+    { c: 5, name: 'CROSS-HATCH', desc: FACE_STYLES.hatch.note, canvas: 'hatch' },
+    { c: 6, name: 'INK AND WASH', desc: FACE_STYLES.wash.note, canvas: 'wash' },
+    { c: 7, name: 'PEN AND INK', desc: FACE_STYLES.pen.note, canvas: 'pen' },
   ] },
+  T: { name: 'TYPE', opts: TYPES.map((t) => ({ c: t.c, name: t.name, desc: t.desc, T: t, hide: t.hide })) },
+  F: { name: 'LANDING', opts: [
+    { c: 1, name: 'LANDING MOMENTS', desc: 'something happens where the ball comes down: a glove in the seats, a sea lion in the Cove, dust off the wall; the gulls scatter', style: 'moments' },
+    { c: 2, name: 'CONFETTI', desc: 'orange and bone confetti flutters down on a home run instead', style: 'confetti' },
+    { c: 3, name: 'QUIET', desc: 'no landing moments and no gulls: the trail, the splash and the scoreboard only', style: 'none' },
+  ] },
+  I: { name: 'PANEL ICONS', opts: [
+    { c: 1, name: 'SET', desc: 'pixel icons for titles: the pitcher set, the batter in his stance, plain bars' },
+    { c: 2, name: 'ACTION', desc: 'the pitcher at release, the batter at contact, the bars with this ball lit' },
+    { c: 3, name: 'TINY', desc: 'smaller versions of ACTION, for tight headers' },
+    { c: 0, name: 'WORDS', desc: 'the spaced-out text titles from 27 Oct' },
+  ] },
+  R: { name: 'PITCH ARROW', opts: [
+    { c: 1, name: 'INTO THE BALL', desc: 'from where a spinless pitch would have crossed, to where it did: the movement, at true scale (R key)' },
+    { c: 2, name: 'OUT OF THE BALL', desc: 'the same arrow starting at the ball, pointing the way it was breaking' },
+    { c: 3, name: 'COMET', desc: 'a short fading pixel tail behind the ball, along the movement' },
+    { c: 0, name: 'OFF', desc: 'no arrow' },
+  ] },
+  S: { name: 'SITUATION', opts: [
+    { c: 1, name: 'SCORE BUG', desc: 'a TV-style bug in the park corner: inning, outs, runners, count, score, and the win chance before and after' },
+    { c: 2, name: 'READOUT LINE', desc: 'the same as one line of text under the distance (the header had no room left)' },
+    { c: 3, name: 'BATTER CARD', desc: 'the same inside the batter panel, under the face' },
+  ] },
+  K: { name: 'KARL', opts: [
+    { c: 1, name: 'WHISPER', desc: 'a faint cold-grey fog low over the bay and outfield' },
+    { c: 2, name: 'MARINE LAYER', desc: 'a bit thicker, same color and place' },
+    { c: 3, name: 'PEA SOUP', desc: 'the bright fog from 27 Oct, for comparison' },
+  ] },
+  B: { name: 'BAY WATER', opts: [
+    { c: 1, name: 'SWELL', desc: 'the Cove and the bay rise and fall a foot, slowly' },
+    { c: 2, name: 'SHIMMER', desc: 'still water; a few lines brighten and fade as they drift' },
+    { c: 3, name: 'SHORE LINES', desc: 'faint lines roll in toward the seawall like small waves' },
+    { c: 4, name: 'WAKES', desc: 'still water; now and then a faint V-wake crosses the Cove' },
+    { c: 0, name: 'STILL', desc: 'no motion on the water' },
+  ] },
+  Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake' }] },
+  H: { name: 'PITCH CAM', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT cuts behind home plate for the pitch, with its real path and break, then back for the swing' }, { c: 0, name: 'OFF', desc: 'PLAY IT stays on the broadcast view' }] },
   M: { name: 'MENU TITLE', opts: [{ c: 1, name: 'STACKED', desc: 'the name in two big lines' }, { c: 2, name: 'ARC', desc: 'a pixel home-run arc over the name' }, { c: 3, name: 'MARQUEE', desc: 'the name inside a border of chasing bulbs' }] },
 }
-const ORDER = ['L', 'P', 'A', 'T', 'F', 'M']
-const DEF = { L: 1, P: 5, A: 3, T: 1, F: 1, M: 1 }
+const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'S', 'K', 'B', 'Z', 'H', 'M']
+const HDR_AX = ['L', 'P', 'A', 'T', 'F', 'I'] // the rest live in the ? legend and their own keys
+const DEF = { L: 2, P: 5, A: 2, T: 1, F: 1, I: 1, R: 1, S: 1, K: 1, B: 1, Z: 1, H: 1, M: 1 }
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
-  for (const [, k, n] of (s ?? '').toUpperCase().matchAll(/([LPATFM])(\d+)/g)) if (AXES[k].opts.some((o) => o.c === Number(n))) m[k] = Number(n)
+  for (const [, k, n] of (s ?? '').toUpperCase().matchAll(/([A-Z])(\d+)/g)) if (AXES[k]?.opts.some((o) => o.c === Number(n))) m[k] = Number(n)
   return m
 }
 export const mixCode = (m) => ORDER.map((k) => k + m[k]).join(' ')
@@ -76,7 +145,6 @@ const LAYOUT_CSS = `
 #cp .c25>.hdr{grid-area:hdr}#cp .c25>.park{grid-area:park}#cp .c25>.pitch{grid-area:pitch}#cp .c25>.batter{grid-area:batter}#cp .c25>.slice{grid-area:slice}#cp .c25>.hists{grid-area:hists}#cp .c25>.strip{grid-area:strip}
 #cp .c25.ns>.strip{display:none}
 #cp .c25.ns .tly{display:none}
-#cp .c25.F4::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:60;background:repeating-linear-gradient(0deg,rgba(0,0,0,.30) 0 1px,transparent 1px 3px)}
 ` + Object.entries(LAY).map(([n, L]) => {
   const w = L.areas[0].split(' ').length, strip = Array(w).fill('strip').join(' '), q = (a) => a.map((x) => `"${x}"`).join(' ')
   return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}`
@@ -95,6 +163,10 @@ const FRAME_CSS = `
   linear-gradient(var(--tx),var(--tx)) bottom left/14px 1px no-repeat,linear-gradient(var(--tx),var(--tx)) bottom left/1px 14px no-repeat,
   linear-gradient(var(--tx),var(--tx)) bottom right/14px 1px no-repeat,linear-gradient(var(--tx),var(--tx)) bottom right/1px 14px no-repeat}
 #cp .c25.P5 .pnl>.t{top:6px;left:12px;background:transparent;color:var(--dim);padding:0}
+#cp .c25 .pnl>.t.ic{line-height:0;padding:0 5px}
+#cp .c25 .pnl>.t.ic .ico{display:block}
+#cp .c25.P1 .pnl>.t.ic{top:-8px}
+#cp .c25.P5 .pnl>.t.ic{top:5px;padding:0;color:var(--tx)}
 `
 // phones (under 900 px wide): the park on top, a tab row choosing one card under it, the number strip in two rows in the dojo only
 const PHONE_CSS = `
@@ -107,8 +179,7 @@ const PHONE_CSS = `
 #cp .c25.c25[data-card="slice"]>.slice{display:grid}
 #cp .c25>.ptabs{grid-area:ptabs;display:flex;gap:6px;align-items:stretch}
 #cp .c25>.ptabs .bt{flex:1;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 3px 0 var(--e);pointer-events:auto}
-#cp .c25 .hdr .h1>.ps,#cp .c25 .hdr .mx[data-ax],#cp .c25 .hdr #c25vw{display:none}
-#cp .c25 .hdr .h1{justify-content:flex-end}
+#cp .c25 .hdr .lt>.ps,#cp .c25 .hdr .mx[data-ax],#cp .c25 .hdr #c25vw{display:none}
 #cp .c25 .hdr .h2{overflow-x:auto;overflow-y:hidden;gap:14px;scrollbar-width:none}
 #cp .c25 .rd{max-width:57%;left:10px;top:12px}
 #cp .c25 .rd .big{font-size:calc(44px * var(--ts))}
@@ -122,6 +193,8 @@ const PHONE_CSS = `
 #cp .c25 .bsel{left:8px;right:8px;bottom:6px;font-size:calc(13px * var(--ts))}
 #cp .c25 .bsel .bt{padding:3px 6px}
 #cp .c25 .tly{display:none}
+#cp .c25.c25.c25 .park .bug.bug{display:none}
+#cp .c25.S1 .batter .bugc.on,#cp .c25.S3 .batter .bugc.on{display:grid}
 #cp .c25 .pnl>.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 24px)}
 #cp .c25 .hists .hsw{top:4px}
 #cp .c25 .strip .bt .ps{display:block;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -161,15 +234,22 @@ export async function build(root, api, U) {
 @media (max-width:1400px){#cp .c25 .hdr .bt{padding:0 6px}#cp .c25 .hdr .h1 .grp{gap:4px}#cp .c25 .hdr .rt{gap:10px}}
 #cp .c25 .zg.anim .pb{animation:c25pin .5s steps(8) both;transform-box:fill-box;transform-origin:center}
 @keyframes c25pin{from{transform:translate(var(--dx),var(--dy)) scale(.15)}to{transform:none}}
-#cp .c25 .sfig.anim .sb,#cp .c25 .sfig.anim .sl{animation:c25app .01s steps(1) both}
+#cp .c25 .sfig.anim .sb,#cp .c25 .sfig.anim .sl,#cp .c25 .zg.anim .pa{animation:c25app .01s steps(1) both}
+#cp .c25 .zg.anim .pa{animation-delay:.5s}
 #cp .c25 .sfig.anim .sb{animation-delay:.5s}
 #cp .c25 .sfig.anim .sl{animation-delay:.62s}
 @keyframes c25app{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){#cp .c25 .zg.anim .pb,#cp .c25 .sfig.anim .sb,#cp .c25 .sfig.anim .sl{animation:none}}
+@media (prefers-reduced-motion:reduce){#cp .c25 .zg.anim .pb,#cp .c25 .sfig.anim .sb,#cp .c25 .sfig.anim .sl,#cp .c25 .zg.anim .pa{animation:none}}
 #cp .c25 .hdr .bt{height:19px;padding:0 8px;display:inline-flex;align-items:center;line-height:1;box-shadow:0 3px 0 var(--e)}
 #cp .c25 .bt.on{background:var(--tx);color:var(--k);box-shadow:0 1px 0 var(--e)}
 #cp .c25 .hdr .bt.mx{padding:0 6px;min-width:28px;justify-content:center}
-#cp .c25 .hdr #c25mn{background:var(--acc);color:var(--k);border-color:var(--acc)}
+#cp .c25 .hdr #c25mn{background:var(--acc);color:var(--k);border-color:var(--acc);gap:6px}
+#cp .c25 .hdr kbd{font-family:inherit;font-size:.8em;line-height:1;border:1px solid var(--k);padding:1px 3px}
+#cp .c25 .hdr .lt{display:flex;align-items:center;gap:12px;min-width:0;position:relative}
+#cp .c25 .hdr #c25ti{cursor:pointer;pointer-events:auto;overflow:hidden;text-overflow:ellipsis}
+#cp .c25 .hdr .mhint{position:absolute;left:0;top:26px;z-index:5;background:var(--acc);color:var(--k);font-family:PS2P,monospace;font-size:9px;padding:5px 7px;white-space:nowrap;display:none;pointer-events:none;box-shadow:3px 3px 0 var(--tx)}
+#cp .c25 .hdr .mhint.go{display:block;animation:c25mh 4s steps(4) 1 forwards}
+@keyframes c25mh{0%,80%{opacity:1}100%{opacity:0}}
 #cp .c25 .mx.ch{border-color:var(--acc);color:var(--acc)}
 #cp .c25 .win{pointer-events:none}
 #cp .c25 .rd{position:absolute;left:18px;top:14px;pointer-events:none;max-width:calc(100% - 320px)}
@@ -208,9 +288,30 @@ export async function build(root, api, U) {
 @keyframes c25bn{0%{transform:translate(-50%,-50%) scale(.4)}12%{transform:translate(-50%,-50%) scale(1.08)}20%{transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
 @media (prefers-reduced-motion:reduce){#cp .c25 .banner.go{animation:none}#cp .c25 .cflash.go{animation:none}}
 #cp .c25 .batter{container-type:size}
-#cp .c25 .batter .bin{position:absolute;inset:24px 12px 8px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:4px}
+#cp .c25 .batter .bin{position:absolute;inset:24px 12px 8px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;gap:4px}
+#cp .c25 .bug{position:absolute;right:14px;top:100px;max-width:calc(100% - 28px);background:var(--k);border:1px solid var(--tx);padding:6px 9px;display:none;gap:5px;pointer-events:none;font-size:15px;line-height:1.1}
+#cp .c25.S1 .park .bug.on{display:grid}
+#cp .c25 .bug .br1{display:flex;align-items:center;gap:9px;white-space:nowrap}
+#cp .c25 .bug .inn{font-family:PS2P,monospace;font-size:10px}
+#cp .c25 .bug .dia{display:block;flex:none}
+#cp .c25 .bug .outs{display:flex;gap:3px}
+#cp .c25 .bug .outs i{display:block;width:7px;height:7px;border:1px solid var(--tx);border-radius:50%}
+#cp .c25 .bug .outs i.on{background:var(--acc);border-color:var(--acc)}
+#cp .c25 .bug .sc b{font-weight:400;color:var(--dim)}
+#cp .c25 .bug .sc em{font-style:normal;color:var(--acc);margin-left:2px}
+#cp .c25 .bug .wb{display:flex;gap:2px}
+#cp .c25 .bug .wb s{flex:1;height:8px;border:1px solid var(--ln);text-decoration:none}
+#cp .c25 .bug .wb s.a{background:var(--dim);border-color:var(--dim)}
+#cp .c25 .bug .wb s.g{background:var(--acc);border-color:var(--acc)}
+#cp .c25 .bug .wb s.l{border:1px dashed var(--acc)}
+#cp .c25 .bug .wl{display:flex;justify-content:space-between;gap:10px;white-space:nowrap;color:var(--dim)}
+#cp .c25 .bug .wl span{overflow:hidden;text-overflow:ellipsis}
+#cp .c25 .bug .wl b{font-weight:400;color:var(--tx)}
+#cp .c25 .bug .wl b.up{color:var(--acc)}
+#cp .c25 .batter .bugc{grid-row:3;position:static;max-width:none;border:none;padding:2px 0 0;background:none;border-top:1px dashed var(--ln)}
+#cp .c25.S3 .batter .bugc.on{display:grid}
 #cp .c25 .fbox{position:relative;min-height:0;min-width:0;overflow:hidden;grid-row:2}
-#cp .c25 .fbox .art{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;color:var(--tx)}
+#cp .c25 .fbox .art,#cp .c25 .fbox .fcv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;color:var(--tx)}
 #cp .c25 .info{grid-row:1;display:flex;gap:8px;align-items:baseline;min-width:0;white-space:nowrap}
 #cp .c25 .info b{font-weight:400;font-size:20px;line-height:1;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #cp .c25 .info span{color:var(--dim);font-size:15px;line-height:1.1;flex:none}
@@ -385,22 +486,21 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U), ses = makeSession(api)
   const q = new URLSearchParams(location.search)
   const mix = parseMix(q.get('mix') ?? store('nn-mix25') ?? '')
-  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, replaying = false, irN = 0, irOn = (q.get('ir') ?? store('nn-ir25') ?? '1') !== '0'
+  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'giants', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
-  root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="ps" id="c25ti">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="rt">
-    <span class="grp"><span class="bt" id="c25mn">MENU</span></span>
-    <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span><span class="bt" id="c25ir">REPLAY</span></span>
-    <span class="grp" id="c25mx">MIX ${ORDER.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25ty">TYPE</span><span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
+  root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
+    <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
+    <span class="grp" id="c25mx">MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25ty">TYPE</span><span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
     <div class="h2"><span class="grp"><span class="gl">IN THE PARK</span> <span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span></span>
     <span class="grp"><span class="gl">TONIGHT</span> <span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span></span>
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
     <span class="grp"><span class="gl">YOU</span> <span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
-    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="banner" id="c25bn"></div></div>
+    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div></div>
   <div class="pnl p pitch"><span class="t">/ T H E &nbsp; P I T C H /</span><div class="pin"><div class="zg" id="c25zg"></div><div class="pl" id="c25pl"></div></div></div>
-  <div class="pnl p batter"><span class="t">/ B A T T E R /</span><div class="bin"><div class="fbox" id="c25f"><pre class="art"></pre></div><div class="info" id="c25i"></div></div></div>
+  <div class="pnl p batter"><span class="t">/ B A T T E R /</span><div class="bin"><div class="fbox" id="c25f"><pre class="art"></pre></div><div class="info" id="c25i"></div><div class="bug bugc" id="c25bugc"></div></div></div>
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
   <div class="pnl p hists" id="c25hi"><span class="t">/ V S &nbsp; A L L /</span><span class="hsw" id="c25hw"><span class="bt" data-w="mlb">ALL</span><span class="bt" data-w="sf">ORACLE</span></span><div id="c25hb"></div></div>
   <div class="ptabs p" id="c25pt">${[['batter', 'BATTER'], ['pitch', 'PITCH'], ['slice', 'CONTACT'], ['hists', 'VS ALL']].map(([k, l]) => `<span class="bt" data-card="${k}">${l}</span>`).join('')}</div>
@@ -472,7 +572,7 @@ export async function build(root, api, U) {
   const situation = (b) => {
     if (!b || b.in == null) return null
     const on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0), d = (b.bsc ?? 0) - (b.fsc ?? 0), runs = 1 + on
-    const line = [`${b.tb === 'Top' ? 'TOP' : 'BOTTOM'} ${b.in}`, on === 0 ? 'BASES EMPTY' : on === 3 ? 'BASES LOADED' : on + ' ON', d === 0 ? 'TIED' : (d > 0 ? 'UP ' : 'DOWN ') + Math.abs(d), b.bl != null ? `${b.bl}-${b.sk}` : null, b.ou != null ? `${b.ou} OUT` : null, b.dwe != null && b.hr ? `WIN CHANCE ${b.dwe >= 0 ? '+' : '-'}${Math.abs(Math.round(b.dwe * 100))}%` : null].filter(Boolean).join(' · ')
+    const line = [`${b.tb === 'Top' ? 'TOP' : 'BOTTOM'} ${b.in}`, on === 0 ? 'BASES EMPTY' : on === 3 ? 'BASES LOADED' : on + ' ON', d === 0 ? 'TIED' : (d > 0 ? 'UP ' : 'DOWN ') + Math.abs(d), b.bl != null ? `${b.bl}-${b.sk}` : null, b.ou != null ? `${b.ou} OUT` : null, wpaOf(b) != null ? (b.bwe != null ? `WIN ${Math.round(b.bwe * 100)}% → ${Math.round(Math.max(0, Math.min(1, b.bwe + wpaOf(b))) * 100)}%` : 'WIN CHANCE') + ` (${wpaOf(b) >= 0 ? '+' : '-'}${Math.abs(Math.round(wpaOf(b) * 100))}% WPA)` : null].filter(Boolean).join(' · ')
     let stamp = null
     if (b.hr) {
       if (b.tb === 'Bot' && b.in >= 9 && d <= 0 && d + runs > 0) stamp = on === 3 ? 'WALK-OFF SLAM' : 'WALK-OFF'
@@ -482,6 +582,27 @@ export async function build(root, api, U) {
     }
     return { line, stamp }
   }
+  // the score bug (S): the game as it stood when the pitch came in, and what the swing did to the batting team's chance of winning. bwe is Savant's bat_win_exp (before
+  // the pitch, science/add_win_exp.py); WPA is delta_home_win_exp turned to the batting team's side. Runs scored are known for a home run (the batter plus everyone on).
+  const wpaOf = (b) => (b?.dwe == null ? null : b.tb === 'Top' ? -b.dwe : b.dwe)
+  function bugHTML(b) {
+    if (!b || b.in == null) return ''
+    const bat = b.tb === 'Top' ? b.at : b.ht, fld = b.tb === 'Top' ? b.ht : b.at, on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0)
+    const base = (x, y, lit) => `<rect x="${x}" y="${y}" width="7" height="7" transform="rotate(45 ${x + 3.5} ${y + 3.5})" fill="${lit ? 'var(--acc)' : 'none'}" stroke="var(--tx)" stroke-width="1.2"/>`
+    const dia = `<svg class="dia" viewBox="0 0 30 22" width="30" height="22" aria-label="runners: ${[b.r1 && 'first', b.r2 && 'second', b.r3 && 'third'].filter(Boolean).join(', ') || 'none'}">${base(19, 9, b.r1)}${base(11.5, 2, b.r2)}${base(4, 9, b.r3)}</svg>`
+    const outs = `<span class="outs" aria-label="${b.ou ?? 0} out">${[0, 1, 2].map((i) => `<i class="${i < (b.ou ?? 0) ? 'on' : ''}"></i>`).join('')}</span>`
+    const w = wpaOf(b), w0 = b.bwe, w1 = w0 != null && w != null ? Math.max(0, Math.min(1, w0 + w)) : null
+    const runs = b.hr ? 1 + on : null
+    const score = `<span class="sc"><b>${bat ?? 'BAT'}</b> ${b.bsc ?? '-'}${runs != null ? `<em>&rarr;${(b.bsc ?? 0) + runs}</em>` : ''} &nbsp;<b>${fld ?? 'FLD'}</b> ${b.fsc ?? '-'}</span>`
+    const P = (x) => Math.round(x * 100)
+    let bar = ''
+    if (w0 != null && w1 != null) {
+      const lo = Math.min(w0, w1), hi = Math.max(w0, w1)
+      bar = `<div class="wb" aria-label="win chance ${P(w0)}% before, ${P(w1)}% after">${Array.from({ length: 20 }, (_, i) => { const c = (i + 0.5) / 20; return `<s class="${c < lo ? 'a' : c < hi ? (w1 >= w0 ? 'g' : 'l') : ''}"></s>` }).join('')}</div>
+        <div class="wl"><span>WIN CHANCE ${P(w0)}% &rarr; ${P(w1)}%</span><b class="${w >= 0 ? 'up' : 'dn'}" title="how much this swing moved the batting team's chance of winning">${w >= 0 ? '+' : '-'}${Math.abs(P(w))}% WPA</b></div>`
+    } else if (w != null) bar = `<div class="wl"><span>WIN CHANCE</span><b class="${w >= 0 ? 'up' : 'dn'}" title="how much this swing moved the batting team's chance of winning">${w >= 0 ? '+' : '-'}${Math.abs(P(w))}% WPA</b></div>`
+    return `<div class="br1"><span class="inn">${b.tb === 'Top' ? '&#9650;' : '&#9660;'}${b.in}</span>${dia}${outs}<span class="cnt">${b.bl ?? '-'}-${b.sk ?? '-'}</span>${score}</div>${bar}`
+  }
   const seenDays = () => { try { return JSON.parse(store('nn-witness') ?? '[]') } catch { return [] } }
   const big = (b) => { const st = situation(b)?.stamp; return b.hr && (/WALK-OFF|GRAND SLAM/.test(st ?? '') || (st === 'GO-AHEAD' && b.in >= 7)) }
   const filtered = () => (filter === 'big' ? R.balls.filter(big) : filter === 'mine' ? R.balls.filter((b) => b.hr && b.park === 'SF' && seenDays().includes(b.d)) : filter === 'giants' ? R.balls.filter((b) => b.g && b.hr) : filter === 'oracle' ? R.balls.filter((b) => b.park === 'SF' && b.hr) : filter === 'menu' ? R.balls.filter((b) => b.hr && offZone(b)) : R.balls)
@@ -489,8 +610,12 @@ export async function build(root, api, U) {
   // ---- the mixer ----
   const themeKey = () => { if (atOracle) return 'orange'; const k = 'team' + here.abbr; THEMES[k] ??= { ...THEMES.orange, name: here.abbr, acc: TEAM_ACC[here.abbr] ?? THEMES.orange.acc }; return k }
   function applyMix(changed) {
-    for (const k of ['L', 'P', 'F']) for (const o of AXES[k].opts) grid.classList.toggle(k + o.c, mix[k] === o.c)
-    fx?.setStyle(optOf('F', mix.F).style); if (life) life.visible = mix.F !== 3
+    for (const k of ['L', 'P', 'F', 'I', 'S']) for (const o of AXES[k].opts) grid.classList.toggle(k + o.c, mix[k] === o.c)
+    fx?.setStyle(optOf('F', mix.F).style); if (life) life.gullsOn = mix.F !== 3
+    if (fx?.karlOn() && fx.karlLevel() !== mix.K) fx.karl(true, mix.K)
+    if (water && water.mode() !== mix.B) water.setMode(mix.B)
+    if (mix.R) lastR = mix.R // the R key brings back whichever arrow was last on
+    paintTitles()
     menu?.setLogo(mix.M)
     for (const [k, v] of Object.entries(typeVars(optOf('T', mix.T).T))) grid.style.setProperty('--' + k, v)
     if (!changed) { applyTheme(root, api, themeKey(), { park: true }); showWire() }
@@ -500,8 +625,18 @@ export async function build(root, api, U) {
     if (last) render(last)
     if (modal === 'mix' || modal === 'type') paintModal()
   }
+  // the three panel titles: pixel icons (I1 to I3, 2 px per pixel) or the old spaced words (I0); the histogram panel keeps the word titles of the features that borrow it
+  const wordTitle = (el, h) => { const t = el.querySelector('.t'); t.innerHTML = h; t.dataset.h = ''; t.classList.remove('ic') }
+  const titleHTML = (k) => (mix.I ? iconSVG(ICONS[k][mix.I], 2, PANEL_NAMES[k]) : PANEL_WORDS[k])
+  function paintTitles() {
+    for (const k of ['pitch', 'slice', 'hists']) {
+      const t = root.querySelector(`.c25>.${k}>.t`)
+      if (k === 'hists' && show !== 'hist') continue
+      const h = titleHTML(k); if (t.dataset.h !== h) { t.innerHTML = h; t.dataset.h = h } t.classList.toggle('ic', !!mix.I)
+    }
+  }
   const relayout = () => requestAnimationFrame(() => { syncCam?.(); camTo(bird ? 'top' : 'home') })
-  const stepAx = (k, d) => { const os = AXES[k].opts, n = os.length, i = os.findIndex((o) => o.c === mix[k]); mix[k] = os[(i + d + n) % n].c; applyMix(k); const b = root.querySelector(`.mx[data-ax="${k}"]`); b?.classList.add('ch'); setTimeout(() => b?.classList.remove('ch'), 500) }
+  const stepAx = (k, d) => { const os = AXES[k].opts.filter((o) => !o.hide), n = os.length, i = os.findIndex((o) => o.c === mix[k]); mix[k] = os[(i + d + n) % n].c; applyMix(k); const b = root.querySelector(`.mx[data-ax="${k}"]`); b?.classList.add('ch'); setTimeout(() => b?.classList.remove('ch'), 500) }
   root.querySelectorAll('.mx[data-ax]').forEach((b) => {
     b.addEventListener('click', (e) => { pressEl(b); sound.play('move'); stepAx(b.dataset.ax, e.shiftKey ? -1 : 1) })
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); pressEl(b); stepAx(b.dataset.ax, -1) })
@@ -527,7 +662,7 @@ export async function build(root, api, U) {
   function tweak() {
     if (!cur) return
     const b = cur, from = { idx, filter, b }
-    sound.play('pick')
+    sound.play('pick'); life?.play('tater', {}, 0, true)
     setMode('whatif'); stepped = from
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp })
     api.update(); paintChooser()
@@ -579,7 +714,7 @@ export async function build(root, api, U) {
 
   // ---- pop-ups ----
   let iniCancel = null
-  const openMod = (k) => { modal = k; E('#c25m').classList.add('open'); paintModal() }
+  const openMod = (k) => { modal = k; E('#c25m').classList.add('open'); paintModal(); if (k === 'moon') life?.play('moon', {}, 0, true) }
   const closeMod = () => { modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
@@ -588,7 +723,7 @@ export async function build(root, api, U) {
     const body = E('#c25mb')
     if (modal === 'mix') {
       E('#c25mt').textContent = '/ O P T I O N S /'
-      body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">SET: C1 ORANGE AT ORACLE (ANOTHER PARK TAKES ITS TEAM'S COLOR) · W1 GHOST LINES · V3 METER. CLICK AN OPTION TO TRY IT.</div>` + ORDER.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${o.desc}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
+      body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">SET: C1 ORANGE AT ORACLE (ANOTHER PARK TAKES ITS TEAM'S COLOR) · W1 GHOST LINES · V3 METER · YOUR 28 OCT PICKS ARE THE DEFAULTS (L2 P5 A2 T1). CLICK AN OPTION TO TRY IT.</div>` + ORDER.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c).map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${o.desc}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
       body.querySelectorAll('.o').forEach((o) => o.addEventListener('click', () => { mix[o.dataset.k] = Number(o.dataset.i); sound.play('move'); applyMix(o.dataset.k) }))
       return
     }
@@ -633,7 +768,7 @@ export async function build(root, api, U) {
   function paintTypes(body) {
     E('#c25mt').textContent = '/ P I C K   A   T Y P E /'
     const meter = (n) => Array.from({ length: 20 }, (_, i) => `<s${i < n ? ' class="on"' : ''}></s>`).join('')
-    body.innerHTML = `<div class="tys">${AXES.T.opts.map((o) => {
+    body.innerHTML = `<div class="tys">${AXES.T.opts.filter((o) => !o.hide || mix.T === o.c).map((o) => {
       const st = Object.entries(typeVars(o.T)).map(([k, x]) => `--${k}:${x}`).join(';')
       return `<div class="ty${mix.T === o.c ? ' on' : ''}" data-c="${o.c}" style="${st}"><div class="tyl">T${o.c} ${o.name}</div><div class="tyh">NUKE NAVIGATOR // ${NAMES.replay}</div>
         <div class="tyb">417<i> FT</i></div><div class="tym">${meter(12)}<em>62%</em></div>
@@ -777,9 +912,12 @@ export async function build(root, api, U) {
     { k: 'parks', name: 'THIRTY PARKS', blurb: 'FLY THIS BALL IN ANY BALLPARK', run: () => openMod('parks') },
     { k: 'reel', name: 'HIGHLIGHT REEL', blurb: 'THE WALK-OFFS, GRAND SLAMS AND LATE GO-AHEAD SHOTS, BACK TO BACK', run: () => startReel() },
     { k: 'moon', name: 'MOONSHOT', blurb: 'THIS SWING ON THE MOON, ON MARS, AT COORS AND UNDER THE COVE', run: () => openMod('moon') },
-    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, FRAME, ART, TYPE, EFFECTS', run: () => openMod('mix') },
-  ], { onIdle: attract })
-  E('#c25mn').addEventListener('click', () => { pressEl(E('#c25mn')); sound.play('pick'); menu.show(mode === 'replay' ? 'replay' : 'dojo') })
+    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, ART, TYPE, ICONS, LANDING, FOG, WATER, CAMERA', run: () => openMod('mix') },
+  ], { onIdle: attract, onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
+  // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
+  const openMenu = (el) => { if (el) pressEl(el); sound.play('pick'); menu.show(mode === 'replay' ? 'replay' : 'dojo') }
+  E('#c25mn').addEventListener('click', () => openMenu(E('#c25mn')))
+  E('#c25ti').addEventListener('click', () => openMenu(null))
 
   addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
@@ -798,16 +936,16 @@ export async function build(root, api, U) {
     else if (e.key === 'k' || e.key === 'K') toggleKarl()
     else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); sound.play('move') }
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
-    else if (e.key === 'i' || e.key === 'I') toggleIR()
     else if (e.key === 'p' || e.key === 'P') printIt()
     else if (e.key === 'n' || e.key === 'N') setShow('sm')
+    else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
     else if (e.key === 'u' || e.key === 'U') openMod('moon')
   })
   api.setPreview(true)
 
   // ---- the pieces (each picture sits in its own box; the font is sized to fit that box) ----
-  const ro = new ResizeObserver((ents) => { for (const en of ents) { const pre = en.target.querySelector('pre'); if (pre?._fit) fit(pre, en.target, pre._fit.lines, pre._fit.am) } if (last) { paintSide(); paintPanel(last); paintPitch() } })
-  ro.observe(E('#c25hi')); ro.observe(E('.c25 .pitch')); ro.observe(E('#c25sv'))
+  const ro = new ResizeObserver((ents) => { for (const en of ents) { const pre = en.target.querySelector('pre'); if (pre?._fit) fit(pre, en.target, pre._fit.lines, pre._fit.am) } if (last) { paintSide(); paintPanel(last); paintPitch(); if (optOf('A', mix.A).canvas) paintBatter() } })
+  ro.observe(E('#c25hi')); ro.observe(E('.c25 .pitch')); ro.observe(E('#c25sv')); ro.observe(E('#c25f'))
   function fit(pre, box, lines, am) {
     if (!pre._fit) ro.observe(box)
     pre._fit = { lines, am }
@@ -818,15 +956,28 @@ export async function build(root, api, U) {
     pre.textContent = lines.join('\n')
   }
   const artStyle = () => STYLES.find((s) => s.id === optOf('A', mix.A).id) ?? STYLES[0]
+  let faceKey = ''
   function paintBatter() {
     const s = api.state, id = cur ? String(cur.b) : stepped ? String(stepped.b.b) : null, bat = id ? pname(id) : null, hand = cur ? cur.s : s.hand > 0 ? 'R' : 'L'
     const real = id && facesRaw[id], gen = !real && id && hasGen ? genericFace('composite', id) : null
-    const st = artStyle(), am = artMetrics(st), src = real ? faceSource(facesRaw[id]) : gen ? gen.src : drawBust(160)
-    // as many character columns as the box can show at a legible size (at least 4.5 px per character), finer for bigger boxes
-    const box = E('#c25f'), enh = real ? { enh: { stretch: true, k: 1.5, sigma: 18 } } : gen ? gen.enh : {}
-    let cols = Math.max(24, Math.min(80, Math.round(box.clientWidth / 5))), lines = src ? renderArt(src, st, cols, enh).lines : null
-    while (lines && cols > 24 && Math.min((box.clientWidth - 2) / (cols * am.w), (box.clientHeight - 2) / (lines.length * am.h)) < 4.5) { cols = Math.max(24, Math.round(cols * 0.85)); lines = renderArt(src, st, cols, enh).lines }
-    if (lines) fit(E('#c25f pre'), box, lines, am)
+    const src = real ? faceSource(facesRaw[id]) : gen ? gen.src : drawBust(160)
+    const box = E('#c25f'), enh = real ? { enh: { stretch: true, k: 1.5, sigma: 18 } } : gen ? gen.enh : {}, cvs = optOf('A', mix.A).canvas
+    let cv = box.querySelector('canvas')
+    if (cvs) {
+      // a canvas style: drawn at the screen's resolution, square, centered in the box; redrawn only when the face, style, size or colors change
+      cv ??= box.appendChild(Object.assign(document.createElement('canvas'), { className: 'fcv' }))
+      E('#c25f pre').style.display = 'none'; cv.style.display = ''
+      const cs = cs0(), c = { tx: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }, key = [id ?? 'you', cvs, box.clientWidth, box.clientHeight, c.tx, c.acc].join()
+      if (key !== faceKey && src && box.clientWidth) { faceKey = key; drawFace(cv, src, cvs, box.clientWidth - 2, box.clientHeight - 2, { ink: c.tx, acc: c.acc }) }
+    } else {
+      if (cv) cv.style.display = 'none'
+      E('#c25f pre').style.display = ''; faceKey = ''
+      const st = artStyle(), am = artMetrics(st)
+      // as many character columns as the box can show at a legible size (at least 4.5 px per character), finer for bigger boxes
+      let cols = Math.max(24, Math.min(80, Math.round(box.clientWidth / 5))), lines = src ? renderArt(src, st, cols, enh).lines : null
+      while (lines && cols > 24 && Math.min((box.clientWidth - 2) / (cols * am.w), (box.clientHeight - 2) / (lines.length * am.h)) < 4.5) { cols = Math.max(24, Math.round(cols * 0.85)); lines = renderArt(src, st, cols, enh).lines }
+      if (lines) fit(E('#c25f pre'), box, lines, am)
+    }
     const name = bat ? bat[0] : cur ? 'BATTER ' + cur.b : 'YOUR SWING'
     E('#c25i').innerHTML = `<b>${name.toUpperCase()}</b><span>${bat?.[1] ? '#' + bat[1] + ' · ' : ''}${hand}</span>
       <div class="row"><span class="bt" id="c25bs">STATS</span><span class="bt" id="c25pr">PRINT IT</span></div>`
@@ -857,8 +1008,32 @@ export async function build(root, api, U) {
     g += `<rect x="${X(-zl).toFixed(1)}" y="${Y(st).toFixed(1)}" width="${(2 * zl * S).toFixed(1)}" height="${((st - sb) * S).toFixed(1)}" fill="none" stroke="var(--tx)" stroke-width="2"/>`
     const px = Math.max(-xr + 0.06, Math.min(xr - 0.06, b.px)), pz = Math.max(zb + 0.06, Math.min(zt - 0.06, b.pz)), rr = Math.max(5, 0.121 * S)
     if (off) { const ex = Math.max(-zl, Math.min(zl, px)), ez = Math.max(sb, Math.min(st, pz)); g += `<line x1="${X(px).toFixed(1)}" y1="${Y(pz).toFixed(1)}" x2="${X(ex).toFixed(1)}" y2="${Y(ez).toFixed(1)}" stroke="var(--acc)" stroke-width="2" stroke-dasharray="3 3"/>` }
+    g += moveArrow(b, X(px), Y(pz), S, W, H, rr)
     g += `<rect class="pb" style="--dx:${(cx - X(px)).toFixed(1)}px;--dy:${(Y((st + sb) / 2) - Y(pz)).toFixed(1)}px" x="${(X(px) - rr).toFixed(1)}" y="${(Y(pz) - rr).toFixed(1)}" width="${(2 * rr).toFixed(1)}" height="${(2 * rr).toFixed(1)}" fill="var(--acc)" stroke="var(--k)" stroke-width="1.5"/>`
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges">${g}</svg>`
+  }
+  // the pitch arrow (R): how far spin pushed the pitch off a spinless path by the time it crossed, at true scale on the zone (hx, hz are Savant's pfx_x and pfx_z in
+  // inches, catcher's view like the zone, gravity taken out). R1 runs from where a spinless pitch would have crossed into the ball; R2 starts at the ball and points
+  // the way it was breaking; R3 is a short fading tail. The far end is clipped at the box edge so a 20-inch sweeper still fits.
+  function moveArrow(b, bx, by, S, W, H, rr) {
+    if (!mix.R || b.hx == null || b.hz == null) return ''
+    const dx = (b.hx / 12) * S, dy = -(b.hz / 12) * S, L = Math.hypot(dx, dy)
+    if (L < rr + 4) return ''
+    const ux = dx / L, uy = dy / L, gap = rr + 2
+    const clip = (x0, y0, x1, y1) => { let t1 = 1; for (const [p, q] of [[x1 - x0, x0 - 3], [-(x1 - x0), W - 3 - x0], [y1 - y0, y0 - 3], [-(y1 - y0), H - 3 - y0]]) { if (p < 0) t1 = Math.min(t1, -q / p) } t1 = Math.max(0, t1); return [x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1] }
+    const ln = (x0, y0, x1, y1, w = 2) => `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--acc)" stroke-width="${w}"/>`
+    const head = (x, y, vx, vy) => { const a = 0.6, k = 7; return [[Math.cos(a), Math.sin(a)], [Math.cos(-a), Math.sin(-a)]].map(([c, s]) => ln(x, y, x - k * (vx * c - vy * s), y - k * (vx * s + vy * c))).join('') }
+    let g = ''
+    if (mix.R === 1) {
+      const hx = bx - ux * gap, hy = by - uy * gap, [tx, ty] = clip(hx, hy, bx - dx, by - dy)
+      g = ln(tx, ty, hx, hy) + head(hx, hy, ux, uy) + `<rect x="${(tx - 2).toFixed(1)}" y="${(ty - 2).toFixed(1)}" width="4" height="4" fill="none" stroke="var(--acc)" stroke-width="1"/>`
+    } else if (mix.R === 2) {
+      const sx = bx + ux * gap, sy = by + uy * gap, [ex, ey] = clip(sx, sy, sx + dx, sy + dy)
+      g = ln(sx, sy, ex, ey) + head(ex, ey, ux, uy)
+    } else {
+      for (let i = 1; i <= 5; i++) { const k = gap + ((L - gap) * i) / 5, x = bx - ux * k, y = by - uy * k, s = Math.max(2, rr * 1.4 * (1 - i / 6)); if (x < 3 || x > W - 3 || y < 3 || y > H - 3) break; g += `<rect x="${(x - s / 2).toFixed(1)}" y="${(y - s / 2).toFixed(1)}" width="${s.toFixed(1)}" height="${s.toFixed(1)}" fill="var(--acc)" fill-opacity="${(1 - i / 6).toFixed(2)}"/>` }
+    }
+    return `<g class="pa" data-r="${mix.R}" data-dx="${dx.toFixed(1)}" data-dy="${dy.toFixed(1)}">${g}</g>`
   }
   function paintPitch() {
     const b = cur, zg = E('#c25zg'), pl = E('#c25pl')
@@ -883,7 +1058,7 @@ export async function build(root, api, U) {
   // LANDING PARTY in the shared panel: the real Oracle home runs most like this ball, numbered as in the park
   function paintLanding(res) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb'), bear = res.landB ?? s.dir
-    el.querySelector('.t').innerHTML = '/ L A N D I N G &nbsp; P A R T Y /'
+    wordTitle(el, '/ L A N D I N G &nbsp; P A R T Y /')
     const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(bear * 2), cur ? cur.d + cur.b : 'w'].join()
     if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur }, getComputedStyle(root).getPropertyValue('--acc').trim()) }
     hb.innerHTML = `<div class="lpl"><div class="lph">THE ${lpList.length} ORACLE HOME RUNS MOST LIKE THIS ONE (OF ${lp.count()} SINCE JULY 2023)</div>` + lpList.map((x) => { const n = pname(x.b.b); return `<div class="lpr"><b>${x.n}</b><span class="nm">${(n ? n[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d}</span><span>${x.b.ft} FT</span><span class="wh">${x.where}</span></div>` }).join('') + '</div>'
@@ -893,7 +1068,7 @@ export async function build(root, api, U) {
   // SEAT SEANCE in the shared panel: where 300 ghosts of this ball come down, by outcome and by zone
   function paintSeance() {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb')
-    el.querySelector('.t').innerHTML = '/ S E A T &nbsp; S E A N C E /'
+    wordTitle(el, '/ S E A T &nbsp; S E A N C E /')
     const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(s.dir * 2), Math.round(s.temp), s.wind, s.hand, s.carry, s.dws].join()
     if (key !== seKey) { seKey = key; const cs = getComputedStyle(root); seRes = se.run({ ...s }, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim() }) }
     const r = seRes, P = (n) => Math.round((100 * (n || 0)) / r.N), seg = [['HOME RUN', r.homers, 'var(--acc)'], ['OFF THE WALL', r.tally.WALL, 'var(--tx)'], ['IN PLAY', r.tally.PLAY, 'var(--dim)'], ['FOUL', r.tally.FOUL, 'var(--ln)']]
@@ -903,7 +1078,7 @@ export async function build(root, api, U) {
   }
   function paintShot() {
     const el = E('#c25hi'), hb = E('#c25hb')
-    el.querySelector('.t').innerHTML = '/ S H O T &nbsp; C A L L E R /'
+    wordTitle(el, '/ S H O T &nbsp; C A L L E R /')
     if (!scRes) { hb.innerHTML = '<div class="sel"><div class="lph">CLICK A SPOT IN THE STANDS, THE ARCADE OR THE COVE.</div><div class="lph">SHOT CALLER FINDS THE SWINGS THAT PUT A BALL THERE, AND THE REAL HOME RUNS THAT CAME DOWN CLOSEST.</div></div>'; return }
     const r = scRes, side = (b) => (Math.abs(b) < 1 ? 'DEAD CENTER' : `${Math.abs(b).toFixed(0)}° ${b < 0 ? 'LEFT' : 'RIGHT'}`)
     const sw = (p, l) => `<div class="lpr2"><span>${l}</span><b>${p.ev} MPH AT ${p.la}°, AIMED ${side(p.dir)}</b></div>`
@@ -917,7 +1092,7 @@ export async function build(root, api, U) {
   // how many points that input moved the odds, given the ones above it (so the order matters and the lines add up exactly).
   function paintReceipt(res) {
     const el = E('#c25hi'), hb = E('#c25hb'), s = api.state
-    el.querySelector('.t').innerHTML = '/ O D D S &nbsp; R E C E I P T /'
+    wordTitle(el, '/ O D D S &nbsp; R E C E I P T /')
     if (!wim) { hb.innerHTML = '<div class="lph">THE WHAT-IF MODEL IS NOT BUILT ON THIS MACHINE.</div>'; return }
     const bear = res.landB ?? s.dir, w0 = api.wallAt?.(0) ?? [399, 8], w = api.wallAt?.(bear) ?? w0
     const x = { ev: 95, la: 30, bear: 0, hand: s.hand, temp: 62, elev: elevAt(), fence: w0[0], wallh: w0[1] }
@@ -947,7 +1122,7 @@ export async function build(root, api, U) {
   paintHw()
   if (hw === 'sf') { try { const r = await fetch('/dists_oracle.json'); DO = r.ok ? await r.json() : null } catch { DO = null } }
   function paintHists(res) {
-    E('#c25hi').querySelector('.t').innerHTML = '/ V S &nbsp; A L L /'
+    const ht = E('#c25hi').querySelector('.t'), hh0 = titleHTML('hists'); if (ht.dataset.h !== hh0) { ht.innerHTML = hh0; ht.dataset.h = hh0 } ht.classList.toggle('ic', !!mix.I)
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb'), fly = s.la >= 15, oracle = hw === 'sf' && DO?.metrics?.ev, DD = oracle ? DO : D
     const W = el.clientWidth - 28, Hh = el.clientHeight - 30, wide = W > 2.3 * Hh, cols = wide ? 3 : 1
     const ts = parseFloat(getComputedStyle(grid).getPropertyValue('--ts')) || 1
@@ -973,7 +1148,7 @@ export async function build(root, api, U) {
   let stars = null, smKey = '', smRes = null
   function paintStars() {
     const el = E('#c25hi'), hb = E('#c25hb')
-    el.querySelector('.t').innerHTML = '/ S T A R &nbsp; M A P /'
+    wordTitle(el, '/ S T A R &nbsp; M A P /')
     stars ??= constellation(api, () => { const cs = getComputedStyle(root); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), k: cs.getPropertyValue('--k').trim() } })
     const list = mode === 'replay' ? balls : R.balls.filter((b) => b.g && b.hr), who = cur?.b ?? stepped?.b.b ?? null, key = [mode, filter, list.length, who].join()
     const mine = list.filter((b) => b.b === who), nm = who ? pname(who) : null
@@ -996,7 +1171,7 @@ export async function build(root, api, U) {
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
     set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api))} PARKS` : '')
     set('.op', pct(o.p))
-    set('.sit', mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
+    set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
     set('.osrc', 'HOME RUN ODDS · ' + o.src)
     rd.querySelectorAll('.meter s').forEach((s, i) => s.classList.toggle('on', o.p != null && o.p * 20 > i + 0.5))
     const dEl = E('#c25d')
@@ -1008,7 +1183,15 @@ export async function build(root, api, U) {
     last = res
     paintHead(res)
     paintPanel(res)
-    paintBatter(); paintSide(); paintPitch(); paintSlots(); paintTally(); paintVerdict(false); paintModal()
+    paintBatter(); paintSide(); paintPitch(); paintSlots(); paintTally(); paintVerdict(false); paintBug(); paintModal()
+  }
+  // the bug shows for a real ball as it happened, and in the dojo for a home run brought over with TWEAK THE TATER (its game); a fresh dojo swing has no game
+  function paintBug() {
+    const b = mode === 'replay' ? (cur && !edited ? cur : null) : stepped?.b ?? null, h = b ? bugHTML(b) : ''
+    for (const el of [E('#c25bug'), E('#c25bugc')]) { if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h } el.classList.toggle('on', !!h) }
+    // S1 hangs under the verdict chip in the top-right corner: clear of the chooser, and above where flights to right field and the Cove come down
+    const chip = E('#c25v'), top = chip.offsetTop + chip.offsetHeight + 8 + 'px'
+    if (E('#c25bug').style.top !== top) E('#c25bug').style.top = top
   }
   function paintTally() {
     E('#c25t').innerHTML = `<div class="c"><span>SWINGS </span>${String(ses.swings).padStart(2, '0')} <span> HR </span>${String(ses.hrs).padStart(2, '0')}</div><div><span>BEST </span>${ses.best || '---'}</div>` + ses.log.slice(-2).map((l, i, a) => `<div class="${i === a.length - 1 ? 'n' : ''}">${ses.line(l)}</div>`).join('')
@@ -1031,54 +1214,52 @@ export async function build(root, api, U) {
   const colors = () => { const cs = getComputedStyle(root); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim() } }
   let splashes = Number(store('nn-splash25') ?? 0) || 0
   const banner = (big, small) => { const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go') }
-  fx = initFx25(api, colors, { sound: (k) => sound.play(k), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
+  fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
   let pendingSplash = false
   life = atOracle ? initPark25(api, colors, {}) : null
-  if (life) life.visible = mix.F !== 3
+  water = atOracle ? initWater25(api, { mode: mix.B }) : null
+  const pitchCam = initPitchCam(api, colors)
+  addEventListener('pointerdown', (e) => { if (pitchCam.busy() && e.target?.tagName === 'CANVAS') { pitchCam.stop(); window.__cpNoFlight = false; api.update() } })
+  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, onBoard: () => life?.play('glitch') })
+  // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
+  let push = null
+  const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
+  function camPush(at) {
+    if (mix.Z !== 2 || !at || bird) return
+    const C = api.NN.camera, T = api.NN.controls.target
+    push = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: C.position.clone().lerp(at, 0.3), t1: T.clone().lerp(at, 0.6) }
+  }
+  const endPush = () => { if (!push) return; api.NN.camera.position.copy(push.p0); api.NN.controls.target.copy(push.t0); api.NN.controls.update(); push = null }
+  api.NN.frames.push((dt) => {
+    if (!push) return
+    // on the wall clock, so it takes the same time at any frame rate
+    const t = (performance.now() - push.start) / 1000, k = t < 1.4 ? ease(t / 1.4) : t < 3 ? 1 : 1 - ease((t - 3) / 1.4)
+    api.NN.camera.position.lerpVectors(push.p0, push.p1, k); api.NN.controls.target.lerpVectors(push.t0, push.t1, k); api.NN.controls.update()
+    if (t >= 4.4) endPush()
+  })
+  addEventListener('pointerdown', (e) => { if (push && e.target?.tagName === 'CANVAS') endPush() })
+  if (life) life.gullsOn = mix.F !== 3
   if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) }
   // PLAY IT: a new batter gets their walk-up jingle, the pitch flies into the zone, then the hit-stop and the crack
   function play() {
-    if (mode !== 'replay' || !cur || replaying) return
+    if (mode !== 'replay' || !cur) return
     let wait = 560
     if (cur.b !== lastJingle) { lastJingle = cur.b; if (sound.on()) { sound.play('jingle', { id: cur.b }); wait = 1900 } }
-    setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); setTimeout(() => api.fire(), 560) }, wait - 560)
+    // H1 PITCH CAM: behind the plate for the pitch on its fitted path, then back to the broadcast view for the swing
+    // (the hit's preview track starts at the plate, right in front of that camera, so it is cleared for the cut with the engine's no-flight switch and comes back with the swing)
+    const camThenFire = () => { window.__cpNoFlight = true; api.update(); const ok = pitchCam.play(cur, () => { window.__cpNoFlight = false; api.fire() }); if (!ok) { window.__cpNoFlight = false; api.update() } return ok }
+    setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && !bird && camThenFire())) setTimeout(() => api.fire(), 560) }, wait - 560)
   }
-  // INSTANT REPLAY: after a home run, the same flight again from a broadcast angle in slow motion, the camera following the ball, then back
-  const ANG = [['CENTER FIELD CAM', [34, 24, -132], [0, 10, -20]], ['FIRST BASE CAM', [128, 52, 26], [-26, 6, -72]], ['BLIMP', [2, 360, -78], [0, 0, -80]], ['THIRD BASE CAM', [-128, 52, 26], [26, 6, -72]], ['BALL CAM', null, null]]
-  let saved = null, replayCam = null, ballPrev = null
-  function instantReplay() {
-    if (replaying || !irOn) return
-    replaying = true
-    const a = ANG[irN++ % ANG.length], C = api.NN.camera, T = api.NN.controls.target
-    saved = [C.position.clone(), T.clone()]
-    if (a[1]) { C.position.set(...a[1]); T.set(...a[2]); api.NN.controls.update() }
-    ballPrev = null
-    banner('INSTANT REPLAY', a[0]); life?.show('REPLAY', a[0].replace(' CAM', ''), null)
-    window.__cpSlow = 2.2; window.__cpHold = 0
-    replayCam = a[0] === 'BLIMP' ? null : a[0]
-    api.fire()
-    // a watchdog: if anything cancels the replay flight (a new ball, an edit), end the replay now and give the camera back
-    const t0 = performance.now(), dog = setInterval(() => { if (!replaying) { clearInterval(dog); return } const an = api.anim?.(); if (!an || performance.now() - t0 > 25000) { clearInterval(dog); endReplay(0) } }, 400)
-  }
-  function endReplay(wait = 1600) {
-    setTimeout(() => {
-      window.__cpSlow = 1; window.__cpHold = 110; replayCam = null
-      const bm = api.ballMesh?.(); if (bm) bm.visible = true
-      if (saved) { api.NN.camera.position.copy(saved[0]); api.NN.controls.target.copy(saved[1]); api.NN.controls.update() }
-      saved = null; replaying = false
-    }, wait)
-  }
-  const paintIR = () => { E('#c25ir').classList.toggle('on', irOn); E('#c25ir').textContent = irOn ? 'REPLAY: ON' : 'REPLAY: OFF' }
-  const toggleIR = () => { irOn = !irOn; store('nn-ir25', irOn ? '1' : '0'); paintIR(); sound.play('move') }
-  paintIR()
-  E('#c25ir').addEventListener('click', () => { pressEl(E('#c25ir')); toggleIR() })
   // PRINT IT: a poster of the ball on screen, as a PNG download
   async function printIt() {
     if (!last) return
     const res = last, s = api.state, cs = cs0(), FTm = 0.3048, path = res.visPath ?? res.path
     const b = mode === 'replay' ? cur : null, bn = b ? pname(b.b) : stepped ? pname(stepped.b.b) : null, pn = b ? pname(b.p) : null, off = b ? offZone(b) : null, o = odds()
     const v = res.verdict, word = v.kind === 'GONE' ? 'HOME RUN' : v.kind === 'WALL' ? 'OFF THE WALL' : v.kind === 'FOUL' ? 'FOUL BALL' : 'IN PLAY'
-    const pre = E('#c25f pre')
+    const pre = E('#c25f pre'), cvs = optOf('A', mix.A).canvas
+    // a canvas style is drawn again at the poster's size, so the print is not a blown-up screen copy
+    let faceImg = null
+    if (cvs) { const id = cur ? String(cur.b) : stepped ? String(stepped.b.b) : null, rec = id && facesRaw[id], gen = !rec && id && hasGen ? genericFace('composite', id) : null, src = rec ? faceSource(rec) : gen ? gen.src : drawBust(160); faceImg = document.createElement('canvas'); drawFace(faceImg, src, cvs, 300, 300, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }, 1) }
     const d = {
       colors: { k: cs.getPropertyValue('--k').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), acc: cs.getPropertyValue('--acc').trim() },
       mode: mode === 'replay' ? NAMES.replay : NAMES.dojo, name: (bn ? bn[0] : 'YOUR SWING').toUpperCase(),
@@ -1089,7 +1270,7 @@ export async function build(root, api, U) {
       wall: Array.from({ length: 91 }, (_, i) => [i - 45, api.wallAt?.(i - 45)?.[0] ?? 400]),
       rows: [['EXIT SPEED', `${s.ev.toFixed(1)} MPH`], ['LAUNCH ANGLE', `${Math.round(s.la)}°`], ['HOME RUN ODDS', pct(o.p) + '%'], ['HANG TIME', `${res.hang.toFixed(1)} S`], ['APEX', `${Math.round(res.peakFt)} FT`], ['VERDICT', word]],
       tag: off && b?.hr ? `${NAMES.offMenu}: ${off.word}` : word,
-      face: pre?.textContent ? pre.textContent.split('\n') : [], faceFont: pre ? getComputedStyle(pre).fontFamily : 'monospace',
+      face: !faceImg && pre?.textContent ? pre.textContent.split('\n') : [], faceFont: pre ? getComputedStyle(pre).fontFamily : 'monospace', faceImg,
       date: b?.d ?? new Date().toISOString().slice(0, 10),
     }
     const url = await posterPNG(d), a = document.createElement('a')
@@ -1102,8 +1283,7 @@ export async function build(root, api, U) {
   function startReel() {
     filter = 'big'; setMode('replay')
     if (!balls.length) return
-    reel = { i: 0, wasIR: irOn }
-    irOn = false; paintIR()
+    reel = { i: 0 }
     reelNext()
   }
   function reelNext() {
@@ -1113,38 +1293,51 @@ export async function build(root, api, U) {
     banner(st ?? 'HOME RUN', `${(n ? n[0] : 'BATTER ' + balls[idx].b).toUpperCase()} · ${balls[idx].d}`)
     setTimeout(() => { if (reel) api.fire() }, 900)
   }
-  function stopReel() { if (!reel) return; irOn = reel.wasIR; paintIR(); reel = null }
+  function stopReel() { reel = null }
   addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
   addEventListener('pointerdown', (e) => { if (reel && e.target?.tagName === 'CANVAS') stopReel() })
+  let fires = 0
   window.__cpOnFire = (ev) => {
+    fires++
+    endPush()
+    const bm = api.ballMesh?.(); if (bm) bm.visible = true // a glove or the sea lion may have taken the last one
     fx.contact(ev)
+    life?.clear()
     life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
     sound.play('crack', { ev: api.state.ev })
   }
-  window.__cpOnFly = (pos, fr) => {
-    fx.fly(pos, fr)
-    if (replayCam === 'BALL CAM') {
-      const bm = api.ballMesh?.(); if (bm) bm.visible = false
-      if (ballPrev && pos.distanceTo(ballPrev) > 0.05) { const d = pos.clone().sub(ballPrev).normalize(); api.NN.camera.position.copy(pos).addScaledVector(d, -24).add(new api.NN.THREE.Vector3(0, 6, 0)); api.NN.controls.target.copy(pos).addScaledVector(d, 40); api.NN.controls.update() }
-      ballPrev = pos.clone()
-    } else if (replayCam) { api.NN.controls.target.lerp(pos, 0.12); api.NN.controls.update() }
-  }
+  window.__cpOnFly = (pos, fr) => { fx.fly(pos, fr) }
+  let lands = 0
   window.__cpOnLand = (ev) => {
+    lands++
     const ft = Math.round(window.__dojo?.landFt ?? 0), hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)
-    if (replaying) { if (ev.key === 'SPLASH') fx.splash(ev.at); endReplay(); return }
     if (reel) { reel.i++; setTimeout(reelNext, 2600) }
     fx.land(ev)
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
-    if (hr && irOn) setTimeout(instantReplay, 1700)
-    if (atOracle && ev.at && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
+    lastMoment = mix.F === 1 ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null
+    if (life) boardFor(ev, hr, ft)
+    camPush(ev.at)
+    if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
     if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
     else if (['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key)) sound.play('fanfare')
     else if (ev.key === 'WALL' || ev.key === 'CLOSE') sound.play('thud')
   }
+  // the scoreboard's animation for what just landed (park25.js keeps the two best when several apply); they wait until HOME RUN has flashed
+  function boardFor(ev, hr, ft) {
+    const b = mode === 'replay' && cur && !edited ? cur : null, st = b && hr ? situation(b)?.stamp : null, off = b && hr ? offZone(b) : null, D = 2.6
+    if (st && /WALK-OFF/.test(st)) { life.play('walkoff', {}, D); if (/SLAM/.test(st)) life.play('slam', {}, D) }
+    else if (st === 'GRAND SLAM') life.play('slam', {}, D)
+    else if (st === 'GO-AHEAD' || st === 'TIES IT') { const on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0); life.play('flip', { word: st, bat: b.tb === 'Top' ? b.at : b.ht, fld: b.tb === 'Top' ? b.ht : b.at, b0: b.bsc, b1: b.bsc + 1 + on, f: b.fsc }, D) }
+    if (off) life.play({ low: 'golf', high: 'tomahawk', away: 'chase', inside: 'insidejob' }[off.where], {}, D)
+    if (ev.key === 'SPLASH') { life.play('seal', {}, D); life.play('odometer', { n: splashes + 1 }, D) } // the count goes up just after this
+    if (hr && ft >= 430) life.play('cable', { ft }, D)
+    if (ev.key === 'SCRAPER') life.play('crab', {}, D)
+    else if (ev.key === 'WALL' || ev.key === 'CLOSE') life.play(mode === 'replay' ? 'crab' : 'soclose', {}, D)
+  }
   // Karl: on by the forecast at Oracle when it says low cloud or poor visibility (one Open-Meteo request per visit, shared with BAY BAROMETER), and by hand with K
-  const toggleKarl = (on) => { const v = on ?? !fx.karlOn(); fx.karl(v); E('#c25kl').classList.toggle('on', v); E('#c25kl').textContent = v ? 'KARL: IN' : 'KARL' }
+  const toggleKarl = (on) => { const v = on ?? !fx.karlOn(); if (v && !fx.karlOn()) life?.play('karl', {}, 0, true); fx.karl(v, mix.K); E('#c25kl').classList.toggle('on', v); E('#c25kl').textContent = v ? 'KARL: IN' : 'KARL' }
   E('#c25kl').addEventListener('click', () => { pressEl(E('#c25kl')); toggleKarl() })
   if (atOracle && q.get('karl') !== '0') Promise.resolve(getBay()).then(() => { if (bay && !bay.error && bay.hourly && karlIn(bay)) toggleKarl(true) }).catch(() => {})
 
@@ -1160,7 +1353,9 @@ export async function build(root, api, U) {
   const wantMod = q.get('mod')
   if (wantMod) setTimeout(() => openMod(wantMod), 1200)
   if (q.get('menu') !== '0' && !wantMod) menu.show(mode === 'replay' ? 'replay' : 'dojo')
-  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, offZone, tweak, play, mode: () => mode, replaying: () => replaying, replay: () => instantReplay(), reel: () => reel, stopReel: () => stopReel(), stars: () => smRes }
+  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, lands: () => lands, fires: () => fires,
+    // for the tests: jump to the first real ball (any filter) that matches
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },
