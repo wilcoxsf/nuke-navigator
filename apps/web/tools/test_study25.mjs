@@ -352,6 +352,26 @@ if (!process.env.PHONE_ONLY) {
     // the engine's ball is drawn at 0.42 of its old size
     check('the ball in flight is drawn smaller (0.42 of the engine size)', await page.evaluate(() => Math.abs(window.__cp.ballMesh().scale.x - 0.42) < 1e-6))
   }
+  // red-team fixes (28 Oct): a double PLAY IT fires once; a new ball during the pitch fires nothing; sound off stops the jukebox
+  {
+    await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'SI')); await page.waitForTimeout(800)
+    const f0 = await page.evaluate(() => window.__mix25.fires())
+    await page.click('#c25go'); await page.click('#c25go'); await page.waitForTimeout(150); await page.click('#c25go')
+    for (let k = 0; k < 60 && (await page.evaluate((n) => window.__mix25.fires() === n, f0)); k++) await page.waitForTimeout(200)
+    await page.waitForTimeout(3500)
+    const f1 = await page.evaluate(() => window.__mix25.fires())
+    check('pressing PLAY IT three times fires the ball once', f1 - f0 === 1, JSON.stringify({ f0, f1 }))
+    for (let k = 0; k < 60 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(300)
+    const f2 = await page.evaluate(() => window.__mix25.fires())
+    await page.click('#c25go'); await page.waitForTimeout(300); await page.keyboard.press(']'); await page.waitForTimeout(4000)
+    const f3 = await page.evaluate(() => ({ f: window.__mix25.fires(), busy: window.__mix25.pitchCam().busy() }))
+    check('a new ball during the pitch calls the pitch off (nothing fires)', f3.f === f2 && !f3.busy, JSON.stringify({ f2, f3 }))
+    await page.evaluate(() => { localStorage.setItem('nn-snd', '1'); window.__mix25.jukebox.play('saints') }); await page.waitForTimeout(300)
+    await page.keyboard.press('s'); await page.waitForTimeout(300)
+    const off = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), on: localStorage.getItem('nn-snd') }))
+    await page.keyboard.press('s'); await page.waitForTimeout(200)
+    check('sound off (S) stops the jukebox', off.playing === null && off.on === '0', JSON.stringify(off))
+  }
   // the break arrow uses the movement the pitch had (gravity in): a four-seamer's arrow comes down onto the ball; the pitch color is on the arrow and the side view
   {
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'FF' && b.hz > 14)); await page.waitForTimeout(800)
@@ -380,11 +400,22 @@ if (!process.env.PHONE_ONLY) {
     const a = P(-g.width / 2, 0), z = P(g.width / 2, 0)
     return { size: L.size, ledPx: Math.hypot(z[0] - a[0], z[1] - a[1]) / L.size[0] }
   })
-  const bp = await page.evaluate(() => { const b = window.__mix25.life.board.position, h = window.__cp.toWorld([0, 0, 0]); return { r: Math.hypot(b.x - h.x, b.z - h.z), y: b.y - h.y } })
-  check('the LED board sits on the real scoreboard face (148.5 m out, 40 m up), not in front of it', Math.abs(bp.r - 148.5) < 0.5 && Math.abs(bp.y - 40) < 0.5, JSON.stringify(bp))
-  const wt = await page.evaluate(() => { const W = window.__mix25.water(), c = W.lines.geometry.attributes.color.array; let gray = true; for (let i = 0; i < c.length; i += 3) if (c[i] > 0.01 && Math.abs(c[i] - c[i + 2]) > 0.25 * c[i + 2]) gray = false; return { gray, depthOnly: W.sea.material.colorWrite === false } })
-  check('the bay is black water with grey ripples (no blue)', wt.gray && wt.depthOnly, JSON.stringify(wt))
-  check('the LED board is 72 x 22 and each LED is at least 2 screen pixels at 1440 (L2)', lb.size[0] === 72 && lb.size[1] === 22 && lb.ledPx >= 2, JSON.stringify(lb))
+  // the board replaces Oracle's own (between the light towers, 148.4 m out, centered 39 m up and half a degree left); 72 LEDs across its 42 m
+  const bp = await page.evaluate(() => { const b = window.__mix25.life.board.position, h = window.__cp.toWorld([0, 0, 0]), dx = b.x - h.x, dz = b.z - h.z; return { r: Math.hypot(dx, dz), y: b.y - h.y, bear: (Math.atan2(dx, -dz) * 180) / Math.PI, w: window.__mix25.life.board.geometry.parameters.width } })
+  check('the LED board covers Oracle\'s own board, flush on its face between the light towers', Math.abs(bp.r - 148.4) < 0.3 && Math.abs(bp.y - 39) < 0.3 && Math.abs(bp.bear + 0.5) < 0.2 && Math.abs(bp.w - 41.8) < 0.3, JSON.stringify(bp))
+  // the sea: one plane out to the horizon at the water's level, the park an island in it; the kayaks float on it (voxel models), not under it
+  const sw = await page.evaluate(() => { const W = window.__mix25.water(), lv = W.level(), s = W.sea, ks = window.__mix25.fx.kayakBoats(); return { size: s.geometry.parameters.width, y: s.position.y - lv, mode: W.mode(), boats: ks.length, models: ks.every((k) => k.model), afloat: ks.every((k) => Math.abs(k.y - lv) < 0.6), cost: W.cost() } })
+  check('the sea runs 9 km out in every direction at the water level, with the kayaks afloat on it as voxel models', sw.size >= 9000 && Math.abs(sw.y) < 0.01 && sw.boats === 6 && sw.models && sw.afloat && sw.cost < 1, JSON.stringify(sw))
+  check('the LED board is 72 x 22 inside its 34 rows, each LED at least 1.4 screen pixels at 1440 (L2)', lb.size[0] === 72 && lb.size[1] === 22 && lb.ledPx >= 1.4, JSON.stringify(lb))
+  // the jukebox: in the menu, on the J key, and its songs play and stop; San Francisco is transcribed from the lead sheet with its chords (33 bars, two roots a bar)
+  await page.keyboard.press('j'); await page.waitForTimeout(500)
+  const jb = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), rows: document.querySelectorAll('#c25mb .jk').length, txt: document.querySelector('#c25mb').textContent }))
+  await page.click('#c25mb [data-song="ballgame"]'); await page.waitForTimeout(400)
+  const jp = await page.evaluate(() => window.__mix25.jukebox.playing())
+  await page.click('#c25mb [data-song="ballgame"]'); await page.waitForTimeout(300)
+  const js = await page.evaluate(() => window.__mix25.jukebox.playing())
+  check('J opens the JUKEBOX with all five songs, and a song plays and stops', jb.open && jb.rows === 5 && /SAN FRANCISCO/.test(jb.txt) && jp === 'ballgame' && js === null, JSON.stringify({ open: jb.open, rows: jb.rows, jp, js }))
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
   const dead = pk.filter((x) => x.r.some((v) => v < 12)).map((x) => x.n)
@@ -408,7 +439,7 @@ if (!process.env.PHONE_ONLY) {
   }
   await page.evaluate(() => window.__mix25.moments.setBobble(0))
   const s1 = await swing({ ev: 108, la: 27, dir: -18, hand: 1, temp: 70, wind: 0 })
-  check('a home run into the seats: a glove comes up where it lands, on screen', s1.moment === 'seats' && s1.boxes.length >= 1 && s1.boxes.every((b) => b.d < 2 && b.on), JSON.stringify(s1))
+  check('a home run into the seats: a voxel glove comes up where it lands, on screen', s1.moment === 'seats' && s1.boxes.length >= 1 && s1.boxes.every((b) => b.d < 2 && b.on && b.model), JSON.stringify(s1))
   await page.waitForTimeout(3500)
   const s2 = await swing({ ev: 116, la: 28, dir: 24, hand: -1, temp: 70, wind: 0 })
   check('a splash hit: the sea lion surfaces in the Cove, on screen', s2.key !== 'SPLASH' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
@@ -453,7 +484,7 @@ if (!process.env.PHONE_ONLY) {
 if (!process.env.PHONE_ONLY) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with ten modes', m0.open && m0.n === 10 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with eleven modes (JUKEBOX added)', m0.open && m0.n === 11 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
   const sc0 = await page.evaluate(() => { const c = document.querySelector('.c25 .sm canvas.ins2'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return { n, sig: Array.from(d.filter((_, i) => i % 97 === 3)).join('') } })
   await page.waitForTimeout(700)
@@ -515,10 +546,16 @@ for (const [w, h] of [[390, 844], [360, 740]]) {
 {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone', sm.open && sm.n === 10 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone', sm.open && sm.n === 11 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()
+}
+// the ABC parser (music25.js), with no browser: a tie across a barline keeps its accidental, and // halves twice
+{
+  const { parseABC } = await import('../src/cockpits/music25.js')
+  const P = parseABC(['M:4/4', 'L:1/4', 'K:C', '^G2 G2-| G4| A// z3 z3/4|'].join(String.fromCharCode(10)))
+  check('ABC: a tie across a barline keeps the sharp; // is a quarter of the unit', P.notes[0].m === 68 && P.notes[1].m === 68 && P.notes[1].d === 6 && P.notes[2].d === 0.25, JSON.stringify(P.notes))
 }
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 console.log(fails ? `${fails} FAILED` : 'ALL PASSED')

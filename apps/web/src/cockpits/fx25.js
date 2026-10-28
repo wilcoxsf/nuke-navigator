@@ -3,6 +3,8 @@
 //   home run: confetti (F2) or the landing moments (moments25.js)    splash hit: ripple rings and droplets in McCovey Cove, and the Cove's kayakers race to the ball
 //   Karl: dithered fog banks drift across the park and the wireframe hazes over
 // Positions come from the engine's own toWorld (meters, home plate at the origin, y up).
+import { loadModels, cloneModel } from './models25.js'
+import { WATER_Z } from './water25.js'
 export function initFx25(api, col, o = {}) {
   const { THREE, scene, camera } = api.NN
   const toWorld = window.__cp.toWorld
@@ -52,9 +54,10 @@ export function initFx25(api, col, o = {}) {
   }
   let style = o.style ?? 'moments'
 
-  // ---- McCovey Cove: kayaks waiting in the water beyond right field ----
+  // ---- McCovey Cove: voxel kayakers (Blender, models25.js) floating at the sea's level beyond right field, in six hull colors ----
   const kayaks = []
-  function buildKayaks() {
+  const HULLS = ['#e4002b', '#f2bc40', '#2f6fd6', '#1fa37a', '#f26b21', '#efe9dc']
+  async function buildKayaks() {
     if (!o.cove) return
     const pts = []
     for (const dir of [14, 18, 22, 26, 30, 34, 38]) for (const ev of [114, 120]) {
@@ -63,23 +66,18 @@ export function initFx25(api, col, o = {}) {
       if (L?.kind === 'SPLASH') pts.push(L.point.clone())
     }
     if (pts.length < 2) return
-    const water = Math.min(...pts.map((p) => p.y))
-    const hullPts = []
-    for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2, b = ((i + 1) / 24) * Math.PI * 2; hullPts.push(Math.cos(a) * 4.5, 0, Math.sin(a) * 0.9, Math.cos(b) * 4.5, 0, Math.sin(b) * 0.9) }
-    hullPts.push(-4.5, 0, 0, 4.5, 0, 0)
-    const hullGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(hullPts, 3))
-    const padGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0.8, -2.6, 0, 0.8, 2.6, 0, 0, 0, 0, 1.6, 0], 3))
+    const M = await loadModels(THREE)
+    if (!M.kayak) return
+    const level = toWorld([0, 0, WATER_Z]).y // the sea's surface (water25.js): the hulls sit in it, not under it
     for (let i = 0; i < 6; i++) {
-      const g = new THREE.Group()
-      const lm = new THREE.LineBasicMaterial({ color: col().tx, fog: false, depthWrite: false }) // no depth write and no normal pass, or the post shader inks the hull black
-      g.add(new THREE.LineSegments(hullGeo, lm))
-      const pad = new THREE.LineSegments(padGeo, lm); pad.position.y = 0.6; g.add(pad)
-      const head = new THREE.Sprite(sq(col().acc, STEPS)); head.position.y = 2.1; head.scale.setScalar(0.9); g.add(head)
+      const g = new THREE.Group(), boat = cloneModel(M.kayak, 1.6)
+      boat.traverse((m) => { if (m.isMesh && m.material.name === '#e4002b') m.material.color.set(HULLS[i]) })
+      g.add(boat)
       const p = pts[i % pts.length].clone().add(V(rnd(-14, 14), 0, rnd(-14, 14)))
-      p.y = water + 0.4
+      p.y = level - 0.25
       g.position.copy(p); g.rotation.y = rnd(0, Math.PI * 2)
-      scene.add(g); window.__nn?.hideForNormal.push(g)
-      kayaks.push({ g, pad, home: p.clone(), ph: rnd(0, 6), target: null, sp: rnd(5.5, 9), back: 0 })
+      scene.add(g)
+      kayaks.push({ g, boat, home: p.clone(), ph: rnd(0, 6), target: null, sp: rnd(5.5, 9), back: 0 })
     }
     let t = 0
     parts.push((dt) => {
@@ -87,7 +85,9 @@ export function initFx25(api, col, o = {}) {
       if (raceT > 0 && (raceT -= dt) <= 0) for (const k of kayaks) { k.target = null; k.back = 1 }
       for (const k of kayaks) {
         const g = k.g
-        g.position.y = k.home.y + Math.sin(t * 1.4 + k.ph) * 0.18
+        g.position.y = k.home.y + Math.sin(t * 1.4 + k.ph) * 0.12
+        k.boat.rotation.x = Math.sin(t * 1.1 + k.ph) * 0.05 // a little roll on the swell
+        if (k.cheer > 0) { k.cheer -= dt; g.position.y += Math.abs(Math.sin(k.cheer * 9)) * 0.9 } // the one who got the ball bounces
         const goal = k.target ?? (k.back > 0 ? k.home : null)
         if (goal) {
           const d = V(goal.x - g.position.x, 0, goal.z - g.position.z), dist = d.length()
@@ -96,10 +96,10 @@ export function initFx25(api, col, o = {}) {
             let dy = want - cur; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI
             g.rotation.y = cur + Math.sign(dy) * Math.min(Math.abs(dy), 2.5 * dt)
             g.position.x += Math.cos(g.rotation.y) * k.sp * dt; g.position.z -= Math.sin(g.rotation.y) * k.sp * dt
-            k.pad.rotation.x = Math.sin(t * 9 + k.ph) * 0.8
-          } else if (k.target && !winner) { winner = k; o.onCatch?.(k) }
+            k.boat.rotation.x = Math.sin(t * 9 + k.ph) * 0.12 // paddling hard
+          } else if (k.target && !winner) { winner = k; k.cheer = 1.8; o.onCatch?.(k) }
           else if (!k.target) k.back = 0
-        } else k.pad.rotation.x = Math.sin(t * 0.8 + k.ph) * 0.15
+        }
       }
       return true
     })
@@ -189,6 +189,8 @@ export function initFx25(api, col, o = {}) {
     // for the tests: each bank's distance from the plate in meters (the sideways drift can only take it farther) and its height, and the sprite opacity
     karlBanks: () => banks.map((k) => { const w = k.s.position, p0 = toWorld([0, 0, 0]); return { d: Math.hypot(w.x - p0.x, w.z - p0.z), h: k.h, op: k.s.material.opacity } }),
     count: () => parts.length, kayaks: () => kayaks.length,
+    // for the tests: each kayak's height (its group sits at the waterline) and whether it is the voxel model
+    kayakBoats: () => kayaks.map((k) => ({ y: k.home.y + 0.25, model: !!k.boat })),
     winner: () => winner,
   }
 }

@@ -54,5 +54,6 @@ export function initPitchArc(api, col) {
     run.ball = sprite('#ffffff', 1.1, toWorld(P.pts[0]))
     return true
   }
-  return { play, clear, stop: () => { if (run) { run = null; clear() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots }
+  // stop: call the pitch off (no hit); finish: skip to the hit now
+  return { play, clear, stop: () => { if (run) { run = null; clear() } }, finish: () => { if (run) { const r = run; run = null; lastDots = r.shown; scene.remove(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots }
 }

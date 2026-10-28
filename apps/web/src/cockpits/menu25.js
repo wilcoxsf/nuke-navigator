@@ -1,6 +1,7 @@
 // Study 25 SELECT screen: a video-game mode menu over the park (up and down to choose, Enter to start, Esc to come back to it, number keys jump straight to a line,
 // S switches the sound). While it sits idle the park behind it replays the longest home runs (attract mode, run by the study through onIdle).
 import { sound } from './sfx25.js'
+import { jukebox } from './music25.js'
 
 export const MENU_CSS = `
 #cp .c25 .sm{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k) 90%,transparent);pointer-events:auto}
@@ -98,7 +99,7 @@ export function selectMenu(host, items, o = {}) {
     else if (e.key === 'ArrowUp') { e.preventDefault(); i = (i - 1 + items.length) % items.length; sound.play('move'); paint() }
     else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick() }
     else if (e.key === 'Escape') { e.preventDefault(); sound.play('back'); close() }
-    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); paint(); sound.play('move') }
+    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); paint(); sound.play('move') }
     else if (/^[1-9]$/.test(e.key) && Number(e.key) <= items.length) { i = Number(e.key) - 1; pick() }
     e.stopImmediatePropagation()
   }, true)

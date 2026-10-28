@@ -4,7 +4,8 @@
 //   CRAZY CRAB (a wall scraper or a ball just short)   SEA LION (a splash hit)   SPLASH ODOMETER (the splash count rolls over)   CABLE CAR (430 ft or more)
 //   KARL (the fog eats the board)   GULL HEIST and GOLDEN GATE (idle)   GOLF SHOT, TOMAHAWK, CHASE SCENE, INSIDE JOB (the four OFF THE MENU home runs)
 //   WALK-OFF   GRAND SLAM   GO-AHEAD and TIES IT (a scoreline flip)   MOONSHOT   TWEAK THE TATER   SO CLOSE (a dojo swing that just missed)
-// The board is 72 x 22 LEDs, each 0.82 m (a little over 2 screen pixels at 1440 wide, measured); one animation plays at a time, with at most two waiting.
+// The board is 72 x 34 LEDs of 0.58 m, sized to Oracle's own board (1.5 screen pixels an LED at 1440 wide, 2.4 at 1827); the animations use the middle 22 rows.
+// One animation plays at a time, with at most two waiting.
 export function initPark25(api, col, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
@@ -12,17 +13,19 @@ export function initPark25(api, col, o = {}) {
   const parts = []
 
   // ---- the LED board: a buffer of color codes per LED, drawn as round bulbs ----
-  const GW = 72, GH = 22, S = 10, LED = 0.82
+  // the logic grid is 72 x 22 (every animation is drawn on it); the board itself has GHT rows, the logic rows centered with dark rows above and below
+  const GW = 72, GH = 22, GHT = 34, ROW0 = 6, S = 10, LED = 0.58
   const buf = new Uint8Array(GW * GH)
   const grid = document.createElement('canvas'); grid.width = GW; grid.height = GH
   const gx = grid.getContext('2d', { willReadFrequently: true })
-  const out = document.createElement('canvas'); out.width = GW * S; out.height = GH * S
+  const out = document.createElement('canvas'); out.width = GW * S; out.height = GHT * S
   const ox = out.getContext('2d')
   const tex = new THREE.CanvasTexture(out); tex.magFilter = THREE.LinearFilter; tex.colorSpace = THREE.SRGBColorSpace
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(GW * LED, GH * LED), new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide }))
-  // mounted on the real board's face in the park model (149 to 152 m out, 30 to 50 m up, about 62 m wide), a hair in front of it (28 Oct: it had floated 8 m in front)
-  const bearing = o.boardBearing ?? 0, bh = o.boardH ?? 40
-  board.position.copy(at(bearing, o.boardR ?? 148.5, bh))
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(GW * LED, GHT * LED), new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide }))
+  // it replaces Oracle's own board (28 Oct, Andrew: 'wire that puppy in directly over it'): the real board in the park model sits between the two light towers, from
+  // -8.5 to +7.5 degrees, 28 to 50 m up, its screen 149 m out; this one covers it exactly (42 m by 20 m, centered at -0.5 degrees and 39 m), a hair in front of the screen
+  const bearing = o.boardBearing ?? -0.5, bh = o.boardH ?? 39
+  board.position.copy(at(bearing, o.boardR ?? 148.4, bh))
   board.lookAt(at(bearing, 0, bh))
   scene.add(board)
   // palette: a = the text color of the moment (accent, or bone while flashing), o = accent, w = bone, then fixed colors for the sprites
@@ -56,8 +59,8 @@ export function initPark25(api, col, o = {}) {
     const c = col(), on = flash > 0 && Math.floor(flash * 6) % 2 ? c.tx : color ?? c.acc
     const P = [null, on, c.acc, c.tx, FIX.b, FIX.y, FIX.r, FIX.g, FIX.n, FIX.d]
     ox.fillStyle = '#050505'; ox.fillRect(0, 0, out.width, out.height)
-    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
-      const k = buf[y * GW + x]
+    for (let y = 0; y < GHT; y++) for (let x = 0; x < GW; x++) {
+      const ly = y - ROW0, k = ly >= 0 && ly < GH ? buf[ly * GW + x] : 0
       ox.fillStyle = k ? P[k] : '#1a1a1a'
       ox.beginPath(); ox.arc(x * S + S / 2, y * S + S / 2, S * (k ? 0.42 : 0.3), 0, Math.PI * 2); ox.fill()
     }

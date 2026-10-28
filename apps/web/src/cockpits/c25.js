@@ -33,6 +33,7 @@ import { initMoments25 } from './moments25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
 import { initPitchArc, pitchPath, breakOf } from './pitchcam25.js'
+import { jukebox, loadPrivateSongs } from './music25.js'
 import { constellation, posterPNG } from './show25.js'
 
 const LSA = { 1: 'WEAK', 2: 'TOPPED', 3: 'UNDER', 4: 'FLARE OR BURNER', 5: 'SOLID CONTACT', 6: 'BARREL' }
@@ -331,7 +332,7 @@ export async function build(root, api, U) {
 @container (max-width:300px){#cp .c25 .info{flex-wrap:wrap;row-gap:4px}#cp .c25 .info b{flex:1 1 100%}#cp .c25 .info .row{margin-left:0}}
 #cp .c25 .slice{display:grid;grid-template-rows:minmax(0,1fr) auto;padding:24px 12px 8px}
 #cp .c25 .slice .sfig{position:relative;min-height:0;overflow:hidden}
-#cp .c25 .slice .sfig svg{position:absolute;left:0;top:0}
+#cp .c25 .slice .sfig svg{position:absolute;left:0;top:0;max-width:100%;max-height:100%} /* never bigger than its box, even for the frame before a resize repaints it */
 #cp .c25 .slice .cap{font-size:15px;line-height:1.15;color:var(--dim);padding-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #cp .c25 .hists>#c25hb{position:absolute;inset:24px 14px 6px;overflow:hidden}
 #cp .c25 .hists .hsw{position:absolute;right:10px;top:-2px;display:flex;gap:4px;z-index:2}
@@ -503,7 +504,8 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U), ses = makeSession(api)
   const q = new URLSearchParams(location.search)
   const mix = parseMix(q.get('mix') ?? store('nn-mix25') ?? '')
-  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null
+  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, push = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false
+  const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'giants', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
@@ -540,7 +542,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top') }
+  const camTo = (k) => { push = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top') }
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -551,7 +553,7 @@ export async function build(root, api, U) {
   const lp = landingParty(api, R.balls), se = seatSeance(api), sc = shotCaller(api, R.balls)
   let show = ['lp', 'se', 'sc', 'rc', 'sm'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null
   const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25sc', 'sc'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
-  const setShow = (k) => { show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'sc') { sc.clear(); scRes = null } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
+  const setShow = (k) => { if (!uiReady) return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'sc') { sc.clear(); scRes = null } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { pressEl(E(id)); sound.play('move'); setShow(m) }); E(id).classList.toggle('on', show === m) }
   // a click on the park (not a drag) calls the shot while SHOT CALLER is on
   let down = null
@@ -563,7 +565,7 @@ export async function build(root, api, U) {
     E('#c25hb').innerHTML = '<div class="lph">CALLING THE SHOT...</div>'
     setTimeout(() => { scRes = sc.call(spot, api.state, getComputedStyle(root).getPropertyValue('--acc').trim()); if (last) render(last) }, 30)
   })
-  E('#c25bb').addEventListener('click', () => { pressEl(E('#c25bb')); openMod('bay') })
+  E('#c25bb').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25bb')); openMod('bay') })
   const wim = await loadWhatIf() // the what-if model (public/whatif_model.json), if built
   // which park is loaded (?park=TEAM; main.js and dojo.js read the same parameter): its name on the park panel; Oracle-only features hide elsewhere
   const here = parks.parks.find((p) => p.abbr === (window.__parkX ?? 'SF')), atOracle = !here || here.abbr === 'SF'
@@ -664,12 +666,14 @@ export async function build(root, api, U) {
 
   function applyBall(b) {
     cur = b; edited = false
-    pitchCam?.clear() // the last pitch arc belongs to the last ball
+    cancelPlay(); pitchCam?.clear() // the last pitch arc belongs to the last ball, and a pitch still on its way is called off
     if (life) { const n = pname(b.b); life.idle(`${(n ? n[0] : 'BATTER ' + b.b).toUpperCase()}  ·  ${b.d}  ·  ${b.ft} FT`) }
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false })
     api.setPreview(true); api.update()
   }
   function setMode(m) {
+    cancelPlay()
+    if (reel && m !== 'replay') stopReel()
     mode = m
     if (m === 'replay' && R.balls.length) { stepped = null; balls = filtered(); if (!balls.length) { filter = 'giants'; balls = filtered() } idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; api.state.carry = 1; api.state.dws = 0; api.state.tab = true; api.setPreview(true); api.update() }
     grid.classList.toggle('ns', mode === 'replay')
@@ -735,7 +739,7 @@ export async function build(root, api, U) {
 
   // ---- pop-ups ----
   let iniCancel = null
-  const openMod = (k) => { modal = k; E('#c25m').classList.add('open'); paintModal(); if (k === 'moon') life?.play('moon', {}, 0, true) }
+  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; modal = k; E('#c25m').classList.add('open'); paintModal(); if (k === 'moon') life?.play('moon', {}, 0, true) }
   const closeMod = () => { modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
@@ -750,6 +754,7 @@ export async function build(root, api, U) {
     }
     if (modal === 'type') { paintTypes(body); return }
     if (modal === 'moon') { paintMoon(body); return }
+    if (modal === 'jukebox') { paintJukebox(body); return }
     if (modal === 'bay') { paintBay(body); return }
     if (modal === 'bulletin' || modal === 'dinger') { paintDaily(body); return }
     if (modal === 'witness') { if (!body.querySelector('.wgrid') || !paintModal.keepW) paintWitness(body); paintModal.keepW = true; return }
@@ -785,6 +790,13 @@ export async function build(root, api, U) {
       <div class="r mo"><span>DEEP SPACE</span><b class="y">FOREVER</b><span>IT NEVER COMES DOWN</span></div></div>
       ${phrase ? `<div class="dds">${phrase}</div>` : ''}<div class="baya">THE MOON, MARS AND JUPITER ARE FLOWN WITH NO AIR, FROM A 3 FT CONTACT HEIGHT. EVERYTHING ELSE GOES THROUGH THE FLIGHT ENGINE.</div></div>`
   }
+  // JUKEBOX: every song with its length, play and stop (music25.js); it keeps playing after the window closes
+  function paintJukebox(body) {
+    E('#c25mt').textContent = '/ J U K E B O X /'
+    const on = jukebox.playing(), mmss = (x) => `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, '0')}`
+    body.innerHTML = `<div class="bul"><div class="bulh">BALLPARK CLASSICS AS CHIPTUNE, PLAYED BY THE BROWSER${sound.on() ? '' : ' · SOUND IS OFF: PRESS S'}</div><div class="btab">${jukebox.songs.map((x) => `<div class="r mo jk"><span>${x.name}${x.note ? ` <i>(${x.note.toUpperCase()})</i>` : ''}</span><b>${mmss(jukebox.length(x.id))}</b><span><span class="bt" data-song="${x.id}">${on === x.id ? 'STOP' : 'PLAY'}</span></span></div>`).join('')}</div><div class="baya">A WALK-OFF PLAYS SAN FRANCISCO; A GRAND SLAM PLAYS CHARGE!. TAKE ME OUT (1908), THE SAINTS, CHARGE! AND THE HAT DANCE ARE PUBLIC DOMAIN; SAN FRANCISCO IS NOT, SO IT STAYS ON THIS PRIVATE SITE.</div></div>`
+    body.querySelectorAll('[data-song]').forEach((b) => b.addEventListener('click', () => { pressEl(b); autoSong = false; if (jukebox.playing() === b.dataset.song) jukebox.stop(); else { if (!sound.on()) sound.set(true); jukebox.play(b.dataset.song, { onEnd: () => { if (modal === 'jukebox') paintJukebox(E('#c25mb')) } }) } paintJukebox(body) }))
+  }
   // the type picker: every pixel type set drawn with the same real pieces of the screen; click one to use it
   function paintTypes(body) {
     E('#c25mt').textContent = '/ P I C K   A   T Y P E /'
@@ -811,7 +823,7 @@ export async function build(root, api, U) {
   function paintBay(body) {
     E('#c25mt').textContent = '/ B A Y   B A R O M E T E R /'
     if (!bay || bay instanceof Promise) { body.innerHTML = '<div class="bay">READING THE BAY...</div>'; Promise.resolve(getBay()).finally(() => { if (modal === 'bay') paintBay(E('#c25mb')) }); return }
-    if (bay.error) { body.innerHTML = '<div class="bay">COULD NOT REACH OPEN-METEO. TRY AGAIN LATER.</div>'; bay = null; return }
+    if (bay.error) { body.innerHTML = '<div class="bay">COULD NOT REACH OPEN-METEO. TRY AGAIN LATER.</div>'; return }
     const H = bay.hourly, { i0 } = nowRow(bay)
     const base = carryFt(62, 1015), rows = []
     for (let i = i0; i < Math.min(H.time.length, i0 + 10); i++) rows.push({ t: H.time[i].slice(11, 16), T: H.temperature_2m[i], rh: H.relative_humidity_2m[i], p: H.surface_pressure[i], w: H.wind_speed_10m[i], wd: H.wind_direction_10m[i], low: H.cloud_cover_low[i], vis: H.visibility[i], d: carryFt(H.temperature_2m[i], H.surface_pressure[i]) - base })
@@ -917,7 +929,7 @@ export async function build(root, api, U) {
 
   // ---- the SELECT menu (Esc or MENU opens it) and attract mode (idle on the menu: the park replays the longest home runs behind it) ----
   const attract = () => {
-    if (mode !== 'replay' || !balls.length) return
+    if (mode !== 'replay' || !balls.length || reduced) return
     const long = balls.map((b, i) => [b, i]).filter(([b]) => b.ft >= 420)
     const [b, i] = long.length ? long[Math.floor(Math.random() * long.length)] : [balls[0], 0]
     idx = i; applyBall(b); paintChooser()
@@ -933,7 +945,8 @@ export async function build(root, api, U) {
     { k: 'parks', name: 'THIRTY PARKS', blurb: 'FLY THIS BALL IN ANY BALLPARK', run: () => openMod('parks') },
     { k: 'reel', name: 'HIGHLIGHT REEL', blurb: 'THE WALK-OFFS, GRAND SLAMS AND LATE GO-AHEAD SHOTS, BACK TO BACK', run: () => startReel() },
     { k: 'moon', name: 'MOONSHOT', blurb: 'THIS SWING ON THE MOON, ON MARS, AT COORS AND UNDER THE COVE', run: () => openMod('moon') },
-    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, ART, TYPE, ICONS, LANDING, FOG, WATER, CAMERA', run: () => openMod('mix') },
+    { k: 'jukebox', name: 'JUKEBOX', blurb: 'THE BALLPARK CLASSICS AS CHIPTUNE, AND SAN FRANCISCO (J)', run: () => openMod('jukebox') },
+    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, ART, TYPE, ICONS, PITCH, FOG, WATER, CAMERA', run: () => openMod('mix') },
   ], { onIdle: attract, onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const openMenu = (el) => { if (el) pressEl(el); sound.play('pick'); menu.show(mode === 'replay' ? 'replay' : 'dojo') }
@@ -941,7 +954,8 @@ export async function build(root, api, U) {
   E('#c25ti').addEventListener('click', () => openMenu(null))
 
   addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.ctrlKey || e.metaKey || e.altKey || !uiReady) return
+    if (!atOracle && 'lgcnwkLGCNWK'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
     if (e.key === 'Escape') { if (modal) closeMod(); else { sound.play('back'); menu.show(mode === 'replay' ? 'replay' : 'dojo') } }
     else if (modal) return
     else if (e.key === ']' || e.key === '.') { e.preventDefault(); step(1) } else if (e.key === '[' || e.key === ',') { e.preventDefault(); step(-1) } else if (e.key === 'b' || e.key === 'B') flipBird()
@@ -955,13 +969,14 @@ export async function build(root, api, U) {
     else if (e.key === 'w' || e.key === 'W') openMod('bay')
     else if (e.key === 'c' || e.key === 'C') setShow('sc')
     else if (e.key === 'k' || e.key === 'K') toggleKarl()
-    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); sound.play('move') }
+    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); sound.play('move') }
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
     else if (e.key === 'p' || e.key === 'P') printIt()
     else if (e.key === 'n' || e.key === 'N') setShow('sm')
     else if (e.key === 'z' || e.key === 'Z') { mix.Z = mix.Z === 2 ? 1 : 2; sound.play('move'); applyMix('Z'); banner(mix.Z === 2 ? 'PUSH ON' : 'PUSH OFF', 'THE CAMERA ' + (mix.Z === 2 ? 'EASES TO THE LANDING' : 'STAYS PUT') + ' (Z)') }
     else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
     else if (e.key === 'u' || e.key === 'U') openMod('moon')
+    else if (e.key === 'j' || e.key === 'J') openMod('jukebox')
   })
   api.setPreview(true)
 
@@ -1248,13 +1263,13 @@ export async function build(root, api, U) {
   life = atOracle ? initPark25(api, colors, {}) : null
   water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
   pitchCam = initPitchArc(api, colors)
-  addEventListener('pointerdown', (e) => { if (pitchCam.busy() && e.target?.tagName === 'CANVAS') pitchCam.stop() })
-  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, onBoard: () => life?.play('glitch') })
+  loadPrivateSongs() // San Francisco lives in a git-ignored file
+  addEventListener('pointerdown', (e) => { if (pitchCam.busy() && e.target?.tagName === 'CANVAS') pitchCam.finish() }) // skip to the hit
+  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, onBoard: () => life?.play('glitch', {}, 0, true), oracle: atOracle })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
-  let push = null
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
-    if (mix.Z !== 2 || !at || bird) return
+    if (mix.Z !== 2 || !at || bird || reduced) return
     const C = api.NN.camera, T = api.NN.controls.target
     push = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: C.position.clone().lerp(at, 0.3), t1: T.clone().lerp(at, 0.6) }
   }
@@ -1266,16 +1281,19 @@ export async function build(root, api, U) {
     api.NN.camera.position.lerpVectors(push.p0, push.p1, k); api.NN.controls.target.lerpVectors(push.t0, push.t1, k); api.NN.controls.update()
     if (t >= 4.4) endPush()
   })
-  addEventListener('pointerdown', (e) => { if (push && e.target?.tagName === 'CANVAS') endPush() })
+  addEventListener('pointerdown', (e) => { if (push && e.target?.tagName === 'CANVAS') push = null }) // the drag takes the camera from where the push left it
   if (life) life.gullsOn = mix.F !== 3
   if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) }
   // PLAY IT: a new batter gets their walk-up jingle, the pitch flies into the zone, then the hit-stop and the crack
+  function cancelPlay() { for (const t of playT) clearTimeout(t); playT = []; playing = false; pitchCam?.stop() }
   function play() {
-    if (mode !== 'replay' || !cur) return
+    if (mode !== 'replay' || !cur || playing || pitchCam?.busy()) return
+    playing = true
     let wait = 560
     if (cur.b !== lastJingle) { lastJingle = cur.b; if (sound.on()) { sound.play('jingle', { id: cur.b }); wait = 1900 } }
     // H1 PITCH ARC: the pitch drawn on the park on its fitted path, then the hit
-    setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && pitchCam.play(cur, () => api.fire()))) setTimeout(() => api.fire(), 560) }, wait - 560)
+    const go = () => { playing = false; playT = []; api.fire() }
+    playT.push(setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && pitchCam.play(cur, go, reduced ? { dur: 0.01, hold: 0.3 } : {}))) playT.push(setTimeout(go, 560)) }, wait - 560))
   }
   // PRINT IT: a poster of the ball on screen, as a PNG download
   async function printIt() {
@@ -1310,7 +1328,7 @@ export async function build(root, api, U) {
   function startReel() {
     filter = 'big'; setMode('replay')
     if (!balls.length) return
-    reel = { i: 0 }
+    reel = { i: 0, t: [], mine: false }
     reelNext()
   }
   function reelNext() {
@@ -1318,14 +1336,15 @@ export async function build(root, api, U) {
     idx = reel.i % balls.length; applyBall(balls[idx]); paintChooser()
     const st = situation(balls[idx])?.stamp, n = pname(balls[idx].b)
     banner(st ?? 'HOME RUN', `${(n ? n[0] : 'BATTER ' + balls[idx].b).toUpperCase()} · ${balls[idx].d}`)
-    setTimeout(() => { if (reel) api.fire() }, 900)
+    reel.t.push(setTimeout(() => { if (reel) { reel.mine = true; api.fire() } }, 900))
   }
-  function stopReel() { reel = null }
+  function stopReel() { if (reel) for (const t of reel.t) clearTimeout(t); reel = null }
   addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
   addEventListener('pointerdown', (e) => { if (reel && e.target?.tagName === 'CANVAS') stopReel() })
   let fires = 0
   window.__cpOnFire = (ev) => {
     fires++
+    clearTimeout(songT); if (autoSong) { jukebox.stop(); autoSong = false }
     endPush()
     // a glove or the sea lion may have taken the last one; and the engine's ball (a 2.4 m radius, so it shows from anywhere) is drawn at 0.42 of that (Andrew: "way too big")
     const bm = api.ballMesh?.(); if (bm) { bm.visible = true; bm.scale.setScalar(0.42) }
@@ -1340,7 +1359,7 @@ export async function build(root, api, U) {
   window.__cpOnLand = (ev) => {
     lands++
     const ft = Math.round(window.__dojo?.landFt ?? 0), hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)
-    if (reel) { reel.i++; setTimeout(reelNext, 2600) }
+    if (reel?.mine) { reel.mine = false; reel.i++; reel.t.push(setTimeout(reelNext, 2600)) }
     fx.land(ev)
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
@@ -1350,11 +1369,16 @@ export async function build(root, api, U) {
     if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
     if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
     else if (['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key)) sound.play('fanfare')
+    // Oracle sounds its foghorn when the Giants go deep: a Giants home run in the replay at Oracle, or your own swing there
+    const giants = mode === 'replay' ? cur && !edited && cur.park === 'SF' && (cur.tb === 'Bot' ? cur.ht === 'SF' : cur.at === 'SF') : true
+    if (hr && atOracle && giants) setTimeout(() => sound.play('horn', { vol: 0.55 }), 500)
     else if (ev.key === 'WALL' || ev.key === 'CLOSE') sound.play('thud')
   }
   // the scoreboard's animation for what just landed (park25.js keeps the two best when several apply); they wait until HOME RUN has flashed
   function boardFor(ev, hr, ft) {
     const b = mode === 'replay' && cur && !edited ? cur : null, st = b && hr ? situation(b)?.stamp : null, off = b && hr ? offZone(b) : null, D = 2.6
+    // the songs: a walk-off gets San Francisco (Oracle plays it after a win), a grand slam gets CHARGE!
+    if (st && !reel) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; if (/WALK-OFF/.test(st)) { jukebox.play('sf', { vol: 0.8 }); autoSong = true } else if (st === 'GRAND SLAM') { jukebox.play('charge'); autoSong = true } }, 2800) }
     if (st && /WALK-OFF/.test(st)) { life.play('walkoff', {}, D); if (/SLAM/.test(st)) life.play('slam', {}, D) }
     else if (st === 'GRAND SLAM') life.play('slam', {}, D)
     else if (st === 'GO-AHEAD' || st === 'TIES IT') { const on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0); life.play('flip', { word: st, bat: b.tb === 'Top' ? b.at : b.ht, fld: b.tb === 'Top' ? b.ht : b.at, b0: b.bsc, b1: b.bsc + 1 + on, f: b.fsc }, D) }
@@ -1373,7 +1397,7 @@ export async function build(root, api, U) {
   syncCam = windowSync(api, hero, { zoom: 0.95 })
   applyMix()
   if (q.get('filter')) filter = q.get('filter')
-  if (q.get('ball')) idx = Number(q.get('ball')) || 0
+  if (q.get('ball')) idx = Math.max(0, Number(q.get('ball')) || 0)
   setMode(mode)
   if (mode === 'whatif' && q.get('wev')) { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) if (q.get('w' + k) != null) api.state[k] = Number(q.get('w' + k)); api.update() }
   const wantBat = q.get('bat')
@@ -1381,7 +1405,8 @@ export async function build(root, api, U) {
   const wantMod = q.get('mod')
   if (wantMod) setTimeout(() => openMod(wantMod), 1200)
   if (q.get('menu') !== '0' && !wantMod) menu.show(mode === 'replay' ? 'replay' : 'dojo')
-  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, lands: () => lands, fires: () => fires,
+  uiReady = true
+  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes }
   return {
