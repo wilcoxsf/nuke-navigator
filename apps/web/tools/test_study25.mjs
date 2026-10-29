@@ -162,8 +162,33 @@ for (const [w, h] of SIZES) {
     await page.keyboard.press('t'); await page.waitForTimeout(300)
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(600)
-    // the options legend lists every open option with the layout reasons
-    await page.click('#c25lg'); await page.waitForTimeout(500)
+    // the options dock (28 Oct): ? and the header ? open a small panel in the park's bottom-right; nothing else is covered and no full-screen overlay comes up
+    await page.keyboard.press('?'); await page.waitForTimeout(500)
+    const dk = await page.evaluate(() => {
+      const R = (s) => document.querySelector(s)?.getBoundingClientRect(), d = R('#c25dk'), hit = (a, b) => a && b && b.width > 0 && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+      const park = R('#c25h'), bs = [...document.querySelectorAll('#c25ch .bt')].map((b) => b.getBoundingClientRect())
+      return { open: document.querySelector('.c25').classList.contains('dk'), w: d.width, h: d.height, inPark: d.left >= park.left && d.right <= park.right + 0.5 && d.bottom <= park.bottom + 0.5 && d.top >= park.top, corner: park.right - d.right < 20 && park.bottom - d.bottom < 20,
+        covers: ['.c25>.pitch', '.c25>.batter', '.c25>.hists', '.c25>.slice', '#c25v', '#c25bug'].filter((s) => hit(d, R(s))), bsel: bs.filter((b) => hit(d, b)).length, overlay: document.querySelector('#c25m').classList.contains('open'), chips: document.querySelectorAll('#c25dk .dx .bt').length, focus: document.activeElement?.id }
+    })
+    check('? opens the options dock in the park corner, covering no panel, button or overlay', dk.open && dk.inPark && dk.corner && dk.w <= 302 && dk.covers.length === 0 && dk.bsel === 0 && !dk.overlay && dk.chips === 14 && dk.focus === 'c25dk', JSON.stringify(dk))
+    await page.click('#c25dk .dx [data-ax="Y"]'); await page.waitForTimeout(300)
+    await page.click('#c25dk .do[data-c="3"]'); await page.waitForTimeout(400)
+    const dy = await page.evaluate(() => ({ y: window.__mix25.get().Y, n: document.querySelectorAll('#c25dk .do').length, on: document.querySelector('#c25dk .do.on b')?.textContent, pc: document.querySelector('.c25').style.getPropertyValue('--pc'), dd: document.querySelector('#c25dk .dd').textContent }))
+    await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300)
+    const y4 = await page.evaluate(() => window.__mix25.get().Y)
+    await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300)
+    const ax2 = await page.evaluate(() => document.querySelector('#c25dk .dx .bt.on')?.dataset.ax)
+    check('the dock: pick PITCH COLOR, click LILAC, right arrow tries the next, down moves to the next thing', dy.y === 3 && dy.n === 5 && dy.on === 'Y3' && dy.pc === '#a79be0' && /VIOLET/.test(dy.dd) && y4 === 4 && ax2 === 'S', JSON.stringify({ dy, y4, ax2 }))
+    await page.click('#c25dk .dx [data-ax="K"]'); await page.waitForTimeout(200)
+    await page.click('#c25dk [data-dk="see"]'); await page.waitForTimeout(400)
+    check('the dock: SEE IT on KARL rolls the fog in', await page.evaluate(() => window.__mix25.fx.karlOn()))
+    await page.click('#c25kl'); await page.waitForTimeout(200)
+    await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(400)
+    await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+    const dkc = await page.evaluate(() => ({ dk: document.querySelector('.c25').classList.contains('dk'), menu: document.querySelector('.c25 .sm').classList.contains('open') }))
+    check('Esc in the dock closes the dock (not the menu)', !dkc.dk && !dkc.menu, JSON.stringify(dkc))
+    // the options legend (ALL in the dock) lists every open option with the layout reasons
+    await page.click('#c25lg'); await page.waitForTimeout(300); await page.click('#c25dk [data-dk="all"]'); await page.waitForTimeout(500)
     const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
     // L3 P2 A6 T6 F3 I4 R4 Y5 S3 K3 B5 Z2 H2 M3
     check('OPTIONS lists every open option and why each layout', lg.opts === 3 + 2 + 6 + 6 + 3 + 4 + 4 + 5 + 3 + 3 + 5 + 2 + 2 + 3 && lg.why === 2 && /C1 ORANGE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
@@ -485,6 +510,8 @@ if (!process.env.PHONE_ONLY) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
   check('the SELECT menu opens on arrival with eleven modes (JUKEBOX added)', m0.open && m0.n === 11 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
+  check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
   const sc0 = await page.evaluate(() => { const c = document.querySelector('.c25 .sm canvas.ins2'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return { n, sig: Array.from(d.filter((_, i) => i % 97 === 3)).join('') } })
   await page.waitForTimeout(700)
@@ -549,6 +576,9 @@ for (const [w, h] of [[390, 844], [360, 740]]) {
   check('the SELECT screen fits a phone', sm.open && sm.n === 11 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
+  await page.keyboard.press('?'); await page.waitForTimeout(400)
+  const pd = await page.evaluate(() => { const d = document.querySelector('#c25dk').getBoundingClientRect(); return { open: d.height > 0, l: d.left, r: d.right, b: d.bottom, t: d.top, side: document.documentElement.scrollWidth > innerWidth + 1, h: innerHeight } })
+  check('the options dock fits a phone (bottom of the screen, under half its height)', pd.open && pd.l >= 0 && pd.r <= 390 && pd.b <= pd.h && pd.b - pd.t <= pd.h * 0.47 && !pd.side, JSON.stringify(pd))
   await page._ctx.close()
 }
 // the ABC parser (music25.js), with no browser: a tie across a barline keeps its accidental, and // halves twice

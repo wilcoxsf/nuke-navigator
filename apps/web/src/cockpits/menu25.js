@@ -10,25 +10,21 @@ export const MENU_CSS = `
 #cp .c25 .sm .smt{font-family:PS2P,monospace;font-size:clamp(22px,4.2vw,46px);color:var(--acc);letter-spacing:.04em;text-align:center;line-height:1.15;text-shadow:4px 4px 0 var(--ln)}
 #cp .c25 .sm .sms{font-family:PS2P,monospace;font-size:10px;color:var(--dim);letter-spacing:.2em}
 #cp .c25 .sm .sml{display:grid;gap:3px;width:min(780px,90vw)}
-#cp .c25 .sm .smi{display:grid;grid-template-columns:22px minmax(0,auto) minmax(0,1fr);gap:16px;align-items:baseline;padding:7px 12px;cursor:pointer;border:1px solid transparent}
-#cp .c25 .sm .smi .cur{font-family:PS2P,monospace;font-size:14px;color:var(--acc);visibility:hidden}
+#cp .c25 .sm .smi{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:16px;align-items:baseline;padding:7px 12px;cursor:pointer;border:1px solid transparent}
 #cp .c25 .sm .smi b{font-family:PS2P,monospace;font-weight:400;font-size:clamp(11px,1.5vw,15px);color:var(--tx);white-space:nowrap}
 #cp .c25 .sm .smi span{font-size:calc(17px * var(--ts));color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .sm .smi.on{border-color:var(--acc)}
-#cp .c25 .sm .smi.on .cur{visibility:visible;animation:smblink .8s steps(1) infinite}
 #cp .c25 .sm .smi.on b{color:var(--acc)}
 #cp .c25 .sm .smi.dis b,#cp .c25 .sm .smi.dis span{opacity:.45}
 #cp .c25 .sm .smf{font-family:PS2P,monospace;font-size:9px;color:var(--dim);letter-spacing:.12em;text-align:center;line-height:1.8}
 #cp .c25 .sm .ins2{display:block;width:324px;max-width:86vw;height:auto;image-rendering:pixelated}
-@keyframes smblink{50%{opacity:0}}
 #cp .c25 .sm .lg2{display:grid;justify-items:center}
 #cp .c25 .sm .lg2 svg{display:block;width:min(560px,80vw);height:auto;margin-bottom:-6px}
 #cp .c25 .sm .lg3{padding:14px;background:radial-gradient(circle,var(--acc) 38%,transparent 42%) 0 0/14px 14px;animation:smchase .5s steps(2) infinite}
 #cp .c25 .sm .lg3>div{background:var(--k);padding:16px 26px}
 @keyframes smchase{to{background-position:14px 0}}
 @media (prefers-reduced-motion:reduce){#cp .c25 .sm .lg3{animation:none}}
-@media (prefers-reduced-motion:reduce){#cp .c25 .sm .smi.on .cur{animation:none}}
-@media (max-width:600px){#cp .c25 .sm .smi{grid-template-columns:18px minmax(0,1fr);gap:4px 10px}#cp .c25 .sm .smi .cur{grid-column:1}#cp .c25 .sm .smi b{grid-column:2}#cp .c25 .sm .smi span:not(.cur){grid-column:2;white-space:normal;font-size:calc(15px * var(--ts))}}
+@media (max-width:600px){#cp .c25 .sm .smi{grid-template-columns:minmax(0,1fr);gap:4px}#cp .c25 .sm .smi span{white-space:normal;font-size:calc(15px * var(--ts))}}
 `
 
 // items: [{ k, name, blurb, run(), off?() }]; the menu owns the keyboard while it is open
@@ -81,7 +77,7 @@ export function selectMenu(host, items, o = {}) {
   const loop = () => { if (!open) { raf = 0; return } scene(((performance.now() / 1000) % 3.6)); raf = requestAnimationFrame(loop) }
   const list = el.querySelector('.sml')
   const paint = () => {
-    list.innerHTML = items.map((it, n) => `<div class="smi${n === i ? ' on' : ''}${it.off?.() ? ' dis' : ''}" data-n="${n}" role="button" aria-label="${it.name}"><span class="cur">&gt;</span><b>${it.name}</b><span>${it.blurb}</span></div>`).join('')
+    list.innerHTML = items.map((it, n) => `<div class="smi${n === i ? ' on' : ''}${it.off?.() ? ' dis' : ''}" data-n="${n}" role="button" aria-label="${it.name}"><b>${it.name}</b><span>${it.blurb}</span></div>`).join('')
     el.querySelector('.snd').textContent = sound.on() ? 'ON' : 'OFF'
     list.querySelectorAll('.smi').forEach((x) => {
       x.addEventListener('mouseenter', () => { if (i !== Number(x.dataset.n)) { i = Number(x.dataset.n); sound.play('move'); paint() } })

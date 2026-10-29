@@ -475,6 +475,27 @@ export async function build(root, api, U) {
 #cp .c25 .legend .o em{font-style:normal;color:var(--tx);grid-column:2}
 #cp .c25 .legend .code{grid-column:1/-1;font-size:22px;margin-bottom:6px}
 #cp .c25 .legend .fix{grid-column:1/-1;color:var(--dim);font-size:15px}
+#cp .c25 .dock{position:absolute;right:12px;bottom:12px;z-index:6;width:300px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);overflow:auto;display:none;gap:7px;align-content:start;padding:8px 10px 10px;background:var(--k);border:1px solid var(--tx);box-shadow:4px 4px 0 var(--ln);pointer-events:auto;font-size:15px;line-height:1.15;outline:none}
+#cp .c25.dk .dock{display:grid}
+#cp .c25.dk .tly{display:none}
+#cp .c25.dk .bsel{right:332px}
+#cp .c25 .dock .dh{display:flex;align-items:center;gap:6px}
+#cp .c25 .dock .dh b{flex:1;font-family:PS2P,monospace;font-weight:400;font-size:9px;letter-spacing:.14em;color:var(--acc)}
+#cp .c25 .dock .bt{padding:2px 6px}
+#cp .c25 .dock .dx{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+#cp .c25 .dock .dx .bt{justify-content:center;padding:2px 0;min-width:0}
+#cp .c25 .dock .dx .bt.on{background:var(--acc);border-color:var(--acc);color:var(--k)}
+#cp .c25 .dock .da{display:flex;justify-content:space-between;gap:8px;color:var(--acc);border-top:1px solid var(--ln);padding-top:6px}
+#cp .c25 .dock .da span{color:var(--dim)}
+#cp .c25 .dock .dl{display:grid;gap:1px}
+#cp .c25 .dock .do{display:grid;grid-template-columns:30px minmax(0,1fr);gap:6px;padding:2px 5px;cursor:pointer;border:1px solid transparent;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cp .c25 .dock .do:hover{background:var(--ln)}
+#cp .c25 .dock .do.on{border-color:var(--acc);color:var(--acc)}
+#cp .c25 .dock .do b{font-weight:400;color:var(--dim)}
+#cp .c25 .dock .do.on b{color:var(--acc)}
+#cp .c25 .dock .dd{color:var(--dim);font-size:14px;min-height:2.3em}
+#cp .c25 .dock .df{display:flex;justify-content:space-between;align-items:center;gap:6px;color:var(--dim);font-size:13px}
+@media (max-width:900px){#cp .c25 .dock{position:fixed;left:8px;right:8px;bottom:8px;width:auto;max-width:none;max-height:46vh;z-index:25}#cp .c25.dk .bsel{right:8px}}
 #cp .c25 .tys{display:grid;grid-template-columns:repeat(3,minmax(300px,1fr));gap:14px}
 #cp .c25 .ty{border:1px solid var(--ln);padding:12px 14px;display:grid;gap:6px;cursor:pointer;pointer-events:auto;font-family:var(--tf),monospace;font-size:calc(20px * var(--ts));letter-spacing:var(--sp,.02em);min-width:0}
 #cp .c25 .ty:hover{border-color:var(--tx)}
@@ -517,7 +538,7 @@ export async function build(root, api, U) {
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
     <span class="grp"><span class="gl">YOU</span> <span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
-    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div></div>
+    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div><div class="dock" id="c25dk" tabindex="-1" role="dialog" aria-label="options"></div></div>
   <div class="pnl p pitch"><span class="t">/ T H E &nbsp; P I T C H /</span><div class="pin"><div class="zg" id="c25zg"></div><div class="pl" id="c25pl"></div></div></div>
   <div class="pnl p batter"><span class="t">/ B A T T E R /</span><div class="bin"><div class="fbox" id="c25f"><pre class="art"></pre></div><div class="info" id="c25i"></div><div class="bug bugc" id="c25bugc"></div></div></div>
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
@@ -644,6 +665,7 @@ export async function build(root, api, U) {
     if (changed === 'L' || !changed) relayout()
     if (last) render(last)
     if (modal === 'mix' || modal === 'type') paintModal()
+    paintDock()
   }
   // the three panel titles: pixel icons (I1 to I3, 2 px per pixel) or the old spaced words (I0); the histogram panel keeps the word titles of the features that borrow it
   const wordTitle = (el, h) => { const t = el.querySelector('.t'); t.innerHTML = h; t.dataset.h = ''; t.classList.remove('ic') }
@@ -661,7 +683,46 @@ export async function build(root, api, U) {
     b.addEventListener('click', (e) => { pressEl(b); sound.play('move'); stepAx(b.dataset.ax, e.shiftKey ? -1 : 1) })
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); pressEl(b); stepAx(b.dataset.ax, -1) })
   })
-  E('#c25lg').addEventListener('click', () => { pressEl(E('#c25lg')); openMod('mix') })
+  // the options dock (28 Oct, Andrew: the full-screen OPTIONS legend hid what it changed): a small panel in the park's bottom-right corner.
+  // Pick what to change along the top, click an option (or left and right) to try it with the whole screen still in view; up and down move between the things to change.
+  // Options that only show when something happens get a SEE IT button: a ball flies (landing, camera, pitch arc), Karl rolls in, or the menu opens (its title).
+  const dock = E('#c25dk')
+  let dockAx = ORDER.includes(store('nn-dock25')) ? store('nn-dock25') : 'L'
+  const SEE = { F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
+  const dockOpts = (k) => AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c)
+  function paintDock() {
+    if (!grid.classList.contains('dk')) return
+    const k = dockAx, os = dockOpts(k), o = optOf(k, mix[k]), n = os.findIndex((x) => x.c === mix[k])
+    dock.innerHTML = `<div class="dh"><b>OPTIONS</b><span class="bt" data-dk="all" aria-label="every option at once">ALL</span><span class="bt" data-dk="x" aria-label="close the options">X</span></div>
+      <div class="dx">${ORDER.map((a) => `<span class="bt${a === k ? ' on' : ''}" data-ax="${a}" title="${AXES[a].name}" aria-label="${AXES[a].name}">${a}${mix[a]}</span>`).join('')}</div>
+      <div class="da">${AXES[k].name}<span>${n + 1} OF ${os.length}</span></div>
+      <div class="dl">${os.map((x) => `<div class="do${x.c === mix[k] ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}"><b>${k}${x.c}</b>${x.name}</div>`).join('')}</div>
+      <div class="dd">${(o.desc ?? '').toUpperCase()}</div>
+      <div class="df">&larr; &rarr; TRY &nbsp; &uarr; &darr; WHAT${SEE[k] ? `<span class="bt" data-dk="see">${SEE[k]}</span>` : ''}</div>`
+    dock.querySelectorAll('[data-ax]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); dockTo(b.dataset.ax) }))
+    dock.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { sound.play('move'); mix[k] = Number(b.dataset.c); applyMix(k); dock.focus({ preventScroll: true }) }))
+    dock.querySelector('[data-dk="x"]').addEventListener('click', () => toggleDock(false))
+    dock.querySelector('[data-dk="all"]').addEventListener('click', () => { toggleDock(false); openMod('mix') })
+    dock.querySelector('[data-dk="see"]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); seeIt(k) })
+  }
+  const dockTo = (k) => { dockAx = k; store('nn-dock25', k); paintDock(); dock.focus({ preventScroll: true }) }
+  const seeIt = (k) => { if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
+  function toggleDock(on) {
+    const v = on ?? !grid.classList.contains('dk')
+    grid.classList.toggle('dk', v)
+    if (v) { paintDock(); dock.focus({ preventScroll: true }) } else dock.innerHTML = ''
+  }
+  // the dock's own keys while it has focus; anything else falls through to the usual shortcuts
+  dock.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    const i = ORDER.indexOf(dockAx), n = ORDER.length
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { sound.play('move'); stepAx(dockAx, e.key === 'ArrowRight' ? 1 : -1) }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(ORDER[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
+    else if (e.key === 'Escape' || e.key === '?') toggleDock(false)
+    else return
+    e.preventDefault(); e.stopPropagation()
+  })
+  E('#c25lg').addEventListener('click', () => { pressEl(E('#c25lg')); toggleDock() })
   E('#c25ty').addEventListener('click', () => { pressEl(E('#c25ty')); openMod('type') })
 
   function applyBall(b) {
@@ -946,7 +1007,7 @@ export async function build(root, api, U) {
     { k: 'reel', name: 'HIGHLIGHT REEL', blurb: 'THE WALK-OFFS, GRAND SLAMS AND LATE GO-AHEAD SHOTS, BACK TO BACK', run: () => startReel() },
     { k: 'moon', name: 'MOONSHOT', blurb: 'THIS SWING ON THE MOON, ON MARS, AT COORS AND UNDER THE COVE', run: () => openMod('moon') },
     { k: 'jukebox', name: 'JUKEBOX', blurb: 'THE BALLPARK CLASSICS AS CHIPTUNE, AND SAN FRANCISCO (J)', run: () => openMod('jukebox') },
-    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, ART, TYPE, ICONS, PITCH, FOG, WATER, CAMERA', run: () => openMod('mix') },
+    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, ART, TYPE, ICONS, PITCH, FOG, WATER, CAMERA (?)', run: () => toggleDock(true) },
   ], { onIdle: attract, onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const openMenu = (el) => { if (el) pressEl(el); sound.play('pick'); menu.show(mode === 'replay' ? 'replay' : 'dojo') }
@@ -961,7 +1022,7 @@ export async function build(root, api, U) {
     else if (e.key === ']' || e.key === '.') { e.preventDefault(); step(1) } else if (e.key === '[' || e.key === ',') { e.preventDefault(); step(-1) } else if (e.key === 'b' || e.key === 'B') flipBird()
     else if (e.key === 'm' || e.key === 'M') setMode(mode === 'replay' ? 'whatif' : 'replay')
     else if (e.key === 'a' || e.key === 'A') openMod('stats')
-    else if (e.key === '?') openMod('mix')
+    else if (e.key === '?') toggleDock()
     else if (e.key === 't' || e.key === 'T') openMod('type')
     else if (e.key === 'l' || e.key === 'L') setShow('lp')
     else if (e.key === 'g' || e.key === 'G') setShow('se')
