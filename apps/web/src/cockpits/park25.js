@@ -4,7 +4,7 @@
 //   CRAZY CRAB (a wall scraper or a ball just short)   SEA LION (a splash hit)   SPLASH ODOMETER (the splash count rolls over)   CABLE CAR (430 ft or more)
 //   KARL (the fog eats the board)   GULL HEIST and GOLDEN GATE (idle)   GOLF SHOT, TOMAHAWK, CHASE SCENE, INSIDE JOB (the four OFF THE MENU home runs)
 //   WALK-OFF   GRAND SLAM   GO-AHEAD and TIES IT (a scoreline flip)   MOONSHOT   TWEAK THE TATER   SO CLOSE (a dojo swing that just missed)
-// The board is 72 x 30 LEDs (0.43 by 0.57 m), sized to the frame of Oracle's own board in the park model; the animations use the middle 22 rows.
+// The board is 72 x 36 LEDs of 0.61 m, sized to the screen of Oracle's own board in the park model; the animations use the middle 22 rows.
 // One animation plays at a time, with at most two waiting.
 export function initPark25(api, col, o = {}) {
   const { THREE, scene } = api.NN
@@ -14,7 +14,7 @@ export function initPark25(api, col, o = {}) {
 
   // ---- the LED board: a buffer of color codes per LED, drawn as round bulbs ----
   // the logic grid is 72 x 22 (every animation is drawn on it); the board itself has GHT rows, the logic rows centered with dark rows above and below
-  const GW = 72, GH = 22, GHT = 30, ROW0 = 4, S = 10, LED = 0.433, LEDH = 0.567, SH = Math.round((S * LEDH) / LED)
+  const GW = 72, GH = 22, GHT = 36, ROW0 = 7, S = 10, LED = 0.614, LEDH = 0.611, SH = Math.round((S * LEDH) / LED)
   const buf = new Uint8Array(GW * GH)
   const grid = document.createElement('canvas'); grid.width = GW; grid.height = GH
   const gx = grid.getContext('2d', { willReadFrequently: true })
@@ -23,10 +23,10 @@ export function initPark25(api, col, o = {}) {
   const tex = new THREE.CanvasTexture(out); tex.magFilter = THREE.LinearFilter; tex.colorSpace = THREE.SRGBColorSpace
   const board = new THREE.Mesh(new THREE.PlaneGeometry(GW * LED, GHT * LEDH), new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide }))
   // it replaces Oracle's own board (28 Oct, Andrew: 'wire that puppy in directly over it'): the real board in the park model sits between the two light towers, from
-  // 28 Oct, night remeasure (Andrew: still higher than the real board): the board's frame in the model runs -7 to +5 degrees and 28 to 45 m up, the screen 149 m out (the
-  // 48-50 m bits above it are the sign, not the board); this one covers exactly that (31 m by 17 m, centered at -1 degree and 36.5 m), a hair in front of the screen.
-  // Its LEDs are 0.43 m wide and 0.57 m tall, so the 72 by 22 animation grid still fits
-  const bearing = o.boardBearing ?? -1, bh = o.boardH ?? 36.5
+  // 28 Oct, night remeasure (Andrew: still higher than the real board), by casting rays at the park model from in front of it: the screen is a flat face 149 m out,
+  // from 8 degrees left to 9 right and 13 to 35 m up (the bits at 36 to 52 m are the ORACLE PARK sign and its clock, which the first measure took for the board).
+  // This one covers exactly that face (44 m by 22 m, centered half a degree right and 24 m up), a hair in front of it, with square LEDs 0.61 m across
+  const bearing = o.boardBearing ?? 0.5, bh = o.boardH ?? 24
   board.position.copy(at(bearing, o.boardR ?? 148.4, bh))
   board.lookAt(at(bearing, 0, bh))
   scene.add(board)

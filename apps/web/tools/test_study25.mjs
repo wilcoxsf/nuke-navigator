@@ -431,13 +431,13 @@ if (!process.env.PHONE_ONLY && on('C')) {
     const a = P(-g.width / 2, 0), z = P(g.width / 2, 0)
     return { size: L.size, ledPx: Math.hypot(z[0] - a[0], z[1] - a[1]) / L.size[0] }
   })
-  // the board replaces Oracle's own (28 Oct, night remeasure: its frame runs -7 to +5 degrees and 28 to 45 m up, 149 m out); 72 LEDs across its 31 m
+  // the board replaces Oracle's own screen (28 Oct, night remeasure by raycast: a flat face 149 m out, -8 to +9 degrees, 13 to 35 m up); 72 LEDs across its 44 m
   const bp = await page.evaluate(() => { const b = window.__mix25.life.board.position, h = window.__cp.toWorld([0, 0, 0]), dx = b.x - h.x, dz = b.z - h.z; return { r: Math.hypot(dx, dz), y: b.y - h.y, bear: (Math.atan2(dx, -dz) * 180) / Math.PI, w: window.__mix25.life.board.geometry.parameters.width, h: window.__mix25.life.board.geometry.parameters.height } })
-  check('the LED board covers Oracle\'s own board, flush on its face between the light towers', Math.abs(bp.r - 148.4) < 0.3 && Math.abs(bp.y - 36.5) < 0.3 && Math.abs(bp.bear + 1) < 0.2 && Math.abs(bp.w - 31.18) < 0.3 && bp.y - bp.h / 2 > 27.5 && bp.y + bp.h / 2 < 45.5, JSON.stringify(bp))
+  check('the LED board covers Oracle\'s own board, flush on its face between the light towers', Math.abs(bp.r - 148.4) < 0.3 && Math.abs(bp.y - 24) < 0.3 && Math.abs(bp.bear - 0.5) < 0.2 && Math.abs(bp.w - 44.2) < 0.3 && bp.y - bp.h / 2 > 12.5 && bp.y + bp.h / 2 < 35.5, JSON.stringify(bp))
   // the sea: one plane out to the horizon at the water's level, the park an island in it; the kayaks float on it (voxel models), not under it
   const sw = await page.evaluate(() => { const W = window.__mix25.water(), lv = W.level(), s = W.sea, ks = window.__mix25.fx.kayakBoats(); return { size: s.geometry.parameters.width, y: s.position.y - lv, mode: W.mode(), boats: ks.length, models: ks.every((k) => k.model), afloat: ks.every((k) => Math.abs(k.y - lv) < 0.6), cost: W.cost() } })
   check('the sea runs 9 km out in every direction at the water level, with the kayaks afloat on it as voxel models', sw.size >= 9000 && Math.abs(sw.y) < 0.01 && sw.boats === 6 && sw.models && sw.afloat && sw.cost < 1, JSON.stringify(sw))
-  check('the LED board is 72 x 22 inside its 30 rows, each LED at least 1 screen pixel at 1440 (L2; the real board is that small)', lb.size[0] === 72 && lb.size[1] === 22 && lb.ledPx >= 1, JSON.stringify(lb))
+  check('the LED board is 72 x 22 inside its 36 rows, each LED at least 1.4 screen pixels at 1440 (L2)', lb.size[0] === 72 && lb.size[1] === 22 && lb.ledPx >= 1.4, JSON.stringify(lb))
   // the jukebox: in the menu, on the J key, and its songs play and stop; San Francisco is transcribed from the lead sheet with its chords (33 bars, two roots a bar)
   await page.keyboard.press('j'); await page.waitForTimeout(500)
   const jb = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), rows: document.querySelectorAll('#c25mb .jk').length, txt: document.querySelector('#c25mb').textContent }))

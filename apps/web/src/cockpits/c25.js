@@ -283,9 +283,10 @@ export async function build(root, api, U) {
 #cp .c25 .rd .sub{display:block;color:var(--dim);font-size:18px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
 #cp .c25 .rd .fun{color:var(--tx);font-size:16px;margin-top:4px;pointer-events:auto;cursor:pointer;max-width:620px;line-height:1.2}
-#cp .c25 .rd .fun.ty{animation:c25ty 1.1s steps(28) both}
+#cp .c25 .rd .sub,#cp .c25 .rd .lbl,#cp .c25 .rd .gn,#cp .c25 .rd .fun{background:color-mix(in srgb,var(--k) 86%,transparent);width:fit-content;max-width:100%;padding-right:6px;box-sizing:border-box} /* readable over the park and the board */
+#cp .c25 .rd .fun.typed{animation:c25ty 1.1s steps(28) both}
 @keyframes c25ty{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-@media (prefers-reduced-motion:reduce){#cp .c25 .rd .fun.ty{animation:none}}
+@media (prefers-reduced-motion:reduce){#cp .c25 .rd .fun.typed{animation:none}}
 #cp .c25 .rd .meter{display:flex;gap:3px;margin-top:8px;align-items:center}
 #cp .c25 .rd .meter s{display:block;width:12px;height:16px;border:1px solid var(--tx);text-decoration:none}
 #cp .c25 .rd .meter s.on{background:var(--acc);border-color:var(--acc)}
@@ -800,7 +801,7 @@ export async function build(root, api, U) {
   }
   // TWEAK THE TATER, made plain (28 Oct, night, Andrew: "really difficult to discern... think through this interface"): the strip is the swing (speed, angle, where it's
   // aimed) and the night (air, wind); each number says how far it is from the real ball; the line over the strip says, in words, what your changes did
-  const FIELD = (d) => (Math.abs(d) <= 4 ? 'DEAD CENTER' : `${Math.round(Math.abs(d))}° ${Math.abs(d) >= 38 ? (d < 0 ? 'DOWN THE LEFT LINE' : 'DOWN THE RIGHT LINE') : Math.abs(d) >= 20 ? (d < 0 ? 'LEFT FIELD' : 'RIGHT FIELD') : d < 0 ? 'LEFT-CENTER' : 'RIGHT-CENTER'}`)
+  const FIELD = (d) => (Math.abs(d) <= 4 ? 'DEAD CENTER' : `${Math.round(Math.abs(d))}° ${Math.abs(d) >= 38 ? (d < 0 ? 'LF LINE' : 'RF LINE') : Math.abs(d) >= 20 ? (d < 0 ? 'LEFT FIELD' : 'RIGHT FIELD') : d < 0 ? 'LEFT-CENTER' : 'RIGHT-CENTER'}`)
   const UNIT = { ev: ' MPH', la: '°', temp: '°', wind: ' MPH' }
   function slotText(k) {
     const v = api.state[k], r = mode !== 'replay' && stepped?.real ? stepped.real[k] : null, d = r == null ? 0 : Math.round(v - r)
@@ -808,7 +809,7 @@ export async function build(root, api, U) {
     return main + (d ? ` <i class="dv">${d > 0 ? '+' : ''}${d}</i>` : '')
   }
   function tweakLine() {
-    if (!stepped?.real) return 'THE SWING: SPEED OFF THE BAT, LAUNCH ANGLE AND WHERE IT IS AIMED. THE NIGHT: AIR AND WIND. CHANGE ANY OF THEM, THEN ENTER TO SWING.'
+    if (!stepped?.real) return 'SPEED, ANGLE AND AIM ARE THE SWING; AIR AND WIND ARE THE NIGHT. ENTER TO SWING.'
     const sb = pname(stepped.b.b), who = (sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase(), s = api.state, R0 = stepped.real
     const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = Math.round(s[k] - R0[k]); return d ? `${d > 0 ? '+' : ''}${d}${u}` : null }).filter(Boolean)
     if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND SWING.`
@@ -1352,7 +1353,7 @@ export async function build(root, api, U) {
     const el = E('#c25rd .fun')
     if (!el || !fun.list.length) { if (el) el.textContent = ''; return }
     fun.i = (fun.i + step + fun.list.length) % fun.list.length
-    el.textContent = fun.list[fun.i]; el.classList.remove('ty'); void el.offsetWidth; el.classList.add('ty')
+    el.textContent = fun.list[fun.i]; el.classList.remove('typed'); void el.offsetWidth; el.classList.add('typed')
   }
   setInterval(() => { if (!document.hidden && !modal) turnFun(1) }, 7000)
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing

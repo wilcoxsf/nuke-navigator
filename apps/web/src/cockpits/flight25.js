@@ -90,7 +90,7 @@ export function initFlight25(api, colors) {
     if (!preview) {
       const end = toWorld(src[src.length - 1].p), lp = res.landing?.point ?? end, ld = new THREE.Group(), base = lp.clone(); base.y = Math.max(base.y, ground)
       ld.add(cubes(geo, lam(color), column(base.x, base.z, base.y + 0.6, base.y + 7, 1.1), 0.45))
-      ld.add(tag(res.verdict.kind === 'GONE' ? 'LANDED' : 'CAME DOWN', `${Math.round(res.landFt)} FT`, base.clone().add(new THREE.Vector3(0, 8, 0)), color, 0))
+      ld.add(tag(res.verdict.kind === 'GONE' ? 'LANDED' : 'CAME DOWN', `${Math.round(res.landFt)} FT`, base.clone().add(new THREE.Vector3(0, 8, 0)), color, -1)) // to the left: the clearance tag sits to the right
       g.add(ld); g.userData.reveal.push([0.985, ld])
     }
     // the ghost: while you tweak a real home run, the real flight stays up as faint cubes, so your change reads against it
