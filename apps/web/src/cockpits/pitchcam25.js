@@ -49,11 +49,14 @@ export function initPitchArc(api, col) {
   const unhide = (s) => { const hf = window.__nn?.hideForNormal, i = hf?.indexOf(s) ?? -1; if (i >= 0) hf.splice(i, 1) }
   const clear = () => { for (const s of live) { scene.remove(s); unhide(s) } live = [] }
   // the pitch takes dur seconds of wall clock (its real flight is about 0.4 s; slowed so it reads), the arc fills in behind the ball, a short hold, then done()
+  // 29 Oct (Andrew: "the pitch trail is broken"): the 41 fitted points were 0.46 m apart, so the 0.22 m cubes read as a dotted line; the path is now resampled every
+  // 0.16 m, so the cubes overlap into one unbroken voxel trail
+  const dense = (pts) => { const out = [pts[0]]; for (let i = 1; i < pts.length; i++) { const [a, b] = [pts[i - 1], pts[i]], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / 0.16)); for (let k = 1; k <= n; k++) out.push(a.map((v, j) => v + ((b[j] - v) * k) / n)) } return out }
   api.NN.frames.push(() => {
     if (!run) return
-    const r = run, t = (performance.now() - r.t0) / 1000, f = Math.min(1, t / r.dur), n = Math.floor(f * 40)
-    while (r.shown < n) { r.shown++; sprite(r.c, 0.22, toWorld(r.P.pts[r.shown])) }
-    r.ball.position.copy(toWorld(r.P.pts[n]))
+    const r = run, t = (performance.now() - r.t0) / 1000, f = Math.min(1, t / r.dur), n = Math.floor(f * (r.D.length - 1))
+    while (r.shown < n) { r.shown++; sprite(r.c, 0.22, toWorld(r.D[r.shown])) }
+    r.ball.position.copy(toWorld(r.D[n]))
     if (t >= r.dur + r.hold) { run = null; lastDots = r.shown; scene.remove(r.ball); unhide(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() }
   })
   // plays the pitch, then calls done(); returns false (and draws nothing) when this ball has no fitted path
@@ -61,10 +64,12 @@ export function initPitchArc(api, col) {
     const P = pitchPath(b)
     if (!P || run) return false
     clear()
-    run = { P, done, c: o.color ?? col().pc ?? col().tx, dur: o.dur ?? 0.9, hold: o.hold ?? 0.25, t0: performance.now(), shown: 0 }
+    run = { P, D: dense(P.pts), done, c: o.color ?? col().pc ?? col().tx, dur: o.dur ?? 0.9, hold: o.hold ?? 0.25, t0: performance.now(), shown: 0 }
     run.ball = sprite('#ffffff', 0.5, toWorld(P.pts[0]))
     return true
   }
   // stop: call the pitch off (no hit); finish: skip to the hit now
-  return { play, clear, stop: () => { if (run) { run = null; clear() } }, finish: () => { if (run) { const r = run; run = null; lastDots = r.shown; scene.remove(r.ball); unhide(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots, size: () => live[0]?.scale.x ?? 0 }
+  return { play, clear, stop: () => { if (run) { run = null; clear() } }, finish: () => { if (run) { const r = run; run = null; lastDots = r.shown; scene.remove(r.ball); unhide(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots, size: () => live[0]?.scale.x ?? 0,
+    // the widest gap between neighbouring cubes of the trail, in metres (under the cube size means one unbroken line)
+    gap: () => { const T = live.filter((s) => s.scale.x < 0.3); let g = 0; for (let i = 1; i < T.length; i++) g = Math.max(g, T[i].position.distanceTo(T[i - 1].position)); return g } }
 }

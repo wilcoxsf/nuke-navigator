@@ -4,8 +4,8 @@
 //   1 slugger: a pixel batter in his stance   2 jersey: the back of a framed jersey   3 card: a baseball card with a silhouette in the photo
 //   4 shadow: a silhouette mid-swing with his long shadow on the dirt   5 bulbs: a scoreboard bulb portrait with the name in bulbs underneath
 // 29 Oct (Andrew locked D1, "but you gotta get the skin color, team jersey, height, and handedness right"): the slugger wears his team's kit (home whites or road greys, the
-// helmet and trim in team colors), stands as tall as he is against a lineup height chart, takes a skin tone when one is known, bats from his side; and a few players
-// get a mascot instead (MASCOTS: the panda for Pablo Sandoval, the giraffe for Brandon Belt).
+// helmet and trim in team colors), stands as tall as he is against a lineup height chart, takes a skin tone when one is known, bats from his side. The panda and the
+// giraffe are still drawn here, but no player gets one (29 Oct, later, Andrew: "no nicknames for now on anything"); MASCOTS is empty until he says otherwise.
 export const STANDIN_STYLES = [
   { c: 1, name: 'PIXEL SLUGGER', desc: 'a hand-made pixel batter in his stance, number on the chest' },
   { c: 2, name: 'JERSEY BACK', desc: 'the back of his jersey, framed, name across the shoulders' },
@@ -29,8 +29,9 @@ export function kitFor(team, home) {
   const [helmet, trim] = KITS[team] ?? KITS.SF
   return { helmet, trim, jersey: home ? (team === 'SF' || !KITS[team] ? '#f1e6cf' : '#f2f0ea') : '#a3a6ab' }
 }
-// players who get an animal at the plate in place of the slugger (Andrew's two, 29 Oct; the rest wait for his yes): id, kind, number
-export const MASCOTS = { 467055: { kind: 'panda', name: 'PABLO SANDOVAL', num: '48', h: 70, why: 'KUNG FU PANDA' }, 474832: { kind: 'giraffe', name: 'BRANDON BELT', num: '9', h: 75, why: 'BABY GIRAFFE' } }
+// players who get an animal at the plate in place of the slugger: none for now (29 Oct). It was { 467055: panda (Sandoval), 474832: giraffe (Belt) }, as
+// { id: { kind, name, num, h, why } }
+export const MASCOTS = {}
 const mix = (a, b, t) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), x = p(a), y = p(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('') }
 const lum = (h) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
 

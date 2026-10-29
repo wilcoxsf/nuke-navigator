@@ -8,8 +8,11 @@ export const ART_CSS = `
 .art.br{line-height:1.507}
 `
 const B64 = (s) => { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a }
+// rec.tone and rec.mask: a byte per pixel each; or rec.p (29 Oct): both packed in one byte, the tone in the high 4 bits and the mask in the low 4
 export function faceSource(rec) {
-  const t = B64(rec.tone), m = B64(rec.mask), n = rec.w * rec.h, v = new Float32Array(n), a = new Float32Array(n)
+  const n = rec.w * rec.h, v = new Float32Array(n), a = new Float32Array(n)
+  if (rec.p) { const p = B64(rec.p); for (let i = 0; i < n; i++) { v[i] = ((p[i] >> 4) * 17) / 255; a[i] = ((p[i] & 15) * 17) / 255 } return { w: rec.w, h: rec.h, v, a } }
+  const t = B64(rec.tone), m = B64(rec.mask)
   for (let i = 0; i < n; i++) { v[i] = t[i] / 255; a[i] = m[i] / 255 }
   return { w: rec.w, h: rec.h, v, a }
 }

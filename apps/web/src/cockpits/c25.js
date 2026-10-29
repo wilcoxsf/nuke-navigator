@@ -37,6 +37,7 @@ import { MENU_CSS, selectMenu } from './menu25.js'
 import { sound } from './sfx25.js'
 import { initFx25 } from './fx25.js'
 import { initPark25 } from './park25.js'
+import { initCoke25 } from './coke25.js'
 import { initMoments25 } from './moments25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
@@ -73,6 +74,15 @@ const ICONS = {
     2: ['........', '.....a..', '.....a..', '...#.a..', '...#.a.#', '.#.#.a.#', '.#.#.a.#', '########'],
     3: ['....a.', '..#.a.', '..#.a#', '#.#.a#', '#.#.a#', '######'],
   },
+}
+// the dojo's controls (29 Oct, later, Andrew: "stop numbering things (speed, angle) - let's have a fun icon for each"): a ball with whoosh lines, a launch ramp, the
+// field with an arrow up it, a thermometer, a windsock. # the label color, a the accent
+const SLOT_ICONS = {
+  ev: ['......###.', '####.#a#a#', '..##.#a#a#', '####.#a#a#', '......###.'],
+  la: ['.........', '.......##', '.....##..', '...##....', '..#.a....', '.#...a...', '#########'],
+  dir: ['..#####..', '.#..a..#.', '#..aaa..#', '.#..a..#.', '..#.a.#..', '...#a#...', '....#....'],
+  temp: ['..##..', '.#..#.', '.#..#.', '.#aa#.', '.#aa#.', '#aaaa#', '#aaaa#', '.####.'],
+  wind: ['#........', '#aa##aa#.', '#aa##aa##', '#aa##aa#.', '#........', '#........', '#........', '###......'],
 }
 const PANEL_WORDS = { pitch: '/ T H E &nbsp; P I T C H /', slice: '/ C O N T A C T , &nbsp; S I D E &nbsp; O N /', hists: '/ V S &nbsp; A L L /' }
 const PANEL_NAMES = { pitch: 'THE PITCH', slice: 'CONTACT, SIDE ON', hists: 'VS ALL' }
@@ -116,13 +126,19 @@ export const AXES = {
     { c: 3, name: 'PATH', desc: 'the pitch itself over its last 40 ft, as the catcher saw it' },
     { c: 0, name: 'OFF', desc: 'no arrow' },
   ] },
-  // the pitch's own color (28 Oct): the arrow on the zone, the pitch line in the side view, the pitch arc in the park; the hit keeps the accent
+  // the pitch's own color (28 Oct): the arrow on the zone, the pitch line in the side view, the pitch arc in the park, the arc dots and the ball's stitches; the hit keeps
+  // the accent. 29 Oct, Andrew: ten of them, all set against the orange (cool hues across from it on the wheel, bright enough on the black)
   Y: { name: 'PITCH COLOR', opts: [
-    { c: 1, name: 'SKY', desc: 'a clear mid blue, the opposite of the orange hit', col: '#6da7de' },
-    { c: 2, name: 'SEA GLASS', desc: 'a pale green-blue, like the Cove', col: '#8fd0c4' },
-    { c: 3, name: 'LILAC', desc: 'a soft violet, distinct from everything else on screen', col: '#a79be0' },
-    { c: 4, name: 'STEEL', desc: 'a quiet grey-blue, the least loud', col: '#8aa3b8' },
-    { c: 5, name: 'BONE', desc: 'the text color: the pitch in plain ink, the hit in orange', col: null },
+    { c: 1, name: 'SKY', desc: 'a clear mid blue, straight across the wheel from the orange', col: '#6da7de' },
+    { c: 2, name: 'MINT', desc: 'cold mint green, the one you liked on the dots', col: '#3ee6a0' },
+    { c: 3, name: 'ICE', desc: 'a bright icy cyan, the loudest against the orange', col: '#5ce1ff' },
+    { c: 4, name: 'ELECTRIC', desc: 'a saturated electric blue', col: '#4d7cff' },
+    { c: 5, name: 'TEAL', desc: 'a deep sea teal, like the Cove on a sunny day', col: '#19c3b4' },
+    { c: 6, name: 'LILAC', desc: 'a soft violet', col: '#a79be0' },
+    { c: 7, name: 'ULTRAVIOLET', desc: 'a strong blue-violet, a night-game color', col: '#8f63ff' },
+    { c: 8, name: 'SEAFOAM', desc: 'a pale mint, quieter than MINT', col: '#a3f0d6' },
+    { c: 9, name: 'GLACIER', desc: 'a very pale blue, close to white with a cold tint', col: '#bfe3ff' },
+    { c: 10, name: 'NEON LIME', desc: 'a hot yellow-green, the most arcade one', col: '#9dff4f' },
   ] },
   S: { name: 'SITUATION', opts: [
     { c: 1, name: 'SCORE BUG', desc: 'a TV-style bug in the park corner: inning, outs, runners, count, score, and the win chance before and after' },
@@ -154,6 +170,35 @@ export const AXES = {
     { c: 4, name: 'HOT PINK', desc: 'a new color: hot pink, used nowhere else', col: '#ff4fa3' },
     { c: 5, name: 'MINT', desc: 'a new color: cold mint green, the opposite of the orange arc', col: '#3ee6a0' },
   ] },
+  // the Coke bottle and the glove in left field (29 Oct, later, Andrew: "build voxel coke bottle and mitt instead of having the 3D models")
+  C: { name: 'COKE CORNER', opts: [
+    { c: 1, name: 'GLASS', desc: 'the bottle in voxels, green contour glass with a red label band and cap; the glove in tan leather' },
+    { c: 2, name: 'COKE RED', desc: 'a red voxel bottle with a white wave across it; the same glove' },
+    { c: 3, name: 'THE WIRE', desc: 'no voxels: the model\'s own wireframe of both, as before' },
+  ] },
+  // the ORACLE PARK sign over the board (29 Oct, later, Andrew sent a photo of the real one)
+  Q: { name: 'THE SIGN', opts: [
+    { c: 1, name: 'BULBS', desc: 'ORACLE PARK in round bulbs between two rows of chasers, the clock in bulbs' },
+    { c: 2, name: 'THE REAL SIGN', desc: 'the real one in voxels, from your photo: tall cream letters in a red neon outline on the green arch, the pink clock face, the eight World Series pennants flying above' },
+    { c: 3, name: 'REAL SIGN, NIGHT', desc: 'the same at night: the neon brighter and one tube that flickers' },
+  ] },
+  // the gulls' faces (29 Oct, later, Andrew: "can we give there flapping seagulls faces?")
+  W: { name: 'GULL FACES', opts: [
+    { c: 1, name: 'WESTERN GULL', desc: 'a white head, black eyes and the yellow bill with the red spot the gulls at Oracle really have' },
+    { c: 2, name: 'CARTOON', desc: 'a big head, googly eyes, a cross brow and an orange bill: the fry thieves' },
+    { c: 3, name: 'SHADES', desc: 'the western gull in black sunglasses' },
+  ] },
+  // the dojo controls' labels (29 Oct, later): no numbers, an icon each
+  J: { name: 'DOJO LABELS', opts: [
+    { c: 1, name: 'ICONS', desc: 'a pixel icon for each control: a ball with whoosh lines, a launch ramp, the field with an arrow, a thermometer, a windsock' },
+    { c: 2, name: 'ICONS + WORDS', desc: 'the same icons with the word beside them (SPEED, ANGLE, AIM, AIR, WIND)' },
+  ] },
+  // the Shot Caller frontier's look (29 Oct, later)
+  N: { name: 'FRONTIER', opts: [
+    { c: 1, name: 'CELLS + RIDGE', desc: 'every speed and angle that gets there lit, brighter the more common, with the ridge line through the middle', cells: true, ridge: true },
+    { c: 2, name: 'RIDGE', desc: 'just the ridge line, the ways that get there as dots on it', cells: false, ridge: true },
+    { c: 3, name: 'CELLS', desc: 'just the lit cells, no line', cells: true, ridge: false },
+  ] },
   // and the stitches on the new ball (the pixel ball on the zone and in the side view, and the voxel ball in flight)
   E: { name: 'BALL SEAMS', opts: [
     { c: 1, name: 'PITCH COLOR', desc: 'the stitches in the pitch color (Y), your lean', col: null },
@@ -162,13 +207,14 @@ export const AXES = {
     { c: 4, name: 'RED', desc: 'red stitches, as it was', col: '#e4002b' },
   ] },
 }
-const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'U', 'D', 'M', 'X', 'E']
+const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C']
 // locked 28 Oct, night (Andrew): these are set and leave the mixer; a code can still load another value (the tests do), but the dock and the header show only what is open.
 // 29 Oct: U2 PIXEL LINE, D1 PIXEL SLUGGER, M1 STACKED too
-const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1 }
+// 29 Oct, later: X2 (the arc dots in the pitch color) and E1 (the stitches in the pitch color) as well
+const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 const HDR_AX = OPEN // what is still open sits in the header
-const DEF = { ...LOCKED, Y: 1, X: 5, E: 1 }
+const DEF = { ...LOCKED, Y: 1, N: 1, J: 1, W: 1, Q: 2, C: 1 }
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
@@ -478,6 +524,13 @@ export async function build(root, api, U) {
 #cp .c25 .strip .bt .sld::-moz-range-thumb{width:8px;height:12px;background:var(--acc);border:0;border-radius:0}
 #cp .c25 .strip .bt.arm .sld::-webkit-slider-runnable-track{background:var(--k)}
 #cp .c25 .strip .bt .ps{color:var(--dim);white-space:nowrap}
+#cp .c25 .strip .bt .ps{display:flex;align-items:center;gap:6px;min-height:21px}
+#cp .c25 .strip .bt .ps .ico{flex:none;color:var(--tx)}
+#cp .c25 .strip .bt.arm .ps .ico{color:var(--k)}
+#cp .c25 .strip .bt .ps em{font-style:normal}
+#cp .c25 .strip .bt b.num[title]{cursor:text;pointer-events:auto}
+#cp .c25 .strip .bt b.num[title]:hover{text-decoration:underline dotted var(--dim);text-underline-offset:4px}
+#cp .c25 .strip .bt input.tv{width:4.2em;max-width:100%;font:inherit;color:var(--acc);background:transparent;border:0;border-bottom:1px solid var(--acc);padding:0;text-align:inherit;outline:none}
 #cp .c25 .strip .bt.arm .ps{color:var(--k)}
 #cp .c25 .strip .bt b{font-weight:400;font-size:26px;line-height:.9;white-space:nowrap;overflow:hidden}
 #cp .c25 .strip .bt b .dv{font-style:normal;color:var(--acc);font-size:.62em;vertical-align:.25em}
@@ -562,8 +615,13 @@ export async function build(root, api, U) {
 #cp .c25 .swy i{font-style:normal;color:var(--dim)}
 #cp .c25 .swy.on{border-color:var(--acc)}
 #cp .c25 .swy:hover{background:var(--ln)}
-#cp .c25 .srg{margin:6px 0 2px}
-#cp .c25 .srg svg{display:block;max-width:100%;height:auto}
+#cp .c25 .sfw{margin:6px 0 2px;pointer-events:auto}
+#cp .c25 .sfw svg{display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none;outline:none}
+#cp .c25 .sfw svg:focus-visible{outline:1px dashed var(--acc);outline-offset:2px}
+#cp .c25 .sfro{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;margin:2px 0 6px}
+#cp .c25 .sfro b{font-weight:400;color:var(--acc);font-size:calc(22px * var(--ts));line-height:1}
+#cp .c25 .sfro span{color:var(--dim);margin-right:6px}
+#cp .c25 .sfro i{font-style:normal;color:var(--dim);flex-basis:100%}
 #cp .c25.shot .hdr #c25lp,#cp .c25.shot .hdr #c25se,#cp .c25.shot .hdr #c25rc,#cp .c25.shot .hdr #c25sm{opacity:.45}
 #cp .c25.ns.dj>.strip{display:grid;grid-area:pitch;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(5,minmax(0,1fr)) minmax(0,1.2fr);gap:8px;padding:24px 0 0}
 #cp .c25.dj>.pitch{display:none}
@@ -603,7 +661,7 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U, { hand: false }), ses = makeSession(api), NS = ctl.SLOTS.length
   const q = new URLSearchParams(location.search)
   const mix = q.get('mix') != null ? parseMix(q.get('mix')) : { ...parseMix(store('nn-mix25') ?? ''), ...LOCKED } // a stored mix keeps its open choices; the locks win over it
-  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false
+  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false, slotLabels = null, coke = null
   const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'giants', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
@@ -622,7 +680,7 @@ export async function build(root, api, U) {
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
   <div class="pnl p hists" id="c25hi"><span class="t">/ V S &nbsp; A L L /</span><span class="hsw" id="c25hw"><span class="bt" data-w="mlb">ALL</span><span class="bt" data-w="sf">ORACLE</span></span><div id="c25hb"></div></div>
   <div class="ptabs p" id="c25pt">${[['batter', 'BATTER'], ['pitch', 'PITCH'], ['slice', 'CONTACT'], ['hists', 'VS ALL']].map(([k, l]) => `<span class="bt" data-card="${k}">${l}</span>`).join('')}</div>
-  <div class="strip p" id="c25sl">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}"><span class="ps">${i + 1} ${s.label}</span><b class="num"></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span>${s.k === 'hand' ? '' : `<input type="range" class="sld" min="0" max="1000" step="1" aria-label="${s.label}">`}</div>`).join('')}<div class="bt hot" data-i="${ctl.SLOTS.length}"><span class="ps">ENTER</span><b>SWING</b></div></div>
+  <div class="strip p" id="c25sl">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}" data-k="${s.k}"><span class="ps"></span><b class="num"${['ev', 'la', 'dir'].includes(s.k) ? ' title="click to type it"' : ''}></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span>${s.k === 'hand' ? '' : `<input type="range" class="sld" min="0" max="1000" step="1" aria-label="${s.label}">`}</div>`).join('')}<div class="bt hot" data-i="${ctl.SLOTS.length}"><span class="ps">ENTER</span><b>SWING</b></div></div>
   <div class="mod" id="c25m"><div class="box"><span class="bt x" id="c25cl" aria-label="close">CLOSE</span><h3 id="c25mt"></h3><div id="c25mb"></div></div></div></div>`
   const E = (id) => root.querySelector(id), hero = E('#c25h'), grid = E('.c25')
   const setCard = (k) => { grid.dataset.card = k; root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.classList.toggle('on', b.dataset.card === k)); if (last) render(last) }
@@ -634,7 +692,7 @@ export async function build(root, api, U) {
     api.NN.setDuo(null)
     const cs = getComputedStyle(root), t = { tx: cs.getPropertyValue('--tx').trim(), k: cs.getPropertyValue('--k').trim(), acc: cs.getPropertyValue('--acc').trim() }
     api.NN.setPix({ pix: 0, mode: 0 })
-    const rich = { fatHeavy: 1.8, faintAngle: 40, faintMin: 0.8, marks: true, wall: (b) => api.wallAt?.(b), accent: t.acc, stands: 'ghost', fun: true, step: 6, contourOuter: 40 }
+    const rich = { fatHeavy: 1.8, faintAngle: 40, faintMin: 0.8, marks: true, wall: (b) => api.wallAt?.(b), accent: t.acc, stands: 'ghost', fun: true, funVox: mix.C !== 3, step: 6, contourOuter: 40 }
     api.NN.setWire(true, { split: true, angle: 78, step: 0, hidden: true, opacity: 0.9, color: t.tx, face: t.k, fog: [230, 560], rebuild: !!showWire.built, ...rich })
     showWire.built = true
   }
@@ -731,7 +789,8 @@ export async function build(root, api, U) {
   const themeKey = () => { if (atOracle) return 'orange'; const k = 'team' + here.abbr; THEMES[k] ??= { ...THEMES.orange, name: here.abbr, acc: TEAM_ACC[here.abbr] ?? THEMES.orange.acc }; return k }
   function applyMix(changed) {
     for (const k of ['L', 'P', 'F', 'I', 'S']) for (const o of AXES[k].opts) grid.classList.toggle(k + o.c, mix[k] === o.c)
-    fx?.setStyle(optOf('F', mix.F).style); if (life) life.gullsOn = mix.F !== 3
+    fx?.setStyle(optOf('F', mix.F).style); if (life) { life.gullsOn = mix.F !== 3; life.gullFace = mix.W; life.signStyle = mix.Q }
+    if (coke) { const was = coke.styleNow(); coke.style = mix.C; if ((was === 3) !== (mix.C === 3)) showWire() } // THE WIRE needs the model's own lines back, and the voxels need them gone
     if (fx?.karlOn() && fx.karlLevel() !== mix.K) fx.karl(true, mix.K)
     if (water && water.mode() !== mix.B) water.setMode(mix.B)
     if (mix.R) lastR = mix.R // the R key brings back whichever arrow was last on
@@ -740,7 +799,7 @@ export async function build(root, api, U) {
     grid.style.setProperty('--mk', optOf('X', mix.X).col ?? 'var(--pc)'); grid.style.setProperty('--sc', optOf('E', mix.E).col ?? 'var(--pc)')
     if (changed) paintSeams()
     if (['X', 'Y'].includes(changed) && !api.anim?.()) api.update() // the arc's dots take the new color
-    paintTitles()
+    paintTitles(); slotLabels?.()
     menu?.setLogo(mix.M)
     for (const [k, v] of Object.entries(typeVars(optOf('T', mix.T).T))) grid.style.setProperty('--' + k, v)
     if (!changed) { applyTheme(root, api, themeKey(), { park: true }); showWire() }
@@ -774,7 +833,7 @@ export async function build(root, api, U) {
   // Options that only show when something happens get a SEE IT button: a ball flies (landing, camera, pitch arc), Karl rolls in, or the menu opens (its title).
   const dock = E('#c25dk')
   let dockAx = OPEN.includes(store('nn-dock25')) ? store('nn-dock25') : OPEN[0]
-  const SEE = { D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', X: 'FLY A BALL', E: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
+  const SEE = { N: 'CALL A SEAT', Q: 'LOOK AT IT', C: 'LOOK AT IT', D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', X: 'FLY A BALL', E: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
   const dockOpts = (k) => AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c)
   function paintDock() {
     if (!grid.classList.contains('dk')) return
@@ -793,7 +852,7 @@ export async function build(root, api, U) {
     dock.querySelector('[data-dk="see"]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); seeIt(k) })
   }
   const dockTo = (k) => { dockAx = k; store('nn-dock25', k); paintDock(); dock.focus({ preventScroll: true }) }
-  const seeIt = (k) => { if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
+  const seeIt = (k) => { if (k === 'Q' || k === 'C') { lookThere(k); return } if (k === 'N') { if (mode !== 'shot') setMode('shot'); if (!scRes) { const r = se.seatPoint('140', '12', '8'); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }) } return } if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
   function toggleDock(on) {
     const v = on ?? !grid.classList.contains('dk')
     grid.classList.toggle('dk', v)
@@ -903,9 +962,45 @@ export async function build(root, api, U) {
   })
   const fire = () => { if (mode === 'replay') { play(); return } pressEl(slots[NS]); ses.fire() }
   ctl.bind(fire, 'h')
-  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { el.querySelector('b').innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } })
+  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { const bb = el.querySelector('b'); if (!bb.querySelector('input')) bb.innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } })
   // sliders (28 Oct, Andrew: TWEAK THE TATER should have sliders): drag a slot's slider to set it; its keys stay with the slider, not the strip's arrow keys
   slots.forEach((el, i) => { const sl = el.querySelector('.sld'); if (!sl) return; sl.addEventListener('input', () => { ctl.arm(i); ctl.setFrac(i, Number(sl.value) / 1000); ctl.onChange() }); sl.addEventListener('keydown', (e) => e.stopPropagation()); sl.addEventListener('wheel', (e) => e.stopPropagation()) })
+  // the labels: an icon each (J1), or the icon and the word (J2); the word stays in the title and for screen readers
+  const SLOT_WORD = { ev: 'SPEED', la: 'ANGLE', dir: 'AIM', temp: 'AIR', wind: 'WIND' }
+  const paintSlotLabels = () => slots.forEach((el, i) => { if (i >= NS) return; const k = ctl.SLOTS[i].k, w = SLOT_WORD[k] ?? ctl.SLOTS[i].label, ps = el.querySelector('.ps'), h = (SLOT_ICONS[k] ? iconSVG(SLOT_ICONS[k], 3, w) : '') + (mix.J === 2 || !SLOT_ICONS[k] ? `<em>${w}</em>` : ''); if (ps.dataset.h !== h) { ps.innerHTML = h; ps.dataset.h = h; el.title = w } })
+  slotLabels = paintSlotLabels; paintSlotLabels()
+  // typing a number (29 Oct, later, Andrew: "allow people to type in speed angle direction too"): click the speed, the angle or the aim and type it; Enter or leaving
+  // the box sets it, Esc puts it back. The aim takes 20L, L20, 20 L, -20 (left), 15R or 15 (right), C or CF (dead center)
+  const parseSlot = (k, t) => {
+    t = String(t).trim().toUpperCase().replace(/°|MPH|DEG/g, '').trim()
+    if (k !== 'dir') { const v = Number(t); return t !== '' && isFinite(v) ? v : null }
+    if (/^(C|CF|CENTER|0)$/.test(t)) return 0
+    const m = t.match(/^([LR])?\s*(-?\d+(?:\.\d+)?)\s*([LR])?$/)
+    if (!m) return null
+    const side = m[1] ?? m[3], v = Math.abs(Number(m[2]))
+    return side ? (side === 'L' ? -v : v) : Number(m[2])
+  }
+  const editTxt = (k) => { const v = api.state[k]; return k === 'dir' ? (v < 0 ? `${-v}L` : v > 0 ? `${v}R` : 'C') : String(v) }
+  function editSlot(i) {
+    const el = slots[i], k = ctl.SLOTS[i].k, b = el.querySelector('b.num')
+    if (!['ev', 'la', 'dir'].includes(k) || b.querySelector('input')) return
+    ctl.arm(i)
+    b.innerHTML = `<input class="tv" value="${editTxt(k)}" maxlength="6" autocomplete="off" spellcheck="false" aria-label="type the ${SLOT_WORD[k].toLowerCase()}"${k === 'dir' ? '' : ' inputmode="decimal"'}>`
+    const inp = b.querySelector('input')
+    let done = false
+    const end = (ok) => {
+      if (done) return; done = true
+      const v = ok ? parseSlot(k, inp.value) : null
+      b.textContent = ''
+      if (v != null) { sound.play('pick'); U.setP(api, k, v); ctl.onChange() } else if (ok) sound.play('back')
+      paintSlots()
+    }
+    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); end(true) } else if (e.key === 'Escape') { e.preventDefault(); end(false) } })
+    inp.addEventListener('blur', () => end(true))
+    inp.addEventListener('click', (e) => e.stopPropagation())
+    inp.focus(); inp.select()
+  }
+  slots.forEach((el, i) => { if (i < NS) el.querySelector('b.num').addEventListener('click', (e) => { e.stopPropagation(); editSlot(i) }) })
 
   // ---- odds: the final model for an unedited real ball where it was hit; the what-if model (or real balls like it) for anything else ----
   const elevAt = () => parks.parks.find((p) => p.abbr === (window.__parkX ?? 'SF'))?.elev_ft ?? 0
@@ -1174,15 +1269,14 @@ export async function build(root, api, U) {
     pre.textContent = lines.join('\n')
   }
   const artStyle = () => STYLES.find((s) => s.id === optOf('A', mix.A).id) ?? STYLES[0]
-  // the stand-in's look (29 Oct): his team's kit (home whites, road greys), his height (batter_bio.json), a mascot for a player who has one. In the dojo and Shot Caller
-  // you are up, in the Giants' cream; WHO'S UP swaps in the panda or the giraffe (the giraffe bats left, so its swings fly as a lefty's)
-  const YOU = ['you', 'panda', 'giraffe']
-  let youK = YOU.includes(store('nn-you25')) ? store('nn-you25') : 'you'
-  const youHand = () => (youK === 'giraffe' ? -1 : 1)
+  // the stand-in's look (29 Oct): his team's kit (home whites, road greys), his height (batter_bio.json), a mascot for a player who has one (none for now). In the dojo
+  // and Shot Caller you are up, in the Giants' cream (WHO'S UP and its panda and giraffe are gone: 29 Oct, later, Andrew: "no nicknames for now on anything")
+  const youK = 'you'
+  const youHand = () => 1
   function standInOpts(id, c) {
-    const b0 = cur ?? stepped?.b ?? null, bat = id ? pname(id) : null, ym = id ? null : Object.values(MASCOTS).find((x) => x.kind === youK), mc = id ? MASCOTS[id] : ym
+    const b0 = cur ?? stepped?.b ?? null, bat = id ? pname(id) : null, ym = null, mc = id ? MASCOTS[id] : null
     const team = b0 ? (b0.tb === 'Top' ? b0.at : b0.ht) : 'SF', home = b0 ? b0.tb === 'Bot' : true
-    return { ...c, name: ym ? ym.name : bat ? bat[0].toUpperCase() : id ? null : 'YOU', num: ym ? ym.num : bat?.[1] ? String(bat[1]) : null, hand: b0 ? b0.s : api.state.hand > 0 ? 'R' : 'L', team, kit: kitFor(team, home), height: ym ? ym.h : bio[id]?.h ?? null, kind: mc?.kind ?? 'human' }
+    return { ...c, name: ym ? ym.name : bat ? bat[0].toUpperCase() : id ? null : 'YOU', num: ym ? ym.num : bat?.[1] ? String(bat[1]) : null, hand: b0 ? b0.s : api.state.hand > 0 ? 'R' : 'L', team, kit: kitFor(team, home), height: ym ? ym.h : bio[id]?.h ?? null, kind: mc?.kind ?? 'human', skin: (id && facesRaw[id]?.skin) || undefined } // skin: from his headshot (science/bake_face_tones.py)
   }
   let faceKey = ''
   function paintBatter() {
@@ -1215,11 +1309,10 @@ export async function build(root, api, U) {
       while (lines && cols > 24 && Math.min((box.clientWidth - 2) / (cols * am.w), (box.clientHeight - 2) / (lines.length * am.h)) < 4.5) { cols = Math.max(24, Math.round(cols * 0.85)); lines = renderArt(src, st, cols, enh).lines }
       if (lines) fit(E('#c25f pre'), box, lines, am)
     }
-    const ym = id ? null : Object.values(MASCOTS).find((x) => x.kind === youK)
+    const ym = null
     const name = bat ? bat[0] : cur ? 'BATTER ' + cur.b : ym ? ym.name : 'YOUR SWING'
     E('#c25i').innerHTML = `<b>${name.toUpperCase()}</b><span>${bat?.[1] ? '#' + bat[1] + ' · ' : ym ? '#' + ym.num + ' · ' : ''}${ym ? (youHand() > 0 ? 'R' : 'L') + ' · ' + ym.why : hand}</span>
-      <div class="row">${id ? '' : '<span class="bt" id="c25who" title="swap who is at the plate">WHO\'S UP</span>'}<span class="bt" id="c25bs">STATS</span><span class="bt" id="c25pr">PRINT IT</span></div>`
-    E('#c25who')?.addEventListener('click', () => { pressEl(E('#c25who')); sound.play('pick'); youK = YOU[(YOU.indexOf(youK) + 1) % YOU.length]; store('nn-you25', youK); api.state.hand = youHand(); if (mode === 'shot' && scRes) shotAt(scRes.at, scRes.seat); else api.update() })
+      <div class="row"><span class="bt" id="c25bs">STATS</span><span class="bt" id="c25pr">PRINT IT</span></div>`
     E('#c25bs').addEventListener('click', () => { pressEl(E('#c25bs')); openMod('stats') })
     E('#c25pr').addEventListener('click', () => { pressEl(E('#c25pr')); printIt() })
   }
@@ -1394,36 +1487,105 @@ export async function build(root, api, U) {
     E('#c25sg').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } })
     pl.querySelectorAll('input,select').forEach((x) => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } }))
   }
-  // the recipe: every speed (up) and angle (across) tried, lit where it gets there, brighter the more common; the way picked is boxed
-  function recipe(r) {
-    const G = r.grid, nx = (G.la[1] - G.la[0]) / G.la[2] + 1, ny = (G.ev[1] - G.ev[0]) / G.ev[2] + 1, c = 9, W = nx * c + 40, H = ny * c + 20
-    const by = new Map(r.ways.map((w) => [w.ev + ',' + w.la, w])), mx = Math.max(1, ...r.ways.map((w) => w.w)), sel = r.ways[scSel], fs = 'style="font-size:calc(11px * var(--ts))"'
+  // THE FRONTIER (29 Oct, later, Andrew: "a frontier of exit velo and launch angle, and the ability to sort of navigate that frontier ... on the right"): every speed (up)
+  // and angle (across) tried, lit where it gets a ball to the seat, brighter the more common a ball hit like that is, the ridge through the middle of what gets there, and a
+  // ball on the way picked. Drag along it, click a cell, or use the arrow keys on it (left and right step along the angles, up and down the speeds); the park flies
+  // whatever is under the ball. N picks the look: N1 cells and the ridge, N2 the ridge only, N3 the cells only
+  function frontierSVG(r, wpx, hpx) {
+    // zoomed to what gets there, two steps either side (inside the grid tried), so the frontier fills the panel
+    const G0 = r.grid, span = (k, f) => { const v = r.ways.map((w) => w[f]), st = G0[k][2]; return [Math.max(G0[k][0], Math.min(...v) - 2 * st), Math.min(G0[k][1], Math.max(...v) + 2 * st), st] }
+    const G = { la: span('la', 'la'), ev: span('ev', 'ev') }, nx = (G.la[1] - G.la[0]) / G.la[2] + 1, ny = (G.ev[1] - G.ev[0]) / G.ev[2] + 1, L = 30, B = 16
+    const c = Math.max(7, Math.min(Math.floor((wpx - L - 4) / nx), Math.floor((hpx - B - 4) / ny))), W = L + nx * c + 2, H = ny * c + B + 2
+    const X = (la) => L + ((la - G.la[0]) / G.la[2]) * c, Y = (ev) => 2 + ((G.ev[1] - ev) / G.ev[2]) * c
+    const st = optOf('N', mix.N), mx = Math.max(1, ...r.ways.map((w) => w.w)), top = r.ways[0], fs = 'style="font-size:calc(10px * var(--ts))"'
+    const by = new Map(r.ways.map((w, i) => [w.ev + ',' + w.la, i]))
     let g = ''
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      const ev = G.ev[1] - j * G.ev[2], la = G.la[0] + i * G.la[2], w = by.get(ev + ',' + la), x = 36 + i * c, y = 2 + j * c
-      g += w ? `<rect x="${x}" y="${y}" width="${c - 1}" height="${c - 1}" fill="var(--acc)" fill-opacity="${(0.25 + 0.75 * Math.sqrt(w.w / mx)).toFixed(2)}"${w === sel ? ' stroke="var(--tx)" stroke-width="1.5"' : ''}/>` : `<rect x="${x + 3}" y="${y + 3}" width="2" height="2" fill="var(--ln)"/>`
+      const ev = G.ev[1] - j * G.ev[2], la = G.la[0] + i * G.la[2], k = by.get(ev + ',' + la), x = X(la), y = Y(ev)
+      if (k != null && st.cells) g += `<rect data-k="${k}" x="${x}" y="${y}" width="${c - 1}" height="${c - 1}" fill="var(--acc)" fill-opacity="${(0.22 + 0.78 * Math.sqrt(r.ways[k].w / mx)).toFixed(2)}"/>`
+      else if (k == null) g += `<rect x="${x + c / 2 - 1}" y="${y + c / 2 - 1}" width="2" height="2" fill="var(--ln)"/>`
     }
-    g += `<text x="32" y="${2 + c}" text-anchor="end" fill="var(--dim)" ${fs}>${G.ev[1]}</text><text x="32" y="${2 + c + 12}" text-anchor="end" fill="var(--dim)" ${fs}>MPH</text><text x="32" y="${2 + ny * c}" text-anchor="end" fill="var(--dim)" ${fs}>${G.ev[0]}</text>`
-    g += `<text x="36" y="${H - 2}" fill="var(--dim)" ${fs}>${G.la[0]}°</text><text x="${36 + nx * c}" y="${H - 2}" text-anchor="end" fill="var(--dim)" ${fs}>${G.la[1]}° LAUNCH</text>`
-    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" shape-rendering="crispEdges" role="img" aria-label="the speeds and angles that get there">${g}</svg>`
+    // the ridge: for each angle that gets there, the middle of its speeds, joined in angle order
+    const cols = new Map()
+    for (const w of r.ways) (cols.get(w.la) ?? cols.set(w.la, []).get(w.la)).push(w)
+    const ridge = [...cols.entries()].sort((p, q) => p[0] - q[0]).map(([la, ws]) => [X(la) + c / 2, Y(ws.reduce((a, w) => a + w.ev, 0) / ws.length) + c / 2])
+    if (st.ridge && ridge.length > 1) g += `<polyline points="${ridge.map((q) => q.map((v) => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="var(--tx)" stroke-width="${st.cells ? 1.5 : 3}" stroke-linejoin="round"/>`
+    if (st.ridge && !st.cells) for (const w of r.ways) g += `<rect data-k="${by.get(w.ev + ',' + w.la)}" x="${X(w.la) + c / 2 - 2.5}" y="${Y(w.ev) + c / 2 - 2.5}" width="5" height="5" fill="var(--acc)" fill-opacity="${(0.35 + 0.65 * Math.sqrt(w.w / mx)).toFixed(2)}"/>`
+    // the most common one, outlined
+    if (top) g += `<rect x="${X(top.la) - 1}" y="${Y(top.ev) - 1}" width="${c + 1}" height="${c + 1}" fill="none" stroke="var(--tx)" stroke-width="1" stroke-dasharray="2 2"/>`
+    g += `<text x="${L - 4}" y="${Y(G.ev[1]) + c - 2}" text-anchor="end" fill="var(--dim)" ${fs}>${G.ev[1]}</text><text x="${L - 4}" y="${Y((G.ev[0] + G.ev[1]) / 2) + c / 2 + 3}" text-anchor="end" fill="var(--dim)" ${fs}>MPH</text><text x="${L - 4}" y="${Y(G.ev[0]) + c - 2}" text-anchor="end" fill="var(--dim)" ${fs}>${G.ev[0]}</text>`
+    g += `<text x="${L}" y="${H - 3}" fill="var(--dim)" ${fs}>${G.la[0]}°</text><text x="${L + (nx * c) / 2}" y="${H - 3}" text-anchor="middle" fill="var(--dim)" ${fs}>LAUNCH</text><text x="${L + nx * c}" y="${H - 3}" text-anchor="end" fill="var(--dim)" ${fs}>${G.la[1]}°</text>`
+    // the ball on the way picked, with guides out to the two axes (moved in place while dragging)
+    g += `<g class="pk"><line class="gx" x1="${L}" x2="${L}" y1="0" y2="0" stroke="var(--pc)" stroke-dasharray="2 3"/><line class="gy" x1="0" x2="0" y1="${H - B}" y2="${H - B}" stroke="var(--pc)" stroke-dasharray="2 3"/><rect class="bl" width="${c + 3}" height="${c + 3}" fill="#f2efe6" stroke="var(--pc)" stroke-width="2"/></g>`
+    return { svg: `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" shape-rendering="crispEdges" tabindex="0" role="slider" aria-label="the speeds and angles that get there; drag, or use the arrow keys">${g}</svg>`, X, Y, c, L, B, H, G }
+  }
+  // the readout and the ball for the way picked, in place (the panel is not rebuilt while you drag)
+  function frontierPick() {
+    const hb = E('#c25hb'), f = hb._fr, r = scRes, w = r?.ways?.[scSel]
+    if (!f || !w || hb._sc !== r) return false
+    const pk = hb.querySelector('.sfr .pk'), x = f.X(w.la), y = f.Y(w.ev)
+    pk.querySelector('.bl').setAttribute('x', x - 2); pk.querySelector('.bl').setAttribute('y', y - 2)
+    const gx = pk.querySelector('.gx'); gx.setAttribute('x2', x); gx.setAttribute('y1', y + f.c / 2); gx.setAttribute('y2', y + f.c / 2)
+    const gy = pk.querySelector('.gy'); gy.setAttribute('x1', x + f.c / 2); gy.setAttribute('x2', x + f.c / 2); gy.setAttribute('y2', y + f.c)
+    hb.querySelector('.sfr').setAttribute('aria-valuetext', `${w.ev} mph at ${w.la} degrees`)
+    const one = (n) => (n ? `1 IN ${bigN(POOL_N / n)}` : 'ALMOST NEVER')
+    hb.querySelector('.sfro').innerHTML = `<b>${w.ev}</b><span>MPH</span><b>${w.la}°</b><span>UP</span><i>${scSel === 0 ? 'THE MOST COMMON WAY · ' : ''}${one(w.w)} BALLS IN PLAY · AIMED ${FIELD(w.dir)}</i>`
+    hb.querySelectorAll('.swy').forEach((x) => x.classList.toggle('on', Number(x.dataset.w) === scSel))
+    return true
+  }
+  // moving along it: the nearest way that gets there to a point on the chart, or the next one along by angle (dx) or speed (dy)
+  let frRaf = 0, frWant = null
+  // a key or a press picks at once; a drag picks at most once a frame
+  const frNow = (i) => { if (i == null || i === scSel) return; if (frRaf) { cancelAnimationFrame(frRaf); frRaf = 0 } stopShot(); pickWay(i) }
+  const frGo = (i) => { if (i == null || i === scSel) return; frWant = i; if (frRaf) return; frRaf = requestAnimationFrame(() => { frRaf = 0; stopShot(); pickWay(frWant) }) }
+  function frontierWire(hb) {
+    const svg = hb.querySelector('.sfr'), f = hb._fr, r = scRes
+    const at = (e) => { const b = svg.getBoundingClientRect(), k = b.width / svg.viewBox.baseVal.width, la = f.G.la[0] + ((e.clientX - b.left) / k - f.L - f.c / 2) / f.c * f.G.la[2], ev = f.G.ev[1] - ((e.clientY - b.top) / k - 2 - f.c / 2) / f.c * f.G.ev[2]; let best = null, bd = 1e9; r.ways.forEach((w, i) => { const d = ((w.la - la) / f.G.la[2]) ** 2 + ((w.ev - ev) / f.G.ev[2]) ** 2; if (d < bd) { bd = d; best = i } }); return best }
+    let drag = false
+    svg.addEventListener('pointerdown', (e) => { drag = true; svg.setPointerCapture?.(e.pointerId); svg.focus({ preventScroll: true }); sound.play('move'); frNow(at(e)) })
+    svg.addEventListener('pointermove', (e) => { if (drag) frGo(at(e)) })
+    const up = () => { drag = false }
+    svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up)
+    svg.addEventListener('keydown', (e) => {
+      const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key]
+      if (!d) return
+      e.preventDefault(); e.stopPropagation()
+      const w = r.ways[scSel]
+      let best = null, bd = 1e9
+      r.ways.forEach((q, i) => {
+        if (d[0] && Math.sign(q.la - w.la) !== d[0]) return
+        if (d[1] && (q.la !== w.la || Math.sign(q.ev - w.ev) !== d[1])) return
+        const s = d[0] ? Math.abs(q.la - w.la) * 100 + Math.abs(q.ev - w.ev) : Math.abs(q.ev - w.ev)
+        if (s < bd) { bd = s; best = i }
+      })
+      if (best != null) { sound.play('move'); frNow(best) }
+    })
   }
   function paintShot() {
     const el = E('#c25hi'), hb = E('#c25hb')
     wordTitle(el, '/ S H O T &nbsp; C A L L E R /')
-    if (!scRes) { hb.innerHTML = '<div class="sel"><div class="lph">PICK A SEAT: CLICK ONE IN THE PARK, OR TYPE ONE TOP LEFT.</div><div class="lph">SHOT CALLER FINDS EVERY SWING THAT PUTS A BALL THERE, MOST COMMON FIRST, AND THE REAL HOME RUNS THAT CAME DOWN CLOSEST. PLAY IT FLIES THE THREE MOST COMMON.</div></div>'; return }
-    const r = scRes, sel = r.ways[scSel], one = (n) => (n ? `1 IN ${bigN(POOL_N / n)}` : 'ALMOST NEVER')
+    if (!scRes) { hb._sc = null; hb.innerHTML = '<div class="sel"><div class="lph">PICK A SEAT: CLICK ONE IN THE PARK, OR TYPE ONE TOP LEFT.</div><div class="lph">SHOT CALLER FINDS EVERY SWING THAT PUTS A BALL THERE, MOST COMMON FIRST, AND THE REAL HOME RUNS THAT CAME DOWN CLOSEST. PLAY IT FLIES THE THREE MOST COMMON.</div></div>'; return }
+    const r = scRes
+    if (hb._sc === r && hb._n === mix.N && frontierPick()) return
+    const sel = r.ways[scSel], one = (n) => (n ? `1 IN ${bigN(POOL_N / n)}` : 'ALMOST NEVER')
     const head = r.seat?.what === 'seat' ? `<div class="scall"><span>${r.seat.area}</span><b>SECTION ${r.seat.sec}</b><b>ROW ${r.seat.row} · SEAT ${r.seat.seat}</b></div>` : `<div class="scall"><span>THE SPOT</span><b>${r.seat?.line ?? 'HERE'}</b></div>`
     const sub = `<div class="lph">${Math.round(r.spot.ft)} FT OUT, ${FIELD(r.spot.bearing)}, ${Math.max(0, Math.round(r.spot.height))} FT UP</div>`
+    hb._sc = null
     if (!r.ways.length) { hb.innerHTML = `<div class="sel">${head}${sub}<div class="lph">NO SWING FROM ${GRID.ev[0]} TO ${GRID.ev[1]} MPH AND ${GRID.la[0]}° TO ${GRID.la[1]}° COMES DOWN THERE.</div></div>`; return }
-    const evs = r.ways.map((w) => w.ev), las = r.ways.map((w) => w.la)
-    const rows = r.ways.slice(0, 6).map((w, i) => `<div class="swy${w === sel ? ' on' : ''}" data-w="${i}" role="button"><b>${i + 1}</b><span>${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</span><i>${one(w.w)}</i></div>`).join('')
-    hb.innerHTML = `<div class="sel">${head}${sub}<div class="lph">${r.ways.length} WAY${r.ways.length === 1 ? '' : 'S'} TO GET THERE, MOST COMMON FIRST (HOW OFTEN A BALL IN PLAY IS HIT LIKE THAT)</div>${rows}<div class="srg">${recipe(r)}</div><div class="lph">FROM ${Math.min(...evs)} TO ${Math.max(...evs)} MPH, ${Math.min(...las)}° TO ${Math.max(...las)}°</div>` +
+    const rows = r.ways.slice(0, 3).map((w, i) => `<div class="swy${w === sel ? ' on' : ''}" data-w="${i}" role="button"><b>${i + 1}</b><span>${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</span><i>${one(w.w)}</i></div>`).join('')
+    hb.innerHTML = `<div class="sel">${head}${sub}<div class="lph">${r.ways.length} WAY${r.ways.length === 1 ? '' : 'S'} TO GET THERE. BRIGHTER IS MORE COMMON.</div><div class="sfw"></div><div class="sfro"></div><div class="lph sfh">DRAG ALONG IT, CLICK A SQUARE, OR USE THE ARROW KEYS. THE DASHED BOX IS THE MOST COMMON.</div>${rows}` +
       '<div class="lph cl" style="margin-top:4px">CLOSEST REAL ORACLE HOME RUNS</div>' + r.near.slice(0, 3).map((n) => { const nm = pname(n.b.b); return `<div class="lpr2"><span>${(nm ? nm[0] : 'BATTER ' + n.b.b).toUpperCase()} ${n.b.d}</span><b>${Math.round(n.d / 0.3048)} FT AWAY</b></div>` }).join('') + '</div>'
+    // the chart takes the panel's width, and whatever height is left once the rest is in
+    const box = hb.querySelector('.sfw'), rest = hb.scrollHeight - box.offsetHeight
+    const f = frontierSVG(r, hb.clientWidth - 2, Math.max(150, hb.clientHeight - rest - 70))
+    box.innerHTML = f.svg; box.firstElementChild.classList.add('sfr')
+    hb._fr = f; hb._sc = r; hb._n = mix.N
+    frontierWire(hb); frontierPick()
     hb.querySelectorAll('.swy').forEach((x) => x.addEventListener('click', () => { sound.play('move'); stopShot(); pickWay(Number(x.dataset.w)) }))
-    // a short panel drops the real home runs first, then the recipe, then the ways not picked, from the bottom
+    // a short panel drops the real home runs first, then the ways listed, then the hint, from the bottom
     const over = () => hb.scrollHeight > hb.clientHeight + 1
     const drop = (q) => { for (const x of [...hb.querySelectorAll(q)].reverse()) { if (!over()) return; x.remove() } }
-    drop('.lpr2'); if (over()) hb.querySelector('.lph.cl')?.remove(); drop('.srg'); drop('.swy:not(.on)')
+    drop('.lpr2'); if (over()) hb.querySelector('.lph.cl')?.remove(); drop('.swy'); drop('.sfh')
   }
   // ODDS RECEIPT (a mockup to judge): the what-if model's odds built up one input at a time, from an ordinary fly ball at this park to this one. Each line is
   // how many points that input moved the odds, given the ones above it (so the order matters and the lines add up exactly).
@@ -1600,7 +1762,8 @@ export async function build(root, api, U) {
   const banner = (big, small) => { const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go') }
   fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
   let pendingSplash = false
-  life = atOracle ? initPark25(api, colors, { still: reduced }) : null
+  life = atOracle ? initPark25(api, colors, { still: reduced, gullFace: mix.W, signStyle: mix.Q }) : null
+  if (atOracle) initCoke25(api, { style: mix.C }).then((c) => { coke = c })
   water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
   pitchCam = initPitchArc(api, colors)
   flight = initFlight25(api, colors); flight.setStyle(mix.U)
@@ -1648,6 +1811,16 @@ export async function build(root, api, U) {
     const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() })
     push = null
     look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1: mid, base, out: false, req: { side: spot.clone() } }
+  }
+  // LOOK AT IT in the dock (29 Oct, later): a glide up to the sign (Q) or the Coke corner (C), which are small from the broadcast seat, and back after a few seconds
+  function lookThere(k) {
+    if (bird || reduced) return
+    const THREE = api.NN.THREE, C = api.NN.camera, T = api.NN.controls.target
+    const [p1, t1] = k === 'Q' ? [api.toWorld([0, 92, 45]), api.toWorld([0, 148, 44])] : [new THREE.Vector3(-20, 14, -96), new THREE.Vector3(-51, 14, -139)]
+    const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() })
+    push = null
+    const me = look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1, base, out: false }
+    setTimeout(() => { if (look === me) unlook() }, 6500)
   }
   function unlook() { if (!look || look.out) return; const C = api.NN.camera, T = api.NN.controls.target; look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: look.base.p, t1: look.base.t, out: true } }
   api.NN.frames.push(() => {
@@ -1796,7 +1969,7 @@ export async function build(root, api, U) {
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },

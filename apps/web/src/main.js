@@ -474,6 +474,15 @@ function setWire(on, o = {}) {
     const stands = o.stands ?? 'full'
     const Upos = [], Ucls = [], Hkeys = new Set()
     const qk = (x, y, z) => Math.round(x * 200) + ',' + Math.round(y * 200) + ',' + Math.round(z * 200)
+    // the Oracle model has its own mound ring, rubber, plate, batter's boxes and plate circle, a metre from ours (29 Oct, Andrew: "there are 2 mounds"; fitted from its
+    // vertices: plate point (0, 0.04), mound ring centre (0.01, -17.92), radius 3.1 m). Ours sit on the fitted home the flights use, so with the markings on, the model's
+    // ground-level edges in those two discs are left out
+    const MARKSKIP = o.marks && !PARKX ? [[0.01, -17.92, 3.9], [0, -0.2, 4.6]] : []
+    // and the ORACLE PARK sign, its clock and the arch they stand on (29 Oct, later, Andrew: "if we have to cut off that part of the model and make this voxel I'm fine
+    // with it"): rebuilt in voxels by park25.js, so the model's own edges there are left out: from just over the board (35.4 m) to 49 m up, 144 to 153 m out, within
+    // 6.5 degrees of dead center
+    const inSign = (p) => { const dx = p.x - hx, dz = p.z - hz, d = Math.hypot(dx, dz); return !PARKX && p.y > 35.4 && p.y < 49 && d > 144 && d < 153 && Math.abs(Math.atan2(dx, -dz)) < 0.1134 }
+    const markSkip = (p, q) => (inSign(p) && inSign(q)) || (MARKSKIP.length && p.y < 0.5 && q.y < 0.5 && MARKSKIP.some(([x, z, r]) => Math.hypot(p.x - x, p.z - z) < r && Math.hypot(q.x - x, q.z - z) < r))
     st.traverse((m) => {
       if (!m.isMesh) return
       if (o.split) { // collect every hard edge; they are classified after the traverse, once the chains are known
@@ -484,6 +493,7 @@ function setWire(on, o = {}) {
         for (let i = 0; i + 1 < pa.count; i += 2) {
           va.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld)
           vb.fromBufferAttribute(pa, i + 1).applyMatrix4(m.matrixWorld)
+          if (markSkip(va, vb)) continue
           const k1 = qk(va.x, va.y, va.z), k2 = qk(vb.x, vb.y, vb.z)
           Hkeys.add(k1 < k2 ? k1 + '|' + k2 : k2 + '|' + k1)
           if (!o.faintAngle) { Upos.push(va.x, va.y, va.z, vb.x, vb.y, vb.z); Ucls.push(cls) }
@@ -494,6 +504,7 @@ function setWire(on, o = {}) {
           for (let i = 0; i + 1 < pf.count; i += 2) {
             va.fromBufferAttribute(pf, i).applyMatrix4(m.matrixWorld)
             vb.fromBufferAttribute(pf, i + 1).applyMatrix4(m.matrixWorld)
+            if (markSkip(va, vb)) continue
             Upos.push(va.x, va.y, va.z, vb.x, vb.y, vb.z); Ucls.push(cls)
           }
           ef.dispose()
@@ -521,7 +532,7 @@ function setWire(on, o = {}) {
           for (const [p, q] of [[a, b], [b, c], [c, a]]) {
             if ((p.y < y) !== (q.y < y)) { const f = (y - p.y) / (q.y - p.y); pts.push(p.x + f * (q.x - p.x), y, p.z + f * (q.z - p.z)) }
           }
-          if (pts.length === 6) cont.push(...pts)
+          if (pts.length === 6 && !(inSign({ x: pts[0], y: pts[1], z: pts[2] }) && inSign({ x: pts[3], y: pts[4], z: pts[5] }))) cont.push(...pts)
         }
       }
     })
@@ -696,7 +707,7 @@ function setWire(on, o = {}) {
       window.__nn.wireMarks = L
       Object.assign(window.__nn.wireStats, { marks: L.marks.length / 6, wall: L.wall.length / 6, track: L.track.length / 6, ticks: L.ticks.length / 6, faint: faint.length / 6, heavy: heavy.length / 6, contours: cont.length / 6 })
     }
-    if (o.fun && funData?.groups?.length) { // the fan attractions, drawn as a colour wireframe from the original model's full detail: a soft halo under a thick coloured core, one colour per shape group
+    if (o.fun && !o.funVox && funData?.groups?.length) { // (funVox: the bottle and glove are voxels instead, coke25.js; their model edges stay out either way) // the fan attractions, drawn as a colour wireframe from the original model's full detail: a soft halo under a thick coloured core, one colour per shape group
       const COL = o.funColors ?? { tubes: '#ff5a4d', rings: '#4dd2ff', figures: '#ffc83d' }
       let n = 0
       for (const g of funData.groups) {
