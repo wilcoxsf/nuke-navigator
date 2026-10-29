@@ -546,7 +546,7 @@ export async function build(root, api, U) {
   api.NN.setFpsCap(30)
   const ctl = makeControls(api, U, { hand: false }), ses = makeSession(api), NS = ctl.SLOTS.length
   const q = new URLSearchParams(location.search)
-  const mix = parseMix(q.get('mix') ?? store('nn-mix25') ?? '')
+  const mix = q.get('mix') != null ? parseMix(q.get('mix')) : { ...parseMix(store('nn-mix25') ?? ''), ...LOCKED } // a stored mix keeps its open choices; the locks win over it
   let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false
   const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
   const cs0 = () => getComputedStyle(root)
@@ -585,7 +585,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { push = null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top') }
+  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); if (req) lookAt(req.pts, req.rad) } // a look under way starts again from the new seat
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -734,11 +734,12 @@ export async function build(root, api, U) {
   function toggleDock(on) {
     const v = on ?? !grid.classList.contains('dk')
     grid.classList.toggle('dk', v)
-    if (v) { paintDock(); dock.focus({ preventScroll: true }) } else dock.innerHTML = ''
+    if (v) { paintDock(); dock.focus({ preventScroll: true }) } else { dock.innerHTML = ''; dock.blur() }
   }
   // the dock's own keys while it has focus; anything else falls through to the usual shortcuts
   dock.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.ctrlKey || e.metaKey || e.altKey || modal || !grid.classList.contains('dk')) return // a closed dock (still holding focus) leaves every key alone
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); e.target.closest?.('[data-c],[data-ax],[data-dk]')?.click(); return }
     const i = OPEN.indexOf(dockAx), n = OPEN.length
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { sound.play('move'); stepAx(dockAx, e.key === 'ArrowRight' ? 1 : -1) }
     else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(OPEN[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
@@ -756,7 +757,7 @@ export async function build(root, api, U) {
     api.setPreview(true); api.update()
   }
   function setMode(m) {
-    cancelPlay(); flight?.setGhost(null)
+    cancelPlay(); flight?.setGhost(null); stepped = null // tweak() sets it again after this
     if (reel && m !== 'replay') stopReel()
     mode = m
     if (m === 'replay' && R.balls.length) { stepped = null; balls = filtered(); if (!balls.length) { filter = 'giants'; balls = filtered() } idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; api.state.carry = 1; api.state.dws = 0; api.state.tab = true; api.setPreview(true); api.update() }
@@ -773,7 +774,7 @@ export async function build(root, api, U) {
     setMode('whatif'); stepped = from
     // the real ball's own carry and side spin come along (28 Oct, night): untouched, the numbers fly the real flight, so every change you make is the only difference
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false })
-    from.real = { ev: b.ev, la: b.la, dir: b.dir, temp: b.temp, wind: 0 }
+    from.real = { ev: b.ev, la: b.la, dir: b.dir, temp: b.temp, wind: 0, hand: b.s === 'R' ? 1 : -1, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false }
     { const r0 = api.fly({ ...api.state }, {}), src = r0.visPath ?? r0.path; flight?.setGhost(src.filter((_, k) => k % 4 === 0).map((q) => api.toWorld(q.p))) }
     api.update(); from.ft = Math.round(api.fly({ ...api.state }, {}).landFt); paintChooser()
   }
@@ -811,7 +812,7 @@ export async function build(root, api, U) {
   function tweakLine() {
     if (!stepped?.real) return 'SPEED, ANGLE AND AIM ARE THE SWING; AIR AND WIND ARE THE NIGHT. ENTER TO SWING.'
     const sb = pname(stepped.b.b), who = (sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase(), s = api.state, R0 = stepped.real
-    const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = Math.round(s[k] - R0[k]); return d ? `${d > 0 ? '+' : ''}${d}${u}` : null }).filter(Boolean)
+    const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = s[k] - R0[k], t = Math.abs(d) < 1 ? d.toFixed(1) : String(Math.round(d)); return Math.abs(d) >= 0.05 ? `${d > 0 ? '+' : ''}${t}${u}` : null }).filter(Boolean)
     if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND SWING.`
     const fl = api.fly({ ...api.state }, {}), now = Math.round(fl.landFt), dd = now - stepped.ft, gone = fl.verdict?.kind === 'GONE'
     return `${who}, ${stepped.b.d}, WITH ${ch.join(', ')}: <b>${now} FT</b> (${dd >= 0 ? '+' : ''}${dd}), ${gone ? 'STILL GONE' : 'NOT GONE'}${stepped.b.hr && !gone ? '. YOU TOOK AWAY A HOME RUN' : !stepped.b.hr && gone ? '. YOU MADE IT A HOME RUN' : ''}`
@@ -869,7 +870,7 @@ export async function build(root, api, U) {
     if (modal === 'parks') {
       E('#c25mt').textContent = '/ T H I R T Y   P A R K S /'
       const pr = evalParks(parks, api)
-      body.innerHTML = `<div style="font-size:20px;margin-bottom:10px;color:var(--acc)">GONE IN ${U.goneWord(parks, api, pr)} PARKS</div><div class="pk">${tileHTML(pr)}</div><div class="baya">CLICK A PARK TO FLY THIS BALL THERE.</div>`
+      body.innerHTML = `<div style="font-size:20px;margin-bottom:10px;color:var(--acc)">GONE IN ${U.goneWord(parks, api, pr, goneReady)} PARKS</div><div class="pk">${tileHTML(pr)}</div><div class="baya">CLICK A PARK TO FLY THIS BALL THERE.</div>`
       body.querySelectorAll('.pk .tile').forEach((t, i) => { t.style.cursor = 'pointer'; t.style.pointerEvents = 'auto'; t.addEventListener('click', () => goPark(pr[i].p.abbr)) })
     } else {
       E('#c25mt').textContent = '/ E V E R Y   S T A T /'
@@ -1024,7 +1025,7 @@ export async function build(root, api, U) {
   function statCols(res) {
     const s = api.state, b = cur, v = res.verdict, bn = b ? pname(b.b) : null, pn = b ? pname(b.p) : null, o = odds()
     const runners = b ? [b.r1 ? '1B' : '', b.r2 ? '2B' : '', b.r3 ? '3B' : ''].filter(Boolean).join(' ') || 'NONE' : '--'
-    const pr = parks.parks.length ? evalParks(parks, api) : [], gone = pr.length ? U.goneWord(parks, api, pr) : '--'
+    const pr = parks.parks.length ? evalParks(parks, api) : [], gone = pr.length ? U.goneWord(parks, api, pr, goneReady) : '--'
     return [
       ['GAME', [['BATTER', bn ? `${bn[0]}${bn[1] ? ' #' + bn[1] : ''}` : b ? '#' + b.b : 'YOUR SWING'], ['BATS', b ? b.s : s.hand > 0 ? 'R' : 'L'], ['PITCHER', pn ? pn[0] : '--'], ['THROWS', b?.t ?? '--'], ['DATE', b?.d ?? '--'], ['PARK', b ? (b.park === 'SF' ? 'ORACLE PARK' : b.park) : 'ORACLE PARK'], ['INNING', b ? `${b.tb === 'Top' ? 'TOP' : 'BOT'} ${b.in ?? '--'}` : '--'], ['COUNT', b && b.bl != null ? `${b.bl}-${b.sk}` : '--'], ['OUTS', f(b?.ou, 0)], ['RUNNERS ON', runners], ['SCORE (BAT-FLD)', b && b.bsc != null ? `${b.bsc}-${b.fsc}` : '--'], ['TIME THROUGH ORDER', f(b?.tto, 0)], ['BATTER AGE', f(b?.agb, 0)], ['PITCHER AGE', f(b?.agp, 0)]]],
       ['PITCH', [['TYPE', b ? PITCH[b.pt] ?? b.pt ?? '--' : '--'], ['SPEED', f(b?.pv, 1, ' MPH')], ['EFFECTIVE SPEED', f(b?.eff, 1, ' MPH')], ['SPIN RATE', f(b?.rpm, 0, ' RPM')], ['SPIN TILT', b ? clock(b.ax) : '--'], ['SPIN AXIS', f(b?.ax, 0, '°')], ['RELEASE SIDE', f(b?.rx, 2, ' FT')], ['RELEASE HEIGHT', f(b?.rz, 2, ' FT')], ['EXTENSION', f(b?.ext, 1, ' FT')], ['ARM ANGLE', f(b?.arm, 0, '°')], ['PLATE X', f(b?.px, 2, ' FT')], ['PLATE Z', f(b?.pz, 2, ' FT')], ['ZONE', f(b?.zn, 0)], ['SIDE BREAK', b && b.hx != null ? `${b.hx.toFixed(1)} IN` : '--'], ['VERTICAL BREAK', b && breakOf(b) ? `${breakOf(b).v.toFixed(1)} IN` : '--'], ['INDUCED VERTICAL BREAK', b && b.hz != null ? `${b.hz.toFixed(1)} IN` : '--'], ['APPROACH ANGLE', f(b?.vaa, 1, '°')]]],
@@ -1365,13 +1366,14 @@ export async function build(root, api, U) {
     el.textContent = fun.list[fun.i]; el.classList.remove('typed'); void el.offsetWidth; el.classList.add('typed')
   }
   setInterval(() => { if (!document.hidden && !modal) turnFun(1) }, 7000)
+  function goneReady() { if (last) paintHead(last); if (modal === 'parks') paintModal() } // the 30-park band is in: repaint its line, never the whole engine (that cancelled a swing in the air)
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing
   function paintHead(res) {
     const o = odds(), rd = E('#c25rd'), d = Math.round(res.landFt), pv = !!ses.beat?.preview
     if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn" role="button" title="every park"></div><div class="fun" role="button" title="next"></div><span class="sub sit"></span>`; rd.querySelector('.fun').addEventListener('click', () => { sound.play('move'); turnFun(1) }); rd.querySelector('.gn').addEventListener('click', () => { pressEl(rd.querySelector('.gn')); openMod('parks') }) }
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
-    set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api))} PARKS` : '')
+    set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api), goneReady)} PARKS` : '')
     set('.op', pct(o.p))
     { const k = [d, Math.round(api.state.ev), Math.round(api.state.la), lib ? 1 : 0, bay && !(bay instanceof Promise) ? 1 : 0].join(); if (k !== fun.key) { fun = { key: k, list: funList(res), i: -1 }; turnFun(1) } }
     set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
@@ -1453,14 +1455,14 @@ export async function build(root, api, U) {
     const p1 = c.clone().addScaledVector(back, D * 0.78).add(new THREE.Vector3(0, D * 0.6, 0))
     const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() }) // a push under way: go back to where it started
     push = null
-    look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1: c.clone(), base, out: false }
+    look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1: c.clone(), base, out: false, req: { pts: pts.map((p) => p.clone()), rad } }
   }
   function unlook() { if (!look || look.out) return; const C = api.NN.camera, T = api.NN.controls.target; look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: look.base.p, t1: look.base.t, out: true } }
   api.NN.frames.push(() => {
-    if (!look) return
+    if (!look || look.settled) return // settled: the camera is the viewer's again (wheel zoom, drags) until the feature closes
     const k = ease((performance.now() - look.start) / 1300)
     api.NN.camera.position.lerpVectors(look.p0, look.p1, k); api.NN.controls.target.lerpVectors(look.t0, look.t1, k); api.NN.controls.update()
-    if (k >= 1 && look.out) look = null
+    if (k >= 1) { if (look.out) look = null; else look.settled = true }
   })
   if (life) life.gullsOn = mix.F !== 3
   if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) }
@@ -1530,7 +1532,7 @@ export async function build(root, api, U) {
   addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
   addEventListener('pointerdown', (e) => { if (reel && e.target?.tagName === 'CANVAS') stopReel() })
   let fires = 0
-  const voxBall = (bm) => { if (bm.userData.vox) return; bm.userData.vox = 1; loadModels(api.NN.THREE).then((M) => { if (!M.ball) return; const v = cloneModel(M.ball, 2.0 / 0.42 / 0.09); bm.add(v); bm.material.visible = false; bm.userData.vox = v }) }
+  const voxBall = (bm) => { const v0 = bm.userData.vox; if (v0?.isObject3D) { if (v0.parent !== bm) bm.add(v0); bm.material.visible = false; return } if (v0) return; bm.userData.vox = 1; loadModels(api.NN.THREE).then((M) => { if (!M.ball) return; const v = cloneModel(M.ball, 2.0 / 0.42 / 0.09); bm.add(v); bm.material.visible = false; bm.userData.vox = v }) }
   window.__cpOnFire = (ev) => {
     fires++
     clearTimeout(songT); if (autoSong) { jukebox.stop(); autoSong = false }
@@ -1543,7 +1545,7 @@ export async function build(root, api, U) {
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
     sound.play('crack', { ev: api.state.ev })
   }
-  window.__cpOnFly = (pos, fr) => { flight.reveal(fr); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation) v.rotation.x -= 0.35 }
+  window.__cpOnFly = (pos, fr) => { flight.reveal(fr); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
   let lands = 0
   window.__cpOnLand = (ev) => {
     flight.done()

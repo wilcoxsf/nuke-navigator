@@ -90,7 +90,8 @@ export function keepReadable(api, g, ref = 230, lo = 0.35, hi = 2.6) {
   const cam = api.NN.camera, w = new api.NN.THREE.Vector3()
   api.NN.frames.push(() => {
     for (const r of readers) {
-      if (!r.parent) { readers.delete(r); continue }
+      let root = r; while (root.parent) root = root.parent
+      if (root !== api.NN.scene) { readers.delete(r); continue } // its group left the scene
       const o = r.userData.read
       r.getWorldPosition(w)
       r.scale.setScalar(Math.min(o.hi, Math.max(o.lo, cam.position.distanceTo(w) / o.ref)))

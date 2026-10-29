@@ -217,7 +217,7 @@ function makeBeadTrack(pts, res, color, preview) {
 }
 function draw(res) {
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
-  if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => o.geometry?.dispose()) }
+  if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => { if (!o.userData.vox) o.geometry?.dispose() }) } // voxel pieces share one cube
   if (burst) { scene.remove(burst); burst = null }
   fx?.clear()
   if (window.__cpNoFlight) return // the wire-only study (23) draws the park alone
@@ -252,7 +252,7 @@ function draw(res) {
 const previewOn = () => !!window.__cpPreview && !window.__cpFire && (window.__fixedTime === undefined || !!Q.get('prev'))
 function drawPreview(res) { // a study in preview mode: show the flight as a thin ghost line until SWING is pressed
   for (const n of ['sampleRibbon', 'sampleBurst']) { const o = scene.getObjectByName(n); if (o) o.visible = false }
-  if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => o.geometry?.dispose()); ribbon = null }
+  if (ribbon) { scene.remove(ribbon); ribbon.traverse((o) => { if (!o.userData.vox) o.geometry?.dispose() }); ribbon = null }
   if (burst) { scene.remove(burst); burst = null }
   fx?.clear()
   anim = null

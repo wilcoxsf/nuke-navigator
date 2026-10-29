@@ -212,8 +212,11 @@ for (const [w, h] of SIZES) {
     check('the kayaks are waiting in McCovey Cove', (await page.evaluate(() => window.__mix25.fx.kayaks())) === 6)
     await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 116, la: 28, dir: 24, hand: -1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
     const key0 = await page.evaluate(() => window.__dojo?.key)
-    await page.keyboard.press('Enter'); await page.waitForTimeout(3600)
-    const sp = await page.evaluate(() => ({ bn: document.querySelector('#c25bn').textContent, on: document.querySelector('#c25bn').classList.contains('go') }))
+    if (process.env.DBG) await page.evaluate(() => { for (const k of ['update', 'setPreview']) { const u = window.__cp[k]; window.__cp[k] = function (...a) { (window.__updLog ??= []).push(k + ' ' + new Error().stack.split(String.fromCharCode(10)).slice(2, 6).map((x) => x.trim().replace(/https?:\/\/[^/]+/, '')).join(' < ')); return u.apply(this, a) } } })
+    await page.keyboard.press('Enter')
+    if (process.env.DBG) { await page.waitForTimeout(1500); console.log('DBG updates', JSON.stringify(await page.evaluate(() => window.__updLog ?? []), null, 1).slice(0, 3000)) }
+    let sp = null // watch for the banner: the flight is 2.7 s of wall clock, but a frame can stall for a second or more on a loaded machine
+    for (let k = 0; k < 30; k++) { await page.waitForTimeout(300); sp = await page.evaluate(() => ({ bn: document.querySelector('#c25bn').textContent, on: document.querySelector('#c25bn').classList.contains('go') })); if (/SPLASH HIT/.test(sp.bn)) break; if (process.env.DBG) console.log('DBG', k, JSON.stringify(await page.evaluate(() => ({ a: window.__cp.anim() ? { ex: window.__cp.anim().exploded, t0: Math.round(window.__cp.anim().t0 - performance.now()), dur: window.__cp.anim().dur } : null, fires: window.__mix25.fires(), lands: window.__mix25.lands(), hold: window.__cpHold, slow: window.__cpSlow, ft: window.__fixedTime, look: window.__mix25.look(), mode: window.__mix25.mode(), active: document.activeElement?.id || document.activeElement?.tagName })))) }
     check('a splash hit gets its banner', key0 !== 'SPLASH' || (/SPLASH HIT/.test(sp.bn) && sp.on), JSON.stringify({ key0, sp }))
     if (key0 !== 'SPLASH') console.log('NOTE the splash preset did not land in the Cove here:', key0)
     let win = false
@@ -599,6 +602,9 @@ if (!process.env.PHONE_ONLY && on('E')) {
   }
   await page.evaluate(() => window.__mix25.set('U3')); await page.waitForTimeout(300)
   for (let k = 0; k < 40 && (await page.evaluate(() => window.__mix25.pushing())); k++) await page.waitForTimeout(400)
+  // the board finishes its own landing messages first (they would replace the seat call)
+  for (let k = 0; k < 40 && (await page.evaluate(() => !!window.__mix25.life.anim() || window.__mix25.life.queued().length > 0)); k++) await page.waitForTimeout(400)
+  await page.waitForTimeout(2500)
   // a mix change puts the camera home on the next frame; let that frame happen before the seance starts its glide
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); await page.waitForTimeout(300)
   // SEAT SEANCE: a tight cloud and a seat; the camera glides over it and back
@@ -619,6 +625,11 @@ if (!process.env.PHONE_ONLY && on('E')) {
   const lp = await page.evaluate(() => { let vox = 0, sprites = 0; window.__cp.NN.scene.traverse((o) => { if (o.isInstancedMesh && o.userData.vox) vox++; if (o.isSprite && o.material?.map) sprites++ }); return { vox, sprites, rows: document.querySelectorAll('#c25hb .lpr').length } })
   check('LANDING PARTY numbers are voxels (no flat number sprites)', lp.vox >= 16 && lp.sprites === 0 && lp.rows >= 4, JSON.stringify(lp))
   await page.keyboard.press('l'); await page.waitForTimeout(2000)
+  // a second swing keeps the voxel ball (the engine strips the ball's children on every swing)
+  await page.click('#c25go')
+  for (let k = 0; k < 80 && (await page.evaluate(() => !(window.__cp.anim() && window.__cp.anim().exploded))); k++) await page.waitForTimeout(400)
+  check('the voxel ball is still there on the second swing', await page.evaluate(() => { const bm = window.__cp.ballMesh(), v = bm.userData.vox; return !!v?.isObject3D && v.parent === bm && bm.material.visible === false }))
+  await page.keyboard.press('h'); await page.waitForTimeout(300) // the old hand key: must not throw now the strip has no hand
   // STAND-INS: every D style draws for a batter with no photo
   await page.evaluate(() => window.__mix25.mode() === 'replay' && document.querySelector('#c25tw') && null)
   await page.evaluate(() => { const m = window.__mix25; m.set('D1') })
@@ -637,6 +648,10 @@ if (!process.env.PHONE_ONLY && on('E')) {
   check('TWEAK THE TATER: five numbers and SWING (no batter hand), the real flight ghosted, and the line says what +3 MPH did', t0.slots === 6 && t0.ghost > 10 && /REAL BALL/.test(t0.line) && /\+3 MPH: \d+ FT \(\+\d+\)/.test(t1.line) && t1.dv === '+3', JSON.stringify({ t0, t1 }))
   await page.click('#c25rst'); await page.waitForTimeout(800)
   check('RESET TO THE REAL BALL puts the numbers back', /REAL BALL, /.test(await page.evaluate(() => document.querySelector('#c25ch .r2').textContent)))
+  // leaving through the menu and coming back to TWEAK THE TATER is a fresh dojo, not the old tweak
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400)
+  await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
+  check('back into TWEAK THE TATER from the menu: a fresh swing, no stale tweak', await page.evaluate(() => !/REAL BALL/.test(document.querySelector('#c25ch .r2').textContent) && !document.querySelector('#c25rst') && !(window.__mix25.flight().ghost())))
   await page.close()
 }
 // the SELECT screen on a phone: readable, nothing off the sides, every line reachable

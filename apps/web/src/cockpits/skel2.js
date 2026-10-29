@@ -155,7 +155,7 @@ export function makeControls(api, U, o = {}) {
     if ((k === 'Enter' || k === ' ') && (e.repeat || (kbNav && e.target?.closest?.('.bt,button,.thm b')))) return // holding the key must not swing repeatedly; a button reached with Tab handles its own press
     const [armKeys, chgKeys] = axis === 'h' ? [['ArrowLeft', 'ArrowRight'], ['ArrowUp', 'ArrowDown']] : [['ArrowUp', 'ArrowDown'], ['ArrowRight', 'ArrowLeft']]
     if (k === armKeys[0]) { e.preventDefault(); c.arm(c.armed - 1) } else if (k === armKeys[1]) { e.preventDefault(); c.arm(c.armed + 1) } else if (k === chgKeys[0] || k === '+' || k === '=') { e.preventDefault(); c.change(c.armed, st) } else if (k === chgKeys[1] || k === '-') { e.preventDefault(); c.change(c.armed, -st) } else if (k === 'Enter' || k === ' ') { e.preventDefault(); fire() } else if (/^[1-6]$/.test(k)) c.arm(Number(k) - 1)
-    else if (k.toLowerCase() === 'h') c.change(5, 1)
+    else if (k.toLowerCase() === 'h') { const hi = SLOTS.findIndex((x) => x.k === 'hand'); if (hi >= 0) c.change(hi, 1) }
   })
   return c
 }

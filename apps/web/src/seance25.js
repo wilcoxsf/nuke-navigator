@@ -35,7 +35,7 @@ export function seatSeance25(api) {
     const wall = (api.wallAt?.(b) ?? [400, 8])[0] * 0.3048, deep = Math.max(0, distM(p) - wall)
     const ri = Math.min(s[4] - 1, Math.floor(deep / 0.84)), row = s[3] === 'BLEACHERS' ? (ri === 0 ? 'A' : String(ri)) : String(ri + 1)
     // seats count up toward right field ("lower numbers on the right" facing the field from these sections), 0.51 m each along the arc
-    const r = distM(p), w = ((s[1] - s[0]) * Math.PI) / 180 * r, n = Math.max(1, Math.floor(w / 0.51)), seat = 1 + Math.min(n - 1, Math.floor(((b - s[0]) / (s[1] - s[0])) * n))
+    const r = distM(p), w = ((s[1] - s[0]) * Math.PI) / 180 * r, n = Math.max(1, Math.floor(w / 0.51)), seat = 1 + Math.min(n - 1, Math.floor(Math.min(0.999, Math.max(0, (b - s[0]) / (s[1] - s[0]))) * n)) // past the last section's edge: its end seat
     return { what: 'seat', sec: s[2], area: s[3], row, seat, line: `SEC ${s[2]} ROW ${row} SEAT ${seat}`, short: `${s[3]} ${s[2]}` }
   }
   function land(st) {

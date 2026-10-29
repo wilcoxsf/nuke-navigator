@@ -132,8 +132,9 @@ export function evalParks(data, api) {
   }).sort((a, b) => b.margin - a.margin)
 }
 // 'gone in N to M of 30 parks' for the live what-if swing: cached, debounced, updates once when ready (null in replay mode or before the carry table loads)
-export function goneWord(data, api, pr) {
-  const n = pr.filter((r) => r.k === 'GONE').length, b = bandPeek(api.state, api.fly, data.parks, (p) => wallFnOf(data, p), () => api.update())
+// ready: what to call when the band is in (the whole engine by default; Study 25 repaints only its line, because a full update mid-swing replaced the flight with the preview)
+export function goneWord(data, api, pr, ready = () => api.update()) {
+  const n = pr.filter((r) => r.k === 'GONE').length, b = bandPeek(api.state, api.fly, data.parks, (p) => wallFnOf(data, p), ready)
   return b ? bandWord(b, pr.length) : `${n} OF ${pr.length}`
 }
 export function fencePoly(data, p, step = 5) {
