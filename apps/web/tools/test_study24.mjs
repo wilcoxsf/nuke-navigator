@@ -67,7 +67,8 @@ const layout = (page) => page.evaluate(() => {
   return out
 })
 
-const SIZES = process.env.PHONE_ONLY ? [] : [[1827, 992], [1440, 820], [1280, 720]]
+// SIZES=1280x720 runs only those window sizes and NO_PHONE=1 skips the phones, so the suite can run in pieces on a loaded machine
+const SIZES = process.env.PHONE_ONLY ? [] : process.env.SIZES ? process.env.SIZES.split(',').map((x) => x.split('x').map(Number)) : [[1827, 992], [1440, 820], [1280, 720]]
 for (const [w, h] of SIZES) {
   const page = await open(w, h, 'L1P1C1W1A1T1V1')
   for (const L of [1, 2, 3, 4, 5]) for (const P of [1, 2, 3, 4, 5]) for (const T of (P === 1 ? [1, 3, 4] : [1])) {
@@ -160,7 +161,7 @@ for (const [w, h] of SIZES) {
   await page.close()
 }
 // phones: 390x844 (and a small 360x740), every tab's card, the same overlap, spill and title checks, no sideways scroll, no "needs room" guard
-for (const [w, h] of [[390, 844], [360, 740]]) {
+for (const [w, h] of process.env.NO_PHONE ? [] : [[390, 844], [360, 740]]) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errs.push(e.message))

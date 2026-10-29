@@ -2,10 +2,13 @@
 // Oracle home runs that came down closest to it. The search: for a small grid of exit speeds and launch angles, aim the launch direction (two corrections for the
 // spin hook) so the ball lands on the spot's bearing, follow it into the stands, keep the swings whose landing point is within a few metres of the click.
 // Real-ball landings are the engine's landings anchored to Statcast distance and bearing (as in Landing Party), not seat records.
+// 29 Oct (Andrew: SHOT CALLER is its own mode; PLAY IT shows the most common flight paths): every swing that gets there comes back, ranked by how common a ball hit
+// like that is (o.weight, the study's count of real balls at that speed and angle); the three most common are drawn, the first brightest.
 import * as THREE from 'three'
 import { voxDots } from './cockpits/vox25.js'
 
 const R_OK = 4.5 // metres between the clicked spot and a swing's landing point
+export const GRID = { la: [14, 44, 2], ev: [90, 120, 2] } // launch angles and exit speeds tried: first, last, step
 export function shotCaller(api, balls, o = {}) {
   const { NN } = api
   const home = api.toWorld([0, 0, 0])
@@ -32,28 +35,30 @@ export function shotCaller(api, balls, o = {}) {
     const hits = ray.intersectObject(NN.stadium, true)
     return hits.length ? hits[0].point : null
   }
-  function call(spot, state, color = '#f0802a') {
+  function call(spot, state, color = '#f0802a', opt = {}) {
     clear()
     const tb = bearingOf(spot), hand = state.hand ?? 1, temp = state.temp ?? 62, found = []
-    for (let la = 18; la <= 42; la += 3) for (let ev = 92; ev <= 118; ev += 2) {
+    for (let la = GRID.la[0]; la <= GRID.la[1]; la += GRID.la[2]) for (let ev = GRID.ev[0]; ev <= GRID.ev[1]; ev += GRID.ev[2]) {
       const st = { ...api.state, ev, la, hand, temp, wind: 0, dws: 0, carry: 1, tab: true }
       let dir = tb, L = null
       for (let it = 0; it < 3; it++) { L = land({ ...st, dir }); const lb = bearingOf(L.at); if (Math.abs(lb - tb) < 0.4) break; dir += tb - lb }
       const miss = L.at.distanceTo(spot)
       if (miss <= R_OK) found.push({ ev, la, dir: Math.round(dir * 10) / 10, miss, L })
     }
-    found.sort((a, b) => a.ev - b.ev || a.miss - b.miss)
-    const softest = found[0], picks = found.length ? [softest, found[Math.floor(found.length / 2)], found[found.length - 1]].filter((x, i, a) => a.indexOf(x) === i) : []
+    // ranked by how common (Study 25), or the softest, a typical and the hardest (Study 24, no weight)
+    for (const f of found) f.w = opt.weight ? opt.weight(f.ev, f.la) : 1
+    if (opt.weight) found.sort((a, b) => b.w - a.w || a.miss - b.miss); else found.sort((a, b) => a.ev - b.ev || a.miss - b.miss)
+    const picks = opt.weight ? found.slice(0, 3) : found.length ? [found[0], found[Math.floor(found.length / 2)], found[found.length - 1]].filter((x, i, a) => a.indexOf(x) === i) : []
     const near = realLandings().map((r) => ({ ...r, d: r.at.distanceTo(spot) })).sort((a, b) => a.d - b.d).slice(0, 5)
     group = new THREE.Group()
     if (o.vox) {
       // Study 25 (28 Oct, night): voxels. A ring of cubes on the spot, each swing that gets there as a line of small cubes, the nearest real landings as bone cubes
       const ring = Array.from({ length: 28 }, (_, k) => { const a = (k / 28) * Math.PI * 2; return spot.clone().add(new THREE.Vector3(Math.cos(a) * 3, 0.6, Math.sin(a) * 3)) })
       group.add(voxDots(THREE, ring, { px: 0.7, color }))
-      for (const p of picks) group.add(voxDots(THREE, p.L.res.path.filter((_, k) => k % 3 === 0).map((q) => api.toWorld(q.p)), { px: 0.45, color }))
+      picks.forEach((p, i) => group.add(voxDots(THREE, p.L.res.path.filter((_, k) => k % (i ? 4 : 2) === 0).map((q) => api.toWorld(q.p)), { px: i ? 0.4 : 0.55, color: i ? o.dim ?? color : color })))
       group.add(voxDots(THREE, near.map((n) => n.at.clone().add(new THREE.Vector3(0, 0.6, 0))), { px: 1.2, color: '#e8e1c9' }))
       NN.scene.add(group)
-      return { spot: { bearing: tb, ft: distFt(spot), height: spot.y / 0.3048 }, found: found.length, picks, near }
+      return { spot: { bearing: tb, ft: distFt(spot), height: (spot.y - home.y) / 0.3048 }, at: spot.clone(), found: found.length, picks, ways: found, near, grid: GRID }
     }
     const mat = new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true })
     const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 3.0, 32), mat)

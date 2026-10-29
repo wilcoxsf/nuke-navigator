@@ -73,7 +73,7 @@ const layout = (page) => page.evaluate(() => {
 })
 const setMode = async (page, m) => { if ((await page.evaluate(() => window.__mix25.mode())) !== m) { await page.keyboard.press('m'); await page.waitForTimeout(900) } }
 
-const on = (x) => !process.env.PART || process.env.PART.includes(x) // PART=ABCDEF runs only those parts of the suite (all when unset), so it fits a loaded machine
+const on = (x) => !process.env.PART || process.env.PART.includes(x) // PART=ABCDEFG runs only those parts of the suite (all when unset), so it fits a loaded machine
 const SIZES = process.env.PHONE_ONLY || !on('A') ? [] : [[1827, 992], [1440, 820], [1280, 720]]
 for (const [w, h] of SIZES) {
   const page = await open(w, h, '&menu=0&mix=L1P5A3T1')
@@ -122,7 +122,7 @@ for (const [w, h] of SIZES) {
     const ev0 = await page.evaluate(() => Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]))
     await page.click('#c25tw'); await page.waitForTimeout(1200)
     const tw = await page.evaluate(() => ({ mode: window.__mix25.mode(), strip: getComputedStyle(document.querySelector('.c25>.strip')).display, ch: document.querySelector('#c25ch').textContent, title: document.querySelector('#c25ti').textContent, ball: Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]), rd: Number(document.querySelector('#c25d').dataset.v) }))
-    check('TWEAK THE TATER carries the home run into the dojo, flying the real distance until you change something', tw.mode === 'whatif' && tw.strip !== 'none' && /REAL BALL/.test(tw.ch) && /RESET TO THE REAL BALL/.test(tw.ch) && /DINGER DOJO/.test(tw.title) && Math.abs(tw.ball - ev0) <= 1 && Number(tw.ch.match(/: (\d+) FT/)?.[1]) === tw.rd, JSON.stringify(tw).slice(0, 260))
+    check('TWEAK THE TATER carries the home run into the dojo, flying the real distance until you change something', tw.mode === 'whatif' && tw.strip !== 'none' && /REAL BALL/.test(tw.ch) && /RESET TO THE REAL BALL/.test(tw.ch) && /TWEAK THE TATER/.test(tw.title) && Math.abs(tw.ball - ev0) <= 1 && Number(tw.ch.match(/: (\d+) FT/)?.[1]) === tw.rd, JSON.stringify(tw).slice(0, 260))
     X = await layout(page); check('the dojo with the strip fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
     // TWEAK THE TATER has sliders: five of them (not BATTER), and dragging one moves the swing
     const sld = await page.evaluate(() => { const ss = [...document.querySelectorAll('.c25 .strip .sld')], s0 = window.__cp.state.ev; const sl = ss[0]; sl.value = '900'; sl.dispatchEvent(new Event('input', { bubbles: true })); return { n: ss.length, before: s0, after: window.__cp.state.ev, visible: ss.every((x) => x.getBoundingClientRect().width > 40) } })
@@ -171,7 +171,7 @@ for (const [w, h] of SIZES) {
       return { open: document.querySelector('.c25').classList.contains('dk'), w: d.width, h: d.height, inPark: d.left >= park.left && d.right <= park.right + 0.5 && d.bottom <= park.bottom + 0.5 && d.top >= park.top, corner: park.right - d.right < 20 && park.bottom - d.bottom < 20,
         covers: ['.c25>.pitch', '.c25>.batter', '.c25>.hists', '.c25>.slice', '#c25v', '#c25bug'].filter((s) => hit(d, R(s))), bsel: bs.filter((b) => hit(d, b)).length, overlay: document.querySelector('#c25m').classList.contains('open'), chips: document.querySelectorAll('#c25dk .dx .bt').length, focus: document.activeElement?.id }
     })
-    check('? opens the options dock in the park corner, covering no panel, button or overlay; only the four open choices (Y U D M)', dk.open && dk.inPark && dk.corner && dk.w <= 302 && dk.covers.length === 0 && dk.bsel === 0 && !dk.overlay && dk.chips === 4 && dk.focus === 'c25dk', JSON.stringify(dk))
+    check('? opens the options dock in the park corner, covering no panel, button or overlay; only the three open choices (Y X E)', dk.open && dk.inPark && dk.corner && dk.w <= 302 && dk.covers.length === 0 && dk.bsel === 0 && !dk.overlay && dk.chips === 3 && dk.focus === 'c25dk', JSON.stringify(dk))
     await page.click('#c25dk .dx [data-ax="Y"]'); await page.waitForTimeout(300)
     await page.click('#c25dk .do[data-c="3"]'); await page.waitForTimeout(400)
     const dy = await page.evaluate(() => ({ y: window.__mix25.get().Y, n: document.querySelectorAll('#c25dk .do').length, on: document.querySelector('#c25dk .do.on b')?.textContent, pc: document.querySelector('.c25').style.getPropertyValue('--pc'), dd: document.querySelector('#c25dk .dd').textContent }))
@@ -179,11 +179,13 @@ for (const [w, h] of SIZES) {
     const y4 = await page.evaluate(() => window.__mix25.get().Y)
     await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300)
     const ax2 = await page.evaluate(() => document.querySelector('#c25dk .dx .bt.on')?.dataset.ax)
-    check('the dock: pick PITCH COLOR, click LILAC, right arrow tries the next, down moves to BALL ARC', dy.y === 3 && dy.n === 5 && dy.on === 'Y3' && dy.pc === '#a79be0' && /VIOLET/.test(dy.dd) && y4 === 4 && ax2 === 'U', JSON.stringify({ dy, y4, ax2 }))
-    await page.click('#c25dk .dx [data-ax="M"]'); await page.waitForTimeout(200)
-    await page.click('#c25dk [data-dk="see"]'); await page.waitForTimeout(400)
-    check('the dock: SEE IT on MENU TITLE opens the menu', await page.evaluate(() => document.querySelector('.c25 .sm').classList.contains('open')))
-    await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+    check('the dock: pick PITCH COLOR, click LILAC, right arrow tries the next, down moves to ARC DOTS', dy.y === 3 && dy.n === 5 && dy.on === 'Y3' && dy.pc === '#a79be0' && /VIOLET/.test(dy.dd) && y4 === 4 && ax2 === 'X', JSON.stringify({ dy, y4, ax2 }))
+    await page.click('#c25dk .dx [data-ax="E"]'); await page.waitForTimeout(200)
+    const f0 = await page.evaluate(() => window.__mix25.fires())
+    await page.click('#c25dk [data-dk="see"]')
+    let f1 = f0; for (let k = 0; k < 30 && f1 === f0; k++) { await page.waitForTimeout(400); f1 = await page.evaluate(() => window.__mix25.fires()) }
+    check('the dock: SEE IT on BALL SEAMS flies a ball', f1 > f0, `${f0} -> ${f1}`)
+    for (let k = 0; k < 80 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(400)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(400)
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     const dkc = await page.evaluate(() => ({ dk: document.querySelector('.c25').classList.contains('dk'), menu: document.querySelector('.c25 .sm').classList.contains('open') }))
@@ -191,8 +193,7 @@ for (const [w, h] of SIZES) {
     // the options legend (ALL in the dock) lists every open option with the layout reasons
     await page.click('#c25lg'); await page.waitForTimeout(300); await page.click('#c25dk [data-dk="all"]'); await page.waitForTimeout(500)
     const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
-    // L3 P2 A6 T6 F3 I4 R4 Y5 S3 K3 B5 Z2 H2 M3
-    check('ALL lists every open option (Y U D M) and names the locked ones', lg.opts === 5 + 5 + 5 + 3 && /LOCKED 28 OCT: L2 AT THE PLATE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
+    check('ALL lists every open option (Y X E) and names the locked ones', lg.opts === 5 + 5 + 4 && /LOCKED: L2 AT THE PLATE/.test(lg.txt) && /U2 PIXEL LINE/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -204,8 +205,9 @@ for (const [w, h] of SIZES) {
     await setMode(page, 'whatif')
     await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 112, la: 28, dir: -4, hand: 1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)
     const ft0 = await page.evaluate(() => window.__mix25.fx.count())
-    await page.keyboard.press('Enter'); await page.waitForTimeout(350)
-    const ft1 = await page.evaluate(() => window.__mix25.fx.count())
+    await page.keyboard.press('Enter')
+    let ft1 = ft0 // the spark comes on the first frame after the hit-stop: watch for it (frames are slow under the software renderer)
+    for (let k = 0; k < 12 && ft1 <= ft0 + 10; k++) { await page.waitForTimeout(150); ft1 = Math.max(ft1, await page.evaluate(() => window.__mix25.fx.count())) }
     check('a swing throws the contact spark and starts the trail', ft1 > ft0 + 10, `${ft0} -> ${ft1}`)
     for (let k = 0; k < 60 && (await page.evaluate(() => !!window.__cp.anim())); k++) await page.waitForTimeout(400)
     await page.waitForTimeout(4000)
@@ -520,7 +522,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with five modes (28 Oct, night: the rest folded into the main screen)', m0.open && m0.n === 5 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with six lines (29 Oct: Shot Caller is its own mode, the dojo its own line)', m0.open && m0.n === 6 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -534,7 +536,7 @@ if (!process.env.PHONE_ONLY && on('D')) {
   check('down and Enter start the DOJO', !m1.open && m1.mode === 'whatif', JSON.stringify(m1))
   await page.keyboard.press('Escape'); await page.waitForTimeout(400)
   const m2 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('Esc brings the menu back on the current mode', m2.open && /TATER/.test(m2.on), JSON.stringify(m2))
+  check('Esc brings the menu back on the current mode', m2.open && /DINGER DOJO/.test(m2.on), JSON.stringify(m2))
   await page.keyboard.press('1'); await page.waitForTimeout(1200)
   check('a number key jumps straight to that mode', await page.evaluate(() => window.__mix25.mode() === 'replay' && !document.querySelector('.c25 .sm').classList.contains('open')))
   // findable (28 Oct): the MENU button wears its ESC keycap at the top left, the title opens it too, and a one-time hint follows the first close
@@ -552,7 +554,7 @@ if (!process.env.PHONE_ONLY && on('D')) {
   check('Esc stops the reel', await page.evaluate(() => !window.__mix25.reel()))
   await page.evaluate(() => window.__mix25.menu.close())
   await page.click('#c25mn'); await page.waitForTimeout(400)
-  await page.click('.c25 .sm .smi:nth-child(3)'); await page.waitForTimeout(4000)
+  await page.click('.c25 .sm .smi:nth-child(4)'); await page.waitForTimeout(4000)
   const m3 = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), title: document.querySelector('#c25mt').textContent, txt: document.querySelector('#c25mb').textContent.slice(0, 160) }))
   check('clicking DAILY DINGER in the menu opens it', m3.open && /D A I L Y/.test(m3.title), JSON.stringify(m3))
   await page.close()
@@ -583,24 +585,38 @@ for (const [w, h] of on('D') ? [[390, 844], [360, 740]] : []) {
 if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
-  check('only the open choices sit in the header (Y U D M); the locked ones are gone from it, TYPE too', hdr === 'YUDM' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1', /L2 P5 A2 T16 F1 I2 R3 Y1 S1 K1 B1 Z2 H1/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('only the open choices sit in the header (Y X E); the locked ones are gone from it, TYPE too', hdr === 'YXE' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1, with X5 E1 open', /L2 P5 A2 T16 F1 I2 R3 Y1 S1 K1 B1 Z2 H1 U2 D1 M1 X5 E1/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
-  const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { red: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#e4002b').length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
-  check('the ball in the side view and on the zone is a pixel baseball, not an orange square', bl.every((x) => x && x.red >= 10 && x.hide >= 30), JSON.stringify(bl))
+  const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
+  check('the ball in the side view and on the zone is a pixel baseball, its seams in the E color', bl.every((x) => x && x.seam >= 10 && x.hide >= 30), JSON.stringify(bl))
+  // E: the seams in the pitch color (E1), bone, none (the hide color) or red
+  const seam = []
+  for (const E of [1, 2, 3, 4]) { await page.evaluate((c) => window.__mix25.set(c), 'E' + E); await page.waitForTimeout(300); seam.push(await page.evaluate(() => { const g = getComputedStyle(document.querySelector('.c25')); return [g.getPropertyValue('--sc').trim().toLowerCase(), g.getPropertyValue('--pc').trim().toLowerCase()] })) }
+  check('E1 to E4: the seams take the pitch color, bone, none (white) or red', seam[0][0] === seam[0][1] && seam[1][0] === '#b3a888' && seam[2][0] === '#f2efe6' && seam[3][0] === '#e4002b', JSON.stringify(seam))
+  await page.evaluate(() => window.__mix25.set('E4')); await page.waitForTimeout(200)
+  // the clock over the board: the time this ball was hit, after its hands spin back
+  for (let k = 0; k < 30 && (await page.evaluate(() => window.__mix25.life.clock().spinning)); k++) await page.waitForTimeout(400)
+  const ck = await page.evaluate(() => ({ c: window.__mix25.life.clock(), tm: window.__mix25.cur()?.tm }))
+  const hm = (ck.tm ?? '').split(':').map(Number)
+  check('the clock over the board shows when this home run was hit', !ck.c.live && ck.c.hm === ck.tm && ck.c.h === (hm[0] % 12 || 12) && ck.c.m === hm[1], JSON.stringify(ck))
   // a flight: the arc in voxels (U3 by default), a zenith post and a clearance post that rise as the ball passes, a distance tag where it lands
   await page.click('#c25go')
   for (let k = 0; k < 80 && (await page.evaluate(() => !(window.__cp.anim() && window.__cp.anim().exploded))); k++) await page.waitForTimeout(400)
   await page.waitForTimeout(600)
   const fl = await page.evaluate(() => { const t = window.__mix25.flight().last(); const rv = t.userData.reveal; let cubes = 0; t.traverse((o) => { if (o.isInstancedMesh) cubes += o.count }); return { posts: rv.length, shown: rv.filter(([, o]) => o.visible).length, cubes, ballVox: !!window.__cp.ballMesh().userData.vox?.isObject3D, sphereHidden: window.__cp.ballMesh().material.visible === false } })
   check('a home run draws its arc in voxels with the zenith, the wall clearance and the landing distance posted', fl.posts === 3 && fl.shown === 3 && fl.cubes > 60 && fl.ballVox && fl.sphereHidden, JSON.stringify(fl))
+  // X: a dot in the line at the zenith and where it cleared the wall, in the X color (X5 MINT by default); the voxel ball's seams follow E
+  const dots = await page.evaluate(() => { const t = window.__mix25.flight().last(), out = []; for (const [, o] of t.userData.reveal.slice(0, 2)) o.traverse((m) => { if (m.isInstancedMesh && m.count === 1) out.push(m.material.color.getHexString()) }); let sm = null; window.__cp.ballMesh().userData.vox?.traverse?.((o) => { if (o.userData.seam) sm = o.material.color.getHexString() }); return { out, sm, signs: window.__mix25.life.signCount() } })
+  check('the zenith and the wall each get a mint dot in the line; the voxel ball has red seams under E4', dots.out.length === 2 && dots.out.every((h) => h === '3ee6a0') && dots.sm === 'e4002b', JSON.stringify(dots))
+  check('the ORACLE PARK sign over the board lit up for the home run', dots.signs >= 1, JSON.stringify(dots))
   for (const U of [1, 2, 3, 4, 5]) {
     await page.evaluate((c) => window.__mix25.set(c), 'U' + U); await page.waitForTimeout(500)
     const n = await page.evaluate(() => { let c = 0; window.__mix25.flight().last()?.traverse((o) => { if (o.isInstancedMesh) c += o.count }); return { c, st: window.__mix25.flight().style() } })
     check(`U${U} ${['BEADS', 'PIXEL LINE', 'SHADOW', 'CURTAIN', 'COMET'][U - 1]} builds its arc`, n.st === U && n.c > 20, JSON.stringify(n))
   }
-  await page.evaluate(() => window.__mix25.set('U3')); await page.waitForTimeout(300)
+  await page.evaluate(() => window.__mix25.set('U2E1')); await page.waitForTimeout(300)
   for (let k = 0; k < 40 && (await page.evaluate(() => window.__mix25.pushing())); k++) await page.waitForTimeout(400)
   // the board finishes its own landing messages first (they would replace the seat call)
   for (let k = 0; k < 40 && (await page.evaluate(() => !!window.__mix25.life.anim() || window.__mix25.life.queued().length > 0)); k++) await page.waitForTimeout(400)
@@ -651,20 +667,84 @@ if (!process.env.PHONE_ONLY && on('E')) {
   // leaving through the menu and coming back to TWEAK THE TATER is a fresh dojo, not the old tweak
   await page.keyboard.press('Escape'); await page.waitForTimeout(400)
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
-  check('back into TWEAK THE TATER from the menu: a fresh swing, no stale tweak', await page.evaluate(() => !/REAL BALL/.test(document.querySelector('#c25ch .r2').textContent) && !document.querySelector('#c25rst') && !(window.__mix25.flight().ghost())))
+  const fr = await page.evaluate(() => { const s = window.__cp.state, R = (q) => document.querySelector(q).getBoundingClientRect(); return { fresh: !/REAL BALL/.test(document.querySelector('#c25ch .r2').textContent) && !document.querySelector('#c25rst') && !window.__mix25.flight().ghost(), st: [s.ev, s.la, s.dir, s.temp, s.carry, s.dws], title: document.querySelector('#c25ti').textContent, dj: document.querySelector('.c25').classList.contains('dj'), strip: R('.c25>.strip'), park: R('#c25h'), pitch: getComputedStyle(document.querySelector('.c25>.pitch')).display, clock: window.__mix25.life.clock().live } })
+  check('DINGER DOJO from the menu is a blank swing (103 mph, 28°, dead center, 62°), no stale tweak, the clock on the time now', fr.fresh && fr.st.join() === '103,28,0,62,1,0' && /DINGER DOJO/.test(fr.title) && fr.clock, JSON.stringify(fr))
+  check('the dojo\'s controls sit top left where the pitch was', fr.dj && fr.pitch === 'none' && fr.strip.right <= fr.park.left && fr.strip.top < 120 && fr.strip.height > 250, JSON.stringify(fr))
+  // the stand-in: the batter's team kit (home whites, road greys), his own height; WHO'S UP swaps in the panda and the giraffe (a lefty)
+  const kit = await page.evaluate(async () => {
+    const m = window.__mix25, away = m.ball((b) => !m.hasFace(b.b) && b.tb === 'Top' && b.at === 'SF'), a = m.standIn(m.cur().b)
+    m.ball((b) => !m.hasFace(b.b) && b.tb === 'Bot' && b.ht === 'SF'); const h = m.standIn(m.cur().b), hb = m.bio(m.cur().b)
+    return { away: away >= 0 ? a.kit : null, home: h.kit, h: h.height, hb, kind: h.kind }
+  })
+  check('a stand-in wears the Giants cream at home and road greys away, at his own height from the MLB Stats API', kit.away?.jersey === '#a3a6ab' && kit.home.jersey === '#f1e6cf' && kit.h === kit.hb?.h && kit.h >= 64 && kit.kind === 'human', JSON.stringify(kit))
+  await page.keyboard.press('m'); await page.waitForTimeout(1200)
+  const who = []
+  for (let k = 0; k < 3; k++) { await page.click('#c25who'); await page.waitForTimeout(500); who.push(await page.evaluate(() => [window.__mix25.you(), window.__cp.state.hand, document.querySelector('#c25i b').textContent])) }
+  check('WHO\'S UP swaps in the panda, then the giraffe (batting left), then you again', who[0][0] === 'panda' && /SANDOVAL/.test(who[0][2]) && who[1][0] === 'giraffe' && who[1][1] === -1 && /BELT/.test(who[1][2]) && who[2][0] === 'you' && who[2][1] === 1, JSON.stringify(who))
+  await page.close()
+}
+// 29 Oct: SHOT CALLER as its own mode: type a seat or click one; the ways to get there, most common first; PLAY IT flies three
+if (!process.env.PHONE_ONLY && on('G')) {
+  const page = await open(1440, 900, '&menu=0')
+  await page.click('#c25mn'); await page.waitForTimeout(400)
+  await page.click('.c25 .sm .smi:nth-child(3)'); await page.waitForTimeout(1500)
+  const s0 = await page.evaluate(() => ({ mode: window.__mix25.mode(), title: document.querySelector('#c25ti').textContent, form: !!document.querySelector('.sfm select'), pt: document.querySelector('.c25>.pitch>.t').textContent.replace(/\s+/g, ''), hint: document.querySelector('#c25ch').textContent, strip: getComputedStyle(document.querySelector('.c25>.strip')).display, dim: getComputedStyle(document.querySelector('#c25lp')).opacity }))
+  check('SHOT CALLER is its own mode from the menu: a seat form top left, no strip, the other park features stood down', s0.mode === 'shot' && /SHOT CALLER/.test(s0.title) && s0.form && /CALLASEAT/.test(s0.pt) && /CLICK A SEAT/.test(s0.hint) && s0.strip === 'none' && Number(s0.dim) < 0.5, JSON.stringify(s0))
+  // a seat by its numbers maps to a spot that reads back as the same seat; a row or section that does not exist says so
+  const sp = await page.evaluate(() => { const m = window.__mix25, out = []; for (const [a, b, c] of [['140', '12', '8'], ['136', 'A', '3'], ['148', '2', '10'], ['143', '20', '15']]) { const r = m.seatPoint(a, b, c); out.push([r.line ?? r.err, r.at ? m.seatOf(r.at).line : null]) } return { out, e1: m.seatPoint('140', '30', '1').err, e2: m.seatPoint('200', '1', '1').err, e3: m.seatPoint('140', '5', '999').err } })
+  check('a typed seat finds its spot on the stands and reads back as the same seat', sp.out.every(([a, b]) => a === b), JSON.stringify(sp.out))
+  check('a seat that is not there says what is', /HAS ROWS A, 1 TO 26/.test(sp.e1) && /NO SECTION 200/.test(sp.e2) && /HAS SEATS 1 TO \d+/.test(sp.e3), JSON.stringify(sp))
+  // typing it: keys in the form are not shortcuts (m would leave the mode); Enter finds it
+  await page.selectOption('#c25ss', '140'); await page.fill('#c25sr', '12'); await page.click('#c25st'); await page.keyboard.type('8'); await page.keyboard.press('m'); await page.keyboard.press('Backspace'); await page.keyboard.press('Enter')
+  await page.waitForFunction(() => window.__mix25.shot(), null, { timeout: 60000 })
+  await page.waitForTimeout(800)
+  const s1 = await page.evaluate(() => { const r = window.__mix25.shot(); return { mode: window.__mix25.mode(), seat: r.seat?.line, n: r.ways.length, sorted: r.ways.every((w, i, a) => !i || a[i - 1].w >= w.w), top: r.ways[0], st: [window.__cp.state.ev, window.__cp.state.la], bar: document.querySelector('#c25ch').textContent, panel: document.querySelector('#c25hb').textContent, rows: document.querySelectorAll('#c25hb .swy').length, recipe: document.querySelectorAll('#c25hb .srg rect').length, look: !!window.__mix25.look() } })
+  check('typing SEC 140 ROW 12 SEAT 8 and Enter calls it: the ways in, most common first, the first one set up to fly', s1.mode === 'shot' && s1.seat === 'SEC 140 ROW 12 SEAT 8' && s1.n >= 5 && s1.sorted && s1.st[0] === s1.top.ev && s1.st[1] === s1.top.la && /WAY 1 OF/.test(s1.bar) && /SECTION 140/.test(s1.panel) && /1 IN [\d,]+/.test(s1.panel) && s1.rows >= 3 && s1.recipe > 100 && s1.look, JSON.stringify(s1).slice(0, 400))
+  let X = await layout(page); check('Shot Caller fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
+  // the next way, and a click on a listed way
+  await page.click('#c25ch [data-sw="1"]'); await page.waitForTimeout(500)
+  const nx = await page.evaluate(() => ({ sel: window.__mix25.shot().sel, bar: document.querySelector('#c25ch').textContent }))
+  await page.click('#c25hb .swy[data-w="2"]'); await page.waitForTimeout(500)
+  const cl = await page.evaluate(() => window.__mix25.shot().sel)
+  check('> steps to the next way, and a listed way can be picked', nx.sel === 1 && /WAY 2 OF/.test(nx.bar) && cl === 2, JSON.stringify({ nx, cl }))
+  // PLAY IT flies the three most common ways, one after another
+  for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.look()?.moving)); k++) await page.waitForTimeout(300)
+  const l0 = await page.evaluate(() => window.__mix25.lands())
+  await page.click('#c25go')
+  for (let k = 0; k < 150 && (await page.evaluate((n) => window.__mix25.lands() < n + 3, l0)); k++) await page.waitForTimeout(500)
+  for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.shotPlaying())); k++) await page.waitForTimeout(400)
+  const pl = await page.evaluate((n) => ({ lands: window.__mix25.lands() - n, playing: window.__mix25.shotPlaying(), sel: window.__mix25.shot().sel }), l0)
+  check('PLAY IT flies the three most common ways, then sets the first up again', pl.lands === 3 && !pl.playing && pl.sel === 0, JSON.stringify(pl))
+  // a click on a seat in the park calls it too
+  await page.keyboard.press('b'); await page.waitForTimeout(800) // bird's eye: the whole park, the arcade too
+  const xy = await page.evaluate(() => { const r = window.__mix25.seatPoint('145', '3', '6'), v = r.at.clone().project(window.__cp.NN.camera), c = document.querySelector('canvas').getBoundingClientRect(); return { x: c.left + ((v.x + 1) / 2) * c.width, y: c.top + ((1 - v.y) / 2) * c.height, on: v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1 } })
+  if (xy.on) {
+    await page.mouse.click(xy.x, xy.y); await page.waitForTimeout(500)
+    let s2 = null; for (let k = 0; k < 60; k++) { await page.waitForTimeout(500); s2 = await page.evaluate(() => window.__mix25.shot()?.seat); if (s2 && s2.line !== 'SEC 140 ROW 12 SEAT 8') break }
+    check('clicking a seat in the park calls that seat', s2?.what === 'seat' && /^14[4-6]$/.test(s2.sec), JSON.stringify(s2))
+  } else check('the arcade seat is on screen to click', false, JSON.stringify(xy))
+  // C goes back to the replay, and the shared panel is the histograms again
+  await page.keyboard.press('c'); await page.waitForTimeout(1500)
+  const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), pt: document.querySelector('.c25>.pitch>.t').textContent.replace(/\s+/g, ''), form: !!document.querySelector('.sfm') }))
+  check('C leaves Shot Caller for the replay: the pitch panel and the histograms come back', bk.mode === 'replay' && !/SHOTCALLER/.test(bk.t) && !/CALLASEAT/.test(bk.pt) && !bk.form, JSON.stringify(bk))
   await page.close()
 }
 // the SELECT screen on a phone: readable, nothing off the sides, every line reachable
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone', sm.open && sm.n === 5 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone', sm.open && sm.n === 6 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page.keyboard.press('?'); await page.waitForTimeout(400)
   const pd = await page.evaluate(() => { const d = document.querySelector('#c25dk').getBoundingClientRect(); return { open: d.height > 0, l: d.left, r: d.right, b: d.bottom, t: d.top, side: document.documentElement.scrollWidth > innerWidth + 1, h: innerHeight } })
   check('the options dock fits a phone (bottom of the screen, under half its height)', pd.open && pd.l >= 0 && pd.r <= 390 && pd.b <= pd.h && pd.b - pd.t <= pd.h * 0.47 && !pd.side, JSON.stringify(pd))
   await page._ctx.close()
+  // the dojo on a phone at the locked layout (its controls top left on a big screen) keeps the strip along the bottom
+  const pdj = await open(390, 844, '&menu=0&mode25=whatif', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+  const X = await layout(pdj), dj = await pdj.evaluate(() => { const s = document.querySelector('.c25>.strip').getBoundingClientRect(); return { b: s.bottom, t: s.top, h: innerHeight, side: document.documentElement.scrollWidth > innerWidth + 1 } })
+  check('the dojo on a phone keeps its strip along the bottom and fits', X.overlaps.concat(X.fits, X.titles).length === 0 && dj.b <= dj.h && dj.t > dj.h * 0.7 && !dj.side, X.overlaps.concat(X.fits, X.titles).join('; ') + JSON.stringify(dj))
+  await pdj._ctx.close()
 }
 // the ABC parser (music25.js), with no browser: a tie across a barline keeps its accidental, and // halves twice
 if (on('F')) {

@@ -6,6 +6,8 @@
 //   WALK-OFF   GRAND SLAM   GO-AHEAD and TIES IT (a scoreline flip)   MOONSHOT   TWEAK THE TATER   SO CLOSE (a dojo swing that just missed)
 // The board is 72 x 36 LEDs of 0.61 m, sized to the screen of Oracle's own board in the park model; the animations use the middle 22 rows.
 // One animation plays at a time, with at most two waiting.
+// Over the board, the ORACLE PARK sign and its clock are bulbs too (29 Oct): the sign glows and reacts to home runs, the clock tells the time of the swing.
+import { FONT } from './vox25.js'
 export function initPark25(api, col, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
@@ -30,6 +32,85 @@ export function initPark25(api, col, o = {}) {
   board.position.copy(at(bearing, o.boardR ?? 148.4, bh))
   board.lookAt(at(bearing, 0, bh))
   scene.add(board)
+
+  // ---- the ORACLE PARK sign and the clock over the board (29 Oct, Andrew: "breathe some life back into that"; the clock right for the moment) ----
+  // Measured from in front like the board: the clock face is a disc 148.5 m out, dead center, 39.25 m up, 5.6 m across; the letters run 43 to 45.7 m up, from 3.75 degrees left
+  // to 3.5 right. Both become bulbs like the board's, a hair in front of the model. The sign: ORACLE PARK in 5x7 bulbs between two rows of chaser bulbs. Idle it glows
+  // bone, a gleam crosses it now and then and a bulb or two twinkles; a home run lights the letters in the accent one by one while the chasers run; a walk-off blinks the
+  // lot; Karl dims it. The clock: twelve hour bulbs, sixty minute dots, bulb hands. DEJA-VU sets it to when the ball was hit and the hands spin back to it; the dojo runs
+  // it on the time in San Francisco now, with a second hand.
+  const SW = 67, SHT = 11, SP = 0.32, SS = 8, WORD = 'ORACLE PARK', LETS = []
+  {
+    const w = [...WORD].reduce((a, ch) => a + FONT[ch][0].length + 1, -1)
+    let x = Math.floor((SW - w) / 2)
+    ;[...WORD].forEach((ch, li) => { const g = FONT[ch]; g.forEach((r, y) => [...r].forEach((c, i) => { if (c === '#') LETS.push([x + i, y + 2, li]) })); x += g[0].length + 1 })
+  }
+  const sCan = document.createElement('canvas'); sCan.width = SW * SS; sCan.height = SHT * SS
+  const sx = sCan.getContext('2d'), sTex = new THREE.CanvasTexture(sCan); sTex.colorSpace = THREE.SRGBColorSpace
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(SW * SP, SHT * SP), new THREE.MeshBasicMaterial({ map: sTex, fog: false, side: THREE.DoubleSide }))
+  sign.position.copy(at(-0.12, 148.2, 44.35)); sign.lookAt(at(-0.12, 0, 44.35)); scene.add(sign)
+  let sfx = null, gleam = null, gleamT = 8, fogged = false, signs = 0
+  const lit = new Set(LETS.map(([x, y]) => x + ',' + y))
+  function paintSign(dt) {
+    const c = col()
+    if (sfx) { sfx.t += dt; if (sfx.t > sfx.dur) sfx = null }
+    if (!sfx && !gleam && (gleamT -= dt) <= 0) { gleam = { t: 0 }; gleamT = 22 + Math.random() * 16 }
+    if (gleam && (gleam.t += dt) > 1.4) gleam = null
+    sx.fillStyle = '#050505'; sx.fillRect(0, 0, sCan.width, sCan.height)
+    const dim = fogged ? 0.45 : 1, t = sfx?.t ?? 0, twk = Math.floor(performance.now() / 260)
+    const bulb = (x, y, colr, on) => { sx.globalAlpha = on ? dim : 1; sx.fillStyle = on ? colr : '#1a1a1a'; sx.beginPath(); sx.arc(x * SS + SS / 2, y * SS + SS / 2, SS * (on ? 0.44 : 0.28), 0, Math.PI * 2); sx.fill(); sx.globalAlpha = 1 }
+    // the chasers: dark dots at rest; running in the accent on a home run, fast on a walk-off
+    for (const y of [0, SHT - 1]) for (let x = 0; x < SW; x++) {
+      const on = sfx && (x + (y ? 1 : 0) + Math.floor(t * (sfx.kind === 'walk' ? 22 : 12))) % 3 === 0
+      bulb(x, y, c.acc, !!on)
+    }
+    for (let y = 1; y < SHT - 1; y++) for (let x = 0; x < SW; x++) if (!lit.has(x + ',' + y)) bulb(x, y, '', false)
+    for (const [x, y, li] of LETS) {
+      let k = c.tx
+      if (sfx?.kind === 'hr') k = t > 0.15 + li * 0.13 ? c.acc : c.tx
+      else if (sfx?.kind === 'walk') k = Math.floor(t * 6) % 2 ? c.acc : '#ffffff'
+      else if (gleam && Math.abs(x - 2 * y - (gleam.t / 1.4) * (SW + 24) + 12) < 3) k = '#ffffff'
+      else if ((x * 7 + y * 13 + twk) % 97 === 0) k = '#ffffff'
+      bulb(x, y, k, true)
+    }
+    sTex.needsUpdate = true
+  }
+
+  const CR = 2.85, CPX = 256
+  const cCan = document.createElement('canvas'); cCan.width = cCan.height = CPX
+  const cx = cCan.getContext('2d'), cTex = new THREE.CanvasTexture(cCan); cTex.colorSpace = THREE.SRGBColorSpace
+  const clockFace = new THREE.Mesh(new THREE.CircleGeometry(CR, 48), new THREE.MeshBasicMaterial({ map: cTex, fog: false, side: THREE.DoubleSide }))
+  clockFace.position.copy(at(0, 148.3, 39.25)); clockFace.lookAt(at(0, 0, 39.25)); scene.add(clockFace)
+  // the time shown, in minutes after midnight (fractional); spin: a sweep from one time to another; live: the time in San Francisco, updated every paint
+  const sfNow = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).map((x) => [x.type, x.value])); return Number(p.hour) * 60 + Number(p.minute) + Number(p.second) / 60 }
+  let clk = { shown: sfNow(), live: true, spin: null }
+  function setClock(s) {
+    if (!s || s.live) { clk = { shown: clk.shown, live: true, spin: { from: clk.shown, to: sfNow(), t: 0, dur: 0.9 } }; return }
+    const [h, m] = String(s.hm).split(':').map(Number), to = h * 60 + m
+    if (!isFinite(to)) return
+    // back in time: the hands always run backward, at least once round, to the moment it was hit
+    let d = ((clk.shown - to) % 720 + 720) % 720; if (d < 60) d += 720
+    clk = { shown: clk.shown, live: false, hm: s.hm, spin: o.still ? null : { from: clk.shown, to: clk.shown - d, t: 0, dur: 1.5 }, target: to }
+    if (o.still) clk.shown = to
+  }
+  function paintClock(dt) {
+    const c = col(), R = CPX / 2
+    if (clk.spin) { const sp = clk.spin; sp.t += dt; const k = ease(sp.t / sp.dur); clk.shown = sp.from + (sp.to - sp.from) * k; if (sp.t >= sp.dur) { clk.spin = null; clk.shown = clk.live ? sfNow() : clk.target } }
+    else if (clk.live) clk.shown = sfNow()
+    const dimA = fogged ? 0.5 : 1
+    cx.fillStyle = '#050505'; cx.fillRect(0, 0, CPX, CPX)
+    const dot = (a, r, rad, colr) => { cx.fillStyle = colr; cx.beginPath(); cx.arc(R + Math.sin(a) * r, R - Math.cos(a) * r, rad, 0, Math.PI * 2); cx.fill() }
+    cx.globalAlpha = dimA
+    for (let i = 0; i < 60; i++) { const a = (i / 60) * Math.PI * 2; if (i % 5) dot(a, R * 0.86, 3, '#3a3a3a'); else dot(a, R * 0.86, i ? 8 : 10, i ? c.tx : c.acc) }
+    const hand = (a, len, step, rad, colr) => { for (let r = 14; r <= len; r += step) dot(a, r, rad, colr) }
+    const m = ((clk.shown % 720) + 720) % 720
+    hand((m / 720) * Math.PI * 2, R * 0.46, 11, 7, c.tx)
+    hand(((m % 60) / 60) * Math.PI * 2, R * 0.7, 10, 5.5, c.tx)
+    if (clk.live && !clk.spin) hand((((clk.shown * 60) % 60) / 60) * Math.PI * 2, R * 0.74, 9, 3, c.acc)
+    dot(0, 0, 9, c.acc)
+    cx.globalAlpha = 1
+    cTex.needsUpdate = true
+  }
   // palette: a = the text color of the moment (accent, or bone while flashing), o = accent, w = bone, then fixed colors for the sprites
   const FIX = { b: '#5fd3ff', y: '#f2bc40', r: '#e4002b', g: '#8a8f99', n: '#a8713f', d: '#4a4f58' }
   const CODES = ' aowbyrgnd'
@@ -251,6 +332,9 @@ export function initPark25(api, col, o = {}) {
     paint()
   }
   ready.then(() => frame(0))
+  // the sign and the clock at the board's pace; a clock in mid-spin every frame
+  let sAcc = 0
+  parts.push((dt) => { sAcc += dt; if (clk.spin) paintClock(dt); if (sAcc >= 0.09) { paintSign(sAcc); if (!clk.spin) paintClock(sAcc); sAcc = 0 } return true })
   let acc = 0
   parts.push((dt) => {
     acc += dt
@@ -306,7 +390,12 @@ export function initPark25(api, col, o = {}) {
     // a new swing takes the board: whatever the last one left playing or waiting is dropped
     clear() { cur = null; queue = []; wait = 0 },
     text: () => lines.join(' / '), gulls: () => gulls.length, scattered: () => gulls.filter((g) => g.out > 0).length,
-    set visible(v) { board.visible = v; for (const g of gulls) g.m.visible = v },
+    set visible(v) { board.visible = v; sign.visible = v; clockFace.visible = v; for (const g of gulls) g.m.visible = v },
+    // the sign's moments ('hr', or 'walk' for a walk-off), Karl dimming it and the clock, and the clock: { hm: 'HH:MM' } for a real ball, { live: true } for now in San Francisco
+    signFx(kind) { sfx = { kind, t: 0, dur: kind === 'walk' ? 5 : 3.6 }; gleam = null; signs++ }, signCount: () => signs,
+    set fog(v) { fogged = !!v },
+    setClock, clock: () => { const m = ((clk.shown % 720) + 720) % 720; return { h: Math.floor(m / 60) || 12, m: Math.floor(m % 60), live: clk.live, hm: clk.hm ?? null, spinning: !!clk.spin } },
+    sign, clockFace, signState: () => (sfx ? sfx.kind : gleam ? 'gleam' : 'idle'),
     set gullsOn(v) { for (const g of gulls) g.m.visible = v },
     board, names: () => Object.keys(ANIM), anim: () => cur?.name ?? null, queued: () => queue.map((q) => q.name), played: () => [...played],
     // for the tests: how many LEDs are lit right now, and the board's size in LEDs

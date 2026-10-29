@@ -2,7 +2,7 @@
 // built from cubes, so the numbers in the park match the voxel kayaks, gloves and sea lion. One InstancedMesh per piece and color, flat Lambert like models25.js, so the
 // park's lights shade the faces and the post shader inks the outline.
 // FONT: 5 wide by 7 tall, # is a cube.
-const FONT = {
+export const FONT = {
   0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'], 1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
   2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'], 3: ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'],
   4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'], 5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],

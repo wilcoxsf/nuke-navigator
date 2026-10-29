@@ -72,5 +72,26 @@ export function seatSeance25(api) {
     for (const p of pts) { tally[p.kind] = (tally[p.kind] ?? 0) + 1; const z = seatAt(p.at, p.kind).short; zones[z] = (zones[z] ?? 0) + 1 }
     return { N, at, call, tally, half: ft(d[Math.floor(N * 0.5)]), most: ft(d[Math.floor(N * 0.9)]), zones: Object.entries(zones).sort((a, b) => b[1] - a[1]), share: top.n / N, cells: list.length }
   }
-  return { run, clear, seatAt, SECTIONS }
+  // the other way round (29 Oct, SHOT CALLER: type a seat): a section, row and seat to the spot on the stands, or { err } saying what the section has. The row's depth sets
+  // its distance; the seats along it set the bearing (their count depends on the row's length, so the bearing is found in a few passes); then straight down onto the model
+  function seatPoint(sec, row, seat) {
+    const s = SECTIONS.find((x) => x[2] === String(sec).trim())
+    if (!s) return { err: `NO SECTION ${String(sec).trim() || '?'} OUT THERE: THE OUTFIELD RUNS 135 TO 152 AND 101` }
+    const bl = s[3] === 'BLEACHERS', r = String(row ?? '').toUpperCase().trim(), ri = bl ? (r === 'A' ? 0 : /^\d+$/.test(r) ? Number(r) : -1) : /^\d+$/.test(r) ? Number(r) - 1 : -1
+    if (ri < 0 || ri >= s[4]) return { err: `${s[3]} ${s[2]} HAS ROWS ${bl ? 'A, 1' : '1'} TO ${bl ? s[4] - 1 : s[4]}` }
+    const st = Number(seat)
+    let b = (s[0] + s[1]) / 2, rr = 0, n = 1
+    for (let k = 0; k < 4; k++) {
+      rr = (api.wallAt?.(b) ?? [400, 8])[0] * 0.3048 + (ri + 0.5) * 0.84
+      n = Math.max(1, Math.floor((((s[1] - s[0]) * Math.PI) / 180) * rr / 0.51))
+      if (!Number.isInteger(st) || st < 1 || st > n) return { err: `ROW ${r} OF ${s[2]} HAS SEATS 1 TO ${n}` }
+      b = s[0] + ((st - 0.5) / n) * (s[1] - s[0])
+    }
+    const a = (b * Math.PI) / 180, x = home.x + rr * Math.sin(a), z = home.z - rr * Math.cos(a)
+    // down from 40 m up, onto the first surface lower than 25 m (so a light tower or the board overhead is not taken for the seat)
+    const hits = new THREE.Raycaster(new THREE.Vector3(x, home.y + 40, z), new THREE.Vector3(0, -1, 0)).intersectObject(api.NN.stadium, true), hit = hits.find((h) => h.point.y < home.y + 25)
+    if (!hit) return { err: 'COULD NOT FIND THAT SEAT ON THE PARK MODEL' }
+    return { at: hit.point.clone(), sec: s[2], area: s[3], row: r, seat: st, seats: n, line: `SEC ${s[2]} ROW ${r} SEAT ${st}` }
+  }
+  return { run, clear, seatAt, seatPoint, SECTIONS }
 }

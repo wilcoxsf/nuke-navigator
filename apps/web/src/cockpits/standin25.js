@@ -3,6 +3,9 @@
 // 34 by 46 unit box (facing left, toward the pitcher; ground at y 45) and rasterized cell by cell, so one pose serves a sprite, a silhouette and a bulb portrait.
 //   1 slugger: a pixel batter in his stance   2 jersey: the back of a framed jersey   3 card: a baseball card with a silhouette in the photo
 //   4 shadow: a silhouette mid-swing with his long shadow on the dirt   5 bulbs: a scoreboard bulb portrait with the name in bulbs underneath
+// 29 Oct (Andrew locked D1, "but you gotta get the skin color, team jersey, height, and handedness right"): the slugger wears his team's kit (home whites or road greys, the
+// helmet and trim in team colors), stands as tall as he is against a lineup height chart, takes a skin tone when one is known, bats from his side; and a few players
+// get a mascot instead (MASCOTS: the panda for Pablo Sandoval, the giraffe for Brandon Belt).
 export const STANDIN_STYLES = [
   { c: 1, name: 'PIXEL SLUGGER', desc: 'a hand-made pixel batter in his stance, number on the chest' },
   { c: 2, name: 'JERSEY BACK', desc: 'the back of his jersey, framed, name across the shoulders' },
@@ -14,6 +17,22 @@ const SKIN = '#b07650'
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x)
 const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
 const W1 = 1, O2 = 2, D3 = 3, K4 = 4, S5 = 5 // cell colors: ink, accent, dim, ground, skin
+const H6 = 6, SH7 = 7, B8 = 8, G9 = 9, F10 = 10, F11 = 11, SP12 = 12, CH13 = 13, MK14 = 14 // the helmet, its shine, the bat, batting gloves; fur dark and light, spots; the height chart and his mark on it
+// team kits: helmet and trim (lettering, socks, gloves); home teams wear white (the Giants their cream), visitors grey
+const KITS = { SF: ['#1b1b1b', '#fd5a1e'], LAD: ['#005a9c', '#005a9c'], SD: ['#2f241d', '#ffc425'], AZ: ['#a71930', '#a71930'], ARI: ['#a71930', '#a71930'], COL: ['#33006f', '#33006f'],
+  NYY: ['#0c2340', '#0c2340'], NYM: ['#002d72', '#ff5910'], PHI: ['#e81828', '#e81828'], ATL: ['#13274f', '#ce1141'], MIA: ['#1b1b1b', '#00a3e0'], WSH: ['#ab0003', '#ab0003'],
+  CHC: ['#0e3386', '#0e3386'], STL: ['#c41e3a', '#c41e3a'], MIL: ['#12284b', '#ffc52f'], CIN: ['#c6011f', '#c6011f'], PIT: ['#1b1b1b', '#fdb827'], HOU: ['#002d62', '#eb6e1f'],
+  TEX: ['#003278', '#c0111f'], SEA: ['#0c2c56', '#005c5c'], LAA: ['#ba0021', '#ba0021'], ATH: ['#003831', '#efb21e'], OAK: ['#003831', '#efb21e'], TOR: ['#134a8e', '#134a8e'],
+  BAL: ['#1b1b1b', '#df4601'], BOS: ['#0c2340', '#bd3039'], TB: ['#092c5c', '#8fbce6'], KC: ['#004687', '#004687'], MIN: ['#002b5c', '#d31145'], CLE: ['#0c2340', '#e31937'],
+  DET: ['#0c2340', '#fa4616'], CWS: ['#1b1b1b', '#27251f'] }
+export function kitFor(team, home) {
+  const [helmet, trim] = KITS[team] ?? KITS.SF
+  return { helmet, trim, jersey: home ? (team === 'SF' || !KITS[team] ? '#f1e6cf' : '#f2f0ea') : '#a3a6ab' }
+}
+// players who get an animal at the plate in place of the slugger (Andrew's two, 29 Oct; the rest wait for his yes): id, kind, number
+export const MASCOTS = { 467055: { kind: 'panda', name: 'PABLO SANDOVAL', num: '48', h: 70, why: 'KUNG FU PANDA' }, 474832: { kind: 'giraffe', name: 'BRANDON BELT', num: '9', h: 75, why: 'BABY GIRAFFE' } }
+const mix = (a, b, t) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), x = p(a), y = p(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('') }
+const lum = (h) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
 
 // 5 by 7 font, a row per base-32 character (bit 16 is the left column)
 const B32 = '0123456789abcdefghijklmnopqrstuv'
@@ -81,24 +100,41 @@ function raster(parts, f, cw, ch, ox, oy, flip) {
 // poses: hd head, sf/sb shoulders (front, back), hf/hb hips, kf/kb knees, ff/fb feet, ef/eb elbows, hn hands, bt bat tip; back: bat behind the body
 const STANCE = { hd: [15, 12], sf: [12.5, 18], sb: [20, 18], hf: [13.5, 28], hb: [19.5, 28], kf: [10, 35], ff: [8.5, 43], kb: [22.5, 35], fb: [23, 43], ef: [16, 20.5], eb: [25.5, 17], hn: [21.5, 13.5], bt: [27, 1.5], back: true }
 const SWING = { hd: [26.5, 13.5], sf: [24, 19], sb: [30, 18.5], hf: [25, 28.5], hb: [30.5, 28], kf: [21.5, 35.5], ff: [19, 43], kb: [32.5, 36], fb: [36, 42.5], ef: [20, 22], eb: [24, 25], hn: [16.5, 23.5], bt: [1.5, 19.5], back: false, look: 1.2 }
-function batterParts(P) {
-  const [hx, hy] = P.hd, look = P.look ?? 0
+function batterParts(P, kind = 'human') {
+  const [hx, hy] = P.hd, look = P.look ?? 0, an = kind !== 'human', armC = kind === 'panda' ? F10 : kind === 'giraffe' ? F11 : S5
   const leg = (h, k, f) => [{ s: cap(h, k, 2.5, 2.1), c: W1 }, { s: cap(k, f, 2.1, 1.6), c: W1 }, { s: cap(lerp(k, f, 0.5), f, 1.85, 1.6), c: O2, on: 1 }, { s: cap([f[0] - 2.3, f[1] + 0.7], [f[0] + 0.7, f[1] + 0.7], 1.2), c: D3 }]
-  const bat = { s: cap(P.hn, P.bt, 0.7, 1.35), c: W1, ol: 1 }
+  const bat = { s: cap(P.hn, P.bt, 0.7, 1.35), c: B8, ol: 1 }
+  // heads: the batter in his helmet; the panda (white head, dark ears and eye patches); the giraffe (a long spotted neck, the head up top, two ossicones)
+  const head = kind === 'panda' ? [
+    { s: disc([hx - 2.3, hy - 3.3], 1.7), c: F10, ol: 1 }, { s: disc([hx + 2.7, hy - 3.1], 1.7), c: F10, ol: 1 },
+    { s: disc([hx, hy + 0.3], 4.1), c: SP12, ol: 1 }, { s: disc([hx - 1.9, hy + 0.2], 1.5), c: F10, on: 1 }, { s: disc([hx - 2.1, hy], 0.5), c: SP12, on: 1 },
+    { s: disc([hx - 3.7, hy + 1.9], 0.75), c: F10, on: 1 }, { s: cap([hx - 3.2, hy + 3], [hx - 1.8, hy + 3.2], 0.35), c: F10, on: 1 },
+  ] : kind === 'giraffe' ? [
+    { s: cap([hx + 0.8, P.sf[1] - 1], [hx + 0.2, hy + 1], 1.6, 1.2), c: F11, ol: 1 },
+    ...[0.25, 0.5, 0.75].map((u) => ({ s: disc([hx + 0.8 - 0.6 * u + (u === 0.5 ? 0.5 : -0.4), P.sf[1] - 1 + (hy + 1 - P.sf[1] + 1) * u], 0.65), c: SP12, on: 1 })),
+    { s: cap([hx + 0.2, hy - 1.6], [hx - 0.2, hy - 4.4], 0.45), c: F11 }, { s: disc([hx - 0.2, hy - 4.5], 0.75), c: SP12 },
+    { s: cap([hx + 1.7, hy - 1.4], [hx + 1.6, hy - 4.1], 0.45), c: F11 }, { s: disc([hx + 1.6, hy - 4.2], 0.75), c: SP12 },
+    { s: cap([hx + 2.6, hy - 0.6], [hx + 4.2, hy - 1.4], 0.55), c: F11 },
+    { s: cap([hx + 1, hy], [hx - 4, hy + 1.6], 2.5, 1.7), c: F11, ol: 1 }, { s: disc([hx - 0.4, hy - 0.4], 0.6), c: K4, on: 1 }, { s: disc([hx - 4.3, hy + 1.8], 0.5), c: SP12, on: 1 },
+  ] : [
+    { s: cap([hx + 0.6, hy + 2], [hx + 1.2, P.sf[1] - 0.8], 1.5), c: S5 }, // neck
+    { s: disc([hx, hy + 0.3], 3.3), c: S5, ol: 1 }, // head
+    { s: disc([hx + 0.5, hy - 1], 3.7), c: H6, clip: (x, y) => y < hy - 0.8 + look * 0.3 }, // helmet shell
+    { s: disc([hx - 0.6, hy - 3], 0.75), c: SH7, on: 1, clip: (x, y) => y < hy - 0.8 }, // its shine, so a black helmet shows on the dark ground
+    { s: cap([hx - 2, hy - 1 + look * 0.4], [hx - 5.2, hy - 0.5 + look], 0.75), c: H6 }, // brim
+    { s: disc([hx + 1.8, hy + 0.2], 1.6), c: H6, clip: (x, y) => y < hy + 1.8 }, // earflap
+    { s: disc([hx - 1.6, hy + 0.6 + look * 0.5], 0.55), c: K4, on: 1 }, // eye
+  ]
   return [
     ...(P.back ? [bat] : []),
     ...leg(P.hb, P.kb, P.fb), ...leg(P.hf, P.kf, P.ff).map((p) => ({ ...p, ol: p.on ? 0 : 1 })),
     { s: poly([[P.sf[0] - 1, P.sf[1] - 0.5], [P.sb[0] + 1, P.sb[1] - 0.5], [P.hb[0] + 0.5, P.hb[1]], [P.hf[0] - 0.5, P.hf[1]]], 1.2), c: W1 }, // torso
     { s: cap([P.hf[0], P.hf[1] - 0.6], [P.hb[0], P.hb[1] - 0.6], 0.75), c: K4, on: 1 }, // belt
-    { s: cap(P.sb, P.eb, 1.8, 1.6), c: W1, ol: 1 }, { s: cap(P.eb, P.hn, 1.3, 1.1), c: S5, ol: 1 }, // back arm
-    { s: cap([hx + 0.6, hy + 2], [hx + 1.2, P.sf[1] - 0.8], 1.5), c: S5 }, // neck
-    { s: disc([hx, hy + 0.3], 3.3), c: S5, ol: 1 }, // head
-    { s: disc([hx + 0.5, hy - 1], 3.7), c: O2, clip: (x, y) => y < hy - 0.8 + look * 0.3 }, // helmet shell
-    { s: cap([hx - 2, hy - 1 + look * 0.4], [hx - 5.2, hy - 0.5 + look], 0.75), c: O2 }, // brim
-    { s: disc([hx + 1.8, hy + 0.2], 1.6), c: O2, clip: (x, y) => y < hy + 1.8 }, // earflap
-    { s: disc([hx - 1.6, hy + 0.6 + look * 0.5], 0.55), c: K4, on: 1 }, // eye
-    { s: cap(P.sf, P.ef, 1.8, 1.6), c: W1, ol: 1 }, { s: cap(P.ef, P.hn, 1.2, 1.1), c: S5, ol: 1 }, // front arm
-    { s: disc(P.hn, 1.7), c: D3, ol: 1 }, // batting gloves
+    { s: cap(P.sb, P.eb, 1.8, 1.6), c: W1, ol: 1 }, { s: cap(P.eb, P.hn, 1.3, 1.1), c: armC, ol: 1 }, // back arm
+    ...head,
+    { s: cap(P.sf, P.ef, 1.8, 1.6), c: W1, ol: 1 }, { s: cap(P.ef, P.hn, 1.2, 1.1), c: armC, ol: 1 }, // front arm
+    ...(kind === 'giraffe' ? [{ s: disc(lerp(P.ef, P.hn, 0.45), 0.55), c: SP12, on: 1 }] : []),
+    { s: disc(P.hn, 1.7), c: an ? armC : G9, ol: 1 }, // batting gloves (paws for the animals)
     ...(P.back ? [] : [bat]),
   ]
 }
@@ -113,13 +149,21 @@ function blit(g, G, cw, ch, s, x0, y0, pal) {
 function pdisc(g, x, y, r) { for (let dy = -r; dy < r; dy++) { const hw = Math.round(Math.sqrt(r * r - (dy + 0.5) * (dy + 0.5))); if (hw > 0) g.fillRect(x - hw, y + dy, hw * 2, 1) } }
 
 // 1 PIXEL SLUGGER: the stance sprite (34 by 46 cells) on a little patch of dirt with the plate; number big in the accent on the side he faces, name underneath
+// his height sets how tall he stands (6 ft 8 in fills the box); behind him a lineup chart every half foot from 5 ft to 6 ft 6 in, his own height marked in the accent on it
+const HREF = 80
 function slugger(g, w, h, d, o, P, fl) {
   const m = Math.round(6 * d)
   const nm = o.name ? fitText(g, nameCands(o.name), w - 2 * m, Math.min(w / 18, h / 14, 16 * d), d) : null, tb = nm ? nm.a + m : 0
   const s = Math.max(1, Math.min(Math.floor((h - 2 * m - tb) / 48), Math.floor((w - 2 * m) / 40))), cw = 40, ch = 48
-  const G = raster(batterParts(STANCE), 1, cw, ch, -3, 0, fl)
+  const kind = o.kind ?? 'human', inch = Math.max(62, Math.min(HREF, o.height ?? 74)), f = (kind === 'giraffe' ? 0.92 : 1) * (inch / HREF)
+  const pose = kind === 'giraffe' ? { ...STANCE, hd: [15.5, 5.5] } : STANCE
+  const G = raster(batterParts(pose, kind), f, cw, ch, 17.5 - 20.5 / f, 45.5 - 45.5 / f, fl)
+  const rowOf = (inches) => Math.round(45 - (inches / HREF) * 44)
+  for (const hh of [60, 66, 72, 78]) { const j = rowOf(hh); for (let i = 0; i < cw; i += 2) if (!G[j * cw + i]) G[j * cw + i] = CH13 }
+  const back = fl ? 0 : cw - 4 // the chart's tick marks on the side behind him
+  if (o.height) { const j = rowOf(o.height); for (let i = 0; i < 4; i++) G[j * cw + back + i] = MK14 }
   // chest number in the accent, only on the jersey (an arm across it hides part, like it would)
-  if (o.num) { const ds = String(o.num).slice(0, 2), n = ds.length, cx = Math.round(fl ? cw - 1 - 21 : 21), x0 = cx - Math.floor((n * 4 - 1) / 2); for (let k = 0; k < n; k++) { const r = F35[+ds[k]] ?? F35[0]; for (let y = 0; y < 5; y++) for (let i = 0; i < 3; i++) if (+r[y] & (4 >> i)) { const q = (22 + y) * cw + x0 + k * 4 + i; if (G[q] === W1) G[q] = O2 } } }
+  if (o.num) { const ds = String(o.num).slice(0, 2), n = ds.length, cx = Math.round(fl ? cw - 1 - (20 + f) : 20 + f), ny = Math.round(45 - 23 * f), x0 = cx - Math.floor((n * 4 - 1) / 2); for (let k = 0; k < n; k++) { const r = F35[+ds[k]] ?? F35[0]; for (let y = 0; y < 5; y++) for (let i = 0; i < 3; i++) if (+r[y] & (4 >> i)) { const q = (ny + y) * cw + x0 + k * 4 + i; if (G[q] === W1) G[q] = O2 } } }
   // ground under him: a dim shadow, the plate in front toward the pitcher
   const gx = (u) => (fl ? cw - 1 - u : u)
   for (let i = 6; i <= 33; i++) for (const j of [46, 47]) if (!G[j * cw + gx(i)] && (j === 46 || (i > 8 && i < 31))) G[j * cw + gx(i)] = D3
@@ -127,9 +171,13 @@ function slugger(g, w, h, d, o, P, fl) {
   for (let i = 15; i <= 20; i++) G[47 * cw + gx(i)] = W1
   const ah = ch * s, x0 = Math.round((w - cw * s) / 2), y0 = m + Math.max(0, Math.round((h - 2 * m - tb - ah) / 2))
   blit(g, G, cw, ch, s, x0, y0, P)
+  // the chart's feet, and his height by its mark
+  const tiny = (t, j, col) => { const F = fitText(g, [t], 10 * s, Math.max(8 * d, 3.2 * s), d, 8); if (F) say(g, F, fl ? x0 + s : x0 + cw * s - s, y0 + j * s - s, col, fl ? 'l' : 'r') }
+  for (const [t, hh] of [["5'", 60], ["6'", 72]]) if (!o.height || Math.abs(rowOf(hh) - rowOf(o.height)) > 2) tiny(t, rowOf(hh), '#4e4e4e') // a foot mark gives way to his own
+  if (o.height) tiny(`${Math.floor(o.height / 12)}'${o.height % 12}"`, rowOf(o.height), P[MK14])
   // number and team in the corner he faces
   const side = fl ? w - m : m, al = fl ? 'r' : 'l'
-  if (o.num) { const N = fitText(g, ['#' + o.num], (w - cw * s) / 2 + 10 * s, Math.min(w / 8, h / 7, 24 * d), d); if (N && N.font.includes('PS2P')) { say(g, N, side, m + N.a, P[O2], al); if (o.team) { const T = fitText(g, [clean(o.team)], N.w * 2, N.px / 2, d); say(g, T, side, m + N.a + Math.round(4 * d) + (T?.a ?? 0), P[D3], al) } } }
+  if (o.num) { const N = fitText(g, ['#' + o.num], (w - cw * s) / 2 + 10 * s, Math.min(w / 8, h / 7, 24 * d), d); if (N && N.font.includes('PS2P')) { say(g, N, side, m + N.a, lum(P[O2]) < 0.16 ? P[W1] : P[O2], al); if (o.team) { const T = fitText(g, [clean(o.team)], N.w * 2, N.px / 2, d); say(g, T, side, m + N.a + Math.round(4 * d) + (T?.a ?? 0), P[D3], al) } } }
   say(g, nm, w / 2, h - m, P[W1], 'c')
 }
 
@@ -272,7 +320,7 @@ function bulbs(g, w, h, d, o, P, fl) {
   const PG = raster(batterParts(STANCE), f, pw, ph, 6, 0, fl)
   // the portrait centered; the number in big accent bulbs in the empty corner above the brim, on the side he faces
   const px = Math.floor((cw - pw) / 2)
-  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) { const v = PG[j * pw + i]; if (v && v !== K4) put(px + i, top + j, v === O2 || v === D3 ? O2 : W1) }
+  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) { const v = PG[j * pw + i]; if (v && v !== K4) put(px + i, top + j, [O2, D3, H6, SH7, G9].includes(v) ? O2 : W1) }
   const num = o.num ? String(o.num).slice(0, 2) : ''
   if (num) {
     const nw1 = num.length * 7 - 1, nb = Math.max(1, Math.min(3, Math.floor((7.2 * f - 2) / 7), Math.floor((px + pw * 0.3 - 2) / nw1))), nx = fl ? cw - 2 - nw1 * nb : 2
@@ -294,7 +342,14 @@ export function drawStandIn(cv, c, W, H, o = {}) {
   const w = Math.round(W * d), h = Math.round(H * d)
   cv.width = w; cv.height = h; if (cv.style) { cv.style.width = W + 'px'; cv.style.height = H + 'px' }
   const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.clearRect(0, 0, w, h)
-  const P = { [W1]: o.ink || '#e8e1c9', [O2]: o.acc || '#f0802a', [D3]: o.dim || '#6d6a60', [K4]: o.k || '#0b0c0b', [S5]: SKIN }
+  const P = { [W1]: o.ink || '#e8e1c9', [O2]: o.acc || '#f0802a', [D3]: o.dim || '#6d6a60', [K4]: o.k || '#0b0c0b', [S5]: o.skin || SKIN, [H6]: o.acc || '#f0802a', [SH7]: o.acc || '#f0802a', [B8]: o.ink || '#e8e1c9', [G9]: o.dim || '#6d6a60',
+    [F10]: '#3d3d3d', [F11]: '#e3b04b', [SP12]: '#f3f1ea', [CH13]: '#2a2a2a', [MK14]: o.acc || '#f0802a' }
+  // the slugger in his kit (the other styles keep the panel's colors): jersey, trim, a helmet lifted off the dark ground if it is near black, a wood bat
+  if (c === 1 && o.kit) {
+    const hm = lum(o.kit.helmet) < 0.1 ? '#2b2b2b' : o.kit.helmet
+    Object.assign(P, { [W1]: o.kit.jersey, [O2]: o.kit.trim, [H6]: hm, [SH7]: mix(hm, '#ffffff', 0.4), [B8]: '#c9975b', [G9]: o.kit.trim })
+    if (o.kind === 'giraffe') P[SP12] = '#8a5528'
+  }
   const op = { ...o, num: o.num != null && String(o.num).trim() !== '' ? String(o.num).trim() : null, team: o.team ? String(o.team) : null, name: o.name ? String(o.name) : null }, fn = STYLE_FN[c] ?? slugger
   fn(g, w, h, d, op, P, o.hand === 'L')
   return { w: W, h: H }

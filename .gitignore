@@ -39,6 +39,7 @@ apps/web/public/replay.json
 apps/web/public/pool.json
 apps/web/public/giants_faces.json
 apps/web/public/faces_tone.json
+apps/web/public/batter_bio.json
 apps/web/public/gpt_art.json
 apps/web/public/carry_table.json
 apps/web/public/fun_oracle.json

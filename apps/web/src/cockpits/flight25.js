@@ -2,6 +2,7 @@
 // hands each flight to window.__cpTrack (dojo.js); this draws it in voxels, one of five ways (the U option), plus two voxel posts that rise as the ball passes them:
 //   ZENITH: from the ground up to the top of the flight, its height in voxel letters    CLEARANCE: from the top of the wall up to the ball, how much it beat the wall by
 //   (or, off the wall, the gap down from the top to where it hit)
+// and a dot in the line at both (29 Oct, Andrew: a dot where the zenith is and where it cleared the wall, a different color; the X option picks it, colors().mk)
 // The cubes are flat Lambert, so the park's lights shade them and the post shader inks their outline, like the kayaks.
 import { voxText, keepReadable } from './vox25.js'
 const FT = 0.3048
@@ -72,6 +73,7 @@ export function initFlight25(api, colors) {
     const zen = new THREE.Group()
     zen.add(cubes(geo, lam(c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5), 0.45))
     zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1))
+    zen.add(cubes(geo, lam(c.mk ?? c.tx), [top], 1.4)) // the dot at the top of the flight
     g.add(zen); g.userData.reveal.push([ai / Math.max(1, src.length - 1), zen])
     // the clearance post: from the top of the wall to the ball as it crossed (GONE), or from the top down to where it hit (WALL)
     const v = res.verdict
@@ -83,6 +85,7 @@ export function initFlight25(api, colors) {
         cl.add(cubes(geo, lam(c.acc), column(b.x, b.z, lo, hi, 0.8), 0.5))
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
         cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : '-'}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1))
+        cl.add(cubes(geo, lam(c.mk ?? c.tx), [ball], 1.4)) // the dot where it crossed the wall
         g.add(cl); g.userData.reveal.push([ci / Math.max(1, src.length - 1), cl])
       }
     }
