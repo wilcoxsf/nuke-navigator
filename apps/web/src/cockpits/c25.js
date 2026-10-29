@@ -1329,6 +1329,15 @@ export async function build(root, api, U) {
   const bigN = (x) => Math.round(x).toLocaleString('en-US')
   function funList(res) {
     const s = api.state, ft = Math.round(res.landFt), seed = ft * 131 + Math.round(s.ev * 10), out = []
+    // where this one ranks (a real home run, as it happened): among the batter's own in the replay set, and among every home run there at its park since July 2023
+    if (mode === 'replay' && cur?.hr && !edited) {
+      const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'TH' : ['TH', 'ST', 'ND', 'RD'][n % 10] ?? 'TH')
+      const mine = R.balls.filter((b) => b.hr && b.b === cur.b), n1 = 1 + mine.filter((b) => b.ft > cur.ft).length, nm = pname(cur.b)
+      const who = (nm ? nm[0].split(' ').slice(-1)[0] : 'HIS').toUpperCase() // his home runs in the replay set: the Giants' games since July 2023
+      if (mine.length > 1) out.push(n1 === 1 ? `${who}'S LONGEST OF THE ${mine.length} IN DÉJÀ-VU` : `${who}'S ${ord(n1)} LONGEST OF THE ${mine.length} IN DÉJÀ-VU`)
+      const here = R.balls.filter((b) => b.hr && b.park === cur.park), n2 = 1 + here.filter((b) => b.ft > cur.ft).length
+      if (cur.park === 'SF' && here.length > 20 && (n2 <= 50 || n2 > here.length - 10)) out.push(n2 === 1 ? `THE LONGEST OF ${here.length} HOME RUNS AT ${cur.park === 'SF' ? 'ORACLE' : cur.park} SINCE JULY 2023` : n2 <= 50 ? `THE ${ord(n2)} LONGEST OF ${here.length} AT ${cur.park === 'SF' ? 'ORACLE' : cur.park} SINCE JULY 2023` : `ONE OF THE ${here.length - n2 + 1 === 1 ? 'SHORTEST' : 'TEN SHORTEST'} OF ${here.length} AT ${cur.park === 'SF' ? 'ORACLE' : cur.park} SINCE JULY 2023`)
+    }
     if (lib) {
       const rnd = mulberry32(seed), seen = []
       // keep the plain ones: no "1/2,000 the length of" a river nobody knows; San Francisco and weird things first, or something famous
@@ -1475,7 +1484,15 @@ export async function build(root, api, U) {
     const pre = E('#c25f pre'), cvs = optOf('A', mix.A).canvas
     // a canvas style is drawn again at the poster's size, so the print is not a blown-up screen copy
     let faceImg = null
-    if (cvs) { const id = cur ? String(cur.b) : stepped ? String(stepped.b.b) : null, rec = id && facesRaw[id], gen = !rec && id && hasGen ? genericFace('composite', id) : null, src = rec ? faceSource(rec) : gen ? gen.src : drawBust(160); faceImg = document.createElement('canvas'); drawFace(faceImg, src, cvs, 300, 300, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }, 1) }
+    const pid = cur ? String(cur.b) : stepped ? String(stepped.b.b) : null
+    if (pid ? !facesRaw[pid] && mix.D : mix.D) {
+      // no photo (or your own swing): the poster carries the same stand-in as the panel (the D choice)
+      const bt = pid ? pname(pid) : null, b0 = cur ?? stepped?.b ?? null
+      const art = document.createElement('canvas')
+      drawStandIn(art, mix.D, 300, 300, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim(), dim: cs.getPropertyValue('--dim').trim(), k: cs.getPropertyValue('--k').trim(), name: bt ? bt[0].toUpperCase() : pid ? null : 'YOU', num: bt?.[1] ? String(bt[1]) : null, hand: b0 ? b0.s : api.state.hand > 0 ? 'R' : 'L', team: b0 ? (b0.tb === 'Top' ? b0.at : b0.ht) : null, ratio: 1 })
+      faceImg = Object.assign(document.createElement('canvas'), { width: 300, height: 300 }) // on the page color, so it sits clear of the drawing under it
+      const fg = faceImg.getContext('2d'); fg.fillStyle = cs.getPropertyValue('--k').trim(); fg.fillRect(0, 0, 300, 300); fg.drawImage(art, 0, 0)
+    } else if (cvs) { const id = pid, rec = id && facesRaw[id], gen = !rec && id && hasGen ? genericFace('composite', id) : null, src = rec ? faceSource(rec) : gen ? gen.src : drawBust(160); faceImg = document.createElement('canvas'); drawFace(faceImg, src, cvs, 300, 300, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }, 1) }
     const d = {
       colors: { k: cs.getPropertyValue('--k').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), acc: cs.getPropertyValue('--acc').trim() },
       mode: mode === 'replay' ? NAMES.replay : NAMES.dojo, name: (bn ? bn[0] : 'YOUR SWING').toUpperCase(),

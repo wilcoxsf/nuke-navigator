@@ -108,7 +108,8 @@ export function initMoments25(api, col, fx, o = {}) {
       return true
     })
   }
-  api.NN.frames.push((dt) => { for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](Math.min(dt, 0.1))) parts.splice(i, 1) })
+  let wall = performance.now() // its own wall clock, steps of up to a quarter second (the engine's step is clamped, which slowed the moments on a slow device)
+  api.NN.frames.push(() => { const now = performance.now(), dt = Math.min(0.25, (now - wall) / 1000); wall = now; for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](dt)) parts.splice(i, 1) })
 
   return {
     // ev: the engine's landing hook ({ at, key }); landing: where the flight ended (STANDS, SPLASH, STREET), boardAt: the LED board's world position

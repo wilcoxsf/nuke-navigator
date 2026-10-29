@@ -187,7 +187,9 @@ export function initFx25(api, col, o = {}) {
     }
   }
 
-  api.NN.frames.push((dt) => { for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](Math.min(dt, 0.1))) parts.splice(i, 1) })
+  // the effects keep their own wall clock (steps of up to a quarter second): the engine hands frames a clamped step, so on a slow device the kayaks crawled
+  let wall = performance.now()
+  api.NN.frames.push(() => { const now = performance.now(), dt = Math.min(0.25, (now - wall) / 1000); wall = now; for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](dt)) parts.splice(i, 1) })
   buildKayaks()
   return {
     contact, fly,
