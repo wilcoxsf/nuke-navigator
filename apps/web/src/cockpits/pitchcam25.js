@@ -27,23 +27,34 @@ export function breakOf(b) {
   const y0 = 60.5 - (b.ext ?? 6.3), vy0 = -b.pv * MPH, vyT = -(b.ps ?? b.pv * 0.92) * MPH, ay = (vyT * vyT - vy0 * vy0) / (2 * (17 / 12 - y0)), T = (vyT - vy0) / ay
   return { h: b.hx, v: b.hz - 0.5 * G * T * T * 12, T }
 }
+// the movement as a batter feels it (28 Oct, night, Andrew: a dead-ahead four-seamer should show next to nothing): the pitch measured against an average four-seamer from a
+// pitcher of the same hand (medians of the 839 four-seamers in replay.json), gravity in both, so a fastball's own drop cancels and a curveball keeps its extra drop.
+const FF = { R: { hx: -7.8, hz: 16, pv: 94.5, ps: 86.5 }, L: { hx: 8.6, hz: 15.8, pv: 92.7, ps: 84.8 } }
+export function feltBreak(b) {
+  const k = breakOf(b)
+  if (!k) return null
+  const f = FF[b.t] ?? FF.R, ff = breakOf({ hx: f.hx, hz: f.hz, pv: f.pv, ps: f.ps, ext: 6.5 })
+  return { h: k.h - ff.h, v: k.v - ff.v, T: k.T }
+}
 // PITCH ARC (H1): the pitch drawn on the park itself, from the broadcast view, in the pitch color, then the hit flies. (28 Oct: the cut to a camera behind the
 // plate is gone; Andrew wants the big 3D park throughout.) The arc stays until the next pitch, so the two flights read together.
 export function initPitchArc(api, col) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
   let live = [], run = null, lastDots = 0
-  const mats = {}
-  const mat = (c) => (mats[c] ??= new THREE.SpriteMaterial({ color: c, depthTest: false, depthWrite: false, fog: false }))
-  const sprite = (c, size, p) => { const s = new THREE.Sprite(mat(c)); s.scale.setScalar(size); s.position.copy(p); s.renderOrder = 30; scene.add(s); live.push(s); return s }
-  const clear = () => { for (const s of live) scene.remove(s); live = [] }
+  // voxels, thin (28 Oct, night, Andrew: "way thinner"): the path is small cubes 0.22 m on a side, the ball a cube 0.5 m; nothing writes depth, so the post shader leaves them alone
+  const mats = {}, cube = new THREE.BoxGeometry(1, 1, 1)
+  const mat = (c) => (mats[c] ??= new THREE.MeshBasicMaterial({ color: c, depthTest: false, depthWrite: false, fog: false }))
+  const sprite = (c, size, p) => { const s = new THREE.Mesh(cube, mat(c)); s.scale.setScalar(size); s.position.copy(p); s.renderOrder = 30; scene.add(s); live.push(s); window.__nn?.hideForNormal?.push(s); return s }
+  const unhide = (s) => { const hf = window.__nn?.hideForNormal, i = hf?.indexOf(s) ?? -1; if (i >= 0) hf.splice(i, 1) }
+  const clear = () => { for (const s of live) { scene.remove(s); unhide(s) } live = [] }
   // the pitch takes dur seconds of wall clock (its real flight is about 0.4 s; slowed so it reads), the arc fills in behind the ball, a short hold, then done()
   api.NN.frames.push(() => {
     if (!run) return
     const r = run, t = (performance.now() - r.t0) / 1000, f = Math.min(1, t / r.dur), n = Math.floor(f * 40)
-    while (r.shown < n) { r.shown++; sprite(r.c, 0.75, toWorld(r.P.pts[r.shown])) }
+    while (r.shown < n) { r.shown++; sprite(r.c, 0.22, toWorld(r.P.pts[r.shown])) }
     r.ball.position.copy(toWorld(r.P.pts[n]))
-    if (t >= r.dur + r.hold) { run = null; lastDots = r.shown; scene.remove(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() }
+    if (t >= r.dur + r.hold) { run = null; lastDots = r.shown; scene.remove(r.ball); unhide(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() }
   })
   // plays the pitch, then calls done(); returns false (and draws nothing) when this ball has no fitted path
   function play(b, done, o = {}) {
@@ -51,9 +62,9 @@ export function initPitchArc(api, col) {
     if (!P || run) return false
     clear()
     run = { P, done, c: o.color ?? col().pc ?? col().tx, dur: o.dur ?? 0.9, hold: o.hold ?? 0.25, t0: performance.now(), shown: 0 }
-    run.ball = sprite('#ffffff', 1.1, toWorld(P.pts[0]))
+    run.ball = sprite('#ffffff', 0.5, toWorld(P.pts[0]))
     return true
   }
   // stop: call the pitch off (no hit); finish: skip to the hit now
-  return { play, clear, stop: () => { if (run) { run = null; clear() } }, finish: () => { if (run) { const r = run; run = null; lastDots = r.shown; scene.remove(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots }
+  return { play, clear, stop: () => { if (run) { run = null; clear() } }, finish: () => { if (run) { const r = run; run = null; lastDots = r.shown; scene.remove(r.ball); unhide(r.ball); live = live.filter((s) => s !== r.ball); r.done?.() } }, busy: () => !!run, shown: () => live.length, lastDots: () => lastDots, size: () => live[0]?.scale.x ?? 0 }
 }

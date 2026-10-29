@@ -32,7 +32,7 @@ export function selectMenu(host, items, o = {}) {
   const el = document.createElement('div')
   el.className = 'sm'
   el.innerHTML = `<div class="smb"><div class="lgo"></div><div class="sms">SELECT MODE</div><div class="sml"></div><canvas class="ins2" width="324" height="60" role="img" aria-label="a pitcher throws, the batter lines it right back, the pitcher snags it"></canvas>
-    <div class="smf">UP / DOWN TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE<br>SOUND: <span class="snd"></span> (S)</div></div>`
+    <div class="smf">UP / DOWN TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE<br>SOUND: <span class="snd"></span> (S) &nbsp; JUKEBOX (J)</div></div>`
   host.appendChild(el)
   let i = 0, open = false, idle = null, logo = o.logo ?? 1
   // the title, three ways (the M option): stacked letters, a pixel home-run arc over the name, or a marquee of chasing bulbs
@@ -95,6 +95,7 @@ export function selectMenu(host, items, o = {}) {
     else if (e.key === 'ArrowUp') { e.preventDefault(); i = (i - 1 + items.length) % items.length; sound.play('move'); paint() }
     else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick() }
     else if (e.key === 'Escape') { e.preventDefault(); sound.play('back'); close() }
+    else if ((e.key === 'j' || e.key === 'J') && o.onJukebox) { e.preventDefault(); sound.play('pick'); close(); o.onJukebox() }
     else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); paint(); sound.play('move') }
     else if (/^[1-9]$/.test(e.key) && Number(e.key) <= items.length) { i = Number(e.key) - 1; pick() }
     e.stopImmediatePropagation()

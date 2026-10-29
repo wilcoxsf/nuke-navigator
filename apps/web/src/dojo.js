@@ -142,6 +142,7 @@ const hex = (c) => `#${new THREE.Color(c).getHexString()}`
 // zenith of the flight, marked in the 3D scene: a dashed plumb line down to the ground, a diamond at the top and a lettered height tag
 function placeApex(src, res) {
   if (apex) { scene.remove(apex); apex.traverse((o) => { o.geometry?.dispose?.(); o.material?.map?.dispose?.() }); apex = null }
+  if (window.__cpNoApex) return // the study marks the zenith itself
   let ai = 0
   src.forEach((q, i) => { if (q.p[2] > src[ai].p[2]) ai = i })
   const top = toWorld(src[ai].p), gnd = top.clone()
@@ -223,7 +224,8 @@ function draw(res) {
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length < 3) return
-  ribbon = window.__cpBead ? makeBeadTrack(pts, res, colors()[res.verdict.kind], false) : new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, window.__cpRibbon ?? 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
+  // window.__cpTrack(pts, res, color, preview): a study draws the flight its own way (Study 25's voxel arcs)
+  ribbon = window.__cpTrack ? window.__cpTrack(pts, res, colors()[res.verdict.kind], false) : window.__cpBead ? makeBeadTrack(pts, res, colors()[res.verdict.kind], false) : new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, window.__cpRibbon ?? 0.8, 8, false), new THREE.MeshBasicMaterial({ color: colors()[res.verdict.kind] }))
   scene.add(ribbon)
   if (!window.__cpBead) outlineOf(ribbon, 1.7)
   placeApex(src, res)
@@ -260,7 +262,7 @@ function drawPreview(res) { // a study in preview mode: show the flight as a thi
   const src = res.visPath ?? res.path
   const pts = src.filter((_, i) => i % 4 === 0 || i === src.length - 1).map((s) => toWorld(s.p))
   if (pts.length >= 3) {
-    ribbon = window.__cpBead ? makeBeadTrack(pts, res, colors().PLAY, true) : new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, (window.__cpRibbon ?? 0.8) * 0.5, 6, false), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }))
+    ribbon = window.__cpTrack ? window.__cpTrack(pts, res, colors().PLAY, true) : window.__cpBead ? makeBeadTrack(pts, res, colors().PLAY, true) : new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 200, (window.__cpRibbon ?? 0.8) * 0.5, 6, false), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }))
     scene.add(ribbon)
   }
   const b = { i: -1, last: false, text: 'READY', state: 'PREVIEW', sub: 'press swing to commit', tone: 'wait', kind: res.verdict.kind, key: res.key, preview: true }

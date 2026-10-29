@@ -3,6 +3,12 @@
 //   the pitch coming in (approach angle, pitch speed; dashed, in the pitch color), the bat coming through (attack angle, bat speed), the ball going out (launch angle, exit speed; accent).
 // Contact height is the pitch's height at the front of the plate (plate_z); the bracket is this batter's own zone (sz_bot to sz_top). With no bat tracking on a ball the
 // bat line is left off; a what-if swing has no real pitch or bat, so only the ball is drawn.
+// a pixel baseball (28 Oct, night, Andrew: the ball should look like a baseball, not an orange square): 8 by 8, bone hide, red stitches, size px across, centered on x, y
+const BALL = ['..wwww..', '.rwwwwr.', 'wwrwwrww', 'wrwwwwrw', 'wrwwwwrw', 'wwrwwrww', '.rwwwwr.', '..wwww..']
+export function ballSVG(x, y, size = 14, cls = '', style = '') {
+  const u = size / 8
+  return `<g${cls ? ` class="${cls}"` : ''}${style ? ` style="${style}"` : ''} data-ball="1"><rect x="${(x - size / 2 - 1).toFixed(1)}" y="${(y - size / 2 - 1).toFixed(1)}" width="${size + 2}" height="${size + 2}" rx="${size / 2}" fill="var(--k)"/>` + BALL.flatMap((r, j) => [...r].map((c, i) => (c === '.' ? '' : `<rect x="${(x - size / 2 + i * u).toFixed(2)}" y="${(y - size / 2 + j * u).toFixed(2)}" width="${(u + 0.05).toFixed(2)}" height="${(u + 0.05).toFixed(2)}" fill="${c === 'r' ? '#e4002b' : '#f2efe6'}"/>`))).join('') + '</g>'
+}
 export function sliceSVG(o, W, H) {
   W = Math.max(60, Math.floor(W)); H = Math.max(40, Math.floor(H))
   // compact (28 Oct, Andrew: "way less stretched horizontally"): the drawing uses at most about twice its height in width, centered in the box
@@ -51,7 +57,7 @@ export function sliceSVG(o, W, H) {
     const right = x1 > W * 0.7
     g += lab(right ? Math.min(W - 4, x1) : x1 + 8, ball.a > 0 ? Math.max(13, y1 - 8) : y1 + 18, `BALL ${Math.round(ball.v)} MPH ${sg(o.la)}`, 'var(--acc)', right ? 'end' : 'start')
   }
-  g += `<rect x="${cx - 4}" y="${(cy - 4).toFixed(1)}" width="8" height="8" fill="var(--acc)" stroke="var(--k)" stroke-width="1.5"/>` // the ball at contact
+  g += ballSVG(cx, cy, 14) // the ball at contact
   // the drawing sits centered in its box: shift it up by half the empty space above it
   const tops = [cy - 14, o.st != null ? Y(o.st) - 4 : cy]
   if (ball.a > 0) tops.push(end(ball, 1)[1] - 22)

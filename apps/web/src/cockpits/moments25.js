@@ -95,11 +95,18 @@ export function initMoments25(api, col, fx, o = {}) {
     log.push('pole')
     const left = at.x < 0, w = window.__cp.wallAt?.(left ? -45 : 45) ?? [335, 8], r = w[0] * 0.3048, b = ((left ? -45 : 45) * Math.PI) / 180
     const base = toWorld([r * Math.sin(b), r * Math.cos(b), 0]), top = toWorld([r * Math.sin(b), r * Math.cos(b), 26])
-    const geo = new THREE.BufferGeometry().setFromPoints([base, top]), ln = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col().acc, depthTest: false, depthWrite: false, fog: false }))
-    ln.renderOrder = 20; scene.add(ln); live.add(ln); window.__nn?.hideForNormal.push(ln)
+    // the pole as a column of accent cubes (28 Oct, night: voxels everywhere) that bends like a tuning fork, more at the top
+    const n = 30, ln = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: col().acc, flatShading: true, fog: false }), n), m4 = new THREE.Matrix4(), p = new THREE.Vector3()
+    scene.add(ln); live.add(ln)
     const side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion)
     o.sound?.('ring')
-    run((t) => { const a = Math.sin(t * 34) * Math.exp(-2.2 * t) * 1.6, p = geo.attributes.position; p.setXYZ(1, top.x + side.x * a, top.y, top.z + side.z * a); p.needsUpdate = true; if (t > 2) { scene.remove(ln); geo.dispose(); live.delete(ln); const hf = window.__nn?.hideForNormal, i = hf?.indexOf(ln) ?? -1; if (i >= 0) hf.splice(i, 1); return false } return true })
+    run((t) => {
+      const a = Math.sin(t * 34) * Math.exp(-2.2 * t) * 1.6
+      for (let i = 0; i < n; i++) { const f = i / (n - 1); p.lerpVectors(base, top, f).addScaledVector(side, a * f * f); m4.makeScale(0.7, 0.9, 0.7).setPosition(p); ln.setMatrixAt(i, m4) }
+      ln.instanceMatrix.needsUpdate = true
+      if (t > 2) { scene.remove(ln); ln.geometry.dispose(); ln.material.dispose(); live.delete(ln); return false }
+      return true
+    })
   }
   api.NN.frames.push((dt) => { for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](Math.min(dt, 0.1))) parts.splice(i, 1) })
 

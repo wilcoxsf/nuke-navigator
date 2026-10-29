@@ -37,7 +37,7 @@ export function initWater25(api, o = {}) {
         float v = 0.;
         if (mode < 1.5) {
           // swell: two trains of broken whitecaps rolling in from the bay, the second finer and fainter
-          v = caps(p, normalize(vec2(0.12, 0.99)), 24., 2.2, t, 0.) * 0.34 + caps(p, normalize(vec2(-0.28, 0.96)), 11., 1.4, t, 9.) * 0.2;
+          v = caps(p, normalize(vec2(0.12, 0.99)), 24., 2.0, t, 0.) * 0.26 + caps(p, normalize(vec2(-0.28, 0.96)), 11., 1.2, t, 9.) * 0.13; // 28 Oct, night: a touch quieter (Andrew)
         } else if (mode < 2.5) {
           // shimmer: the crests stand still, and short glints come and go between them
           v = caps(p, normalize(vec2(0.12, 0.99)), 24., 0., 0., 0.) * 0.22;

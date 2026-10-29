@@ -11,20 +11,24 @@
 //   panel titles (I); faces drawn on a canvas at screen resolution (A2, A4 to A7, faces25.js); and the pitch on its fitted path (pitchcam25.js).
 // 28 Oct, second round: the arrow shows the break the pitch had (gravity in), not an as-if-spinless one; a pitch color (Y) for the arrow, the side view and the
 //   PITCH ARC drawn on the park on PLAY IT (H, no more cut behind the plate); black water; T16, I2 and A2 as defaults; no hover tilt; sliders in the dojo strip.
+// 28 Oct, night: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 locked (out of the mixer; the options dock in the park corner holds what is still open: Y pitch color, U ball arc,
+//   D stand-in batter, M menu title); the arrow is the movement a batter feels (against an average four-seamer); everything in the park is voxels (vox25.js, flight25.js);
+//   SEAT SEANCE calls a seat (seance25.js); the camera LOOKs at whatever a feature is about; the fun line (similes, the Moon, Coors, tonight's air) replaces Moonshot;
+//   TWEAK THE TATER keeps the real ball's spin and says what your change did; the menu is five lines.
 import { SKEL_CSS, restamp, tileHTML, isHR } from './skel.js'
 import { THEME_CSS, JUICE_CSS, THEMES, applyTheme, pressEl, makeControls, makeSession, finishUI, loadDists } from './skel2.js'
 import { BTN_TILT_CSS, tiltButtons, loadReplay, loadPool, ballsLike, rollTo } from './skel3.js'
 import { ART_CSS, STYLES, renderArt, faceSource, drawBust, artMetrics } from './art.js'
 import { loadGenericFaces, genericFace } from './batter3d.js'
 import { landingParty } from '../landing.js'
-import { seatSeance } from '../seance24.js'
+import { seatSeance25 } from '../seance25.js'
 import { shotCaller } from '../shotcaller.js'
 import { loadWhatIf, whatIfP } from '../whatif.js'
 import { loadDaily, enrichDay, oracleCheck, dingerPicks } from '../daily.js'
 import { loadLibrary, pick, mulberry32 } from '../comparisons.js'
 import { TYPES, TYPE_FONTS, typeVars } from './type25.js'
 import { hist25 } from './hist25.js'
-import { sliceSVG, sliceCaption } from './slice25.js'
+import { sliceSVG, sliceCaption, ballSVG } from './slice25.js'
 import { MENU_CSS, selectMenu } from './menu25.js'
 import { sound } from './sfx25.js'
 import { initFx25 } from './fx25.js'
@@ -32,7 +36,10 @@ import { initPark25 } from './park25.js'
 import { initMoments25 } from './moments25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
-import { initPitchArc, pitchPath, breakOf } from './pitchcam25.js'
+import { initPitchArc, breakOf, feltBreak } from './pitchcam25.js'
+import { initFlight25, ARCS } from './flight25.js'
+import { STANDIN_STYLES, drawStandIn } from './standin25.js'
+import { loadModels, cloneModel } from './models25.js'
 import { jukebox, loadPrivateSongs } from './music25.js'
 import { constellation, posterPNG } from './show25.js'
 
@@ -132,11 +139,16 @@ export const AXES = {
   ] },
   Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put (Z key)' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake (Z key; on by default since 28 Oct)' }] },
   H: { name: 'PITCH ARC', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT draws the pitch on the park on its real path and break, in the pitch color, then the hit flies' }, { c: 0, name: 'OFF', desc: 'PLAY IT goes straight to the hit' }] },
+  U: { name: 'BALL ARC', opts: ARCS }, // U, not V: V and Y look alike in the pixel type
+  D: { name: 'STAND-IN BATTER', opts: STANDIN_STYLES }, // for a batter with no photo, and you in the dojo
   M: { name: 'MENU TITLE', opts: [{ c: 1, name: 'STACKED', desc: 'the name in two big lines' }, { c: 2, name: 'ARC', desc: 'a pixel home-run arc over the name' }, { c: 3, name: 'MARQUEE', desc: 'the name inside a border of chasing bulbs' }] },
 }
-const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'M']
-const HDR_AX = ['L', 'P', 'A', 'T', 'F', 'I'] // the rest live in the ? legend and their own keys
-const DEF = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 1, Y: 1, S: 1, K: 1, B: 1, Z: 2, H: 1, M: 1 } // 28 Oct picks: A2, T16, I2 ACTION, the push on
+const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'U', 'D', 'M']
+// locked 28 Oct, night (Andrew): these are set and leave the mixer; a code can still load another value (the tests do), but the dock and the header show only what is open
+const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1 }
+const OPEN = ORDER.filter((k) => !(k in LOCKED))
+const HDR_AX = OPEN // what is still open sits in the header
+const DEF = { ...LOCKED, Y: 1, U: 3, D: 1, M: 1 }
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
@@ -210,12 +222,12 @@ const PHONE_CSS = `
 #cp .c25 .pnl>.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 24px)}
 #cp .c25 .hists .hsw{top:4px}
 #cp .c25 .strip .bt .ps{display:block;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-#cp .c25 .strip{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:6px}
+#cp .c25 .strip{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:6px}
 #cp .c25 .strip .bt{padding:4px 26px 14px 6px}#cp .c25 .strip .bt .sld{left:6px;right:26px;bottom:2px}
 #cp .c25 .strip .bt b{font-size:calc(17px * var(--ts))}
 #cp .c25 .strip .bt .ud{right:3px;gap:2px}
 #cp .c25 .strip .bt .ud i{width:16px;height:13px;line-height:11px}
-#cp .c25 .strip .bt.hot{grid-column:4;grid-row:2}
+#cp .c25 .strip .bt.hot{grid-column:3;grid-row:2}
 #cp .c25 .mod .box{padding:30px 12px 14px;max-width:96vw}
 #cp .c25 .bul,#cp .c25 .bay{min-width:0}
 #cp .c25 .bcards{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -269,7 +281,11 @@ export async function build(root, api, U) {
 #cp .c25 .rd .big i{font-style:normal;font-size:26px;color:var(--dim)}
 #cp .c25 .rd .lbl{display:block;color:var(--dim);font-size:16px;margin-top:2px}
 #cp .c25 .rd .sub{display:block;color:var(--dim);font-size:18px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px}
+#cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
+#cp .c25 .rd .fun{color:var(--tx);font-size:16px;margin-top:4px;pointer-events:auto;cursor:pointer;max-width:620px;line-height:1.2}
+#cp .c25 .rd .fun.ty{animation:c25ty 1.1s steps(28) both}
+@keyframes c25ty{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@media (prefers-reduced-motion:reduce){#cp .c25 .rd .fun.ty{animation:none}}
 #cp .c25 .rd .meter{display:flex;gap:3px;margin-top:8px;align-items:center}
 #cp .c25 .rd .meter s{display:block;width:12px;height:16px;border:1px solid var(--tx);text-decoration:none}
 #cp .c25 .rd .meter s.on{background:var(--acc);border-color:var(--acc)}
@@ -374,6 +390,9 @@ export async function build(root, api, U) {
 #cp .c25 .lpr span{overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .lpr .wh{color:var(--dim)}
 #cp .c25 .sel{display:grid;gap:3px;font-size:16px}
+#cp .c25 .scall{display:grid;gap:2px;margin:0 0 6px;padding:6px 8px;border:1px solid var(--acc)}
+#cp .c25 .scall span{font-family:PS2P,monospace;font-size:8px;letter-spacing:.14em;color:var(--dim)}
+#cp .c25 .scall b{font-weight:400;color:var(--acc);font-size:calc(22px * var(--ts));line-height:1}
 #cp .c25 .sbar{display:flex;height:12px;border:1px solid var(--tx);margin:2px 0 6px}
 #cp .c25 .sbar i{display:block;height:100%}
 #cp .c25 .lpr2{display:flex;justify-content:space-between;gap:10px;white-space:nowrap}
@@ -421,7 +440,7 @@ export async function build(root, api, U) {
 #cp .c25 .wd.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .wd.on sup{color:var(--k)}
 #cp .c25 .wsum{display:grid;gap:4px}
-#cp .c25 .strip{position:relative;display:grid;grid-template-columns:repeat(6,1fr) 1.4fr;gap:10px;padding-bottom:6px}
+#cp .c25 .strip{position:relative;display:grid;grid-template-columns:repeat(5,1fr) 1.4fr;gap:10px;padding-bottom:6px}
 #cp .c25 .strip .bt{padding:8px 34px 18px 10px;display:flex;flex-direction:column;justify-content:space-between;position:relative;min-width:0}
 #cp .c25 .strip .bt .sld{position:absolute;left:10px;right:34px;bottom:4px;height:12px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;pointer-events:auto}
 #cp .c25 .strip .bt .sld::-webkit-slider-runnable-track{height:2px;background:var(--dim)}
@@ -432,6 +451,8 @@ export async function build(root, api, U) {
 #cp .c25 .strip .bt .ps{color:var(--dim);white-space:nowrap}
 #cp .c25 .strip .bt.arm .ps{color:var(--k)}
 #cp .c25 .strip .bt b{font-weight:400;font-size:26px;line-height:.9;white-space:nowrap;overflow:hidden}
+#cp .c25 .strip .bt b .dv{font-style:normal;color:var(--acc);font-size:.62em;vertical-align:.25em}
+#cp .c25 .strip .bt.arm b .dv{color:var(--k)}
 #cp .c25 .strip .bt .ud{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;gap:4px}
 #cp .c25 .strip .bt .ud i{display:block;width:18px;height:16px;border:1px solid currentColor;font-style:normal;font-size:13px;line-height:14px;text-align:center}
 #cp .c25 .strip .bt.hot{padding:8px 10px 4px}
@@ -482,7 +503,7 @@ export async function build(root, api, U) {
 #cp .c25 .dock .dh{display:flex;align-items:center;gap:6px}
 #cp .c25 .dock .dh b{flex:1;font-family:PS2P,monospace;font-weight:400;font-size:9px;letter-spacing:.14em;color:var(--acc)}
 #cp .c25 .dock .bt{padding:2px 6px}
-#cp .c25 .dock .dx{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+#cp .c25 .dock .dx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
 #cp .c25 .dock .dx .bt{justify-content:center;padding:2px 0;min-width:0}
 #cp .c25 .dock .dx .bt.on{background:var(--acc);border-color:var(--acc);color:var(--k)}
 #cp .c25 .dock .da{display:flex;justify-content:space-between;gap:8px;color:var(--acc);border-top:1px solid var(--ln);padding-top:6px}
@@ -522,17 +543,17 @@ export async function build(root, api, U) {
   window.__cpBead = 3.4
   window.__cpHold = 110 // the hit-stop: the ball waits at the plate for 110 ms before it leaves
   api.NN.setFpsCap(30)
-  const ctl = makeControls(api, U), ses = makeSession(api)
+  const ctl = makeControls(api, U, { hand: false }), ses = makeSession(api), NS = ctl.SLOTS.length
   const q = new URLSearchParams(location.search)
   const mix = parseMix(q.get('mix') ?? store('nn-mix25') ?? '')
-  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, push = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false
+  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false
   const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'giants', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx">MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25ty">TYPE</span><span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
+    <span class="grp" id="c25mx">MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
     <div class="h2"><span class="grp"><span class="gl">IN THE PARK</span> <span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span></span>
     <span class="grp"><span class="gl">TONIGHT</span> <span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span></span>
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
@@ -544,7 +565,7 @@ export async function build(root, api, U) {
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
   <div class="pnl p hists" id="c25hi"><span class="t">/ V S &nbsp; A L L /</span><span class="hsw" id="c25hw"><span class="bt" data-w="mlb">ALL</span><span class="bt" data-w="sf">ORACLE</span></span><div id="c25hb"></div></div>
   <div class="ptabs p" id="c25pt">${[['batter', 'BATTER'], ['pitch', 'PITCH'], ['slice', 'CONTACT'], ['hists', 'VS ALL']].map(([k, l]) => `<span class="bt" data-card="${k}">${l}</span>`).join('')}</div>
-  <div class="strip p" id="c25sl">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}"><span class="ps">${i + 1} ${s.label}</span><b class="num"></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span>${s.k === 'hand' ? '' : `<input type="range" class="sld" min="0" max="1000" step="1" aria-label="${s.label}">`}</div>`).join('')}<div class="bt hot" data-i="6"><span class="ps">ENTER</span><b>SWING</b></div></div>
+  <div class="strip p" id="c25sl">${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}"><span class="ps">${i + 1} ${s.label}</span><b class="num"></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span>${s.k === 'hand' ? '' : `<input type="range" class="sld" min="0" max="1000" step="1" aria-label="${s.label}">`}</div>`).join('')}<div class="bt hot" data-i="${ctl.SLOTS.length}"><span class="ps">ENTER</span><b>SWING</b></div></div>
   <div class="mod" id="c25m"><div class="box"><span class="bt x" id="c25cl" aria-label="close">CLOSE</span><h3 id="c25mt"></h3><div id="c25mb"></div></div></div></div>`
   const E = (id) => root.querySelector(id), hero = E('#c25h'), grid = E('.c25')
   const setCard = (k) => { grid.dataset.card = k; root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.classList.toggle('on', b.dataset.card === k)); if (last) render(last) }
@@ -563,7 +584,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { push = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top') }
+  const camTo = (k) => { push = null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top') }
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -571,10 +592,10 @@ export async function build(root, api, U) {
   const [parks, R, pool, D, facesRaw] = await Promise.all([loadParks(), loadReplay(), loadPool(), loadDists(), (async () => { try { const r = await fetch('/faces_tone.json'); return r.ok ? await r.json() : {} } catch { return {} } })()])
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
-  const lp = landingParty(api, R.balls), se = seatSeance(api), sc = shotCaller(api, R.balls)
+  const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99' }), se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true })
   let show = ['lp', 'se', 'sc', 'rc', 'sm'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null
   const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25sc', 'sc'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
-  const setShow = (k) => { if (!uiReady) return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'sc') { sc.clear(); scRes = null } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
+  const setShow = (k) => { if (!uiReady) return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'sc'].includes(show)) unlook(); if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'sc') { sc.clear(); scRes = null } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { pressEl(E(id)); sound.play('move'); setShow(m) }); E(id).classList.toggle('on', show === m) }
   // a click on the park (not a drag) calls the shot while SHOT CALLER is on
   let down = null
@@ -584,7 +605,7 @@ export async function build(root, api, U) {
     const spot = sc.pick(e.clientX, e.clientY)
     if (!spot) return
     E('#c25hb').innerHTML = '<div class="lph">CALLING THE SHOT...</div>'
-    setTimeout(() => { scRes = sc.call(spot, api.state, getComputedStyle(root).getPropertyValue('--acc').trim()); if (last) render(last) }, 30)
+    setTimeout(() => { scRes = sc.call(spot, api.state, getComputedStyle(root).getPropertyValue('--acc').trim()); lookAt([spot], 20); if (last) render(last) }, 30)
   })
   E('#c25bb').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25bb')); openMod('bay') })
   const wim = await loadWhatIf() // the what-if model (public/whatif_model.json), if built
@@ -655,6 +676,7 @@ export async function build(root, api, U) {
     if (fx?.karlOn() && fx.karlLevel() !== mix.K) fx.karl(true, mix.K)
     if (water && water.mode() !== mix.B) water.setMode(mix.B)
     if (mix.R) lastR = mix.R // the R key brings back whichever arrow was last on
+    if (flight && flight.style() !== mix.U) { flight.setStyle(mix.U); if (!api.anim?.()) api.update() }
     grid.style.setProperty('--pc', optOf('Y', mix.Y).col ?? 'var(--tx)')
     paintTitles()
     menu?.setLogo(mix.M)
@@ -687,17 +709,18 @@ export async function build(root, api, U) {
   // Pick what to change along the top, click an option (or left and right) to try it with the whole screen still in view; up and down move between the things to change.
   // Options that only show when something happens get a SEE IT button: a ball flies (landing, camera, pitch arc), Karl rolls in, or the menu opens (its title).
   const dock = E('#c25dk')
-  let dockAx = ORDER.includes(store('nn-dock25')) ? store('nn-dock25') : 'L'
-  const SEE = { F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
+  let dockAx = OPEN.includes(store('nn-dock25')) ? store('nn-dock25') : OPEN[0]
+  const SEE = { D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
   const dockOpts = (k) => AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c)
   function paintDock() {
     if (!grid.classList.contains('dk')) return
     const k = dockAx, os = dockOpts(k), o = optOf(k, mix[k]), n = os.findIndex((x) => x.c === mix[k])
     dock.innerHTML = `<div class="dh"><b>OPTIONS</b><span class="bt" data-dk="all" aria-label="every option at once">ALL</span><span class="bt" data-dk="x" aria-label="close the options">X</span></div>
-      <div class="dx">${ORDER.map((a) => `<span class="bt${a === k ? ' on' : ''}" data-ax="${a}" title="${AXES[a].name}" aria-label="${AXES[a].name}">${a}${mix[a]}</span>`).join('')}</div>
+      <div class="dx">${OPEN.map((a) => `<span class="bt${a === k ? ' on' : ''}" data-ax="${a}" title="${AXES[a].name}" aria-label="${AXES[a].name}">${a}${mix[a]}</span>`).join('')}</div>
       <div class="da">${AXES[k].name}<span>${n + 1} OF ${os.length}</span></div>
       <div class="dl">${os.map((x) => `<div class="do${x.c === mix[k] ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}"><b>${k}${x.c}</b>${x.name}</div>`).join('')}</div>
       <div class="dd">${(o.desc ?? '').toUpperCase()}</div>
+      <div class="df">LOCKED: ${Object.entries(LOCKED).map(([a, c]) => a + c).join(' ')}</div>
       <div class="df">&larr; &rarr; TRY &nbsp; &uarr; &darr; WHAT${SEE[k] ? `<span class="bt" data-dk="see">${SEE[k]}</span>` : ''}</div>`
     dock.querySelectorAll('[data-ax]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); dockTo(b.dataset.ax) }))
     dock.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { sound.play('move'); mix[k] = Number(b.dataset.c); applyMix(k); dock.focus({ preventScroll: true }) }))
@@ -706,7 +729,7 @@ export async function build(root, api, U) {
     dock.querySelector('[data-dk="see"]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); seeIt(k) })
   }
   const dockTo = (k) => { dockAx = k; store('nn-dock25', k); paintDock(); dock.focus({ preventScroll: true }) }
-  const seeIt = (k) => { if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
+  const seeIt = (k) => { if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
   function toggleDock(on) {
     const v = on ?? !grid.classList.contains('dk')
     grid.classList.toggle('dk', v)
@@ -715,15 +738,14 @@ export async function build(root, api, U) {
   // the dock's own keys while it has focus; anything else falls through to the usual shortcuts
   dock.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
-    const i = ORDER.indexOf(dockAx), n = ORDER.length
+    const i = OPEN.indexOf(dockAx), n = OPEN.length
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { sound.play('move'); stepAx(dockAx, e.key === 'ArrowRight' ? 1 : -1) }
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(ORDER[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(OPEN[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
     else if (e.key === 'Escape' || e.key === '?') toggleDock(false)
     else return
     e.preventDefault(); e.stopPropagation()
   })
   E('#c25lg').addEventListener('click', () => { pressEl(E('#c25lg')); toggleDock() })
-  E('#c25ty').addEventListener('click', () => { pressEl(E('#c25ty')); openMod('type') })
 
   function applyBall(b) {
     cur = b; edited = false
@@ -733,7 +755,7 @@ export async function build(root, api, U) {
     api.setPreview(true); api.update()
   }
   function setMode(m) {
-    cancelPlay()
+    cancelPlay(); flight?.setGhost(null)
     if (reel && m !== 'replay') stopReel()
     mode = m
     if (m === 'replay' && R.balls.length) { stepped = null; balls = filtered(); if (!balls.length) { filter = 'giants'; balls = filtered() } idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; api.state.carry = 1; api.state.dws = 0; api.state.tab = true; api.setPreview(true); api.update() }
@@ -748,8 +770,11 @@ export async function build(root, api, U) {
     const b = cur, from = { idx, filter, b }
     sound.play('pick'); life?.play('tater', {}, 0, true)
     setMode('whatif'); stepped = from
-    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp })
-    api.update(); paintChooser()
+    // the real ball's own carry and side spin come along (28 Oct, night): untouched, the numbers fly the real flight, so every change you make is the only difference
+    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false })
+    from.real = { ev: b.ev, la: b.la, dir: b.dir, temp: b.temp, wind: 0 }
+    { const r0 = api.fly({ ...api.state }, {}), src = r0.visPath ?? r0.path; flight?.setGhost(src.filter((_, k) => k % 4 === 0).map((q) => api.toWorld(q.p))) }
+    api.update(); from.ft = Math.round(api.fly({ ...api.state }, {}).landFt); paintChooser()
   }
   function backToReplay() { const s = stepped; filter = s.filter; idx = s.idx; setMode('replay'); sound.play('back') }
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser(); sound.play('move') }
@@ -757,31 +782,50 @@ export async function build(root, api, U) {
     const el = E('#c25ch')
     if (mode !== 'replay') {
       const sb = stepped ? pname(stepped.b.b) : null
-      el.innerHTML = stepped ? `<div class="r1"><span class="bt" id="c25back">BACK TO THE REPLAY</span></div><div class="r2">TWEAKING <b>${(sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase()}</b>, ${stepped.b.d}: SET THE NUMBERS BELOW, ENTER TO SWING</div>` : '<div class="r2">SET THE SWING BELOW, ENTER TO SWING</div>'
+      el.innerHTML = stepped ? `<div class="r1"><span class="bt" id="c25back">BACK TO THE REPLAY</span><span class="bt" id="c25rst">RESET TO THE REAL BALL</span></div><div class="r2">${tweakLine()}</div>` : `<div class="r2">${tweakLine()}</div>`
+      el.querySelector('#c25rst')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('back'); Object.assign(api.state, stepped.real); api.update(); paintChooser() })
       el.querySelector('#c25back')?.addEventListener('click', () => { pressEl(el.querySelector('#c25back')); backToReplay() })
       return
     }
     const bn = pname(cur?.b), pn = pname(cur?.p)
     el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="previous ball">&lt;</span><span class="bt" data-st="1" aria-label="next ball">&gt;</span> BALL ${idx + 1} OF ${balls.length}
-      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
+      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
       <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ?? ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); filter = b.dataset.f; balls = filtered(); idx = 0; applyBall(balls[0]); paintChooser() }))
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
     E('#c25go').addEventListener('click', () => { pressEl(E('#c25go')); play() })
+    E('#c25rl').addEventListener('click', () => { pressEl(E('#c25rl')); if (reel) stopReel(); else startReel() })
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
+  }
+  // TWEAK THE TATER, made plain (28 Oct, night, Andrew: "really difficult to discern... think through this interface"): the strip is the swing (speed, angle, where it's
+  // aimed) and the night (air, wind); each number says how far it is from the real ball; the line over the strip says, in words, what your changes did
+  const FIELD = (d) => (Math.abs(d) <= 4 ? 'DEAD CENTER' : `${Math.round(Math.abs(d))}° ${Math.abs(d) >= 38 ? (d < 0 ? 'DOWN THE LEFT LINE' : 'DOWN THE RIGHT LINE') : Math.abs(d) >= 20 ? (d < 0 ? 'LEFT FIELD' : 'RIGHT FIELD') : d < 0 ? 'LEFT-CENTER' : 'RIGHT-CENTER'}`)
+  const UNIT = { ev: ' MPH', la: '°', temp: '°', wind: ' MPH' }
+  function slotText(k) {
+    const v = api.state[k], r = mode !== 'replay' && stepped?.real ? stepped.real[k] : null, d = r == null ? 0 : Math.round(v - r)
+    const main = k === 'dir' ? FIELD(v) : k === 'wind' ? (v === 0 ? 'CALM' : `${Math.abs(v)} ${v > 0 ? 'OUT' : 'IN'}`) : `${v}${UNIT[k] ?? ''}`
+    return main + (d ? ` <i class="dv">${d > 0 ? '+' : ''}${d}</i>` : '')
+  }
+  function tweakLine() {
+    if (!stepped?.real) return 'THE SWING: SPEED OFF THE BAT, LAUNCH ANGLE AND WHERE IT IS AIMED. THE NIGHT: AIR AND WIND. CHANGE ANY OF THEM, THEN ENTER TO SWING.'
+    const sb = pname(stepped.b.b), who = (sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase(), s = api.state, R0 = stepped.real
+    const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = Math.round(s[k] - R0[k]); return d ? `${d > 0 ? '+' : ''}${d}${u}` : null }).filter(Boolean)
+    if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND SWING.`
+    const fl = api.fly({ ...api.state }, {}), now = Math.round(fl.landFt), dd = now - stepped.ft, gone = fl.verdict?.kind === 'GONE'
+    return `${who}, ${stepped.b.d}, WITH ${ch.join(', ')}: <b>${now} FT</b> (${dd >= 0 ? '+' : ''}${dd}), ${gone ? 'STILL GONE' : 'NOT GONE'}${stepped.b.hr && !gone ? '. YOU TOOK AWAY A HOME RUN' : !stepped.b.hr && gone ? '. YOU MADE IT A HOME RUN' : ''}`
   }
   const slots = [...root.querySelectorAll('.strip .bt')]
   ctl.els = slots
   ctl.onArm = () => paintSlots()
-  ctl.onChange = () => { edited = true; paintSlots() }
+  ctl.onChange = () => { edited = true; paintSlots(); if (mode !== 'replay') { const r2 = E('#c25ch .r2'); if (r2) r2.innerHTML = tweakLine() } }
   slots.forEach((el, i) => {
-    el.addEventListener('click', (e) => { const d = e.target.closest('i[data-d]'); if (i === 6) { fire(); return } ctl.arm(i); if (d) ctl.change(i, Number(d.dataset.d)) })
-    el.addEventListener('wheel', (e) => { if (i === 6) return; e.preventDefault(); ctl.arm(i); ctl.change(i, e.deltaY < 0 ? 1 : -1) }, { passive: false })
+    el.addEventListener('click', (e) => { const d = e.target.closest('i[data-d]'); if (i === NS) { fire(); return } ctl.arm(i); if (d) ctl.change(i, Number(d.dataset.d)) })
+    el.addEventListener('wheel', (e) => { if (i === NS) return; e.preventDefault(); ctl.arm(i); ctl.change(i, e.deltaY < 0 ? 1 : -1) }, { passive: false })
   })
-  const fire = () => { if (mode === 'replay') { play(); return } pressEl(slots[6]); ses.fire() }
+  const fire = () => { if (mode === 'replay') { play(); return } pressEl(slots[NS]); ses.fire() }
   ctl.bind(fire, 'h')
-  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < 6); if (i < 6) { el.querySelector('b').textContent = ctl.text(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } })
+  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { el.querySelector('b').innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } })
   // sliders (28 Oct, Andrew: TWEAK THE TATER should have sliders): drag a slot's slider to set it; its keys stay with the slider, not the strip's arrow keys
   slots.forEach((el, i) => { const sl = el.querySelector('.sld'); if (!sl) return; sl.addEventListener('input', () => { ctl.arm(i); ctl.setFrac(i, Number(sl.value) / 1000); ctl.onChange() }); sl.addEventListener('keydown', (e) => e.stopPropagation()); sl.addEventListener('wheel', (e) => e.stopPropagation()) })
 
@@ -809,7 +853,7 @@ export async function build(root, api, U) {
     const body = E('#c25mb')
     if (modal === 'mix') {
       E('#c25mt').textContent = '/ O P T I O N S /'
-      body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">SET: C1 ORANGE AT ORACLE (ANOTHER PARK TAKES ITS TEAM'S COLOR) · W1 GHOST LINES · V3 METER · YOUR 28 OCT PICKS ARE THE DEFAULTS (L2 P5 A2 T1). CLICK AN OPTION TO TRY IT.</div>` + ORDER.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c).map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${o.desc}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
+      body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">LOCKED 28 OCT: ${Object.entries(LOCKED).map(([a, c]) => a + c + ' ' + optOf(a, c).name).join(' · ')}. CLICK AN OPTION TO TRY IT.</div>` + OPEN.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c).map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${o.desc}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
       body.querySelectorAll('.o').forEach((o) => o.addEventListener('click', () => { mix[o.dataset.k] = Number(o.dataset.i); sound.play('move'); applyMix(o.dataset.k) }))
       return
     }
@@ -848,7 +892,7 @@ export async function build(root, api, U) {
     const fmt = (x) => (x >= 10000 ? (x / 5280).toFixed(1) + ' MI' : Math.round(x).toLocaleString() + ' FT')
     body.innerHTML = `<div class="bul"><div class="bulh">${Math.round(s.ev)} MPH AT ${Math.round(s.la)}°, THE SAME SWING EVERYWHERE</div>
       <div class="btab">${rows.map(([w, d, t]) => `<div class="r mo"><span>${w}</span><b class="${w === 'THE MOON' ? 'y' : ''}">${fmt(d)}</b><span>${t.toFixed(1)} S IN THE AIR</span></div>`).join('')}
-      <div class="r mo"><span>DEEP SPACE</span><b class="y">FOREVER</b><span>IT NEVER COMES DOWN</span></div></div>
+</div>
       ${phrase ? `<div class="dds">${phrase}</div>` : ''}<div class="baya">THE MOON, MARS AND JUPITER ARE FLOWN WITH NO AIR, FROM A 3 FT CONTACT HEIGHT. EVERYTHING ELSE GOES THROUGH THE FLIGHT ENGINE.</div></div>`
   }
   // JUKEBOX: every song with its length, play and stop (music25.js); it keeps playing after the window closes
@@ -940,7 +984,8 @@ export async function build(root, api, U) {
     const i = Math.min(st.a.length, picks.length), you = st.a.filter((x, k) => picks[k] && x === !!picks[k].hr).length, model = picks.slice(0, i).filter((b) => (b.odds >= 0.5) === !!b.hr).length
     const head = `<div class="bulh">${longDate(date)} · ${picks.length} CLOSE CALLS FROM YESTERDAY · YOU ${you} · THE MODEL ${model}</div>`
     if (i >= picks.length) {
-      body.innerHTML = `<div class="bul">${head}<div class="ddbig num">${you > model ? 'YOU BEAT THE MODEL' : you === model ? 'DEAD HEAT WITH THE MODEL' : 'THE MODEL WINS TODAY'}</div>${picks.map((b, k) => `<div class="lpr2"><span>${k + 1}. ${b.name.toUpperCase()}, ${b.ft} FT</span><b>${b.hr ? 'GONE' : 'NOT GONE'} · YOU ${st.a[k] === !!b.hr ? 'RIGHT' : 'WRONG'} · MODEL ${pct(b.odds)}%</b></div>`).join('')}<div class="baya">A NEW SET ARRIVES WITH EACH NIGHT'S GAMES.</div></div>`
+      body.innerHTML = `<div class="bul">${head}<div class="ddbig num">${you > model ? 'YOU BEAT THE MODEL' : you === model ? 'DEAD HEAT WITH THE MODEL' : 'THE MODEL WINS TODAY'}</div>${picks.map((b, k) => `<div class="lpr2"><span>${k + 1}. ${b.name.toUpperCase()}, ${b.ft} FT</span><b>${b.hr ? 'GONE' : 'NOT GONE'} · YOU ${st.a[k] === !!b.hr ? 'RIGHT' : 'WRONG'} · MODEL ${pct(b.odds)}%</b></div>`).join('')}<div class="ddb"><span class="bt hot" id="c25tobul">EVERY HOME RUN FROM YESTERDAY</span></div><div class="baya">A NEW SET ARRIVES WITH EACH NIGHT'S GAMES.</div></div>`
+      body.querySelector('#c25tobul').addEventListener('click', (e) => { pressEl(e.currentTarget); openMod('bulletin') })
       return
     }
     const b = picks[i], prev = i > 0 ? picks[i - 1] : null
@@ -996,19 +1041,15 @@ export async function build(root, api, U) {
     idx = i; applyBall(b); paintChooser()
     setTimeout(() => api.fire(), 300)
   }
+  // the menu (28 Oct, night, Andrew: "many of these are superfluous"): five lines. Moonshot and the Bay Barometer became the fun line under the distance, Thirty Parks is
+  // GONE IN N PARKS (click it) and the PARK button, Blast Bulletin is Daily Dinger's results page, the highlight reel is the REEL button by PLAY IT, the jukebox is J
   menu = selectMenu(grid, [
     { k: 'replay', name: NAMES.replay, blurb: 'EVERY REAL HOME RUN SINCE JULY 2023, FLOWN AGAIN', run: () => setMode('replay') },
-    { k: 'dojo', name: NAMES.dojo, blurb: 'SET THE SWING YOURSELF AND SEND IT', run: () => setMode('whatif') },
-    { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS AGAINST THE MODEL", run: () => openMod('dinger') },
-    { k: 'bulletin', name: 'BLAST BULLETIN', blurb: "YESTERDAY'S HOME RUNS, AND WHICH WOULD BE GONE AT ORACLE", run: () => openMod('bulletin') },
+    { k: 'dojo', name: NAMES.tweak, blurb: 'SET THE SWING YOURSELF AND SEND IT', run: () => setMode('whatif') },
+    { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS, THEN SEE EVERY HOME RUN FROM THE NIGHT", run: () => openMod('dinger') },
     { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
-    { k: 'bay', name: 'BAY BAROMETER', blurb: "TONIGHT'S AIR AT ORACLE, IN FEET OF CARRY", run: () => openMod('bay'), off: () => !atOracle },
-    { k: 'parks', name: 'THIRTY PARKS', blurb: 'FLY THIS BALL IN ANY BALLPARK', run: () => openMod('parks') },
-    { k: 'reel', name: 'HIGHLIGHT REEL', blurb: 'THE WALK-OFFS, GRAND SLAMS AND LATE GO-AHEAD SHOTS, BACK TO BACK', run: () => startReel() },
-    { k: 'moon', name: 'MOONSHOT', blurb: 'THIS SWING ON THE MOON, ON MARS, AT COORS AND UNDER THE COVE', run: () => openMod('moon') },
-    { k: 'jukebox', name: 'JUKEBOX', blurb: 'THE BALLPARK CLASSICS AS CHIPTUNE, AND SAN FRANCISCO (J)', run: () => openMod('jukebox') },
-    { k: 'options', name: 'OPTIONS', blurb: 'LAYOUT, ART, TYPE, ICONS, PITCH, FOG, WATER, CAMERA (?)', run: () => toggleDock(true) },
-  ], { onIdle: attract, onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
+    { k: 'options', name: 'OPTIONS', blurb: 'THE CHOICES STILL OPEN, IN A SMALL PANEL OVER THE PARK (?)', run: () => toggleDock(true) },
+  ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const openMenu = (el) => { if (el) pressEl(el); sound.play('pick'); menu.show(mode === 'replay' ? 'replay' : 'dojo') }
   E('#c25mn').addEventListener('click', () => openMenu(E('#c25mn')))
@@ -1036,7 +1077,6 @@ export async function build(root, api, U) {
     else if (e.key === 'n' || e.key === 'N') setShow('sm')
     else if (e.key === 'z' || e.key === 'Z') { mix.Z = mix.Z === 2 ? 1 : 2; sound.play('move'); applyMix('Z'); banner(mix.Z === 2 ? 'PUSH ON' : 'PUSH OFF', 'THE CAMERA ' + (mix.Z === 2 ? 'EASES TO THE LANDING' : 'STAYS PUT') + ' (Z)') }
     else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
-    else if (e.key === 'u' || e.key === 'U') openMod('moon')
     else if (e.key === 'j' || e.key === 'J') openMod('jukebox')
   })
   api.setPreview(true)
@@ -1061,7 +1101,16 @@ export async function build(root, api, U) {
     const src = real ? faceSource(facesRaw[id]) : gen ? gen.src : drawBust(160)
     const box = E('#c25f'), enh = real ? { enh: { stretch: true, k: 1.5, sigma: 18 } } : gen ? gen.enh : {}, cvs = optOf('A', mix.A).canvas
     let cv = box.querySelector('canvas')
-    if (cvs) {
+    if (!real && mix.D) {
+      // no photo, or your own swing (28 Oct, night, Andrew: the stand-in "looks awful", five options on D): a drawn stand-in with the name, number and team, mirrored for lefties
+      cv ??= box.appendChild(Object.assign(document.createElement('canvas'), { className: 'fcv' }))
+      E('#c25f pre').style.display = 'none'; cv.style.display = ''
+      const cs = cs0(), c = { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim(), dim: cs.getPropertyValue('--dim').trim(), k: cs.getPropertyValue('--k').trim() }
+      const b0 = cur ?? stepped?.b ?? null, team = b0 ? (b0.tb === 'Top' ? b0.at : b0.ht) : null
+      const key = ['D' + mix.D, id ?? 'you', hand, box.clientWidth, box.clientHeight, c.ink, c.acc].join()
+      if (document.fonts && !document.fonts.check('8px PS2P')) document.fonts.load('8px PS2P').then(() => { faceKey = ''; paintBatter() }).catch(() => {}) // the stand-ins letter in the pixel font
+      if (key !== faceKey && box.clientWidth) { faceKey = key; drawStandIn(cv, mix.D, box.clientWidth - 2, box.clientHeight - 2, { ...c, name: bat ? bat[0].toUpperCase() : id ? null : 'YOU', num: bat?.[1] ? String(bat[1]) : null, hand, team }) }
+    } else if (cvs) {
       // a canvas style: drawn at the screen's resolution, square, centered in the box; redrawn only when the face, style, size or colors change
       cv ??= box.appendChild(Object.assign(document.createElement('canvas'), { className: 'fcv' }))
       E('#c25f pre').style.display = 'none'; cv.style.display = ''
@@ -1084,8 +1133,9 @@ export async function build(root, api, U) {
   }
   // CONTACT, SIDE ON
   function paintSide() {
-    const s = api.state, box = E('#c25sv'), real = mode === 'replay' && cur && !edited
-    const o = real ? { real: true, pz: cur.pz, st: cur.st, sb: cur.sb, vaa: cur.vaa, pv: cur.pv, aa: cur.aa, bs: cur.bs, la: cur.la, ev: cur.ev } : { real: false, pz: 2.4, st: 3.4, sb: 1.6, la: s.la, ev: s.ev }
+    const s = api.state, box = E('#c25sv'), real = mode === 'replay' && cur && !edited, tw = mode !== 'replay' && stepped?.b
+    // tweaking a real home run: the real pitch and bat stay (they didn't change), the ball goes out at your numbers
+    const o = real ? { real: true, pz: cur.pz, st: cur.st, sb: cur.sb, vaa: cur.vaa, pv: cur.pv, aa: cur.aa, bs: cur.bs, la: cur.la, ev: cur.ev } : tw ? { real: true, pz: tw.pz, st: tw.st, sb: tw.sb, vaa: tw.vaa, pv: tw.pv, aa: tw.aa, bs: tw.bs, la: s.la, ev: s.ev } : { real: false, pz: 2.4, st: 3.4, sb: 1.6, la: s.la, ev: s.ev }
     if (!box.clientWidth || !box.clientHeight) return
     box.innerHTML = sliceSVG(o, box.clientWidth, box.clientHeight)
     box.classList.toggle('anim', real && performance.now() - pitchIn < 900)
@@ -1104,17 +1154,18 @@ export async function build(root, api, U) {
       g += `<rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${(x1 - x0).toFixed(1)}" height="${(y1 - y0).toFixed(1)}" fill="${n === zn ? 'var(--acc)' : 'none'}" fill-opacity=".28" stroke="var(--dim)" stroke-width="1"/>`
     }
     g += `<rect x="${X(-zl).toFixed(1)}" y="${Y(st).toFixed(1)}" width="${(2 * zl * S).toFixed(1)}" height="${((st - sb) * S).toFixed(1)}" fill="none" stroke="var(--tx)" stroke-width="2"/>`
-    const px = Math.max(-xr + 0.06, Math.min(xr - 0.06, b.px)), pz = Math.max(zb + 0.06, Math.min(zt - 0.06, b.pz)), rr = Math.max(5, 0.121 * S)
+    const px = Math.max(-xr + 0.06, Math.min(xr - 0.06, b.px)), pz = Math.max(zb + 0.06, Math.min(zt - 0.06, b.pz)), bsz = Math.max(12, Math.round((2 * Math.max(5, 0.121 * S)) / 8) * 8), rr = bsz / 2 // the pixel ball's size, in whole pixels of its 8-pixel art
     if (off) { const ex = Math.max(-zl, Math.min(zl, px)), ez = Math.max(sb, Math.min(st, pz)); g += `<line x1="${X(px).toFixed(1)}" y1="${Y(pz).toFixed(1)}" x2="${X(ex).toFixed(1)}" y2="${Y(ez).toFixed(1)}" stroke="var(--acc)" stroke-width="2" stroke-dasharray="3 3"/>` }
     g += moveArrow(b, X, Y, X(px), Y(pz), S, W, H, rr)
-    g += `<rect class="pb" style="--dx:${(cx - X(px)).toFixed(1)}px;--dy:${(Y((st + sb) / 2) - Y(pz)).toFixed(1)}px" x="${(X(px) - rr).toFixed(1)}" y="${(Y(pz) - rr).toFixed(1)}" width="${(2 * rr).toFixed(1)}" height="${(2 * rr).toFixed(1)}" fill="var(--acc)" stroke="var(--k)" stroke-width="1.5"/>`
+    g += ballSVG(X(px), Y(pz), bsz, 'pb', `--dx:${(cx - X(px)).toFixed(1)}px;--dy:${(Y((st + sb) / 2) - Y(pz)).toFixed(1)}px`) // the ball where it crossed, a pixel baseball at true size
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges">${g}</svg>`
   }
-  // the pitch arrow (R, redone 28 Oct: Andrew wants the movement the pitch had, not an as-if-spinless one): its break over the last 40 ft, at true scale on the zone,
-  // sideways and vertical with gravity left in (breakOf, pitchcam25.js), catcher's view, in the pitch color (Y). R1 is one arrow from where the pitch was headed 40 ft out
-  // to where it crossed; R2 is the same as its two parts, sideways then down (or up); R3 is the path itself over its last 40 ft. Far ends are clipped at the box edge.
+  // the pitch arrow (R; 28 Oct, night, Andrew: the movement as the batter perceives it, so a dead-ahead four-seamer shows next to nothing): the break measured against an average
+  // four-seamer from the same hand (feltBreak, pitchcam25.js), at true scale on the zone, catcher's view, in the pitch color (Y). R1 is one arrow from where the pitch looked
+  // headed to where it crossed; R2 is the same as its two parts, sideways then down (or up); R3 (locked 28 Oct, night) is the path: dots from where it looked headed, bending into
+  // the ball as the movement builds (it grows with the square of the time). Far ends are clipped at the box edge.
   function moveArrow(b, X, Y, bx, by, S, W, H, rr) {
-    const k = breakOf(b)
+    const k = feltBreak(b)
     if (!mix.R || !k) return ''
     const dx = (k.h / 12) * S, dy = -(k.v / 12) * S, L = Math.hypot(dx, dy), gap = rr + 2
     const inBox = (x, y) => x >= 3 && x <= W - 3 && y >= 3 && y <= H - 3
@@ -1133,27 +1184,25 @@ export async function build(root, api, U) {
       if (Math.abs(dx) > 2) g += ln(s0x, s0y, bx, sy, 2, '4 3')
       if (Math.abs(dy) > gap + 3) { const [cx2, cy2] = clip(bx, ey, bx, sy); g += ln(cx2, cy2, bx, ey) + head(bx, ey, 0, vy) }
     } else {
-      const P = pitchPath(b)
-      if (!P) return ''
-      const pts = P.pts.filter((p) => p[1] / 0.3048 <= 40).map((p) => [X(p[0] / 0.3048), Y(p[2] / 0.3048)]).filter(([x, y]) => inBox(x, y) && Math.hypot(x - bx, y - by) > gap)
+      const pts = Array.from({ length: 13 }, (_, i) => { const u = i / 12, w = 1 - u * u; return [bx - dx * w, by - dy * w] }).filter(([x, y]) => inBox(x, y) && Math.hypot(x - bx, y - by) > gap)
       pts.forEach(([x, y], i) => { const sz = 2 + (2 * i) / Math.max(1, pts.length - 1); g += `<rect x="${(x - sz / 2).toFixed(1)}" y="${(y - sz / 2).toFixed(1)}" width="${sz.toFixed(1)}" height="${sz.toFixed(1)}" fill="var(--pc)"/>` })
     }
     return `<g class="pa" data-r="${mix.R}" data-dx="${dx.toFixed(1)}" data-dy="${dy.toFixed(1)}">${g}</g>`
   }
   function paintPitch() {
-    const b = cur, zg = E('#c25zg'), pl = E('#c25pl')
-    if (mode !== 'replay' || !b) {
+    const b = mode === 'replay' ? cur : stepped?.b ?? null, zg = E('#c25zg'), pl = E('#c25pl') // tweaking: the real pitch, which your changes don't touch
+    if (!b) {
       zg.innerHTML = ''; zg.style.display = 'none'
       const o = odds()
       pl.innerHTML = `<div class="none"><b>NO PITCH FOR A DOJO SWING</b><br>THE BALL IS NOT TIED TO A PITCH.<br>HOME RUN ODDS <b>${pct(o.p)}%</b> FROM ${o.src}</div>`
       return
     }
     zg.style.display = ''
-    const off = offZone(b), pn = pname(b.p), bk = breakOf(b)
+    const off = offZone(b), pn = pname(b.p), bk = feltBreak(b)
     zg.innerHTML = zone(b, zg.clientWidth || 136, zg.clientHeight || 120, off)
     zg.classList.toggle('anim', performance.now() - pitchIn < 700)
     // most important first: rows drop from the end when the panel is short
-    const rows = [['SPEED', f(b.pv, 1, ' MPH')], ['SPIN', f(b.rpm, 0, ' RPM')], ['BREAK', bk ? `${Math.abs(bk.h).toFixed(0)} IN ${(b.t === 'L' ? bk.h > 0 : bk.h < 0) ? 'ARM' : 'GLOVE'} SIDE` : '--'], [bk && bk.v > 0 ? 'RISE' : 'DROP', bk ? `${Math.abs(bk.v).toFixed(0)} IN` : '--'], ['APPROACH', f(b.vaa, 1, '°')], ['COUNT', b.bl != null ? `${b.bl}-${b.sk}` : '--'],
+    const rows = [['SPEED', f(b.pv, 1, ' MPH')], ['SPIN', f(b.rpm, 0, ' RPM')], ['BREAK', bk ? `${Math.abs(bk.h).toFixed(0)} IN ${(b.t === 'L' ? bk.h > 0 : bk.h < 0) ? 'ARM' : 'GLOVE'}` : '--'], [bk && bk.v > 0 ? 'RIDE' : 'DROP', bk ? `${Math.abs(bk.v).toFixed(0)} IN` : '--'], ['APPROACH', f(b.vaa, 1, '°')], ['COUNT', b.bl != null ? `${b.bl}-${b.sk}` : '--'],
       ['PITCHER', pn ? pn[0].toUpperCase() : '--', 1], ['THROWS', b.t === 'L' ? 'LEFT' : b.t === 'R' ? 'RIGHT' : '--'], ['HEIGHT', f(b.pz, 2, ' FT')], ['SIDE', f(b.px, 2, ' FT')], ['SPIN TILT', clock(b.ax)], ['EFFECTIVE', f(b.eff, 1, ' MPH')], ['EXTENSION', f(b.ext, 1, ' FT')], ['RELEASE H', f(b.rz, 2, ' FT')], ['ARM ANGLE', f(b.arm, 0, '°')]]
     const tag = off ? (b.hr ? `<div class="om"><b>${NAMES.offMenu}: ${off.word}</b>${off.inches.toFixed(1)} IN ${off.side}</div>` : `<div class="om">OUT OF THE ZONE: ${off.inches.toFixed(1)} IN ${off.side}</div>`) : ''
     pl.innerHTML = `<div class="hd">${(PITCH[b.pt] ?? b.pt ?? 'PITCH').toUpperCase()}</div>` + tag + rows.map(([a, c, wide]) => `<div class="r${wide ? ' wide' : ''}"><span>${a}</span><b>${c}</b></div>`).join('')
@@ -1165,7 +1214,7 @@ export async function build(root, api, U) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb'), bear = res.landB ?? s.dir
     wordTitle(el, '/ L A N D I N G &nbsp; P A R T Y /')
     const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(bear * 2), cur ? cur.d + cur.b : 'w'].join()
-    if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur }, getComputedStyle(root).getPropertyValue('--acc').trim()) }
+    if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur }, getComputedStyle(root).getPropertyValue('--acc').trim()); lookAt(lpList.map((x) => x.at).filter(Boolean), 18) }
     hb.innerHTML = `<div class="lpl"><div class="lph">THE ${lpList.length} ORACLE HOME RUNS MOST LIKE THIS ONE (OF ${lp.count()} SINCE JULY 2023)</div>` + lpList.map((x) => { const n = pname(x.b.b); return `<div class="lpr"><b>${x.n}</b><span class="nm">${(n ? n[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d}</span><span>${x.b.ft} FT</span><span class="wh">${x.where}</span></div>` }).join('') + '</div>'
     const rs = [...hb.querySelectorAll('.lpr')]
     for (let n = rs.length; n > 1 && hb.scrollHeight > hb.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
@@ -1175,9 +1224,12 @@ export async function build(root, api, U) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb')
     wordTitle(el, '/ S E A T &nbsp; S E A N C E /')
     const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(s.dir * 2), Math.round(s.temp), s.wind, s.hand, s.carry, s.dws].join()
-    if (key !== seKey) { seKey = key; const cs = getComputedStyle(root); seRes = se.run({ ...s }, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim() }) }
-    const r = seRes, P = (n) => Math.round((100 * (n || 0)) / r.N), seg = [['HOME RUN', r.homers, 'var(--acc)'], ['OFF THE WALL', r.tally.WALL, 'var(--tx)'], ['IN PLAY', r.tally.PLAY, 'var(--dim)'], ['FOUL', r.tally.FOUL, 'var(--ln)']]
-    hb.innerHTML = `<div class="sel"><div class="lph">${r.N} GHOSTS OF THIS BALL, SPREAD BY WHAT THE MODEL CANNOT KNOW AT CONTACT</div><div class="sbar">${seg.map(([, n, c]) => `<i style="width:${(100 * (n || 0)) / r.N}%;background:${c}"></i>`).join('')}</div>` + seg.map(([l, n]) => `<div class="lpr2"><span>${l}</span><b>${P(n)}%</b></div>`).join('') + (r.tally.SPLASH ? `<div class="lpr2"><span>SPLASH INTO MCCOVEY COVE</span><b>${P(r.tally.SPLASH)}%</b></div>` : '') + (r.zones.length ? `<div class="lph" style="margin-top:6px">HOME RUNS LAND IN</div>` + r.zones.slice(0, 3).map(([z, n]) => `<div class="lpr2"><span>${z}</span><b>${Math.round((100 * n) / Math.max(r.homers, 1))}%</b></div>`).join('') : '') + '</div>'
+    if (key !== seKey) { seKey = key; const cs = getComputedStyle(root); seRes = se.run({ ...s }, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim() }); lookAt([seRes.at], Math.max(12, seRes.most * 0.3048)); const sc0 = seRes.call; if (sc0.what === 'seat') life?.show('SEC ' + sc0.sec, `ROW ${sc0.row} SEAT ${sc0.seat}`); else life?.show(sc0.short) } // the board calls the seat too
+    // the call first (28 Oct, night, Andrew: gun to its head, a seat), then how tight the cloud is and where the rest come down
+    const r = seRes, c = r.call, P = (n) => Math.round((100 * n) / r.N)
+    const big = c.what === 'seat' ? `<div class="scall"><span>${c.area}</span><b>SECTION ${c.sec}</b><b>ROW ${c.row} · SEAT ${c.seat}</b></div>` : `<div class="scall"><span>THE CALL</span><b>${c.line}</b></div>`
+    hb.innerHTML = `<div class="sel">${big}<div class="lph">${r.N} GHOSTS OF THIS BALL, SPREAD ONLY BY WHAT THE MODEL CAN'T SEE AFTER CONTACT. HALF COME DOWN WITHIN ${r.half} FT OF THE CALL, NINE IN TEN WITHIN ${r.most} FT.</div>` +
+      r.zones.slice(0, 5).map(([z, n]) => `<div class="lpr2"><span>${z}</span><b>${P(n)}%</b></div>`).join('') + '<div class="lph">SEATS ARE A BEST GUESS FROM A SEATING CHART: SECTION BY ANGLE, ROW BY DEPTH, SEAT ALONG THE ROW.</div></div>'
     const rs = [...hb.querySelectorAll('.lpr2')]
     for (let n = rs.length; n > 1 && hb.scrollHeight > hb.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
   }
@@ -1268,14 +1320,50 @@ export async function build(root, api, U) {
     if (show === 'sm') { paintStars(); return }
     if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(); else if (show === 'sc') paintShot(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
   }
+  // THE FUN LINE (28 Oct, night, Andrew: bring back the distance and speed similes; Moonshot and the Bay Barometer fold in here): one line under GONE IN, typed out and turning
+  // over every 7 s (click it for the next): the distance and the exit speed against the 6,000-thing comparison library (San Francisco and weird things first, never
+  // "about"), how far the same swing goes on the Moon, on Mars and at Coors, and what tonight's air at Oracle does to it. Each ball keeps its own order.
+  let fun = { key: '', list: [], i: 0 }
+  const vacFt = (g) => { const s = api.state, v = s.ev * 0.44704, th = (s.la * Math.PI) / 180, vz = v * Math.sin(th), t = (vz + Math.sqrt(vz * vz + 2 * g * 0.9)) / g; return (v * Math.cos(th) * t) / 0.3048 }
+  const bigN = (x) => Math.round(x).toLocaleString('en-US')
+  function funList(res) {
+    const s = api.state, ft = Math.round(res.landFt), seed = ft * 131 + Math.round(s.ev * 10), out = []
+    if (lib) {
+      const rnd = mulberry32(seed), seen = []
+      // keep the plain ones: no "1/2,000 the length of" a river nobody knows; San Francisco and weird things first, or something famous
+      const good = (p) => p && !/^1\//.test(p.phrase) && (p.rec.theme !== 'general' || p.rec.fame >= 40)
+      const take = (kind, amt) => { for (let k = 0; k < 8; k++) { const p = pick(lib, kind, amt, rnd, seen); if (good(p)) { seen.push(p.rec.cat, p.rec.name); return p } } return null }
+      for (let k = 0; k < 2; k++) { const p = take('length', ft * 0.3048); if (p) out.push(`${ft} FT: ${p.phrase}`) }
+      const sp = take('speed', s.ev * 0.44704); if (sp) out.push(`${Math.round(s.ev)} MPH OFF THE BAT: ${sp.phrase}`)
+    }
+    if (s.la > 5) {
+      out.push(`ON THE MOON THE SAME SWING GOES ${bigN(vacFt(1.62))} FT`)
+      out.push(`ON MARS ${bigN(vacFt(3.71))} FT. ON EARTH WITH NO AIR, ${bigN(vacFt(9.81))}`)
+      const col = parks.parks.find((p) => p.abbr === 'COL')
+      if (col && (window.__parkX ?? 'SF') !== 'COL') { try { const cr = api.fly({ ...s }, { hPa: col.hpa, wallFn: U.wallFnOf(parks, col) }); if (isFinite(cr.landFt)) out.push(`A MILE UP AT COORS IT GOES ${Math.round(cr.landFt)} FT, ${Math.round(cr.landFt - res.landFt)} MORE`) } catch {} }
+      if (atOracle && bay && !(bay instanceof Promise) && !bay.error && bay.hourly) {
+        const H = bay.hourly, { i0 } = nowRow(bay), d = (carryFt(H.temperature_2m[i0], H.surface_pressure[i0]) - carryFt(s.temp ?? 62, 1015)) * (res.landFt / 400)
+        out.push(Math.abs(d) < 0.5 ? `IN TONIGHT'S AIR AT ORACLE (${Math.round(H.temperature_2m[i0])}°) IT LANDS IN THE SAME SPOT` : `IN TONIGHT'S AIR AT ORACLE (${Math.round(H.temperature_2m[i0])}°) IT GOES ${Math.abs(d).toFixed(0)} FT ${d > 0 ? 'FARTHER' : 'SHORTER'}`)
+      }
+    }
+    return out.map((x) => x.toUpperCase())
+  }
+  function turnFun(step = 1) {
+    const el = E('#c25rd .fun')
+    if (!el || !fun.list.length) { if (el) el.textContent = ''; return }
+    fun.i = (fun.i + step + fun.list.length) % fun.list.length
+    el.textContent = fun.list[fun.i]; el.classList.remove('ty'); void el.offsetWidth; el.classList.add('ty')
+  }
+  setInterval(() => { if (!document.hidden && !modal) turnFun(1) }, 7000)
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing
   function paintHead(res) {
     const o = odds(), rd = E('#c25rd'), d = Math.round(res.landFt), pv = !!ses.beat?.preview
-    if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn"></div><span class="sub sit"></span>` }
+    if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn" role="button" title="every park"></div><div class="fun" role="button" title="next"></div><span class="sub sit"></span>`; rd.querySelector('.fun').addEventListener('click', () => { sound.play('move'); turnFun(1) }); rd.querySelector('.gn').addEventListener('click', () => { pressEl(rd.querySelector('.gn')); openMod('parks') }) }
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
     set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api))} PARKS` : '')
     set('.op', pct(o.p))
+    { const k = [d, Math.round(api.state.ev), Math.round(api.state.la), lib ? 1 : 0, bay && !(bay instanceof Promise) ? 1 : 0].join(); if (k !== fun.key) { fun = { key: k, list: funList(res), i: -1 }; turnFun(1) } }
     set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
     set('.osrc', 'HOME RUN ODDS · ' + o.src)
     rd.querySelectorAll('.meter s').forEach((s, i) => s.classList.toggle('on', o.p != null && o.p * 20 > i + 0.5))
@@ -1316,7 +1404,7 @@ export async function build(root, api, U) {
   }
 
   // ---- effects and sound: hit-stop, contact spark and flash, trail, fireworks on a home run, the Cove splash and its kayaks, Karl's fog ----
-  const colors = () => { const cs = getComputedStyle(root), gs = getComputedStyle(grid); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), pc: gs.getPropertyValue('--pc').trim() } }
+  const colors = () => { const cs = getComputedStyle(root), gs = getComputedStyle(grid); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), pc: gs.getPropertyValue('--pc').trim() } }
   let splashes = Number(store('nn-splash25') ?? 0) || 0
   const banner = (big, small) => { const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go') }
   fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
@@ -1324,13 +1412,15 @@ export async function build(root, api, U) {
   life = atOracle ? initPark25(api, colors, {}) : null
   water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
   pitchCam = initPitchArc(api, colors)
+  flight = initFlight25(api, colors); flight.setStyle(mix.U)
+  window.__cpTrack = (pts, res, color, prev) => flight.track(pts, res, color, prev); window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && e.target?.tagName === 'CANVAS') pitchCam.finish() }) // skip to the hit
   const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, onBoard: () => life?.play('glitch', {}, 0, true), oracle: atOracle })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
-    if (mix.Z !== 2 || !at || bird || reduced) return
+    if (mix.Z !== 2 || !at || bird || reduced || look) return
     const C = api.NN.camera, T = api.NN.controls.target
     push = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: C.position.clone().lerp(at, 0.3), t1: T.clone().lerp(at, 0.6) }
   }
@@ -1342,7 +1432,26 @@ export async function build(root, api, U) {
     api.NN.camera.position.lerpVectors(push.p0, push.p1, k); api.NN.controls.target.lerpVectors(push.t0, push.t1, k); api.NN.controls.update()
     if (t >= 4.4) endPush()
   })
-  addEventListener('pointerdown', (e) => { if (push && e.target?.tagName === 'CANVAS') push = null }) // the drag takes the camera from where the push left it
+  addEventListener('pointerdown', (e) => { if ((push || look) && e.target?.tagName === 'CANVAS') { push = null; look = null } }) // the drag takes the camera from where the push left it
+  // LOOK (28 Oct, night): Landing Party, Seat Seance and Shot Caller are about one corner of the park, which is a few pixels from the broadcast seat; the camera glides in
+  // over that corner (from the home-plate side, high enough to see the rows) and glides back to where it was when the feature closes. Never in bird's eye.
+  function lookAt(pts, rad = 20) {
+    if (!pts.length || bird || reduced) return
+    const THREE = api.NN.THREE, C = api.NN.camera, T = api.NN.controls.target, c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length)
+    const r = Math.max(rad, ...pts.map((p) => Math.hypot(p.x - c.x, p.z - c.z))), home = api.toWorld([0, 0, 0])
+    const back = new THREE.Vector3(home.x - c.x, 0, home.z - c.z).normalize(), D = Math.max(115, r * 4)
+    const p1 = c.clone().addScaledVector(back, D * 0.78).add(new THREE.Vector3(0, D * 0.6, 0))
+    const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() }) // a push under way: go back to where it started
+    push = null
+    look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1: c.clone(), base, out: false }
+  }
+  function unlook() { if (!look || look.out) return; const C = api.NN.camera, T = api.NN.controls.target; look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: look.base.p, t1: look.base.t, out: true } }
+  api.NN.frames.push(() => {
+    if (!look) return
+    const k = ease((performance.now() - look.start) / 1300)
+    api.NN.camera.position.lerpVectors(look.p0, look.p1, k); api.NN.controls.target.lerpVectors(look.t0, look.t1, k); api.NN.controls.update()
+    if (k >= 1 && look.out) look = null
+  })
   if (life) life.gullsOn = mix.F !== 3
   if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) }
   // PLAY IT: a new batter gets their walk-up jingle, the pitch flies into the zone, then the hit-stop and the crack
@@ -1403,21 +1512,23 @@ export async function build(root, api, U) {
   addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
   addEventListener('pointerdown', (e) => { if (reel && e.target?.tagName === 'CANVAS') stopReel() })
   let fires = 0
+  const voxBall = (bm) => { if (bm.userData.vox) return; bm.userData.vox = 1; loadModels(api.NN.THREE).then((M) => { if (!M.ball) return; const v = cloneModel(M.ball, 2.0 / 0.42 / 0.09); bm.add(v); bm.material.visible = false; bm.userData.vox = v }) }
   window.__cpOnFire = (ev) => {
     fires++
     clearTimeout(songT); if (autoSong) { jukebox.stop(); autoSong = false }
     endPush()
     // a glove or the sea lion may have taken the last one; and the engine's ball (a 2.4 m radius, so it shows from anywhere) is drawn at 0.42 of that (Andrew: "way too big")
-    const bm = api.ballMesh?.(); if (bm) { bm.visible = true; bm.scale.setScalar(0.42) }
+    const bm = api.ballMesh?.(); if (bm) { bm.visible = true; bm.scale.setScalar(0.42); voxBall(bm) }
     fx.contact(ev)
     life?.clear()
     life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
     sound.play('crack', { ev: api.state.ev })
   }
-  window.__cpOnFly = (pos, fr) => { fx.fly(pos, fr) }
+  window.__cpOnFly = (pos, fr) => { flight.reveal(fr); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation) v.rotation.x -= 0.35 }
   let lands = 0
   window.__cpOnLand = (ev) => {
+    flight.done()
     lands++
     const ft = Math.round(window.__dojo?.landFt ?? 0), hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)
     if (reel?.mine) { reel.mine = false; reel.i++; reel.t.push(setTimeout(reelNext, 2600)) }
@@ -1467,7 +1578,7 @@ export async function build(root, api, U) {
   if (wantMod) setTimeout(() => openMod(wantMod), 1200)
   if (q.get('menu') !== '0' && !wantMod) menu.show(mode === 'replay' ? 'replay' : 'dojo')
   uiReady = true
-  window.__mix25 = { get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
+  window.__mix25 = { fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes }
   return {

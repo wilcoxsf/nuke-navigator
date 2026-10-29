@@ -11,14 +11,15 @@ export function initFx25(api, col, o = {}) {
   const parts = []
   const STEPS = 4
   const mats = new Map()
-  // shared materials per color and opacity step, so hundreds of short-lived squares cost little
-  const sq = (c, a) => { const k = c + ':' + a; if (!mats.has(k)) mats.set(k, new THREE.SpriteMaterial({ color: c, transparent: true, opacity: a / STEPS, depthWrite: false, fog: false })); return mats.get(k) }
+  // shared materials per color and opacity step, so hundreds of short-lived bits cost little; each bit is a small tumbling cube (28 Oct, night: voxels everywhere)
+  const sq = (c, a) => { const k = c + ':' + a; if (!mats.has(k)) mats.set(k, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: a / STEPS, depthWrite: false, fog: false })); return mats.get(k) }
   const step = (x) => Math.max(0, Math.min(STEPS, Math.ceil(x * STEPS)))
+  const bit = new THREE.BoxGeometry(1, 1, 1)
   function particle(c, pos, vel, life, size, g = 9.8, drag = 0) {
-    const s = new THREE.Sprite(sq(c, STEPS)); s.position.copy(pos); s.scale.setScalar(size); scene.add(s)
-    const v = vel.clone(); let t = 0
+    const s = new THREE.Mesh(bit, sq(c, STEPS)); s.position.copy(pos); s.scale.setScalar(size * 0.7); s.rotation.set(rnd(0, 3), rnd(0, 3), 0); scene.add(s)
+    const v = vel.clone(), spin = rnd(-6, 6); let t = 0
     parts.push((dt) => {
-      t += dt; v.y -= g * dt; if (drag) v.multiplyScalar(1 - drag * dt); s.position.addScaledVector(v, dt)
+      t += dt; v.y -= g * dt; if (drag) v.multiplyScalar(1 - drag * dt); s.position.addScaledVector(v, dt); s.rotation.x += spin * dt
       const a = step(1 - t / life); if (a <= 0) { scene.remove(s); return false }
       s.material = sq(c, a); return true
     })
@@ -114,11 +115,19 @@ export function initFx25(api, col, o = {}) {
   // ---- a splash hit: ripple rings and droplets, then the race ----
   function splash(at) {
     const c = col(), cy = '#5fd3ff'
+    // voxel ripples (28 Oct, night): rings of cubes that spread across the water, each cube riding the ring outward, fading in steps
     for (let r = 0; r < 4; r++) {
-      const m = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: r % 2 ? c.tx : cy, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false }))
+      const n = 40, m = new THREE.InstancedMesh(bit, new THREE.MeshBasicMaterial({ color: r % 2 ? c.tx : cy, transparent: true, depthWrite: false, fog: false }), n), m4 = new THREE.Matrix4()
       m.position.copy(at); m.position.y += 0.3; scene.add(m)
       let t = -r * 0.22
-      parts.push((dt) => { t += dt; const k = Math.max(0, t) / 1.6; m.scale.setScalar(Math.max(0.01, 1 + k * 26)); m.material.opacity = t < 0 ? 0 : step(1 - k) / STEPS; if (k >= 1) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); return false } return true })
+      parts.push((dt) => {
+        t += dt; const k = Math.max(0, t) / 1.6, R = 1 + k * 26, sz = 0.7 + k * 0.6
+        for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; m4.makeScale(sz, sz * 0.5, sz).setPosition(Math.cos(a) * R, 0, Math.sin(a) * R); m.setMatrixAt(i, m4) }
+        m.instanceMatrix.needsUpdate = true
+        m.material.opacity = t < 0 ? 0 : step(1 - k) / STEPS
+        if (k >= 1) { scene.remove(m); m.material.dispose(); return false }
+        return true
+      })
     }
     for (let i = 0; i < 36; i++) { const a = rnd(0, Math.PI * 2), up = rnd(9, 20), out = rnd(1, 6); particle(i % 3 ? cy : c.tx, at, V(Math.cos(a) * out, up, Math.sin(a) * out), rnd(1.1, 1.7), 1.2, 16) }
     o.sound?.('water')

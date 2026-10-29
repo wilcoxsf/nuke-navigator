@@ -4,7 +4,7 @@
 //   CRAZY CRAB (a wall scraper or a ball just short)   SEA LION (a splash hit)   SPLASH ODOMETER (the splash count rolls over)   CABLE CAR (430 ft or more)
 //   KARL (the fog eats the board)   GULL HEIST and GOLDEN GATE (idle)   GOLF SHOT, TOMAHAWK, CHASE SCENE, INSIDE JOB (the four OFF THE MENU home runs)
 //   WALK-OFF   GRAND SLAM   GO-AHEAD and TIES IT (a scoreline flip)   MOONSHOT   TWEAK THE TATER   SO CLOSE (a dojo swing that just missed)
-// The board is 72 x 34 LEDs of 0.58 m, sized to Oracle's own board (1.5 screen pixels an LED at 1440 wide, 2.4 at 1827); the animations use the middle 22 rows.
+// The board is 72 x 30 LEDs (0.43 by 0.57 m), sized to the frame of Oracle's own board in the park model; the animations use the middle 22 rows.
 // One animation plays at a time, with at most two waiting.
 export function initPark25(api, col, o = {}) {
   const { THREE, scene } = api.NN
@@ -14,17 +14,19 @@ export function initPark25(api, col, o = {}) {
 
   // ---- the LED board: a buffer of color codes per LED, drawn as round bulbs ----
   // the logic grid is 72 x 22 (every animation is drawn on it); the board itself has GHT rows, the logic rows centered with dark rows above and below
-  const GW = 72, GH = 22, GHT = 34, ROW0 = 6, S = 10, LED = 0.58
+  const GW = 72, GH = 22, GHT = 30, ROW0 = 4, S = 10, LED = 0.433, LEDH = 0.567, SH = Math.round((S * LEDH) / LED)
   const buf = new Uint8Array(GW * GH)
   const grid = document.createElement('canvas'); grid.width = GW; grid.height = GH
   const gx = grid.getContext('2d', { willReadFrequently: true })
-  const out = document.createElement('canvas'); out.width = GW * S; out.height = GHT * S
+  const out = document.createElement('canvas'); out.width = GW * S; out.height = GHT * SH
   const ox = out.getContext('2d')
   const tex = new THREE.CanvasTexture(out); tex.magFilter = THREE.LinearFilter; tex.colorSpace = THREE.SRGBColorSpace
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(GW * LED, GHT * LED), new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide }))
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(GW * LED, GHT * LEDH), new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide }))
   // it replaces Oracle's own board (28 Oct, Andrew: 'wire that puppy in directly over it'): the real board in the park model sits between the two light towers, from
-  // -8.5 to +7.5 degrees, 28 to 50 m up, its screen 149 m out; this one covers it exactly (42 m by 20 m, centered at -0.5 degrees and 39 m), a hair in front of the screen
-  const bearing = o.boardBearing ?? -0.5, bh = o.boardH ?? 39
+  // 28 Oct, night remeasure (Andrew: still higher than the real board): the board's frame in the model runs -7 to +5 degrees and 28 to 45 m up, the screen 149 m out (the
+  // 48-50 m bits above it are the sign, not the board); this one covers exactly that (31 m by 17 m, centered at -1 degree and 36.5 m), a hair in front of the screen.
+  // Its LEDs are 0.43 m wide and 0.57 m tall, so the 72 by 22 animation grid still fits
+  const bearing = o.boardBearing ?? -1, bh = o.boardH ?? 36.5
   board.position.copy(at(bearing, o.boardR ?? 148.4, bh))
   board.lookAt(at(bearing, 0, bh))
   scene.add(board)
@@ -62,7 +64,7 @@ export function initPark25(api, col, o = {}) {
     for (let y = 0; y < GHT; y++) for (let x = 0; x < GW; x++) {
       const ly = y - ROW0, k = ly >= 0 && ly < GH ? buf[ly * GW + x] : 0
       ox.fillStyle = k ? P[k] : '#1a1a1a'
-      ox.beginPath(); ox.arc(x * S + S / 2, y * S + S / 2, S * (k ? 0.42 : 0.3), 0, Math.PI * 2); ox.fill()
+      ox.beginPath(); ox.ellipse(x * S + S / 2, y * SH + SH / 2, S * (k ? 0.44 : 0.3), SH * (k ? 0.44 : 0.3), 0, 0, Math.PI * 2); ox.fill()
     }
     tex.needsUpdate = true
   }
@@ -263,11 +265,17 @@ export function initPark25(api, col, o = {}) {
   let idleText = 'NUKE NAVIGATOR  ·  ORACLE PARK'
   function idle(txt) { idleText = txt ?? idleText; lines = [idleText, '']; color = null; flash = 0; marquee = true; scroll = 0 }
 
-  // ---- seagulls: wing chevrons that flap, circling the outfield; a home run scatters them and they drift back ----
-  const gulls = []
-  const gGeo = () => new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(12), 3))
+  // ---- seagulls: voxel gulls (28 Oct, night: everything in the park is voxels), a body and two three-cube wings that flap, circling the outfield; a home run scatters them ----
+  const gulls = [], cube = new THREE.BoxGeometry(1, 1, 1), gm = new THREE.MeshLambertMaterial({ color: '#e8e6df', flatShading: true }), gt = new THREE.MeshLambertMaterial({ color: '#8a8f99', flatShading: true })
+  function voxGull() {
+    const m = new THREE.Group(), body = new THREE.Mesh(cube, gm)
+    body.scale.set(0.7, 0.6, 1.6); m.add(body)
+    const wing = (side) => { const w = new THREE.Group(); for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(cube, k === 2 ? gt : gm); c.scale.set(0.8, 0.25, 0.8 - k * 0.15); c.position.x = side * (0.75 + k * 0.78); w.add(c) } m.add(w); return w }
+    m.userData.wings = [wing(-1), wing(1)]
+    return m
+  }
   for (let i = 0; i < (o.gulls ?? 10); i++) {
-    const m = new THREE.LineSegments(gGeo(), new THREE.LineBasicMaterial({ color: col().tx, fog: false }))
+    const m = voxGull()
     scene.add(m)
     const g = { m, c: at(Math.random() * 70 - 35, 80 + Math.random() * 60, 0), r: 14 + Math.random() * 22, h: 32 + Math.random() * 26, a: Math.random() * Math.PI * 2, w: (0.25 + Math.random() * 0.25) * (Math.random() < 0.5 ? -1 : 1), ph: Math.random() * 6, out: 0, v: null }
     m.position.set(g.c.x + Math.cos(g.a) * g.r, g.h, g.c.z + Math.sin(g.a) * g.r)
@@ -281,19 +289,18 @@ export function initPark25(api, col, o = {}) {
       const home = new THREE.Vector3(g.c.x + Math.cos(g.a) * g.r, g.h, g.c.z + Math.sin(g.a) * g.r)
       if (g.out > 0) { g.out -= dt; g.m.position.addScaledVector(g.v, dt); g.v.y += 1.5 * dt }
       else g.m.position.lerp(home, Math.min(1, dt * 0.8))
-      const flap = Math.sin(t * (g.out > 0 ? 16 : 7) + g.ph) * 1.1, s = 2.6
-      const p = g.m.geometry.attributes.position
-      // left tip, body, body, right tip (the chevron points along the flight direction)
+      const flap = Math.sin(t * (g.out > 0 ? 16 : 7) + g.ph) * 0.45
       const dir = g.out > 0 ? Math.atan2(g.v.z, g.v.x) : g.a + Math.sign(g.w) * Math.PI / 2
-      const fx = Math.cos(dir), fz = Math.sin(dir), sx = -fz, sz = fx
-      p.setXYZ(0, -sx * s - fx * 0.9, flap, -sz * s - fz * 0.9); p.setXYZ(1, 0, 0, 0); p.setXYZ(2, 0, 0, 0); p.setXYZ(3, sx * s - fx * 0.9, flap, sz * s - fz * 0.9)
-      p.needsUpdate = true
+      g.m.rotation.y = -dir + Math.PI / 2 // the body's length (z) along the flight
+      g.m.userData.wings[0].rotation.z = -flap; g.m.userData.wings[1].rotation.z = flap
     }
     return true
   })
   function scatter() { for (const g of gulls) { g.out = 5 + Math.random() * 3; const a = Math.random() * Math.PI * 2; g.v = new THREE.Vector3(Math.cos(a) * 14, 9 + Math.random() * 8, Math.sin(a) * 14) } }
 
-  api.NN.frames.push((dt) => { for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](Math.min(dt, 0.1))) parts.splice(i, 1) })
+  // the board keeps its own wall clock (steps of up to half a second): the engine hands frames a clamped step, so on a slow device a 4.6 s crab took 45 s
+  let wall = performance.now()
+  api.NN.frames.push(() => { const now = performance.now(), dt = Math.min(0.5, (now - wall) / 1000); wall = now; for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](dt)) parts.splice(i, 1) })
   return {
     show, idle, scatter, play,
     // a new swing takes the board: whatever the last one left playing or waiting is dropped

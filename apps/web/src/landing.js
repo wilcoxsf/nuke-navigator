@@ -2,6 +2,7 @@
 // carry and side spin and followed past the wall into the stands, the arcade or McCovey Cove. Numbered markers sit where they came down; the list says who, when, how far.
 // Real balls only (the replay set: every Oracle home run since 2023-07-14). Where a ball came down is the engine's landing, anchored to Statcast's distance and bearing, not a seat record.
 import * as THREE from 'three'
+import { voxText, voxPost, voxDots, keepReadable } from './cockpits/vox25.js'
 
 const ZONES = [[-46, -30, 'LEFT-FIELD STANDS'], [-30, -12, 'LEFT-CENTER'], [-12, 12, 'CENTER FIELD'], [12, 30, 'RIGHT-CENTER'], [30, 47, 'ARCADE']]
 
@@ -32,7 +33,7 @@ export function landingParty(api, balls, o = {}) {
   function clear() {
     if (!group) return
     api.NN.scene.remove(group)
-    group.traverse((x) => { x.geometry?.dispose(); x.material?.map?.dispose(); x.material?.dispose?.() })
+    group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose(); x.material?.map?.dispose(); x.material?.dispose?.() })
     group = null
   }
   // x: { ev, la, bear, self } (self: the replay ball itself, left out of its own party)
@@ -52,16 +53,24 @@ export function landingParty(api, balls, o = {}) {
       const hit = res.verdict.kind === 'GONE' || res.verdict.kind === 'FOUL' ? api.findLanding(res.path) : { point: api.toWorld(res.path[res.path.length - 1].p), kind: 'SHORT' }
       const p = hit.point, bear = (Math.atan2(p.x, -p.z) * 180) / Math.PI
       const where = hit.kind === 'SPLASH' ? 'MCCOVEY COVE' : hit.kind === 'STREET' ? 'OUT OF THE PARK' : hit.kind === 'SHORT' ? 'SHORT IN THE ENGINE' : ZONES.find((z) => bear >= z[0] && bear < z[1])?.[2] ?? (bear < 0 ? 'LEFT-FIELD STANDS' : 'ARCADE')
-      const m = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), dot)
-      m.position.copy(p)
-      m.renderOrder = 19
-      const s = numberSprite(i + 1, color)
-      s.position.set(p.x, p.y + 6, p.z)
-      group.add(m, s)
-      // the flight, faint, so the eye can follow each one in
       const pts = res.path.filter((_, k) => k % 5 === 0).map((q) => api.toWorld(q.p))
-      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.28, depthTest: false })))
-      out.push({ n: i + 1, b, d, where, kind: hit.kind })
+      if (o.vox) {
+        // Study 25 (28 Oct, night): a voxel number on a voxel stake where it came down, the flight as a few faint cubes
+        const n = voxText(THREE, String(i + 1), { px: 0.8, color, back: '#141414' }), top = new THREE.Vector3(p.x, p.y + 6, p.z)
+        n.position.copy(top); keepReadable(api, n, 140, 0.5, 2.4)
+        group.add(n, voxPost(THREE, p, top, { px: 0.45, gap: 1.2, color }))
+        group.add(voxDots(THREE, res.path.filter((_, k) => k % 9 === 4).map((q) => api.toWorld(q.p)), { px: 0.35, color: o.dim ?? color }))
+      } else {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), dot)
+        m.position.copy(p)
+        m.renderOrder = 19
+        const s = numberSprite(i + 1, color)
+        s.position.set(p.x, p.y + 6, p.z)
+        group.add(m, s)
+        // the flight, faint, so the eye can follow each one in
+        group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.28, depthTest: false })))
+      }
+      out.push({ n: i + 1, b, d, where, kind: hit.kind, at: p.clone() })
     })
     api.NN.scene.add(group)
     return out

@@ -32,9 +32,12 @@ export function constellation(api, col) {
     if (my !== token) return null
     const geo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)).setAttribute('color', new THREE.Float32BufferAttribute(cols, 3))
     group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, fog: false })))
-    const dg = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dots, 3)).setAttribute('color', new THREE.Float32BufferAttribute(dcols, 3))
-    group.add(new THREE.Points(dg, new THREE.PointsMaterial({ vertexColors: true, size: 2.2, sizeAttenuation: true, fog: false })))
-    if (beads.length) group.add(new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(beads, 3)), new THREE.PointsMaterial({ color: c.acc, size: 2.6, sizeAttenuation: true, fog: false })))
+    // the landings and this batter's beads as cubes (28 Oct, night: voxels everywhere), one instanced mesh each, colored per landing
+    const box = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), col3 = new THREE.Color()
+    const land = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ flatShading: true, fog: false }), dots.length / 3)
+    for (let k = 0; k < dots.length / 3; k++) { m4.makeScale(1.3, 1.3, 1.3).setPosition(dots[3 * k], dots[3 * k + 1], dots[3 * k + 2]); land.setMatrixAt(k, m4); land.setColorAt(k, col3.setRGB(dcols[3 * k], dcols[3 * k + 1], dcols[3 * k + 2])) }
+    group.add(land)
+    if (beads.length) { const bd = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: c.acc, flatShading: true, fog: false }), beads.length / 3); for (let k = 0; k < beads.length / 3; k++) { m4.makeScale(1.1, 1.1, 1.1).setPosition(beads[3 * k], beads[3 * k + 1], beads[3 * k + 2]); bd.setMatrixAt(k, m4) } group.add(bd) }
     return { n: list.length, segs: pos.length / 6 }
   }
   return { show, clear, on: () => !!group }

@@ -132,12 +132,12 @@ export function popPanels(root, sel = '.pop') {
 export const pressEl = (el) => { if (!el) return; el.classList.add('pr'); setTimeout(() => el.classList.remove('pr'), 140) }
 
 // ---- controls: the six inputs, shared by every study ------------------------------------------------------------------------------------------------------------
-export function makeControls(api, U) {
+export function makeControls(api, U, o = {}) {
   const { SPEC, setP, clamp, norm } = U
   const SLOTS = [
     { k: 'ev', label: 'SPEED', unit: 'MPH' }, { k: 'la', label: 'ANGLE', unit: 'DEG' }, { k: 'dir', label: 'DIRECTION' },
     { k: 'temp', label: 'AIR', unit: 'F' }, { k: 'wind', label: 'WIND' }, { k: 'hand', label: 'BATTER' },
-  ]
+  ].filter((x) => o.hand !== false || x.k !== 'hand') // Study 25 drops the batter's hand from the strip (it only tilts the side spin)
   const c = { SLOTS, armed: 0, els: [], onChange: () => {}, onArm: () => {} }
   c.text = (k) => (k === 'hand' ? (api.state.hand > 0 ? 'RIGHT' : 'LEFT') : SPEC[k].fmt(api.state[k]))
   c.frac = (k) => (k === 'hand' ? (api.state.hand > 0 ? 1 : 0) : norm(k, api.state[k]))
