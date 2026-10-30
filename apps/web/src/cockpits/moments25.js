@@ -50,7 +50,70 @@ export function initMoments25(api, col, fx, o = {}) {
     })
     return g
   }
+  // ---- 29 Oct, later (Andrew: "more landing fun animations"): three more for the seats, built from cubes here ----
+  const vox = (cells, size, at0) => { // cells: [x, y, z, color] in cube units, the group's origin at the bottom middle
+    const g = new THREE.Group(), byC = {}
+    for (const [x, y, z, c] of cells) (byC[c] ??= []).push([x, y, z])
+    for (const [c, list] of Object.entries(byC)) { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshLambertMaterial({ color: c, flatShading: true }), list.length); list.forEach(([x, y, z], i) => m.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x * size, y * size, z * size))); g.add(m) }
+    g.position.copy(at0); scene.add(g); live.add(g); g.userData.at = at0.clone()
+    const cam = api.NN.camera.position; g.rotation.y = Math.atan2(cam.x - at0.x, cam.z - at0.z)
+    return g
+  }
+  const box = (out, x0, x1, y0, y1, z0, z1, c) => { for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) out.push([x, y, z, c]) }
+  // GULL GRAB: a big gull swoops in from the side, takes the ball out of the air and flaps off over the bay with it
+  function gullGrab(at) {
+    log.push('gull'); o.banner?.('GULL GRAB', 'IT IS NOT COMING BACK')
+    const C = []
+    box(C, -1, 1, 0, 1, -3, 3, '#f2f0ea'); box(C, -1, 1, 1, 2, 3, 4, '#f2f0ea'); C.push([0, 1, 5, '#f2c230'], [0, 1, 6, '#f2c230'], [0, 0, 6, '#d8262c'], [-1, 2, 4, '#111'], [1, 2, 4, '#111'])
+    for (const s of [-1, 1]) for (let k = 2; k <= 8; k++) for (let z = -1; z <= 1; z++) C.push([s * k, 1, z, k > 6 ? '#3a3f47' : '#f2f0ea'])
+    const side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion), from = at.clone().addScaledVector(side, -40).add(V(0, 14, 0)), g = vox(C, 0.6, from)
+    let got = false
+    run((t) => {
+      const k = Math.min(1, t / 0.8)
+      if (t < 0.8) g.position.lerpVectors(from, at, ease(k)); else { g.position.copy(at).addScaledVector(side, (t - 0.8) * 22).add(V(0, (t - 0.8) * 12, 0)) }
+      if (!got && t >= 0.8) { got = true; hideBall(true); o.sound?.('pop') }
+      g.rotation.z = Math.sin(t * 14) * 0.35
+      if (t > 3.4) { kill(g); return false }
+      return true
+    })
+  }
+  // GOOD BOY: a dog (it is Bark at the Park) leaps out of the crowd, catches the ball in its mouth and drops back
+  function dog(at) {
+    log.push('dog'); o.banner?.('GOOD BOY', 'WHAT A CATCH')
+    const C = [], B = '#a8703f', D = '#5a3a1e'
+    box(C, -1, 1, 3, 5, -3, 3, B); box(C, -1, 1, 5, 8, 3, 5, B); box(C, -1, 1, 6, 7, 6, 7, B); C.push([0, 7, 8, '#111'], [-1, 8, 4, '#111'], [1, 8, 4, '#111'])
+    box(C, -2, -2, 7, 9, 4, 4, D); box(C, 2, 2, 7, 9, 4, 4, D) // the ears
+    for (const [x, z] of [[-1, -3], [1, -3], [-1, 2], [1, 2]]) box(C, x, x, 0, 2, z, z, B)
+    box(C, 0, 0, 6, 8, -5, -4, B) // the tail, up
+    C.push([0, 6, 8, '#f4f2ea']) // the ball in its mouth
+    const g = vox(C, 0.6, at.clone().add(V(0, -9, 0)))
+    let got = false
+    run((t) => {
+      const k = Math.min(1, t / 1.6), arc = 4 * k * (1 - k)
+      g.position.y = at.y - 9 + arc * 11; g.rotation.x = (0.5 - k) * 0.9
+      if (!got && t > 0.75) { got = true; hideBall(true); o.sound?.('pop') }
+      if (t > 2.2) { kill(g); return false }
+      return true
+    })
+  }
+  // BEER SHOWER: the ball lands in someone's beer; the cup goes up end over end and the foam comes down on the section
+  function beer(at) {
+    log.push('beer'); o.banner?.('BEER SHOWER', 'SECTION GOT WET')
+    const C = []
+    for (let y = 0; y < 6; y++) for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) if (Math.abs(x) === 2 || Math.abs(z) === 2 || y === 0) C.push([x, y, z, y >= 5 ? '#f4f2ea' : '#e8b33a'])
+    const g = vox(C, 0.45, at.clone())
+    hideBall(true)
+    for (let i = 0; i < 40; i++) { const a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 6; fx.particle(i % 3 ? '#f2c94c' : '#f4f2ea', at.clone().add(V(0, 2, 0)), V(Math.cos(a) * v, 6 + Math.random() * 8, Math.sin(a) * v), 1.6 + Math.random(), 1.4, 9.8, 0.3) }
+    o.sound?.('pop')
+    run((t) => { g.position.y = at.y + 9 * 4 * Math.min(1, t / 1.6) * (1 - Math.min(1, t / 1.6)); g.rotation.x = t * 7; if (t > 1.8) { kill(g); return false } return true })
+  }
   function seats(at) {
+    // half the time the glove (sometimes a bobble); otherwise a gull, a dog or a beer
+    const r = Math.random()
+    if (o.variety !== false && r >= 0.5) { if (r < 0.67) gullGrab(at); else if (r < 0.84) dog(at); else beer(at); return }
+    seatsGlove(at)
+  }
+  function seatsGlove(at) {
     if (Math.random() < (o.bobbleRate ?? 0.25)) {
       log.push('bobble'); glove(at, null, true); hideBall(true)
       const side = V(Math.random() < 0.5 ? -1 : 1, 0, 0).applyQuaternion(api.NN.camera.quaternion).multiplyScalar(12), b = piece('ball', ['ball'], at.clone())
@@ -125,7 +188,9 @@ export function initMoments25(api, col, fx, o = {}) {
       if (ev.key === 'WALL' || ev.key === 'CLOSE') { dust(at); return 'dust' }
       return null
     },
-    ready: () => !!M, shown: () => live.size, log: () => [...log], MITT, setBobble(r) { o.bobbleRate = r },
+    ready: () => !!M, shown: () => live.size, log: () => [...log], MITT, setBobble(r) { o.bobbleRate = r }, setVariety(v) { o.variety = v },
+    // for the tests and the dock: play one of the seat moments at a spot
+    try(kind, at) { ({ gull: gullGrab, dog, beer, glove: seatsGlove })[kind]?.(at) },
     // for the tests: where each piece up right now sits on screen, and how far it is (along the ground) from the spot it was made for
     boxes() { const c = document.querySelector('canvas').getBoundingClientRect(), cam = api.NN.camera; return [...live].filter((s) => s.userData.at).map((s) => { const v = s.position.clone().project(cam), a = s.userData.at; return { x: c.left + ((v.x + 1) / 2) * c.width, y: c.top + ((1 - v.y) / 2) * c.height, on: v.z < 1 && Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1, d: Math.hypot(s.position.x - a.x, s.position.z - a.z), model: !!s.userData.looks?.[0] } }) },
   }

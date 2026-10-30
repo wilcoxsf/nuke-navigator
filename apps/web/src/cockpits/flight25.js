@@ -18,7 +18,7 @@ export function initFlight25(api, colors) {
   const toWorld = window.__cp.toWorld
   let style = 2, last = null, ghost = null
   const box = () => new THREE.BoxGeometry(1, 1, 1) // its own cube per track: the engine disposes the track's geometry when the next ball comes
-  const lam = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, fog: false })
+  const LAM = new Map(), lam = (c) => (LAM.has(c) ? LAM.get(c) : LAM.set(c, new THREE.MeshLambertMaterial({ color: c, flatShading: true, fog: false })).get(c)) // one material per color (red team: a new set every preview)
   // cubes at points (world), one InstancedMesh
   function cubes(geo, mat, pts, size) {
     const im = new THREE.InstancedMesh(geo, mat, Math.max(1, pts.length)), m4 = new THREE.Matrix4()
@@ -62,6 +62,7 @@ export function initFlight25(api, colors) {
       // the comet head: its own mesh, moved with the ball by reveal()
       const head = cubes(geo, main, P.slice(0, Math.round((60 * FT) / 0.5)), (i, _p) => 0.4 + 1.1 * (i / Math.round((60 * FT) / 0.5)))
       head.userData.comet = P
+      head.frustumCulled = false // it moves out with the ball after its bounds were taken (red team)
       g.add(head); g.userData.comet = head
       if (preview) head.visible = false
     }
@@ -71,7 +72,8 @@ export function initFlight25(api, colors) {
     src.forEach((q, i) => { if (q.p[2] > src[ai].p[2]) ai = i })
     const top = toWorld(src[ai].p)
     const zen = new THREE.Group()
-    zen.add(cubes(geo, lam(c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5), 0.45))
+    // the two posts in the pitch color, like the dots (29 Oct, evening, Andrew: the zenith and home-run height lines in ICE too)
+    zen.add(cubes(geo, lam(c.mk || c.pc || c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5), 0.45))
     zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1))
     zen.add(cubes(geo, lam(c.mk ?? c.tx), [top], 1.4)) // the dot at the top of the flight
     g.add(zen); g.userData.reveal.push([ai / Math.max(1, src.length - 1), zen])
@@ -82,7 +84,7 @@ export function initFlight25(api, colors) {
       if (ci > 0) {
         const q = src[ci].p, b = toWorld([q[0], q[1], v.wallH * FT]), ball = toWorld([q[0], q[1], v.cross * FT]), lo = Math.min(b.y, ball.y), hi = Math.max(b.y, ball.y)
         const cl = new THREE.Group()
-        cl.add(cubes(geo, lam(c.acc), column(b.x, b.z, lo, hi, 0.8), 0.5))
+        cl.add(cubes(geo, lam(c.mk || c.pc || c.acc), column(b.x, b.z, lo, hi, 0.8), 0.5))
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
         cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : '-'}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1))
         cl.add(cubes(geo, lam(c.mk ?? c.tx), [ball], 1.4)) // the dot where it crossed the wall

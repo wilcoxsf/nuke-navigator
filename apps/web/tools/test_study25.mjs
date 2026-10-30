@@ -141,12 +141,9 @@ for (const [w, h] of SIZES) {
     check('BIG ONES keeps the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
     X = await layout(page); check('a stamped ball fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
     await page.click('#c25ch [data-f="giants"]'); await page.waitForTimeout(900)
-    // the odds receipt
-    await page.keyboard.press('o'); await page.waitForTimeout(800)
-    const rc = await page.evaluate(() => ({ t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), rows: document.querySelectorAll('#c25hb .rc .rr').length, txt: document.querySelector('#c25hb').textContent, sw: getComputedStyle(document.querySelector('#c25hw')).display }))
-    check('ODDS RECEIPT builds the odds one input at a time', /ODDSRECEIPT/.test(rc.t) && rc.rows >= 6 && /WHAT-IF MODEL/.test(rc.txt) && rc.sw === 'none', JSON.stringify(rc).slice(0, 160))
-    X = await layout(page); check('ODDS RECEIPT fits', X.fits.length === 0, X.fits.join('; '))
-    await page.keyboard.press('o'); await page.waitForTimeout(500)
+    // ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are gone from DEJA-VU's header (29 Oct, evening); Shot Caller is a mode of its own
+    const gone = await page.evaluate(() => ['#c25rc', '#c25sm', '#c25kl', '#c25sc'].map((q) => getComputedStyle(document.querySelector(q)).display))
+    check('ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are off the header', gone.every((d) => d === 'none'), JSON.stringify(gone))
     // the type picker
     await page.keyboard.press('t'); await page.waitForTimeout(800)
     const ty = await page.evaluate(() => document.querySelectorAll('#c25mb .ty').length)
@@ -171,21 +168,22 @@ for (const [w, h] of SIZES) {
       return { open: document.querySelector('.c25').classList.contains('dk'), w: d.width, h: d.height, inPark: d.left >= park.left && d.right <= park.right + 0.5 && d.bottom <= park.bottom + 0.5 && d.top >= park.top, corner: park.right - d.right < 20 && park.bottom - d.bottom < 20,
         covers: ['.c25>.pitch', '.c25>.batter', '.c25>.hists', '.c25>.slice', '#c25v', '#c25bug'].filter((s) => hit(d, R(s))), bsel: bs.filter((b) => hit(d, b)).length, overlay: document.querySelector('#c25m').classList.contains('open'), chips: document.querySelectorAll('#c25dk .dx .bt').length, focus: document.activeElement?.id }
     })
-    check('? opens the options dock in the park corner, covering no panel, button or overlay; only the six open choices (Y N J W Q C)', dk.open && dk.inPark && dk.corner && dk.w <= 302 && dk.covers.length === 0 && dk.bsel === 0 && !dk.overlay && dk.chips === 6 && dk.focus === 'c25dk', JSON.stringify(dk))
-    await page.click('#c25dk .dx [data-ax="Y"]'); await page.waitForTimeout(300)
-    await page.click('#c25dk .do[data-c="3"]'); await page.waitForTimeout(400)
-    const dy = await page.evaluate(() => ({ y: window.__mix25.get().Y, n: document.querySelectorAll('#c25dk .do').length, on: document.querySelector('#c25dk .do.on b')?.textContent, pc: document.querySelector('.c25').style.getPropertyValue('--pc'), dd: document.querySelector('#c25dk .dd').textContent }))
+    check('? opens the options dock in the park corner, covering no panel, button or overlay; only the open choice (V)', dk.open && dk.inPark && dk.corner && dk.w <= 302 && dk.covers.length === 0 && dk.bsel === 0 && !dk.overlay && dk.chips === 1 && dk.focus === 'c25dk', JSON.stringify(dk))
+    await page.click('#c25dk .dx [data-ax="V"]'); await page.waitForTimeout(300)
+    await page.click('#c25dk .do[data-c="2"]'); await page.waitForTimeout(400)
+    const dy = await page.evaluate(() => ({ v: window.__mix25.get().V, n: document.querySelectorAll('#c25dk .do').length, on: document.querySelector('#c25dk .do.on b')?.textContent, dd: document.querySelector('#c25dk .dd').textContent }))
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300)
-    const y4 = await page.evaluate(() => window.__mix25.get().Y)
-    await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300)
-    const ax2 = await page.evaluate(() => document.querySelector('#c25dk .dx .bt.on')?.dataset.ax)
-    check('the dock: pick PITCH COLOR, click ICE (Y3, of ten), right arrow tries the next, down moves to FRONTIER', dy.y === 3 && dy.n === 10 && dy.on === 'Y3' && dy.pc === '#5ce1ff' && /ICY CYAN/.test(dy.dd) && y4 === 4 && ax2 === 'N', JSON.stringify({ dy, y4, ax2 }))
-    await page.click('#c25dk .dx [data-ax="Q"]'); await page.waitForTimeout(200)
-    const q0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
+    const v3 = await page.evaluate(() => window.__mix25.get().V)
+    check('the dock: pick RIDE IT, click CHASE CAM (V2, of three), right arrow tries SKY CAM', dy.v === 2 && dy.n === 3 && dy.on === 'V2' && /DRONE/.test(dy.dd) && v3 === 3, JSON.stringify({ dy, v3 }))
+    await page.click('#c25dk .do[data-c="1"]'); await page.waitForTimeout(300)
     await page.click('#c25dk [data-dk="see"]')
-    let c1 = q0; for (let k = 0; k < 20; k++) { await page.waitForTimeout(300); c1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray()); if (!(await page.evaluate(() => window.__mix25.look()?.moving))) break }
-    const sz = await page.evaluate(() => { const v = window.__mix25.life.vsign.position.clone(); return v.distanceTo(window.__cp.NN.camera.position) })
-    check('the dock: LOOK AT IT on THE SIGN glides the camera up to the sign', Math.hypot(...c1.map((v, i) => v - q0[i])) > 20 && sz < 75, JSON.stringify({ q0, c1, sz }))
+    let rd = null; for (let k = 0; k < 40 && rd !== 'riding'; k++) { await page.waitForTimeout(250); rd = await page.evaluate(() => window.__mix25.riding()) }
+    const rc0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
+    let rc1 = rc0 // the pitch comes first, then the ride: watch for the camera leaving
+    for (let k = 0; k < 40 && Math.hypot(...rc1.map((v, i) => v - rc0[i])) <= 3; k++) { await page.waitForTimeout(300); rc1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray()) }
+    for (let k = 0; k < 60 && (await page.evaluate(() => window.__mix25.riding())); k++) await page.waitForTimeout(300)
+    for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.look()?.moving)); k++) await page.waitForTimeout(300)
+    check('the dock: RIDE ONE rides the ball (the camera moves with it), then glides back', rd === 'riding' && Math.hypot(...rc1.map((v, i) => v - rc0[i])) > 3 && !(await page.evaluate(() => window.__mix25.riding())), JSON.stringify({ rd, rc0, rc1 }))
     for (let k = 0; k < 80 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(400)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(400)
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
@@ -194,7 +192,7 @@ for (const [w, h] of SIZES) {
     // the options legend (ALL in the dock) lists every open option with the layout reasons
     await page.click('#c25lg'); await page.waitForTimeout(300); await page.click('#c25dk [data-dk="all"]'); await page.waitForTimeout(500)
     const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
-    check('ALL lists every open option (Y N J W Q C) and names the locked ones', lg.opts === 10 + 3 + 2 + 3 + 3 + 3 && /LOCKED: L2 AT THE PLATE/.test(lg.txt) && /U2 PIXEL LINE/.test(lg.txt) && /X2 PITCH COLOR/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
+    check('ALL lists every open option (V) and names the locked ones', lg.opts === 3 && /LOCKED: L2 AT THE PLATE/.test(lg.txt) && /U2 PIXEL LINE/.test(lg.txt) && /Y3 ICE/.test(lg.txt) && /Q2 THE REAL SIGN/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -227,10 +225,11 @@ for (const [w, h] of SIZES) {
     let win = false
     for (let k = 0; k < 50 && !win; k++) { await page.waitForTimeout(500); win = await page.evaluate(() => !!window.__mix25.fx.winner()) }
     check('a kayak reaches the splash', key0 !== 'SPLASH' || win)
-    await page.keyboard.press('k'); await page.waitForTimeout(1500)
+    await page.evaluate(() => window.__mix25.karl(true)); await page.waitForTimeout(1500) // Karl comes in with the forecast; the test brings him in by hand
+    for (let k = 0; k < 20 && !(await page.evaluate(() => window.__mix25.fx.karlBanks().some((x) => x.op > 0))); k++) await page.waitForTimeout(300) // it fades in on the effects clock: slow frames under the software renderer
     const kl = await page.evaluate(() => ({ on: window.__mix25.fx.karlOn(), lv: window.__mix25.fx.karlLevel(), b: document.querySelector('#c25kl').textContent, banks: window.__mix25.fx.karlBanks() }))
     const kd = Math.min(...kl.banks.map((x) => x.d)), kh = Math.max(...kl.banks.map((x) => x.h)), ko = Math.max(...kl.banks.map((x) => x.op))
-    check('K brings Karl in, K1 WHISPER by default', kl.on && kl.lv === 1 && /KARL: IN/.test(kl.b), JSON.stringify({ on: kl.on, lv: kl.lv, b: kl.b }))
+    check('Karl comes in, K1 WHISPER by default', kl.on && kl.lv === 1, JSON.stringify({ on: kl.on, lv: kl.lv }))
     check('K1 fog stays faint, low, and at least 120 m out (clear of the infield and the climb)', kd >= 120 && kh <= 13 && ko <= 0.081 && ko > 0, JSON.stringify({ kd, kh, ko }))
     await page.waitForTimeout(4000)
     const kd2 = Math.min(...(await page.evaluate(() => window.__mix25.fx.karlBanks())).map((x) => x.d))
@@ -240,7 +239,7 @@ for (const [w, h] of SIZES) {
     for (let k = 0; k < 30 && !k3; k++) { await page.waitForTimeout(500); k3 = await page.evaluate(() => window.__mix25.fx.karlLevel() === 3 && Math.max(...window.__mix25.fx.karlBanks().map((x) => x.op)) > 0.2) }
     check('K3 PEA SOUP brings back the 27 Oct fog', k3)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1K1'))
-    await page.keyboard.press('k'); await page.waitForTimeout(300)
+    await page.evaluate(() => window.__mix25.karl(false)); await page.waitForTimeout(300)
     X = await layout(page); check('after the effects the dojo still fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
     // the scoreboard reports the last landing, and the gulls scattered on the home run
     const sb = await page.evaluate(() => ({ t: window.__mix25.life.text(), g: window.__mix25.life.gulls() }))
@@ -255,20 +254,18 @@ for (const [w, h] of SIZES) {
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F4')); await page.waitForTimeout(400)
     check('F4 CRT is gone (the code falls back to F1)', await page.evaluate(() => /F1 /.test(window.__mix25.code()) && !document.querySelector('.c25').classList.contains('F4')))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F3')); await page.waitForTimeout(400)
-    check('F3 QUIET hides the gulls but keeps the scoreboard', await page.evaluate(() => window.__mix25.life.board.visible === true && window.__cp.NN.scene.children.filter((c) => c.isLineSegments && c.geometry.attributes.position.count === 4).every((g) => !g.visible)))
+    check('F3 QUIET hides the gulls but keeps the scoreboard', await page.evaluate(() => (window.__mix25.life.board.visible || window.__mix25.life.vboard.visible) && window.__cp.NN.scene.children.filter((c) => c.isLineSegments && c.geometry.attributes.position.count === 4).every((g) => !g.visible)))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F1')); await page.waitForTimeout(400)
-    // STAR MAP: every ball in the filter flown at once
     await setMode(page, 'replay')
-    await page.click('#c25sm'); let st = null
-    for (let k = 0; k < 60 && !st; k++) { await page.waitForTimeout(500); st = await page.evaluate(() => window.__mix25.stars()) }
-    const smt = await page.evaluate(() => ({ t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), txt: document.querySelector('#c25hb').textContent, n: document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1] }))
-    check('STAR MAP flies every home run in the filter', st && st.n === Number(smt.n) && st.segs > st.n * 5 && /STARMAP/.test(smt.t) && /FLOWN AT ONCE/.test(smt.txt) && /IN ORANGE/.test(smt.txt), JSON.stringify({ st, smt: smt.txt.slice(0, 100) }))
-    X = await layout(page); check('STAR MAP fits its panel', X.fits.length === 0, X.fits.join('; '))
-    await page.click('#c25sm'); await page.waitForTimeout(400)
-    // PRINT IT: a PNG poster download
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.click('#c25pr')])
-    const len = await page.evaluate(() => window.__poster25 ?? 0)
-    check('PRINT IT downloads a poster', !!dl && /^nuke-navigator-.+\.png$/.test(dl.suggestedFilename()) && len > 40000, `${dl?.suggestedFilename()} ${len}`)
+    // STATS and PRINT IT are gone; STATS BEFORE THIS SHOT opens his season up to this swing in three groups
+    const btns = await page.evaluate(() => ({ old: !!document.querySelector('#c25pr') || /^STATS$/.test(document.querySelector('#c25bs')?.textContent ?? ''), label: document.querySelector('#c25bs')?.textContent }))
+    await page.click('#c25bs')
+    for (let k = 0; k < 20 && !(await page.evaluate(() => document.querySelectorAll('#c25mb .bfa > div').length)); k++) await page.waitForTimeout(300)
+    const bf = await page.evaluate(() => ({ title: document.querySelector('#c25mt').textContent, groups: [...document.querySelectorAll('#c25mb .bfa h5')].map((h) => h.textContent), rows: document.querySelectorAll('#c25mb .bfa .r').length, avg: [...document.querySelectorAll('#c25mb .bfa .r')].find((r) => r.firstChild.textContent === 'AVG')?.lastChild.textContent, head: document.querySelector('#c25mb .bfh')?.textContent }))
+    check('STATS BEFORE THIS SHOT: no STATS or PRINT IT; his season up to the swing in three named groups, the card, the Statcast and the deep cuts', !btns.old && /BEFORE THIS SHOT/.test(btns.label) && bf.groups.join('|') === 'BOX SCORE|FRONT OFFICE|NO LIFE' && bf.rows > 50 && /^\.\d{3}$|^--$/.test(bf.avg ?? '') && /RIGHT BEFORE THIS SWING/.test(bf.head), JSON.stringify({ btns, bf }))
+    const ev = await page.evaluate(() => [...document.querySelectorAll('#c25mb .bfa .r')].filter((r) => /EXIT VELO|^AVG$|LUCK/.test(r.firstChild.textContent)).map((r) => [r.firstChild.textContent, r.lastChild.textContent]))
+    check('the numbers read right: AVG as .274, exit velocity in mph, the luck gap signed', ev.some(([k, v]) => k === 'AVG' && /^\.\d{3}$|^--$/.test(v)) && ev.filter(([k]) => /EXIT VELO/.test(k)).every(([, v]) => /^\d+\.\d MPH$|^--$/.test(v)) && ev.some(([k, v]) => /LUCK/.test(k) && /^[+-]?\.\d{3}$|^--$/.test(v)), JSON.stringify(ev))
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // PLAY IT in the replay: the pitch flies into the zone, then the flight
     const c0 = await page.evaluate(() => window.__mix25.fx.count())
     await page.click('#c25go')
@@ -283,12 +280,12 @@ for (const [w, h] of SIZES) {
     const m3 = await page.evaluate(() => !!document.querySelector('.c25 .sm .lg3'))
     check('M2 ARC and M3 MARQUEE titles build', m2 && m3, JSON.stringify({ m2, m3 }))
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F1M1'))
-    // THE FUN LINE (28 Oct, night: Moonshot folded in, the similes back): under GONE IN, a line that turns over; the Moon beats Mars beats no air; no "about", no 1/N
+    // THE FUN LINE (29 Oct, evening): one distance simile and one speed simile, both shown, nothing turning over; no "about", no 1/N
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 400)); await page.waitForTimeout(1500)
-    const fl = await page.evaluate(() => ({ list: window.__mix25.fun(), shown: document.querySelector('#c25rd .fun').textContent }))
-    const num = (re) => Number((fl.list.join(' | ').match(re)?.[1] ?? '').replace(/,/g, ''))
-    check('the fun line: similes for the distance and the speed, the Moon, Mars and Coors, shown under the distance', fl.list.length >= 5 && fl.list.some((x) => /^\d+ FT: /.test(x)) && fl.list.some((x) => /MPH OFF THE BAT/.test(x)) && /COORS/.test(fl.list.join()) && fl.list.includes(fl.shown) && !/\bABOUT\b|: 1\//.test(fl.list.join()) && num(/MOON THE SAME SWING GOES ([\d,]+)/) > num(/ON MARS ([\d,]+)/) && num(/ON MARS [\d,]+ FT\. ON EARTH WITH NO AIR, ([\d,]+)/) < num(/ON MARS ([\d,]+)/), JSON.stringify(fl).slice(0, 400))
-    await page.click('#c25rd .fun'); await page.waitForTimeout(300)
+    const fl = await page.evaluate(() => ({ list: window.__mix25.fun(), shown: [...document.querySelectorAll('#c25rd .fun span')].map((x) => x.textContent) }))
+    await page.waitForTimeout(7500)
+    const fl2 = await page.evaluate(() => [...document.querySelectorAll('#c25rd .fun span')].map((x) => x.textContent))
+    check('the fun line: one line for the distance and one for the speed, both under the distance, and they stay put', fl.list.length === 2 && /^\d+ FT: /.test(fl.list[0]) && /MPH OFF THE BAT/.test(fl.list[1]) && fl.shown.join() === fl.list.join() && fl2.join() === fl.shown.join() && !/\bABOUT\b|: 1\//.test(fl.list.join()), JSON.stringify({ fl, fl2 }).slice(0, 400))
     check('clicking the fun line turns it over', await page.evaluate((a) => document.querySelector('#c25rd .fun').textContent !== a, fl.shown))
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   }
@@ -442,7 +439,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   })
   // the board replaces Oracle's own screen (28 Oct, night remeasure by raycast: a flat face 149 m out, -8 to +9 degrees, 13 to 35 m up); 72 LEDs across its 44 m
   const bp = await page.evaluate(() => { const b = window.__mix25.life.board.position, h = window.__cp.toWorld([0, 0, 0]), dx = b.x - h.x, dz = b.z - h.z; return { r: Math.hypot(dx, dz), y: b.y - h.y, bear: (Math.atan2(dx, -dz) * 180) / Math.PI, w: window.__mix25.life.board.geometry.parameters.width, h: window.__mix25.life.board.geometry.parameters.height } })
-  check('the LED board covers Oracle\'s own board, flush on its face between the light towers', Math.abs(bp.r - 148.4) < 0.3 && Math.abs(bp.y - 24) < 0.3 && Math.abs(bp.bear - 0.5) < 0.2 && Math.abs(bp.w - 44.2) < 0.3 && bp.y - bp.h / 2 > 12.5 && bp.y + bp.h / 2 < 35.5, JSON.stringify(bp))
+  check('the LED board covers Oracle\'s own board, flush on its face between the light towers', Math.abs(bp.r - 148.4) < 0.3 && Math.abs(bp.y - 24) < 0.3 && Math.abs(bp.bear) < 0.1 && Math.abs(bp.w - 44.2) < 0.3 && bp.y - bp.h / 2 > 12.5 && bp.y + bp.h / 2 < 35.5, JSON.stringify(bp))
   // the sea: one plane out to the horizon at the water's level, the park an island in it; the kayaks float on it (voxel models), not under it
   const sw = await page.evaluate(() => { const W = window.__mix25.water(), lv = W.level(), s = W.sea, ks = window.__mix25.fx.kayakBoats(); return { size: s.geometry.parameters.width, y: s.position.y - lv, mode: W.mode(), boats: ks.length, models: ks.every((k) => k.model), afloat: ks.every((k) => Math.abs(k.y - lv) < 0.6), cost: W.cost() } })
   check('the sea runs 9 km out in every direction at the water level, with the kayaks afloat on it as voxel models', sw.size >= 9000 && Math.abs(sw.y) < 0.01 && sw.boats === 6 && sw.models && sw.afloat && sw.cost < 1, JSON.stringify(sw))
@@ -454,7 +451,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   const jp = await page.evaluate(() => window.__mix25.jukebox.playing())
   await page.click('#c25mb [data-song="ballgame"]'); await page.waitForTimeout(300)
   const js = await page.evaluate(() => window.__mix25.jukebox.playing())
-  check('J opens the JUKEBOX with all five songs, and a song plays and stops', jb.open && jb.rows === 5 && /SAN FRANCISCO/.test(jb.txt) && jp === 'ballgame' && js === null, JSON.stringify({ open: jb.open, rows: jb.rows, jp, js }))
+  check('J opens the JUKEBOX with all nine songs, and a song plays and stops', jb.open && jb.rows === 9 && /SAN FRANCISCO/.test(jb.txt) && jp === 'ballgame' && js === null, JSON.stringify({ open: jb.open, rows: jb.rows, jp, js }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
@@ -477,11 +474,15 @@ if (!process.env.PHONE_ONLY && on('C')) {
     await page.waitForTimeout(400)
     return page.evaluate(() => ({ key: window.__dojo.key, land: window.__dojo.landing?.kind, moment: window.__mix25.lastMoment(), boxes: window.__mix25.moments.boxes() }))
   }
-  await page.evaluate(() => window.__mix25.moments.setBobble(0))
+  await page.evaluate(() => { window.__mix25.moments.setBobble(0); window.__mix25.moments.setVariety(false) }) // the glove every time, for this check
   const s1 = await swing({ ev: 108, la: 27, dir: -18, hand: 1, temp: 70, wind: 0 })
   check('a home run into the seats: a voxel glove comes up where it lands, on screen', s1.moment === 'seats' && s1.boxes.length >= 1 && s1.boxes.every((b) => b.d < 2 && b.on && b.model), JSON.stringify(s1))
   await page.waitForTimeout(3500)
   const s2 = await swing({ ev: 116, la: 28, dir: 24, hand: -1, temp: 70, wind: 0 })
+  // the new seat moments (29 Oct, later): a gull steals it, a dog catches it, a beer goes up
+  const nm = await page.evaluate(async () => { const m = window.__mix25.moments, at = window.__cp.toWorld([-30, 110, 12]), out = {}; for (const k of ['gull', 'dog', 'beer']) { const n0 = m.shown(); m.try(k, at); out[k] = m.shown() - n0 } await new Promise((r) => setTimeout(r, 300)); out.log = m.log().slice(-3); return out })
+  check('the new seat moments build: GULL GRAB, GOOD BOY, BEER SHOWER', nm.gull >= 1 && nm.dog >= 1 && nm.beer >= 1 && nm.log.join() === 'gull,dog,beer', JSON.stringify(nm))
+  await page.waitForTimeout(3600)
   check('a splash hit: the sea lion surfaces in the Cove, on screen', s2.key !== 'SPLASH' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
   let q = []
   for (let k = 0; k < 40 && !(q.includes('seal') && q.includes('odometer')); k++) { await page.waitForTimeout(500); q = await page.evaluate(() => [...window.__mix25.life.played(), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
@@ -565,7 +566,7 @@ if (!process.env.PHONE_ONLY && on('D')) {
   // another park: its team's color, Oracle-only features hidden
   const p2 = await open(1440, 820, '&menu=0&park=NYY&mix=L1P5A3T1')
   const ny = await page2info(p2)
-  check('another park takes its team color and hides the Oracle-only features', ny.acc.toLowerCase() === '#8fb3e8' && ny.hidden && /Y A N K E E/.test(ny.title), JSON.stringify(ny))
+  check('another park takes its team color and hides the Oracle-only features', ny.acc.toLowerCase() === '#8fb3e8' && ny.hidden && /YANKEE/.test(ny.title.replace(/\s+/g, '')), JSON.stringify(ny))
   const X = await layout(p2); check('another park fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   await p2.close()
 }
@@ -589,8 +590,8 @@ for (const [w, h] of on('D') ? [[390, 844], [360, 740]] : []) {
 if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
-  check('only the open choices sit in the header (Y N J W Q C); the locked ones are gone from it, TYPE too', hdr === 'YNJWQC' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1, with Y N J W Q C open', /L2 P5 A2 T16 F1 I2 R3 Y1 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 N1 J1 W1 Q2 C1/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('only the open choice sits in the header (V); the locked ones are gone from it, TYPE too', hdr === 'V' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 J2 W1 Q2 C1 O2 G2, with V open', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2 V1/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
   const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
@@ -613,7 +614,7 @@ if (!process.env.PHONE_ONLY && on('E')) {
   check('a home run draws its arc in voxels with the zenith, the wall clearance and the landing distance posted', fl.posts === 3 && fl.shown === 3 && fl.cubes > 60 && fl.ballVox && fl.sphereHidden, JSON.stringify(fl))
   // X: a dot in the line at the zenith and where it cleared the wall, in the X color (X5 MINT by default); the voxel ball's seams follow E
   const dots = await page.evaluate(() => { const t = window.__mix25.flight().last(), out = []; for (const [, o] of t.userData.reveal.slice(0, 2)) o.traverse((m) => { if (m.isInstancedMesh && m.count === 1) out.push(m.material.color.getHexString()) }); let sm = null; window.__cp.ballMesh().userData.vox?.traverse?.((o) => { if (o.userData.seam) sm = o.material.color.getHexString() }); return { out, sm, signs: window.__mix25.life.signCount() } })
-  check('the zenith and the wall each get a dot in the line in the pitch color (X2); the voxel ball has red seams under E4', dots.out.length === 2 && dots.out.every((h) => h === '6da7de') && dots.sm === 'e4002b', JSON.stringify(dots))
+  check('the zenith and the wall each get a dot in the line in the pitch color (X2); the voxel ball has red seams under E4', dots.out.length === 2 && dots.out.every((h) => h === '5ce1ff') && dots.sm === 'e4002b', JSON.stringify(dots))
   check('the ORACLE PARK sign over the board lit up for the home run', dots.signs >= 1, JSON.stringify(dots))
   for (const U of [1, 2, 3, 4, 5]) {
     await page.evaluate((c) => window.__mix25.set(c), 'U' + U); await page.waitForTimeout(500)
@@ -694,11 +695,18 @@ if (!process.env.PHONE_ONLY && on('H')) {
   const sk = await page.evaluate(() => window.__mix25.standIn(window.__mix25.cur().b).skin)
   check('the stand-in takes the batter\'s skin tone from his headshot', /^#[0-9a-f]{6}$/.test(sk ?? ''), String(sk))
   // the sign: Q2 by default, letters and outline in voxels, the eight pennants waving; Q1 brings the bulbs back, Q3 the night
-  const sg = await page.evaluate(async () => { const L = window.__mix25.life, w0 = L.flagWave(); await new Promise((r) => setTimeout(r, 700)); return { q: L.signNow(), vox: L.signVox(), flags: L.flags(), w0, w1: L.flagWave(), bulbs: L.sign.visible, vs: L.vsign.visible } })
-  check('THE REAL SIGN (Q2): ORACLE PARK in voxels on the arch, the bulbs off, eight pennants that wave', sg.q === 2 && sg.vox > 1000 && sg.flags === 8 && sg.w0 !== sg.w1 && !sg.bulbs && sg.vs, JSON.stringify(sg))
+  const sg = await page.evaluate(async () => { const L = window.__mix25.life, w0 = L.flagWave(); for (let k = 0; k < 20 && L.flagWave() === w0; k++) await new Promise((r) => setTimeout(r, 300)); // the flags move on the board's tick: slow frames under the software renderer
+ return { q: L.signNow(), vox: L.signVox(), flags: L.flags(), w0, w1: L.flagWave(), bulbs: L.sign.visible, vs: L.vsign.visible } })
+  check('THE REAL SIGN (Q2): ORACLE PARK in voxels on the arch, the bulbs off, nine pennants that wave, the clock in voxels', sg.q === 2 && sg.vox > 1000 && sg.flags === 9 && sg.w0 !== sg.w1 && !sg.bulbs && sg.vs, JSON.stringify(sg))
   const sgs = []
   for (const Q of [1, 3, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'Q' + Q); await page.waitForTimeout(400); sgs.push(await page.evaluate(() => { const L = window.__mix25.life; return [L.signNow(), L.sign.visible, L.signVox()] })) }
   check('Q1 is the bulbs (no voxel letters), Q3 the voxel sign at night, Q2 back', sgs[0][0] === 1 && sgs[0][1] && sgs[0][2] === 0 && sgs[1][0] === 3 && !sgs[1][1] && sgs[1][2] > 1000 && sgs[2][0] === 2, JSON.stringify(sgs))
+  // the scoreboard: G2 RELIEF by default (lit LEDs stand out of it), the four looks switch, the new animations draw
+  const bd = []
+  for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('laser', { ev: 113 }, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
+  check('G1 to G4: the voxel board (cubes, relief, flip dots) or the old bulbs, the lit LEDs counted on the voxel ones', bd.every((x, i) => x.g === [2, 1, 3, 4, 2][i]) && bd.filter((x) => x.g !== 4).every((x) => x.vox && !x.bulbs && x.out > 20) && bd[3].bulbs && !bd[3].vox, JSON.stringify(bd))
+  const an = await page.evaluate(() => { const L = window.__mix25.life; L.boardStyle = 4; const r = ['laser', 'nodoubt', 'fireworks', 'kayak', 'dotrace', 'wave', 'beachball'].map((n) => [n, L.peek(n, L.dur(n) * 0.55, { ev: 113, seed: 3 }).lit]); L.boardStyle = 2; return r })
+  check('the new board animations draw (laser, no doubt, fireworks, kayaks, dot race, the wave, beach ball)', an.every(([, n]) => n > 10), JSON.stringify(an))
   await page.evaluate(() => window.__mix25.life.signFx('hr')); await page.waitForTimeout(400)
   check('a home run still lights the sign', await page.evaluate(() => window.__mix25.life.signState() === 'hr'))
   // the model's own sign and its own mound and boxes are out of the wire; ours are in
@@ -712,20 +720,38 @@ if (!process.env.PHONE_ONLY && on('H')) {
   // the Coke corner: voxels (C1, C2), or the model's wire (C3)
   for (let k = 0; k < 20 && !(await page.evaluate(() => !!window.__mix25.coke())); k++) await page.waitForTimeout(300)
   const ck = []
-  for (const C of [1, 2, 3, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'C' + C); await page.waitForTimeout(C === 3 || ck.length === 3 ? 4000 : 400); ck.push(await page.evaluate(() => { const c = window.__mix25.coke(); return { s: c.styleNow(), shown: c.shown(), n: c.count() } })) }
-  check('C1 and C2 build the bottle and the glove in voxels; C3 goes back to the wire; C1 again', ck[0].shown && ck[0].n.bottle > 1500 && ck[0].n.glove > 500 && ck[1].s === 2 && ck[1].shown && !ck[2].shown && ck[3].shown, JSON.stringify(ck))
+  for (const C of [1, 2, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'C' + C); await page.waitForTimeout(400); ck.push(await page.evaluate(() => { const c = window.__mix25.coke(); return { s: c.styleNow(), shown: c.shown(), n: c.count() } })) }
+  check('the Coke corner in voxels on the model wireframe: the bottle with its lip capped, the painted Coca-Cola label, a slide, three kids, the mitt; C2 paints it red', ck[0].shown && ck[0].n.bottle > 5000 && ck[0].n.cap > 20 && ck[0].n.label === 1 && ck[0].n.slide > 100 && ck[0].n.kids === 3 && ck[0].n.glove > 800 && ck[1].s === 2 && ck[2].s === 1, JSON.stringify(ck))
+  const kid = await page.evaluate(async () => { const c = window.__mix25.coke(), a = c.kidAt(0); await new Promise((r) => setTimeout(r, 1500)); return { moved: a.distanceTo(c.kidAt(0)), cut: window.__mix25.cut() } })
+  check('the kids keep moving (up the inside, down the slide), and the model\'s own sign, board, bottle and glove are cut out of it', kid.moved > 0.2 && kid.cut > 5000, JSON.stringify(kid))
+  // red team, 29 Oct: in DEJA-VU the arrows and + no longer edit the real ball behind your back
+  await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(800)
+  const kb0 = await page.evaluate(() => window.__cp.state.ev)
+  await page.keyboard.press('ArrowUp'); await page.keyboard.press('+'); await page.waitForTimeout(300)
+  const kb1 = await page.evaluate(() => ({ ev: window.__cp.state.ev, chip: document.querySelector('#c25ch').textContent }))
+  check('in DEJA-VU the up arrow and + leave the real ball alone', kb1.ev === kb0 && !/EDITED/.test(kb1.chip), JSON.stringify({ kb0, kb1 }))
   // the dojo: icons, not numbers; type the speed, the angle and the aim
   await page.evaluate(() => window.__mix25.setMode('whatif')); await page.waitForTimeout(1200)
   const lab = await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-i]:not(.hot) .ps')].map((x) => ({ t: x.textContent, svg: !!x.querySelector('svg') })))
   check('the dojo controls have an icon each and no numbers', lab.length === 5 && lab.every((x) => x.svg && !/\d/.test(x.t)), JSON.stringify(lab))
+  // every box has its icon for a title, the dojo's YOUR SWING too
+  const ic = await page.evaluate(() => ({ park: !!document.querySelector('.c25>.park>.t svg'), batter: !!document.querySelector('.c25>.batter>.t svg'), swing: getComputedStyle(document.querySelector('.c25 .strip>.swi')).display !== 'none' }))
+  check('every box has an icon for its title (park, batter, the dojo\'s swing too)', ic.park && ic.batter && ic.swing, JSON.stringify(ic))
   const typed = []
   for (const [k, v] of [['ev', '111'], ['la', '33'], ['dir', '25L'], ['dir', 'R12'], ['dir', 'C'], ['ev', 'banana']]) {
     await page.click(`.c25 .strip .bt[data-k="${k}"] b.num`); await page.keyboard.press('Control+A'); await page.keyboard.type(v); await page.keyboard.press('Enter'); await page.waitForTimeout(250)
     typed.push(await page.evaluate(() => [window.__cp.state.ev, window.__cp.state.la, window.__cp.state.dir, !!document.querySelector('.c25 .strip input.tv'), window.__mix25.mode()]))
   }
   check('typing sets it: 111 mph, 33 degrees, 25L, R12 and C for the aim; nonsense changes nothing; the box closes and the mode stays', typed[0][0] === 111 && typed[1][1] === 33 && typed[2][2] === -25 && typed[3][2] === 12 && typed[4][2] === 0 && typed[5][0] === 111 && typed.every((x) => !x[3] && x[4] === 'whatif'), JSON.stringify(typed))
+  // red team, 29 Oct: strict typing (no 1e2, nothing out of range, LEFT 20 and 20 LF fine), leaving a box untouched changes nothing
+  const typed2 = []
+  for (const [k, v] of [['ev', '1e2'], ['ev', '200'], ['dir', 'LEFT 20'], ['dir', '15 RF'], ['dir', 'L20R'], ['la', '-5']]) {
+    await page.click(`.c25 .strip .bt[data-k="${k}"] b.num`); await page.keyboard.press('Control+A'); await page.keyboard.type(v); await page.keyboard.press('Enter'); await page.waitForTimeout(250)
+    typed2.push(await page.evaluate(() => [window.__cp.state.ev, window.__cp.state.la, window.__cp.state.dir]))
+  }
+  check('typing is strict: 1e2 and 200 refused, LEFT 20 and 15 RF taken, L20R refused, -5 degrees taken', typed2[0][0] === 111 && typed2[1][0] === 111 && typed2[2][2] === -20 && typed2[3][2] === 15 && typed2[4][2] === 15 && typed2[5][1] === -5, JSON.stringify(typed2))
   await page.evaluate(() => window.__mix25.set('J2')); await page.waitForTimeout(300)
-  check('J2 puts the word beside each icon', await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-i]:not(.hot) .ps em')].map((x) => x.textContent).join() === 'SPEED,ANGLE,AIM,AIR,WIND'))
+  check('J2 (locked) puts his words beside each icon', await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-i]:not(.hot) .ps em')].map((x) => x.textContent).join() === 'EXIT VELOCITY,LAUNCH ANGLE,LAUNCH DIRECTION,AIR TEMPERATURE,WIND'))
   await page.evaluate(() => window.__mix25.set('J1'))
   let X = await layout(page); check('the dojo fits with the icons', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   await page.close()
@@ -745,13 +771,13 @@ if (!process.env.PHONE_ONLY && on('G')) {
   await page.selectOption('#c25ss', '140'); await page.fill('#c25sr', '12'); await page.click('#c25st'); await page.keyboard.type('8'); await page.keyboard.press('m'); await page.keyboard.press('Backspace'); await page.keyboard.press('Enter')
   await page.waitForFunction(() => window.__mix25.shot(), null, { timeout: 60000 })
   await page.waitForTimeout(800)
-  const s1 = await page.evaluate(() => { const r = window.__mix25.shot(); return { mode: window.__mix25.mode(), seat: r.seat?.line, n: r.ways.length, sorted: r.ways.every((w, i, a) => !i || a[i - 1].w >= w.w), top: r.ways[0], st: [window.__cp.state.ev, window.__cp.state.la], bar: document.querySelector('#c25ch').textContent, panel: document.querySelector('#c25hb').textContent, rows: document.querySelectorAll('#c25hb .swy').length, recipe: document.querySelectorAll('#c25hb .sfr rect[data-k]').length, look: !!window.__mix25.look() } })
-  check('typing SEC 140 ROW 12 SEAT 8 and Enter calls it: the ways in, most common first, the first one set up to fly', s1.mode === 'shot' && s1.seat === 'SEC 140 ROW 12 SEAT 8' && s1.n >= 5 && s1.sorted && s1.st[0] === s1.top.ev && s1.st[1] === s1.top.la && /WAY 1 OF/.test(s1.bar) && /SECTION 140/.test(s1.panel) && /1 IN [\d,]+/.test(s1.panel) && s1.rows >= 1 && s1.recipe === s1.n && s1.look, JSON.stringify(s1).slice(0, 400))
+  const s1 = await page.evaluate(() => { const r = window.__mix25.shot(); return { mode: window.__mix25.mode(), seat: r.seat?.line, n: r.ways.length, sorted: r.ways.every((w, i, a) => !i || a[i - 1].w >= w.w), top: r.ways[0], st: [window.__cp.state.ev, window.__cp.state.la], bar: document.querySelector('#c25ch').textContent, panel: document.querySelector('#c25hb').textContent, rows: document.querySelectorAll('#c25pl .swy').length, recipe: document.querySelectorAll('#c25hb .sfr rect[data-k]').length, look: !!window.__mix25.look() } })
+  check('typing SEC 140 ROW 12 SEAT 8 and Enter calls it: the ways in, most common first, the first one set up to fly', s1.mode === 'shot' && s1.seat === 'SEC 140 ROW 12 SEAT 8' && s1.n >= 5 && s1.sorted && s1.st[0] === s1.top.ev && s1.st[1] === s1.top.la && /WAY 1 OF/.test(s1.bar) && /SEC 140/.test(s1.panel) && /1 IN [\d,]+/.test(s1.panel) && s1.rows >= 1 && s1.recipe === s1.n && s1.look, JSON.stringify(s1).slice(0, 400))
   let X = await layout(page); check('Shot Caller fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   // the next way, and a click on a listed way
   await page.click('#c25ch [data-sw="1"]'); await page.waitForTimeout(500)
   const nx = await page.evaluate(() => ({ sel: window.__mix25.shot().sel, bar: document.querySelector('#c25ch').textContent }))
-  await page.click('#c25hb .swy[data-w="2"]'); await page.waitForTimeout(500)
+  await page.click('#c25pl .swy[data-w="2"]'); await page.waitForTimeout(500)
   const cl = await page.evaluate(() => window.__mix25.shot().sel)
   check('> steps to the next way, and a listed way can be picked', nx.sel === 1 && /WAY 2 OF/.test(nx.bar) && cl === 2, JSON.stringify({ nx, cl }))
   // the frontier: the arrow keys walk it (right: a steeper angle; up: a harder hit at the same angle), a drag goes to the way under the pointer, and the park flies it

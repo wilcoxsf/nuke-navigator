@@ -196,7 +196,7 @@ export function initFx25(api, col, o = {}) {
     land(ev) { trailCol = null; if (ev.key === 'SPLASH') splash(ev.at); if (['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key) && style === 'confetti') confetti() },
     setStyle(v) { style = v }, style: () => style, confetti, particle, sq, STEPS,
     bonk(at) { for (let i = 0; i < 40; i++) { const a = rnd(0, Math.PI * 2), up = rnd(6, 16); particle(i % 2 ? '#e4002b' : '#ffffff', at, V(Math.cos(a) * rnd(3, 9), up, Math.sin(a) * rnd(3, 9)), rnd(0.9, 1.4), 1.3, 14) } },
-    splash, karl, karlOn: () => fogOn, karlLevel: () => fogLevel,
+    splash, karl, karlOn: () => fogOn, karlLevel: () => fogLevel, fogK: () => { const K = fogOn ? KARL[fogLevel] ?? KARL[1] : null; return K ? [K.near, K.far] : [1, 1] },
     // for the tests: each bank's distance from the plate in meters (the sideways drift can only take it farther) and its height, and the sprite opacity
     karlBanks: () => banks.map((k) => { const w = k.s.position, p0 = toWorld([0, 0, 0]); return { d: Math.hypot(w.x - p0.x, w.z - p0.z), h: k.h, op: k.s.material.opacity } }),
     count: () => parts.length, kayaks: () => kayaks.length,

@@ -150,7 +150,7 @@ function blit(g, G, cw, ch, s, x0, y0, pal) {
 function pdisc(g, x, y, r) { for (let dy = -r; dy < r; dy++) { const hw = Math.round(Math.sqrt(r * r - (dy + 0.5) * (dy + 0.5))); if (hw > 0) g.fillRect(x - hw, y + dy, hw * 2, 1) } }
 
 // 1 PIXEL SLUGGER: the stance sprite (34 by 46 cells) on a little patch of dirt with the plate; number big in the accent on the side he faces, name underneath
-// his height sets how tall he stands (6 ft 8 in fills the box); behind him a lineup chart every half foot from 5 ft to 6 ft 6 in, his own height marked in the accent on it
+// his height sets how tall he stands (6 ft 8 in fills the box)
 const HREF = 80
 function slugger(g, w, h, d, o, P, fl) {
   const m = Math.round(6 * d)
@@ -159,10 +159,7 @@ function slugger(g, w, h, d, o, P, fl) {
   const kind = o.kind ?? 'human', inch = Math.max(62, Math.min(HREF, o.height ?? 74)), f = (kind === 'giraffe' ? 0.92 : 1) * (inch / HREF)
   const pose = kind === 'giraffe' ? { ...STANCE, hd: [15.5, 5.5] } : STANCE
   const G = raster(batterParts(pose, kind), f, cw, ch, 17.5 - 20.5 / f, 45.5 - 45.5 / f, fl)
-  const rowOf = (inches) => Math.round(45 - (inches / HREF) * 44)
-  for (const hh of [60, 66, 72, 78]) { const j = rowOf(hh); for (let i = 0; i < cw; i += 2) if (!G[j * cw + i]) G[j * cw + i] = CH13 }
-  const back = fl ? 0 : cw - 4 // the chart's tick marks on the side behind him
-  if (o.height) { const j = rowOf(o.height); for (let i = 0; i < 4; i++) G[j * cw + back + i] = MK14 }
+  // (the lineup height chart behind him is gone: 29 Oct, evening, Andrew: "the batters shouldn't have height markers lol"; he still stands as tall as he is)
   // chest number in the accent, only on the jersey (an arm across it hides part, like it would)
   if (o.num) { const ds = String(o.num).slice(0, 2), n = ds.length, cx = Math.round(fl ? cw - 1 - (20 + f) : 20 + f), ny = Math.round(45 - 23 * f), x0 = cx - Math.floor((n * 4 - 1) / 2); for (let k = 0; k < n; k++) { const r = F35[+ds[k]] ?? F35[0]; for (let y = 0; y < 5; y++) for (let i = 0; i < 3; i++) if (+r[y] & (4 >> i)) { const q = (ny + y) * cw + x0 + k * 4 + i; if (G[q] === W1) G[q] = O2 } } }
   // ground under him: a dim shadow, the plate in front toward the pitcher
@@ -172,10 +169,6 @@ function slugger(g, w, h, d, o, P, fl) {
   for (let i = 15; i <= 20; i++) G[47 * cw + gx(i)] = W1
   const ah = ch * s, x0 = Math.round((w - cw * s) / 2), y0 = m + Math.max(0, Math.round((h - 2 * m - tb - ah) / 2))
   blit(g, G, cw, ch, s, x0, y0, P)
-  // the chart's feet, and his height by its mark
-  const tiny = (t, j, col) => { const F = fitText(g, [t], 10 * s, Math.max(8 * d, 3.2 * s), d, 8); if (F) say(g, F, fl ? x0 + s : x0 + cw * s - s, y0 + j * s - s, col, fl ? 'l' : 'r') }
-  for (const [t, hh] of [["5'", 60], ["6'", 72]]) if (!o.height || Math.abs(rowOf(hh) - rowOf(o.height)) > 2) tiny(t, rowOf(hh), '#4e4e4e') // a foot mark gives way to his own
-  if (o.height) tiny(`${Math.floor(o.height / 12)}'${o.height % 12}"`, rowOf(o.height), P[MK14])
   // number and team in the corner he faces
   const side = fl ? w - m : m, al = fl ? 'r' : 'l'
   if (o.num) { const N = fitText(g, ['#' + o.num], (w - cw * s) / 2 + 10 * s, Math.min(w / 8, h / 7, 24 * d), d); if (N && N.font.includes('PS2P')) { say(g, N, side, m + N.a, lum(P[O2]) < 0.16 ? P[W1] : P[O2], al); if (o.team) { const T = fitText(g, [clean(o.team)], N.w * 2, N.px / 2, d); say(g, T, side, m + N.a + Math.round(4 * d) + (T?.a ?? 0), P[D3], al) } } }

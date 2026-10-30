@@ -52,5 +52,26 @@ for part, sel in (("bottle", P[:, 0] < -53.5), ("glove", P[:, 0] >= -53.5)):
         tag = ijk[:, 1] - ijk[:, 1].min()
     out[part] = np.column_stack([ijk, tag]).astype(int).ravel().tolist()
     print(part, "cells", int(G.sum()), "shell", len(ijk), "size m", ((ijk.max(axis=0) - ijk.min(axis=0) + 1) * VX).tolist())
+# 29 Oct, evening (Andrew: "reconform them to the old wireframe geometries"): the wireframe itself in voxels, every edge sampled every 0.1 m and snapped to a 0.25 m
+# grid, tagged by its group (0 the bottle and glove, 1 the slides' tubes, 2 the slides' rings), split bottle and glove as above. The browser draws these; the shells
+# above stay for the bottle's outline (the kids' climb and the label band) and the glove's deck
+WV = 0.25
+o2 = P.min(axis=0) - WV
+for part in ("bottle", "glove"):
+    cells = {}
+    for gi, g in enumerate(d["groups"]):
+        tag = {"figures": 0, "tubes": 1, "rings": 2}.get(g["name"], 0)
+        s2 = np.array(g["seg"], dtype=np.float64).reshape(-1, 2, 3) / 100.0
+        for a, b in s2:
+            mid = (a + b) / 2
+            if (mid[0] < -53.5) != (part == "bottle") or mid[1] < 7.6:
+                continue
+            n = max(1, int(np.ceil(np.linalg.norm(b - a) / 0.1)))
+            for q in a + (b - a) * np.linspace(0, 1, n + 1)[:, None]:
+                k = tuple(np.floor((q - o2) / WV).astype(int))
+                cells[k] = max(cells.get(k, 0), tag)
+    out["w_" + part] = [int(v) for k, t in cells.items() for v in (*k, t)]
+    print("wire voxels", part, len(cells))
+out["wv"], out["wo"] = WV, [round(float(v), 3) for v in o2]
 json.dump(out, open(ROOT + "apps/web/public/coke_vox.json", "w"), separators=(",", ":"))
 print("written")

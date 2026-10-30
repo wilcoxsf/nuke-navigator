@@ -22,7 +22,25 @@ z C E F| G4| z C E F| G4| z C E F| G2 E2| C2 E2| D4| z E E D| C3 C| E2 G2| G2 F2
   { id: 'hatdance', name: 'MEXICAN HAT DANCE', bpm: 150, abc: `M:6/8
 L:1/8
 K:G
-z4 d^c| d=B_B =BGF| GD2 zB,C| DEF GAB| cA2 zcB| c=A_A =AFE| FD2 zDE| FGA Bcd| g3 z3|` }
+z4 d^c| d=B_B =BGF| GD2 zB,C| DEF GAB| cA2 zcB| c=A_A =AFE| FD2 zDE| FGA Bcd| g3 z3|` },
+  // 29 Oct, later (Andrew: "let's wire in more songs"): four more out of copyright, written out here from the well-known melodies: Beethoven's Ode to Joy (1824),
+  // Offenbach's Can-Can galop (1858), the William Tell overture's finale gallop (Rossini, 1829) and Joplin's The Entertainer (1902)
+  { id: 'ode', name: 'ODE TO JOY', bpm: 150, abc: `M:4/4
+L:1/4
+K:D
+F F G A| A G F E| D D E F| F3/2 E/2 E2| F F G A| A G F E| D D E F| E3/2 D/2 D2|` },
+  { id: 'cancan', name: 'CAN-CAN', bpm: 140, abc: `M:2/4
+L:1/8
+K:C
+c4| c d f e| d2 g2| g a e f| d4| d f e d| c c' b a| g f e d| c d e f| g a g f| e2 g2| c'4|` },
+  { id: 'tell', name: 'THE WILLIAM TELL GALLOP', bpm: 160, abc: `M:6/8
+L:1/8
+K:C
+GGG GGG| GGc d2e| GGG ceg| e2c d2B| GGG GGG| GGc d2e| cde dcB| c3 z3|` },
+  { id: 'entertainer', name: 'THE ENTERTAINER', bpm: 110, abc: `M:2/4
+L:1/16
+K:C
+d^d e c'2 e c'2| e c'6 z2| c'd'^d'e' c'd'e'2| b d'4 c'4 z2| d^d e c'2 e c'2| e c'6 z2| a g ^f a c' e'2 d'| c' a d'6 z2|` }
 ]
 
 // the private songs (git-ignored file; missing on any other machine, which is fine): added to SONGS once loaded

@@ -29,10 +29,68 @@ export function initPark25(api, col, o = {}) {
   // 28 Oct, night remeasure (Andrew: still higher than the real board), by casting rays at the park model from in front of it: the screen is a flat face 149 m out,
   // from 8 degrees left to 9 right and 13 to 35 m up (the bits at 36 to 52 m are the ORACLE PARK sign and its clock, which the first measure took for the board).
   // This one covers exactly that face (44 m by 22 m, centered half a degree right and 24 m up), a hair in front of it, with square LEDs 0.61 m across
-  const bearing = o.boardBearing ?? 0.5, bh = o.boardH ?? 24
+  // 29 Oct, evening (Andrew: "Scoreboard is off center"): centred between the light towers (bearing 0) instead of on the model's own screen (half a degree right), whose
+  // geometry is cut out now (c25.js)
+  const bearing = o.boardBearing ?? 0, bh = o.boardH ?? 24
   board.position.copy(at(bearing, o.boardR ?? 148.4, bh))
   board.lookAt(at(bearing, 0, bh))
   scene.add(board)
+
+  // ---- the board in voxels (29 Oct, evening, Andrew: "I think we should have it be voxel now that everything else is ... Give me like 3-4 basic voxel options"); G:
+  //   1 CUBES: every LED a cube; the lit ones step forward a little   2 RELIEF: the lit ones stand out of the board, so the animations come off it in 3D
+  //   3 FLIP DOTS: every LED a tile that flips over, dark side to color side, when it changes, like an old flip-dot board   4 BULBS: the flat bulb board from before
+  // G1 to G3 sit in a dark voxel frame. The same 72 by 36 LEDs, the same animations
+  const vboard = new THREE.Group(), bcube = new THREE.BoxGeometry(1, 1, 1), bd = new THREE.Object3D()
+  vboard.position.copy(at(bearing, 148.35, bh)); vboard.lookAt(at(bearing, 0, bh)); scene.add(vboard)
+  const NLED = GW * GHT, leds = new THREE.InstancedMesh(bcube, new THREE.MeshBasicMaterial({ color: '#ffffff', fog: false }), NLED)
+  const ledX = (i) => (i + 0.5 - GW / 2) * LED, ledY = (j) => (GHT / 2 - j - 0.5) * LEDH
+  leds.frustumCulled = false // its bounding sphere was taken before the LEDs were placed (red team)
+  vboard.add(leds)
+  {
+    const fr = [], FV = 0.6, w = (GW * LED) / 2 + FV / 2, h = (GHT * LEDH) / 2 + FV / 2
+    for (let x = -w; x <= w + 0.01; x += FV) fr.push([x, h], [x, -h])
+    for (let y = -h + FV; y < h - 0.01; y += FV) fr.push([-w, y], [w, y])
+    const fm = new THREE.InstancedMesh(bcube, new THREE.MeshLambertMaterial({ color: '#2b2e33', flatShading: true }), fr.length)
+    fr.forEach(([x, y], i) => { bd.position.set(x, y, 0.1); bd.rotation.set(0, 0, 0); bd.scale.set(FV, FV, 0.9); bd.updateMatrix(); fm.setMatrixAt(i, bd.matrix) })
+    vboard.add(fm)
+    const back = new THREE.Mesh(bcube, new THREE.MeshBasicMaterial({ color: '#070707', fog: false })); back.scale.set(GW * LED, GHT * LEDH, 0.1); back.position.z = -0.25; vboard.add(back)
+  }
+  let gStyle = o.boardStyle ?? 1
+  const ledK = new Int8Array(NLED).fill(-1), flipT = new Float32Array(NLED).fill(1), flipFrom = new Array(NLED).fill('#161616'), flipTo = new Array(NLED).fill('#161616')
+  const bc = new THREE.Color()
+  function placeLed(n, k, colr) {
+    const i = n % GW, j = Math.floor(n / GW)
+    bd.rotation.set(0, 0, 0)
+    if (gStyle === 1) { bd.position.set(ledX(i), ledY(j), k ? 0.16 : 0); bd.scale.set(LED * 0.84, LEDH * 0.84, k ? 0.36 : 0.18) }
+    else if (gStyle === 2) { const d = k ? 1.1 : 0.16; bd.position.set(ledX(i), ledY(j), d / 2 - 0.08); bd.scale.set(LED * 0.9, LEDH * 0.9, d) }
+    else { const f = flipT[n]; bd.position.set(ledX(i), ledY(j), 0.05); bd.rotation.x = f < 1 ? Math.PI * f : 0; bd.scale.set(LED * 0.86, LEDH * 0.86, 0.06) }
+    bd.updateMatrix(); leds.setMatrixAt(n, bd.matrix); leds.setColorAt(n, bc.set(colr))
+  }
+  // only the LEDs whose code changed are touched, unless the palette itself changed (a flash, a theme); 29 Oct red team: every LED was rebuilt every tick
+  let palKey = ''
+  function paintVoxBoard(P) {
+    const pk = P.join(), all = pk !== palKey
+    palKey = pk
+    let n0 = 0
+    for (let n = 0; n < NLED; n++) {
+      const i = n % GW, j = Math.floor(n / GW), ly = j - ROW0, k = ly >= 0 && ly < GH ? buf[ly * GW + i] : 0
+      if (!all && k === ledK[n] && (gStyle !== 3 || flipT[n] >= 1)) continue
+      const colr = k ? P[k] : '#161616'
+      n0++
+      if (gStyle === 3) { if (k !== ledK[n] && ledK[n] !== -1 && !o.still) { flipFrom[n] = flipTo[n]; flipTo[n] = colr; flipT[n] = 0 } else if (flipT[n] >= 1) flipTo[n] = colr; ledK[n] = k; placeLed(n, k, flipT[n] < 0.5 ? flipFrom[n] : flipTo[n]); continue }
+      ledK[n] = k; placeLed(n, k, colr)
+    }
+    if (n0) { leds.instanceMatrix.needsUpdate = true; leds.instanceColor.needsUpdate = true }
+  }
+  // the flips turn between board ticks
+  let flipping = 0
+  function flipStep(dt) {
+    if (gStyle !== 3) return
+    flipping = 0
+    for (let n = 0; n < NLED; n++) if (flipT[n] < 1) { flipT[n] = Math.min(1, flipT[n] + dt / 0.22); flipping++; placeLed(n, ledK[n], flipT[n] < 0.5 ? flipFrom[n] : flipTo[n]) }
+    if (flipping) { leds.instanceMatrix.needsUpdate = true; leds.instanceColor.needsUpdate = true }
+  }
+  const showBoard = () => { board.visible = vis && gStyle === 4; vboard.visible = vis && gStyle !== 4 }
 
   // ---- the ORACLE PARK sign and the clock over the board (29 Oct, Andrew: "breathe some life back into that"; the clock right for the moment) ----
   // Measured from in front like the board: the clock face is a disc 148.5 m out, dead center, 39.25 m up, 5.6 m across; the letters run 43 to 45.7 m up, from 3.75 degrees left
@@ -51,6 +109,7 @@ export function initPark25(api, col, o = {}) {
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(SW * SP, SHT * SP), new THREE.MeshBasicMaterial({ map: sTex, fog: false, side: THREE.DoubleSide }))
   sign.position.copy(at(-0.12, 148.2, 44.35)); sign.lookAt(at(-0.12, 0, 44.35)); scene.add(sign)
   let sfx = null, gleam = null, gleamT = 8, fogged = false, signs = 0, vis = true
+  showBoard()
   const lit = new Set(LETS.map(([x, y]) => x + ',' + y))
   function paintSign(dt) {
     const c = col()
@@ -95,7 +154,7 @@ export function initPark25(api, col, o = {}) {
     K: ['###.###', '.##..#.', '.##.##.', '.##.#..', '.####..', '.###...', '.###...', '.####..', '.##.#..', '.##.##.', '.##..#.', '.##..##', '.##..##', '.##...#', '###.###'],
   }
   const vsign = new THREE.Group(), vcube = new THREE.BoxGeometry(1, 1, 1), dummy = new THREE.Object3D()
-  vsign.position.copy(at(-0.12, 148.1, 0)); vsign.lookAt(at(-0.12, 0, 0)); scene.add(vsign)
+  vsign.position.copy(at(0, 148.1, 0)); vsign.lookAt(at(0, 0, 0)); scene.add(vsign)
   const archY = (x) => 43.0 - 0.0022 * x * x // the top of the arch beam
   // the letters: cells of each glyph (faces), and the ring of cells around them (the neon outline)
   const cells = [] // [x, y, kind 0 face 1 rim, letter]
@@ -129,22 +188,28 @@ export function initPark25(api, col, o = {}) {
   const beams = new THREE.InstancedMesh(vcube, smat, steel.length)
   steel.forEach(([x, y, z, w], i) => { dummy.position.set(x, y, z); dummy.scale.setScalar(w); dummy.updateMatrix(); beams.setMatrixAt(i, dummy.matrix) })
   vsign.add(beams)
-  // the pennants: a pole each (grey cubes), a flag of 17 by 9 cubes with the year in 3 by 5 digits; they wave, more toward the free end
-  const DIG = { 0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['###', '..#', '###', '#..', '###'], 3: ['###', '..#', '.##', '..#', '###'], 4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '###', '..#', '###'], 9: ['###', '#.#', '###', '..#', '###'] }
-  const YEARS = [1905, 1921, 1922, 1933, 1954, 2010, 2012, 2014], FX = 0.13, FC = 17, FR = 9
+  // the pennants (29 Oct, evening, Andrew sent two photos of them: "mirror those better"): the championship years. The old New York ones are black with the year and
+  // the interlocking NY in orange; 2010, 2012 and 2014 are orange with the year and the SF in black; the first says EST. 1883. A pole each, a flag of 25 by 10 cubes;
+  // they wave, more toward the free end
+  const DIG = { 0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['###', '..#', '###', '#..', '###'], 3: ['###', '..#', '.##', '..#', '###'], 4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '###', '..#', '###'], 6: ['###', '#..', '###', '#.#', '###'], 7: ['###', '..#', '..#', '..#', '..#'], 8: ['###', '#.#', '###', '#.#', '###'], 9: ['###', '#.#', '###', '..#', '###'] }
+  // the logos, 5 by 7: the NY (the N's two posts with the Y's arms meeting in the middle, its stem below) and the SF (the S with the F's bar through it)
+  const LOGO = { NY: ['#...#', '##.##', '#.#.#', '#.#.#', '#.#.#', '..#..', '.###.'], SF: ['.####', '#.#..', '.###.', '..#.#', '####.', '..#..', '..#..'] }
+  const YEARS = [1883, 1905, 1921, 1922, 1933, 1954, 2010, 2012, 2014], FX = 0.11, FC = 25, FR = 10
   const flags = []
   const pmat = new THREE.MeshLambertMaterial({ color: '#c9ced3', flatShading: true })
   YEARS.forEach((yr, f) => {
-    const px = -19.6 + f * 5.6, top = 52.2 - Math.abs(px) * 0.03, foot = archY(px)
+    const px = -22.4 + f * 5.6, top = 52.2 - Math.abs(px) * 0.05, foot = archY(px)
     const pole = new THREE.Mesh(vcube, pmat); pole.scale.set(0.2, top + 0.3 - foot, 0.2); pole.position.set(px, (top + 0.3 + foot) / 2, -0.55); vsign.add(pole)
     const knob = new THREE.Mesh(vcube, fmatL('#d9b44a')); knob.scale.setScalar(0.22); knob.position.set(px, top + 0.42, -0.55); vsign.add(knob)
-    const old = yr < 2000, bg = old ? '#141414' : '#fd5a1e', fg = old ? '#fd5a1e' : '#141414', txt = String(yr)
+    const old = yr < 2000, bg = old ? '#141414' : '#fd5a1e', fg = old ? '#fd5a1e' : '#141414', txt = String(yr), logo = LOGO[old ? 'NY' : 'SF']
     const m = new THREE.InstancedMesh(vcube, new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true }), FC * FR)
     let n = 0
     for (let r = 0; r < FR; r++) for (let c = 0; c < FC; c++) {
-      const dc = c - 1, di = Math.floor(dc / 4), dx = dc % 4, dr = r - 2
-      const ink = dc >= 0 && di < 4 && dx < 3 && dr >= 0 && dr < 5 && DIG[txt[di]][dr][dx] === '#', edge = old && (r === 0 || r === FR - 1 || c === FC - 1) // the black ones get an orange hem, or they vanish on the night sky
-      m.setColorAt(n++, new THREE.Color(ink || edge ? fg : bg))
+      const dc = c - 1, di = Math.floor(dc / 4), dx = dc % 4, dr = r - 3, lc = c - 18, lr = r - 2
+      const ink = (dc >= 0 && di < 4 && dx < 3 && dr >= 0 && dr < 5 && DIG[txt[di]][dr][dx] === '#') || (lc >= 0 && lc < 5 && lr >= 0 && lr < 7 && logo[lr][lc] === '#')
+      const est = yr === 1883 && r === 1 && c >= 1 && c <= 5 && c !== 2 && c !== 4 // a short underline-like mark over the year: EST., as far as 25 cubes allow
+      const edge = old && (r === 0 || r === FR - 1 || c === FC - 1) // the black ones keep an orange hem, or they vanish on the night sky
+      m.setColorAt(n++, new THREE.Color(ink || est || edge ? fg : bg))
     }
     vsign.add(m)
     flags.push({ m, px, top, ph: f * 0.9 })
@@ -156,7 +221,7 @@ export function initPark25(api, col, o = {}) {
     for (const fl of flags) {
       let n = 0
       for (let r = 0; r < FR; r++) for (let c = 0; c < FC; c++) {
-        const k = (c + 1) / FC, z = (o.still ? 0.12 : 0.42) * k * Math.sin(c * 0.55 - t * 3.1 + fl.ph + r * 0.12), y = fl.top - FX * (r + 0.5) - 0.18 * k * k
+        const k = (c + 1) / FC, z = (o.still ? 0 : 0.42) * k * Math.sin(c * 0.4 - t * 3.1 + fl.ph + r * 0.12), y = fl.top - FX * (r + 0.5) - 0.18 * k * k
         dummy.position.set(fl.px + 0.1 + FX * (c + 0.5), y, -0.55 + z); dummy.scale.setScalar(FX); dummy.updateMatrix(); fl.m.setMatrixAt(n++, dummy.matrix)
         wave += Math.abs(z)
       }
@@ -175,27 +240,30 @@ export function initPark25(api, col, o = {}) {
     const c = col(), night = q === 3, dim = fogged ? 0.55 : 1, t = sfx?.t ?? 0
     if (night && (flickT -= dt) <= 0) { flick = flick < 0 ? Math.floor(Math.random() * 10) : -1; flickT = flick < 0 ? 3 + Math.random() * 6 : 0.5 + Math.random() * 0.8 }
     const face0 = night ? '#fff4dc' : '#f1e4c4', rim0 = night ? '#ff3b3b' : '#d42a2f'
+    // the few colors of the moment, parsed once a tick (red team: a string parse per cell per tick)
+    const CC = {}, cc = (h) => (CC[h] ??= (() => { const x = new THREE.Color(h); if (dim !== 1) x.multiplyScalar(dim); return x })())
     cells.forEach(([x, y, k, li], i) => {
       let h = k ? rim0 : face0
       if (sfx?.kind === 'hr') { if (k && t > 0.15 + li * 0.13) h = c.acc; else if (!k && t > 0.15 + li * 0.13 && t < 0.45 + li * 0.13) h = '#ffffff' }
       else if (sfx?.kind === 'walk') h = Math.floor(t * 6) % 2 ? (k ? c.acc : '#ffffff') : h
       else if (!k && gleam && Math.abs(x / VX - 2 * (y - 43) / VX - ((gleam.t / 1.4) * 140 - 70)) < 4) h = '#ffffff'
       if (night && k && li === flick && Math.random() < 0.6) h = '#5a1414'
-      tmpC.set(h); if (dim !== 1) tmpC.multiplyScalar(dim)
-      letters.setColorAt(i, tmpC)
+      letters.setColorAt(i, cc(h))
     })
     letters.instanceColor.needsUpdate = true
   }
 
-  const showSign = () => { sign.visible = vis && q === 1; vsign.visible = vis; letters.visible = q !== 1 }
+  const showSign = () => { sign.visible = vis && q === 1; vsign.visible = vis; letters.visible = q !== 1; if (clockRef) clockRef.visible = vis && q === 1; if (vclockRef) vclockRef.visible = q !== 1 }
+  let vclockRef = null, clockRef = null
   showSign()
   const CR = 2.85, CPX = 256
   const cCan = document.createElement('canvas'); cCan.width = cCan.height = CPX
   const cx = cCan.getContext('2d'), cTex = new THREE.CanvasTexture(cCan); cTex.colorSpace = THREE.SRGBColorSpace
   const clockFace = new THREE.Mesh(new THREE.CircleGeometry(CR, 48), new THREE.MeshBasicMaterial({ map: cTex, fog: false, side: THREE.DoubleSide }))
-  clockFace.position.copy(at(0, 148.3, 39.25)); clockFace.lookAt(at(0, 0, 39.25)); scene.add(clockFace)
+  clockFace.position.copy(at(0, 148.3, 39.25)); clockFace.lookAt(at(0, 0, 39.25)); scene.add(clockFace); clockRef = clockFace; clockFace.visible = q === 1
   // the time shown, in minutes after midnight (fractional); spin: a sweep from one time to another; live: the time in San Francisco, updated every paint
-  const sfNow = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).map((x) => [x.type, x.value])); return Number(p.hour) * 60 + Number(p.minute) + Number(p.second) / 60 }
+  const SF_FMT = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
+  const sfNow = () => { const p = Object.fromEntries(SF_FMT.formatToParts(new Date()).map((x) => [x.type, x.value])); return Number(p.hour) * 60 + Number(p.minute) + Number(p.second) / 60 }
   let clk = { shown: sfNow(), live: true, spin: null }
   function setClock(s) {
     if (!s || s.live) { clk = { shown: clk.shown, live: true, spin: { from: clk.shown, to: sfNow(), t: 0, dur: 0.9 } }; return }
@@ -206,12 +274,36 @@ export function initPark25(api, col, o = {}) {
     clk = { shown: clk.shown, live: false, hm: s.hm, spin: o.still ? null : { from: clk.shown, to: clk.shown - d, t: 0, dur: 1.5 }, target: to }
     if (o.still) clk.shown = to
   }
+  // the voxel clock (29 Oct, evening, Andrew: "I want the clock to be a voxel clock"), for the real sign: a pale pink face of cubes, the red band round it with a white
+  // dot every minute, the hours in black 3 by 5 digits, and the hands as bars of cubes that turn (the green bezel is the steel ring above); in the dojo a thin red
+  // second hand. It sits in the sign's own frame, over the clock's place
+  const vclock = new THREE.Group(); vclock.position.set(0, 39.25, 0.12); vsign.add(vclock); vclockRef = vclock
+  {
+    const face = [], ring = [], dots = [], nums = [], CV = 0.2
+    for (let y = -2.9; y <= 2.9; y += CV) for (let x = -2.9; x <= 2.9; x += CV) { const r = Math.hypot(x, y); if (r < 2.55) face.push([x, y, 0]); else if (r < 2.95) ring.push([x, y, 0.02]) }
+    for (let i = 0; i < 60; i++) { const a = (i / 60) * Math.PI * 2; dots.push([Math.sin(a) * 2.75, Math.cos(a) * 2.75, 0.1]) }
+    const NV = 0.13
+    for (let h = 1; h <= 12; h++) {
+      const a = (h / 12) * Math.PI * 2, cx0 = Math.sin(a) * 2.05, cy0 = Math.cos(a) * 2.05, ds = String(h), w = ds.length * 4 - 1
+      ;[...ds].forEach((ch, k) => DIG[ch].forEach((row, j) => [...row].forEach((v, i) => { if (v === '#') nums.push([cx0 + (k * 4 + i - (w - 1) / 2) * NV, cy0 + (2 - j) * NV, 0.1]) })))
+    }
+    const put = (list, size, color, depth = size) => { const m = new THREE.InstancedMesh(vcube, new THREE.MeshLambertMaterial({ color, flatShading: true }), list.length); list.forEach(([x, y, z], i) => { dummy.position.set(x, y, z); dummy.scale.set(size, size, depth); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix) }); vclock.add(m); return m }
+    put(face, CV, '#f3dfe3', 0.12); put(ring, CV, '#d8482e', 0.16); put(dots, 0.1, '#fbe9e9'); put(nums, NV, '#1a1a1a')
+    const hand = (len, wd, color, z) => { const g = new THREE.Group(), list = []; for (let y = -0.3; y <= len; y += wd * 0.8) list.push([0, y, 0]); const m = new THREE.InstancedMesh(vcube, new THREE.MeshLambertMaterial({ color, flatShading: true }), list.length); list.forEach(([x, y], i) => { dummy.position.set(x, y, 0); dummy.scale.set(wd, wd * 0.9, 0.1); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix) }); g.add(m); g.position.z = z; vclock.add(g); return g }
+    vclock.userData.hands = [hand(1.35, 0.26, '#141414', 0.22), hand(2.15, 0.18, '#141414', 0.3), hand(2.3, 0.07, '#d42a2f', 0.36)]
+    const cap = new THREE.Mesh(vcube, new THREE.MeshLambertMaterial({ color: '#141414', flatShading: true })); cap.scale.set(0.34, 0.34, 0.2); cap.position.z = 0.42; vclock.add(cap)
+  }
+  function turnVoxClock() {
+    const m = ((clk.shown % 720) + 720) % 720, [hh, mm, ss] = vclock.userData.hands
+    hh.rotation.z = -(m / 720) * Math.PI * 2; mm.rotation.z = -((m % 60) / 60) * Math.PI * 2
+    ss.visible = clk.live && !clk.spin; ss.rotation.z = -(((clk.shown * 60) % 60) / 60) * Math.PI * 2
+  }
   function paintClock(dt) {
     const c = col(), R = CPX / 2
     if (clk.spin) { const sp = clk.spin; sp.t += dt; const k = ease(sp.t / sp.dur); clk.shown = sp.from + (sp.to - sp.from) * k; if (sp.t >= sp.dur) { clk.spin = null; clk.shown = clk.live ? sfNow() : clk.target } }
     else if (clk.live) clk.shown = sfNow()
     const dimA = fogged ? 0.5 : 1
-    if (q !== 1) { paintRealClock(dimA); cTex.needsUpdate = true; return }
+    if (q !== 1) { turnVoxClock(); return } // the voxel clock (the canvas one is the bulbs')
     cx.fillStyle = '#050505'; cx.fillRect(0, 0, CPX, CPX)
     const dot = (a, r, rad, colr) => { cx.fillStyle = colr; cx.beginPath(); cx.arc(R + Math.sin(a) * r, R - Math.cos(a) * r, rad, 0, Math.PI * 2); cx.fill() }
     cx.globalAlpha = dimA
@@ -225,23 +317,6 @@ export function initPark25(api, col, o = {}) {
     cx.globalAlpha = 1
     cTex.needsUpdate = true
   }
-  // the real clock (Q2, Q3): a pale pink face, a red band of minute dots round the edge, black numerals and black hands; in the dojo a thin red second hand
-  function paintRealClock(dimA) {
-    const R = CPX / 2, m = ((clk.shown % 720) + 720) % 720
-    cx.globalAlpha = 1; cx.fillStyle = '#0b0b0b'; cx.fillRect(0, 0, CPX, CPX)
-    cx.globalAlpha = dimA
-    cx.fillStyle = q === 3 ? '#fff0f2' : '#f3dfe3'; cx.beginPath(); cx.arc(R, R, R, 0, Math.PI * 2); cx.fill()
-    cx.strokeStyle = '#d8482e'; cx.lineWidth = 9; cx.beginPath(); cx.arc(R, R, R - 7, 0, Math.PI * 2); cx.stroke()
-    for (let i = 0; i < 60; i++) { const a = (i / 60) * Math.PI * 2; cx.fillStyle = '#fbe9e9'; cx.beginPath(); cx.arc(R + Math.sin(a) * (R - 7), R - Math.cos(a) * (R - 7), 1.6, 0, Math.PI * 2); cx.fill() }
-    cx.fillStyle = '#1a1a1a'; cx.font = '700 25px Arial, sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'
-    for (let h = 1; h <= 12; h++) { const a = (h / 12) * Math.PI * 2; cx.fillText(String(h), R + Math.sin(a) * (R - 31), R - Math.cos(a) * (R - 31) + 1) }
-    const hand = (a, len, w, back = 10) => { cx.save(); cx.translate(R, R); cx.rotate(a); cx.beginPath(); cx.moveTo(-w / 2, back); cx.lineTo(-w / 2, -len + w); cx.lineTo(0, -len); cx.lineTo(w / 2, -len + w); cx.lineTo(w / 2, back); cx.closePath(); cx.fill(); cx.restore() }
-    cx.fillStyle = '#141414'
-    hand((m / 720) * Math.PI * 2, R * 0.5, 11); hand(((m % 60) / 60) * Math.PI * 2, R * 0.74, 8)
-    if (clk.live && !clk.spin) { cx.fillStyle = '#d42a2f'; hand((((clk.shown * 60) % 60) / 60) * Math.PI * 2, R * 0.78, 2.5, 18) }
-    cx.fillStyle = '#141414'; cx.beginPath(); cx.arc(R, R, 7, 0, Math.PI * 2); cx.fill()
-    cx.globalAlpha = 1
-  }
   // palette: a = the text color of the moment (accent, or bone while flashing), o = accent, w = bone, then fixed colors for the sprites
   const FIX = { b: '#5fd3ff', y: '#f2bc40', r: '#e4002b', g: '#8a8f99', n: '#a8713f', d: '#4a4f58' }
   const CODES = ' aowbyrgnd'
@@ -250,6 +325,8 @@ export function initPark25(api, col, o = {}) {
   const off = (x, y) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && x < GW && y >= 0 && y < GH) buf[y * GW + x] = 0 }
   const rect = (x, y, w, h, ch) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, ch) }
   const line = (x0, y0, x1, y1, ch) => { const n = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)))); for (let i = 0; i <= n; i++) put(x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, ch) }
+  // a sprite at double size (the rivalry's players)
+  const big = (spr, x, y) => { for (let j = 0; j < spr.length; j++) for (let i = 0; i < spr[j].length; i++) { const c = spr[j][i]; if (c !== '.' && c !== ' ') { put(x + i * 2, y + j * 2, c); put(x + i * 2 + 1, y + j * 2, c); put(x + i * 2, y + j * 2 + 1, c); put(x + i * 2 + 1, y + j * 2 + 1, c) } } }
   const blit = (spr, x, y, flip = false) => { for (let j = 0; j < spr.length; j++) for (let i = 0; i < spr[j].length; i++) { const c = spr[j][flip ? spr[j].length - 1 - i : i]; if (c !== '.' && c !== ' ') put(x + i, y + j, c) } }
   // text in Press Start 2P at 8 px (8 LEDs tall); clip = [y0, y1) keeps only those rows (the odometer roll)
   const tw = (s) => { gx.font = '8px PS2P'; return Math.round(gx.measureText(s).width) }
@@ -272,6 +349,7 @@ export function initPark25(api, col, o = {}) {
   function paint() {
     const c = col(), on = flash > 0 && Math.floor(flash * 6) % 2 ? c.tx : color ?? c.acc
     const P = [null, on, c.acc, c.tx, FIX.b, FIX.y, FIX.r, FIX.g, FIX.n, FIX.d]
+    if (gStyle !== 4) { paintVoxBoard(P); return }
     ox.fillStyle = '#050505'; ox.fillRect(0, 0, out.width, out.height)
     for (let y = 0; y < GHT; y++) for (let x = 0; x < GW; x++) {
       const ly = y - ROW0, k = ly >= 0 && ly < GH ? buf[ly * GW + x] : 0
@@ -282,6 +360,7 @@ export function initPark25(api, col, o = {}) {
   }
 
   // ---- the sprites (one character per LED: o accent, w bone, b water, y gold, r red, g grey, n brown, d dark grey) ----
+  const GIANT = ['.oo.', '.ww.', 'oooo', '.oo.', '.oo.', '.dd.', 'd..d'], DODGER = ['.bb.', '.ww.', 'bwwb', '.ww.', '.ww.', '.dd.', 'd..d']
   const SPR = {
     crab: [['rr...........rr', 'r.r.........r.r', '.rr..w...w..rr.', '...r.w...w.r...', '....rrrrrrr....', '..rrrrrrrrrrr..', '..rrrrrrrrrrr..', '.r.r.r...r.r.r.', 'r.r.r.....r.r.r'],
       ['.rr.........rr.', 'r.r.........r.r', '.rr..w...w..rr.', '...r.w...w.r...', '....rrrrrrr....', '..rrrrrrrrrrr..', '..rrrrrrrrrrr..', '..r.r.r.r.r.r..', '.r.r.r...r.r.r.']],
@@ -295,6 +374,7 @@ export function initPark25(api, col, o = {}) {
     player: [['.w.', 'www', '.w.', 'w.w', 'w.w'], ['.o.', 'ooo', '.o.', 'o.o', 'o.o']],
     rocket: ['..w..', '.www.', '.www.', '.wbw.', '.www.', 'wwwww', 'w.w.w'],
     potato: ['...nnnnnn...', '.nnnnnnnnnn.', 'nnnynnnnnynn', 'nnnnnnnnnnnn', 'nnynnnnynnnn', 'nnnnnnnnnnnn', '.nnnnnnnynn.', '...nnnnnn...'],
+    // the rivalry's players: a Giant (orange cap and jersey) and a Dodger (blue cap, white jersey, blue sleeves); 4 wide, 7 tall, dark legs
     face: ['...wwww...', '.wwwwwwww.', 'wwwwwwwwww', 'ww.ww.wwww', 'wwwwwwwwww', 'wwwwwwwwww', 'www....www', 'ww.wwww.ww', '.wwwwwwww.', '...wwww...'],
   }
 
@@ -427,13 +507,145 @@ export function initPark25(api, col, o = {}) {
       }
       if (t > 1.5) text('OUCH', 'c', 7, 'w')
     } },
+    // ---- THE RIVALRY (29 Oct, later, Andrew: "a giants player fucking up a dodger player ... spy vs. spy shit. Gore, blood"): cartoon slapstick, a generic Giant (orange
+    // cap and jersey) against a generic Dodger (blue cap, white jersey), no real players. They play after a Giants home run against the Dodgers, and now and then idle
+    // (the players are drawn at double size, 8 by 14 LEDs, standing on row 20)
+    anvil: { dur: 4.8, draw(t) {
+      const gy = 20, lx = 46
+      line(0, gy + 1, GW - 1, gy + 1, 'd')
+      big(GIANT, 6, gy - 13)
+      line(10, gy - 14, 10, 0, t < 1.0 ? 'g' : 'd'); if (t > 0.8 && t < 1.2) { put(9, 4, 'y'); put(11, 4, 'y'); put(10, 3, 'y') } // he cuts the rope
+      const ay = t < 1.0 ? 0 : Math.min(gy - 5, (t - 1.0) ** 2 * 70), hit = ay >= gy - 5
+      if (!hit) big(DODGER, lx, gy - 13)
+      else {
+        rect(lx - 2, gy, 12, 1, 'b'); rect(lx, gy - 1, 8, 1, 'w')
+        for (let i = 0; i < 24; i++) { const k = Math.min(1, (t - 1.35) * 2.5), a = (i / 23) * Math.PI; put(lx + 4 + Math.cos(a) * (4 + k * (6 + (i % 4) * 3)), gy - Math.sin(a) * k * (2 + (i % 5) * 2), 'r') }
+      }
+      rect(lx - 3, ay, 14, 3, 'g'); rect(lx, ay + 3, 8, 2, 'g') // the anvil
+      if (hit && t > 1.7) { text('SQUASHED', 'c', 0, 'r'); if (Math.floor(t * 4) % 2) text('HA', 15, 9, 'o') }
+    } },
+    dynamite: { dur: 5.2, draw(t) {
+      const gy = 20, lx = 50
+      line(0, gy + 1, GW - 1, gy + 1, 'd')
+      big(GIANT, 4, gy - 13)
+      const k = Math.min(1, t / 1.2), sx = 13 + k * 38, sy = gy - 10 - Math.sin(k * Math.PI) * 8
+      if (t < 2.4) { big(DODGER, lx, gy - 13); rect(sx, sy, 4, 2, 'r'); if (Math.floor(t * 12) % 2) { put(sx + 4, sy - 1, 'y'); put(sx + 5, sy - 2, 'w') } if (t > 1.3) text('?', lx + 9, 4, 'w') }
+      else {
+        const u = t - 2.4, r = Math.min(14, u * 30), cx = lx + 4, cy = gy - 7
+        if (u < 0.7) for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; put(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.6, i % 3 ? 'y' : 'o'); put(cx + Math.cos(a) * r * 0.6, cy + Math.sin(a) * r * 0.4, 'w') }
+        // the pieces: the cap, two shoes, a hand, and a lot of red, each on its own arc
+        const P = [['b', -2.2, 12], ['b', -1.9, 15], ['w', -1.2, 13], ['d', -0.6, 11], ['d', -2.6, 10], ['w', -0.3, 16], ['r', -1.6, 9], ['r', -1.0, 14], ['r', -2.0, 7], ['r', -0.8, 8], ['r', -1.4, 17], ['r', -2.4, 13]]
+        for (const [c, a, v] of P) { const x = cx + Math.cos(a) * v * u * 2.2, y = cy + Math.sin(a) * v * u * 1.6 + 14 * u * u; if (y < gy) { put(x, y, c); put(x + 1, y, c) } else put(x, gy, c) }
+        for (let i = 0; i < 16; i++) put(lx - 6 + ((i * 37) % 22), gy, 'r') // the mess on the ground
+        if (u > 0.9) text('KA-BOOM', 'c', 0, 'y')
+      }
+    } },
+    bonk: { dur: 5, draw(t) {
+      const gy = 20, lx = 34
+      line(0, gy + 1, GW - 1, gy + 1, 'd')
+      big(GIANT, 18, gy - 13)
+      const sw = t < 0.9 ? -2.3 + 0.2 * Math.sin(t * 9) : Math.min(0.5, -2.3 + (t - 0.9) * 14)
+      for (const dd of [0, 1]) line(24, gy - 8 + dd, 24 + Math.cos(sw) * 14, gy - 8 + dd + Math.sin(sw) * 14, 'n') // the bat
+      if (t < 1.05) big(DODGER, lx, gy - 13)
+      else {
+        const u = t - 1.05, hx = lx + 2 + u * 30, hy = gy - 13 - 12 * u + 10 * u * u // the head goes for a ride, cap and all
+        if (hx < GW) { rect(hx, hy, 4, 2, 'b'); rect(hx, hy + 2, 4, 2, 'w') }
+        for (let i = 1; i < 10; i++) { const v = u - i * 0.05; if (v > 0) put(lx + 3 + v * 30, gy - 13 - 12 * v + 10 * v * v + 3, 'r') }
+        const fall = Math.min(1, u * 1.2)
+        if (fall < 1) { big(['bwwb', '.ww.', '.ww.', '.dd.', 'd..d'], lx, gy - 9); for (let i = 0; i < 3; i++) put(lx + 3 + (i - 1) * Math.sin(u * 20 + i), gy - 11 - ((u * 9 + i * 2) % 5), 'r') } // the fountain
+        else { rect(lx - 3, gy, 10, 1, 'w'); rect(lx - 3, gy - 1, 3, 1, 'b'); for (let i = 0; i < 6; i++) put(lx + 7 + i, gy, 'r') }
+        if (u > 0.7) text('BONK', 'c', 0, 'o')
+      }
+    } },
+    runover: { dur: 4.8, draw(t) {
+      line(0, 20, GW, 20, 'g'); line(0, 21, GW, 21, 'd')
+      const hit = 40, w = 28, x = Math.round(-w + (t / 2.6) * (GW + w) * 0.9)
+      if (x + w < hit) { big(DODGER, hit, 6); if (Math.floor(t * 3) % 2) text('?!', hit - 2, 0, 'w') }
+      else for (let i = 0; i < 18; i++) put(hit - 8 + ((i * 7) % 20), 20 - (i % 2), 'r') // what is left of him on the rails
+      rect(x, 6, w, 1, 'w'); rect(x, 7, w, 12, 'r'); for (let i = 2; i < w - 2; i += 4) rect(x + i, 8, 2, 3, 'y'); rect(x + 3, 19, 3, 2, 'g'); rect(x + w - 6, 19, 3, 2, 'g')
+      rect(x + 6, 12, 3, 2, 'w'); rect(x + 6, 14, 3, 3, 'o') // the Giant at the grip
+      if (x + w >= hit) { rect(x + w - 1, 10, 2, 8, 'r'); put(x + w + 1, 12, 'b'); put(x + w + 1, 13, 'b') }
+      if (t > 2.4) text('DING!', 'c', 0, 'y')
+    } },
+    sealsnack: { dur: 5.2, draw(t) {
+      water(t, 16)
+      const lx = 40
+      if (t < 2.2) { big(['.bb.', '.ww.', 'bwwb'], lx, 11); if (Math.floor(t * 4) % 2) { rect(lx - 2, 9, 2, 2, 'w'); rect(lx + 8, 9, 2, 2, 'w') } text('HELP', 2, 0, 'b') } // a Dodger treading water in the Cove
+      const rise = t < 2 ? 0 : t < 2.6 ? (t - 2) / 0.6 : t < 3.4 ? 1 : Math.max(0, 1 - (t - 3.4) / 0.6)
+      if (rise > 0) blit(SPR.seal[t > 2.3 && t < 3.0 ? 1 : 0], lx - 3, 20 - rise * 11)
+      if (t > 2.6) for (let i = 0; i < 26; i++) put(lx - 8 + ((i * 11) % 26), 16 + (i % 4) + Math.sin(t * 3 + i) * 0.6, 'r') // the water goes red
+      if (t > 3.2) text('GULP', 'c', 0, 'w')
+      if (t > 1.0) big(GIANT.slice(0, 5), 4, 6) // a Giant on the wall, waving
+    } },
+    // ---- 29 Oct, evening (Andrew: "more scoreboard animations") ----
+    // LASER: a ball hit 112 mph or harder; the beam crosses the board, then the speed
+    laser: { dur: 3.4, draw(t, a) {
+      const k = ease(t / 0.55), x1 = Math.round(k * GW)
+      for (let x = 0; x < x1; x++) { put(x, 11, 'w'); if ((x + Math.floor(t * 30)) % 3) { put(x, 10, 'r'); put(x, 12, 'r') } }
+      if (t < 0.6) for (let i = 0; i < 5; i++) put(x1 - i * 3, 11 + ((i % 2) ? -2 : 2), 'y')
+      if (t > 0.6) { if (Math.floor(t * 5) % 2) text('LASER', 'c', 1, 'r'); text(`${Math.round(a?.ev ?? 112)} MPH`, 'c', 14, 'w') }
+    } },
+    // NO DOUBT: a stamp slams down on a home run nobody had to watch land (410 to 430 ft), dust off the bottom edge
+    nodoubt: { dur: 3.6, draw(t) {
+      if (t < 0.3) { const k = 1 - t / 0.3, m = Math.round(k * 8); rect(4 - m, 4 - m, 64 + 2 * m, 1, 'g'); rect(4 - m, 17 + m, 64 + 2 * m, 1, 'g'); return }
+      const sh = t < 0.45 ? (Math.floor(t * 40) % 2 ? 1 : -1) : 0
+      for (let x = 4; x < 68; x++) { put(x + sh, 4, 'o'); put(x + sh, 17, 'o') } for (let y = 4; y < 18; y++) { put(4 + sh, y, 'o'); put(67 + sh, y, 'o') }
+      text('NO DOUBT', 'c', 7, 'o')
+      if (t < 1.2) for (let i = 0; i < 10; i++) { const d = (t - 0.3) * 18, ang = (i / 9) * Math.PI; put(36 + Math.cos(ang) * (34 + d), 18 + Math.sin(ang) * d * 0.25, 'g') }
+    } },
+    // FIREWORKS: a Giants home run at Oracle; three shells go up and break in orange, bone and gold, then the word
+    fireworks: { dur: 4.4, draw(t, a) {
+      for (const [t0, x, y, c1, c2] of [[0, 16, 6, 'o', 'y'], [0.6, 52, 5, 'w', 'o'], [1.2, 34, 8, 'y', 'w'], [2.0, 24, 7, 'o', 'w'], [2.6, 46, 6, 'y', 'o']]) {
+        const u = t - t0
+        if (u < 0) continue
+        if (u < 0.5) { put(x, GH - 1 - (GH - 1 - y) * (u / 0.5), 'y'); continue }
+        const v = u - 0.5, r = Math.min(8, v * 14)
+        if (v > 1.4) continue
+        for (let i = 0; i < 14; i++) { const ang = (i / 14) * Math.PI * 2; put(x + Math.cos(ang) * r, y + Math.sin(ang) * r * 0.8 + v * v * 3, i % 2 ? c1 : c2); if (r > 3) put(x + Math.cos(ang) * (r - 2), y + Math.sin(ang) * (r - 2) * 0.8 + v * v * 3, c2) }
+      }
+      if (t > 3.0) text(a?.word ?? 'HOME RUN', 'c', 7, 'o')
+    } },
+    // KAYAK SCRAMBLE: after a splash hit, the kayaks race for the ball in the Cove; the one from the left gets it
+    kayak: { dur: 4.8, draw(t) {
+      water(t, 18)
+      const by = t < 0.5 ? 2 + (t / 0.5) * 15 : 17, bx = 36
+      if (t < 2.9) { put(bx, by, 'w'); put(bx + 1, by, 'w') }
+      if (t > 0.5 && t < 0.9) for (let i = 0; i < 6; i++) put(bx + (i - 2.5) * (t - 0.5) * 12, 16 - Math.abs(i - 2.5) * (t - 0.5) * 5, 'w')
+      const k = ease((t - 0.6) / 2.3), lx = Math.round(-10 + k * 41), rx = Math.round(GW + 2 - k * 30), f = Math.floor(t * 8) % 2
+      const boat = (x, flip) => { rect(x, 17, 9, 1, 'n'); rect(x + 1, 18, 7, 1, 'n'); put(x + 4, 16, 'o'); line(x + 1, f ? 14 : 16, x + 7, f ? 16 : 14, 'y') }
+      boat(lx, false); boat(rx, true)
+      if (t > 2.9) { put(lx + 4, 15, 'w'); text('GOT IT!', 'c', 2, 'w') } else text('KAYAKS!', 'c', 2, 'b')
+    } },
+    // DOT RACE (idle): the old scoreboard race, three dots round a track, the crowd's pick decided by a hair
+    dotrace: { dur: 6.4, draw(t, a) {
+      const seed = a?.seed ?? 7, sp = [0, 1, 2].map((i) => 0.86 + (((seed * (i + 3) * 37) % 17) / 17) * 0.18)
+      line(0, 9, GW - 1, 9, 'd'); line(0, 19, GW - 1, 19, 'd'); line(64, 9, 64, 19, 'w')
+      const C = ['o', 'w', 'b'], N = ['ORANGE!', 'BONE!', 'BLUE!'], pos = sp.map((v, i) => Math.min(64, 2 + ease(t / 5) * 62 * v + Math.sin(t * 3 + i) * 1.5))
+      pos.forEach((x, i) => rect(x, 10 + i * 3, 3, 3, C[i]))
+      const win = pos.indexOf(Math.max(...pos))
+      if (t < 4.6) text('DOT RACE', 'c', 0, 'y'); else if (Math.floor(t * 5) % 2) text(N[win], 'c', 0, C[win])
+    } },
+    // THE WAVE (idle): the crowd along the bottom, standing up as the wave goes by
+    wave: { dur: 5.2, draw(t) {
+      const wx = -6 + (t / 4.6) * (GW + 12)
+      for (let x = 1; x < GW; x += 2) { const up = Math.max(0, 1 - Math.abs(x - wx) / 6), h = Math.round(up * 4); put(x, 20 - h, 'w'); put(x, 21 - h, (x / 2) % 3 ? 'o' : 'y'); if (h > 2) { put(x - 1, 19 - h, 'w'); put(x + 1, 19 - h, 'w') } }
+      text('THE WAVE', 'c', 2, 'o')
+    } },
+    // BEACH BALL (idle): one gets loose in the bleachers and bounces along on the crowd's hands
+    beachball: { dur: 5.6, draw(t) {
+      for (let x = 0; x < GW; x += 3) { put(x, 21, 'g'); put(x + 1, 20, (x / 3) % 2 ? 'w' : 'o') }
+      const x = -4 + (t / 5.2) * (GW + 8), hop = (t * 1.6) % 1, y = 16 - 5 * 4 * hop * (1 - hop), r = Math.floor(t * 6) % 4
+      for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (i * i + j * j <= 10) { const q = (Math.floor(((Math.atan2(j, i) + Math.PI) / (Math.PI / 2)) + r) % 4); put(x + i, y + j, 'wrby'[q]) } // a six-cube ball in four colors, turning
+      if (hop < 0.12) { put(Math.round(x) + 1, 19, 'w'); put(Math.round(x) + 2, 19, 'w') }
+      text('BOUNCE!', 'c', 1, 'y')
+    } },
     soclose: { dur: 4.2, draw(t) {
       blit(SPR.face, 8, 6)
       for (const ex of [10, 13]) { const k = ((t * 1.6 + ex * 0.2) % 1) * 6; put(ex, 10 + k, 'b') }
       text('SO', 32, 2, 'w'); text('CLOSE', 32, 12, 'o')
     } },
   }
-  const PRIORITY = { glitch: 10, walkoff: 9, slam: 8, flip: 7, golf: 6, tomahawk: 6, chase: 6, insidejob: 6, seal: 5, odometer: 4, cable: 4, crab: 3, soclose: 3, tater: 3, moon: 3, karl: 2, gulls: 1, bridge: 1 }
+  const PRIORITY = { glitch: 10, walkoff: 9, slam: 8, flip: 7, golf: 6, tomahawk: 6, chase: 6, insidejob: 6, seal: 5, nodoubt: 3, kayak: 3, laser: 3, fireworks: 2, odometer: 4, cable: 4, crab: 3, soclose: 3, tater: 3, moon: 3, karl: 2, gulls: 1, bridge: 1, dotrace: 1, wave: 1, beachball: 1, anvil: 6, dynamite: 6, bonk: 6, runover: 6, sealsnack: 6 }
   let cur = null, queue = [], wait = 0, idleT = 0, played = []
   // play now (if the board is free) or wait; delay holds it back, e.g. until HOME RUN has flashed
   // now: something the viewer just did (TWEAK THE TATER, Karl, MOONSHOT) cuts in ahead of everything
@@ -458,7 +670,7 @@ export function initPark25(api, col, o = {}) {
     } else {
       drawLines()
       // idle: now and then a gull steals fries or the bridge shows, while the board just scrolls the batter's name
-      if (marquee && !flash && o.idleAnims !== false && (idleT += dt) > 26 + Math.random() * 14) { idleT = 0; play(Math.random() < 0.5 ? 'gulls' : 'bridge') }
+      if (marquee && !flash && o.idleAnims !== false && (idleT += dt) > 26 + Math.random() * 14) { idleT = 0; const I = ['gulls', 'bridge', 'dotrace', 'wave', 'beachball', 'anvil', 'dynamite', 'bonk', 'runover', 'sealsnack']; play(I[Math.floor(Math.random() * I.length)], { seed: Math.floor(Math.random() * 1000) }) }
     }
     paint()
   }
@@ -466,6 +678,7 @@ export function initPark25(api, col, o = {}) {
   // the sign and the clock at the board's pace; a clock in mid-spin every frame
   let sAcc = 0
   let flagT = 0
+  parts.push((dt) => { flipStep(dt); return true })
   parts.push((dt) => { sAcc += dt; flagT += dt; if (clk.spin) paintClock(dt); if (sAcc >= 0.09) { if (q === 1) paintSign(sAcc); else paintVox(sAcc); if (!clk.spin) paintClock(sAcc); if (vis) waveFlags(flagT); sAcc = 0 } return true })
   let acc = 0
   parts.push((dt) => {
@@ -528,14 +741,14 @@ export function initPark25(api, col, o = {}) {
       const home = new THREE.Vector3(g.c.x + Math.cos(g.a) * g.r, g.h, g.c.z + Math.sin(g.a) * g.r)
       if (g.out > 0) { g.out -= dt; g.m.position.addScaledVector(g.v, dt); g.v.y += 1.5 * dt }
       else g.m.position.lerp(home, Math.min(1, dt * 0.8))
-      const flap = Math.sin(t * (g.out > 0 ? 16 : 7) + g.ph) * 0.45
+      const flap = o.still ? 0.2 : Math.sin(t * (g.out > 0 ? 16 : 7) + g.ph) * 0.45
       const dir = g.out > 0 ? Math.atan2(g.v.z, g.v.x) : g.a + Math.sign(g.w) * Math.PI / 2
       g.m.rotation.y = -dir + Math.PI / 2 // the body's length (z) along the flight
       g.m.userData.wings[0].rotation.z = -flap; g.m.userData.wings[1].rotation.z = flap
     }
     return true
   })
-  function scatter() { for (const g of gulls) { g.out = 5 + Math.random() * 3; const a = Math.random() * Math.PI * 2; g.v = new THREE.Vector3(Math.cos(a) * 14, 9 + Math.random() * 8, Math.sin(a) * 14) } }
+  function scatter() { if (o.still) return; for (const g of gulls) { g.out = 5 + Math.random() * 3; const a = Math.random() * Math.PI * 2; g.v = new THREE.Vector3(Math.cos(a) * 14, 9 + Math.random() * 8, Math.sin(a) * 14) } }
 
   // the board keeps its own wall clock (steps of up to half a second): the engine hands frames a clamped step, so on a slow device a 4.6 s crab took 45 s
   let wall = performance.now()
@@ -545,7 +758,10 @@ export function initPark25(api, col, o = {}) {
     // a new swing takes the board: whatever the last one left playing or waiting is dropped
     clear() { cur = null; queue = []; wait = 0 },
     text: () => lines.join(' / '), gulls: () => gulls.length, scattered: () => gulls.filter((g) => g.out > 0).length,
-    set visible(v) { vis = v; board.visible = v; showSign(); clockFace.visible = v; for (const g of gulls) g.m.visible = v },
+    set visible(v) { vis = v; showBoard(); showSign(); for (const g of gulls) g.m.visible = v },
+    // the board's look (G1 to G4), and for the tests: the look, how many LEDs stand forward, how many tiles are mid-flip
+    set boardStyle(n) { if (n === gStyle) return; gStyle = n; ledK.fill(-1); flipT.fill(1); showBoard(); paint() }, boardNow: () => gStyle, vboard,
+    ledsOut: () => { let n = 0; for (let i = 0; i < NLED; i++) if (ledK[i] > 0) n++; return n }, flipping: () => flipping,
     // the sign: Q1 the bulbs, Q2 the real sign in voxels by day, Q3 at night; and for the tests, how many voxels it has, the flags and how far they wave
     set signStyle(n) { if (n === q) return; q = n; showSign(); paintClock(0); if (q !== 1) paintVox(0) }, signNow: () => q,
     signVox: () => (letters.visible ? cells.length : 0), flags: () => flags.length, flagWave: () => wave, vsign,

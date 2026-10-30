@@ -142,6 +142,29 @@ new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_c
   if (REAL) applyVibe(vibeN)
   scene.add(gltf.scene)
   window.__nn.stadium = gltf.scene // for the ray-casting in Seat Seance
+  // cut parts out of the park model for good (29 Oct, evening: Study 25 rebuilds the ORACLE PARK sign, its clock and the Coke corner in voxels, and the model's own
+  // copies showed through): every triangle whose centre passes test(x, y, z) (world metres) is collapsed to a point, so it draws no face, no edge and no contour.
+  // Returns how many were cut; a wire built before the cut needs rebuilding
+  window.__nn.cutStadium = (test) => {
+    window.__nn.cutTest = test // the wire leaves out edges touching a cut (red team: the hole's rim was drawn as a line)
+    gltf.scene.updateMatrixWorld(true)
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3()
+    let n = 0
+    gltf.scene.traverse((m) => {
+      if (!m.isMesh) return
+      const g = m.geometry, pos = g.attributes.position, idx = g.index, nt = (idx ? idx.count : pos.count) / 3
+      const vi = (k) => (idx ? idx.getX(k) : k)
+      let hit = 0
+      for (let t = 0; t < nt; t++) {
+        a.fromBufferAttribute(pos, vi(t * 3)).applyMatrix4(m.matrixWorld); b.fromBufferAttribute(pos, vi(t * 3 + 1)).applyMatrix4(m.matrixWorld); c.fromBufferAttribute(pos, vi(t * 3 + 2)).applyMatrix4(m.matrixWorld)
+        if (!test((a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3, (a.z + b.z + c.z) / 3)) continue
+        if (idx) { const v = idx.getX(t * 3); idx.setX(t * 3 + 1, v); idx.setX(t * 3 + 2, v) } else { for (const k of [1, 2]) pos.setXYZ(t * 3 + k, pos.getX(t * 3), pos.getY(t * 3), pos.getZ(t * 3)) }
+        hit++
+      }
+      if (hit) { if (idx) idx.needsUpdate = true; else pos.needsUpdate = true; n += hit }
+    })
+    return n
+  }
   window.dispatchEvent(new Event('nn-stadium'))
   const box = new THREE.Box3().setFromObject(gltf.scene)
   document.title = `loaded ${mats.length} materials, box ${box.min.toArray().map((v) => v.toFixed(0))} to ${box.max.toArray().map((v) => v.toFixed(0))}`
@@ -482,7 +505,8 @@ function setWire(on, o = {}) {
     // with it"): rebuilt in voxels by park25.js, so the model's own edges there are left out: from just over the board (35.4 m) to 49 m up, 144 to 153 m out, within
     // 6.5 degrees of dead center
     const inSign = (p) => { const dx = p.x - hx, dz = p.z - hz, d = Math.hypot(dx, dz); return !PARKX && p.y > 35.4 && p.y < 49 && d > 144 && d < 153 && Math.abs(Math.atan2(dx, -dz)) < 0.1134 }
-    const markSkip = (p, q) => (inSign(p) && inSign(q)) || (MARKSKIP.length && p.y < 0.5 && q.y < 0.5 && MARKSKIP.some(([x, z, r]) => Math.hypot(p.x - x, p.z - z) < r && Math.hypot(q.x - x, q.z - z) < r))
+    const cutT = !PARKX ? window.__nn.cutTest : null
+    const markSkip = (p, q) => (inSign(p) && inSign(q)) || (cutT && (cutT(p.x, p.y, p.z) || cutT(q.x, q.y, q.z) || cutT((p.x + q.x) / 2, (p.y + q.y) / 2, (p.z + q.z) / 2))) || (MARKSKIP.length && p.y < 0.5 && q.y < 0.5 && MARKSKIP.some(([x, z, r]) => Math.hypot(p.x - x, p.z - z) < r && Math.hypot(q.x - x, q.z - z) < r))
     st.traverse((m) => {
       if (!m.isMesh) return
       if (o.split) { // collect every hard edge; they are classified after the traverse, once the chains are known

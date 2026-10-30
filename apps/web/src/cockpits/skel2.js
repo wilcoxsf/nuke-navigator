@@ -149,9 +149,11 @@ export function makeControls(api, U, o = {}) {
   }
   c.setFrac = (i, f) => { const k = SLOTS[i].k; if (k !== 'hand') setP(api, k, Math.round(SPEC[k].lo + clamp(f, 0, 1) * (SPEC[k].hi - SPEC[k].lo))) }
   // keys: axis 'h' = left/right arm and up/down change (the button strip); 'v' = up/down arm and left/right change (a list)
-  c.bind = (fire, axis = 'h') => addEventListener('keydown', (e) => {
+  // gate(kind) (Study 25, 29 Oct red team): 'fire' for Enter and Space, 'adjust' for the arrows, + and - and the number keys; false lets the key go by
+  c.bind = (fire, axis = 'h', gate = null) => addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName))) return
     const st = e.shiftKey ? 5 : 1, k = e.key
+    if (gate && !gate(k === 'Enter' || k === ' ' ? 'fire' : 'adjust')) return
     if ((k === 'Enter' || k === ' ') && (e.repeat || (kbNav && e.target?.closest?.('.bt,button,.thm b')))) return // holding the key must not swing repeatedly; a button reached with Tab handles its own press
     const [armKeys, chgKeys] = axis === 'h' ? [['ArrowLeft', 'ArrowRight'], ['ArrowUp', 'ArrowDown']] : [['ArrowUp', 'ArrowDown'], ['ArrowRight', 'ArrowLeft']]
     if (k === armKeys[0]) { e.preventDefault(); c.arm(c.armed - 1) } else if (k === armKeys[1]) { e.preventDefault(); c.arm(c.armed + 1) } else if (k === chgKeys[0] || k === '+' || k === '=') { e.preventDefault(); c.change(c.armed, st) } else if (k === chgKeys[1] || k === '-') { e.preventDefault(); c.change(c.armed, -st) } else if (k === 'Enter' || k === ' ') { e.preventDefault(); fire() } else if (/^[1-6]$/.test(k)) c.arm(Number(k) - 1)
