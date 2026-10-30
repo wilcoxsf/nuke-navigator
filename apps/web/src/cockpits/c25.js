@@ -175,6 +175,7 @@ export const AXES = {
     { c: 2, name: 'SHIMMER', desc: 'still water; a few lines brighten and fade as they drift' },
     { c: 3, name: 'SHORE LINES', desc: 'faint lines roll in toward the seawall like small waves' },
     { c: 4, name: 'WAKES', desc: 'still water; now and then a faint V-wake crosses the Cove' },
+    { c: 5, name: 'RIPPLE RINGS', desc: 'the first version water: soft two-tone patches with rings inside them that grow and shrink as the swell moves (30 Oct, his ask)' },
     { c: 0, name: 'STILL', desc: 'no motion on the water' },
   ] },
   Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put (Z key)' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake (Z key; on by default since 28 Oct)' }] },
@@ -249,6 +250,8 @@ const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 
 const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, J: 2, W: 1, Q: 2, C: 1, G: 2, O: 2 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 const HDR_AX = OPEN // what is still open sits in the header
+// 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
+const DOCK = [...OPEN, ...ORDER.filter((k) => k in LOCKED)]
 const DEF = { ...LOCKED }
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
@@ -500,6 +503,7 @@ export async function build(root, api, U) {
 #cp .c25 .lph{color:var(--dim);font-size:14px;margin-bottom:3px}
 #cp .c25 .lpr{display:grid;grid-template-columns:22px minmax(0,1.4fr) auto auto minmax(0,1fr);gap:10px;white-space:nowrap}
 #cp .c25 .lpr b{font-weight:400;color:var(--acc)}
+#cp .c25 .lpr.on{color:var(--acc)}
 #cp .c25 .lpr span{overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .lpr .wh{color:var(--dim)}
 #cp .c25 .sel{display:grid;gap:3px;font-size:16px}
@@ -631,6 +635,7 @@ export async function build(root, api, U) {
 #cp .c25 .dock .dx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
 #cp .c25 .dock .dx .bt{justify-content:center;padding:2px 0;min-width:0}
 #cp .c25 .dock .dx .bt.on{background:var(--acc);border-color:var(--acc);color:var(--k)}
+#cp .c25 .dock .dx .bt.lk:not(.on){color:var(--dim);border-color:var(--ln)}
 #cp .c25 .dock .da{display:flex;justify-content:space-between;gap:8px;color:var(--acc);border-top:1px solid var(--ln);padding-top:6px}
 #cp .c25 .dock .da span{color:var(--dim)}
 #cp .c25 .dock .dl{display:grid;gap:1px}
@@ -717,7 +722,7 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx"${OPEN.length ? '' : ' hidden'}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
+    <span class="grp" id="c25mx">MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
     <div class="h2"><span class="grp"><span class="gl">IN THE PARK</span> <span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span></span>
     <span class="grp"><span class="gl">TONIGHT</span> <span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span></span>
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
@@ -748,7 +753,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); if (req?.side) lookSide(req.side); else if (req) lookAt(req.pts, req.rad) } // a look under way starts again from the new seat
+  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req) lookAt(req.pts, req.rad) } // a look under way starts again from the new seat
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -758,13 +763,13 @@ export async function build(root, api, U) {
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
   const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99' }), se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true, dim: '#8a8f99' })
-  let show = ['lp', 'se', 'rc', 'sm', 'my'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
+  let show = ['lp', 'se', 'rc', 'sm', 'my', 'reel'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
   if (q.get('show') === 'sc') mode = 'shot'
   const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25my', 'my'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
   // the star map is. I don't care about the odds receipt"); KARL comes in only when the forecast says fog, no button
   for (const id of ['#c25sc', '#c25rc', '#c25sm', '#c25kl']) E(id).style.display = 'none'
-  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my'].includes(show)) unlook(); if (show !== 'se') ghost?.hide(); if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
+  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') ghost?.hide(); if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
@@ -888,19 +893,17 @@ export async function build(root, api, U) {
   // Pick what to change along the top, click an option (or left and right) to try it with the whole screen still in view; up and down move between the things to change.
   // Options that only show when something happens get a SEE IT button: a ball flies (landing, camera, pitch arc), Karl rolls in, or the menu opens (its title).
   const dock = E('#c25dk')
-  let dockAx = OPEN.includes(store('nn-dock25')) ? store('nn-dock25') : OPEN[0]
+  let dockAx = DOCK.includes(store('nn-dock25')) ? store('nn-dock25') : DOCK[0]
   const SEE = { G: 'PLAY A SHOW', O: 'SHOW ME', N: 'CALL A SEAT', Q: 'LOOK AT IT', C: 'LOOK AT IT', D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', X: 'FLY A BALL', E: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
   const dockOpts = (k) => AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c)
   function paintDock() {
-    if (!OPEN.length) return
     if (!grid.classList.contains('dk')) return
     const k = dockAx, os = dockOpts(k), o = optOf(k, mix[k]), n = os.findIndex((x) => x.c === mix[k])
     dock.innerHTML = `<div class="dh"><b>OPTIONS</b><span class="bt" data-dk="all" aria-label="every option at once">ALL</span><span class="bt" data-dk="x" aria-label="close the options">X</span></div>
-      <div class="dx" style="grid-template-columns:repeat(${Math.min(4, OPEN.length)},minmax(0,1fr))">${OPEN.map((a) => `<span class="bt${a === k ? ' on' : ''}" data-ax="${a}" title="${AXES[a].name}" aria-label="${AXES[a].name}">${a}${mix[a]}</span>`).join('')}</div>
-      <div class="da">${AXES[k].name}<span>${n + 1} OF ${os.length}</span></div>
+      <div class="dx" style="grid-template-columns:repeat(${Math.min(5, DOCK.length)},minmax(0,1fr))">${DOCK.map((a) => `<span class="bt${a === k ? ' on' : ''}${a in LOCKED ? ' lk' : ''}" data-ax="${a}" title="${AXES[a].name}${a in LOCKED ? ' (LOCKED)' : ''}" aria-label="${AXES[a].name}">${a}${mix[a]}</span>`).join('')}</div>
+      <div class="da">${AXES[k].name}<span>${n + 1} OF ${os.length}</span></div>${k in LOCKED ? `<div class="df">LOCKED AT ${k}${LOCKED[k]}. TRY ANOTHER: IT LASTS UNTIL YOU RELOAD.</div>` : ''}
       <div class="dl">${os.map((x) => `<div class="do${x.c === mix[k] ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}"><b>${k}${x.c}</b>${x.name}</div>`).join('')}</div>
       <div class="dd">${(o.desc ?? '').toUpperCase()}</div>
-      <div class="df">LOCKED: ${Object.entries(LOCKED).map(([a, c]) => a + c).join(' ')}</div>
       <div class="df">&larr; &rarr; TRY &nbsp; &uarr; &darr; WHAT${SEE[k] ? `<span class="bt" data-dk="see">${SEE[k]}</span>` : ''}</div>`
     dock.querySelectorAll('[data-ax]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); dockTo(b.dataset.ax) }))
     dock.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { sound.play('move'); mix[k] = Number(b.dataset.c); applyMix(k); dock.focus({ preventScroll: true }) }))
@@ -909,9 +912,8 @@ export async function build(root, api, U) {
     dock.querySelector('[data-dk="see"]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); seeIt(k) })
   }
   const dockTo = (k) => { dockAx = k; store('nn-dock25', k); paintDock(); dock.focus({ preventScroll: true }) }
-  const seeIt = (k) => { if (k === 'G') { life?.play('crab', {}, 0, true); life?.play('cable', { ft: 452 }); return } if (k === 'O') { if (mode !== 'replay') setMode('replay'); openMod('before'); return } if (k === 'Q' || k === 'C') { lookThere(k); return } if (k === 'N') { if (mode !== 'shot') setMode('shot'); if (!scRes) { const r = se.seatPoint('140', '12', '8'); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }) } return } if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
+  const seeIt = (k) => { if (k === 'G') { life?.play(life.nextGag(), {}, 0, true); return } if (k === 'O') { if (mode !== 'replay') setMode('replay'); openMod('before'); return } if (k === 'Q' || k === 'C') { lookThere(k); return } if (k === 'N') { if (mode !== 'shot') setMode('shot'); if (!scRes) { const r = se.seatPoint('140', '12', '8'); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }) } return } if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
   function toggleDock(on) {
-    if (!OPEN.length) return // everything locked: nothing to try
     const v = on ?? !grid.classList.contains('dk')
     grid.classList.toggle('dk', v)
     if (v) { paintDock(); dock.focus({ preventScroll: true }) } else { dock.innerHTML = ''; dock.blur() }
@@ -922,9 +924,9 @@ export async function build(root, api, U) {
   dock.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || modal || !grid.classList.contains('dk')) return // a closed dock (still holding focus) leaves every key alone
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); e.target.closest?.('[data-c],[data-ax],[data-dk]')?.click(); return }
-    const i = OPEN.indexOf(dockAx), n = OPEN.length
+    const i = DOCK.indexOf(dockAx), n = DOCK.length
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { sound.play('move'); stepAx(dockAx, e.key === 'ArrowRight' ? 1 : -1) }
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(OPEN[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(DOCK[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
     else if (e.key === 'Escape' || e.key === '?') toggleDock(false)
     else return
     e.preventDefault(); e.stopPropagation()
@@ -966,7 +968,7 @@ export async function build(root, api, U) {
   function tweak() {
     if (!cur) return
     const b = cur, from = { idx, filter, b }
-    sound.play('pick'); life?.play('tater', {}, 0, true)
+    sound.play('pick')
     setMode('whatif'); stepped = from; syncMode(); relayout()
     // the real ball's own carry and side spin come along (28 Oct, night): untouched, the numbers fly the real flight, so every change you make is the only difference
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false })
@@ -1311,7 +1313,8 @@ export async function build(root, api, U) {
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, CLICKED OR TYPED: EVERY SWING THAT PUTS A BALL THERE', run: () => setMode('shot'), off: () => !atOracle },
     { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS, THEN SEE EVERY HOME RUN FROM THE NIGHT", run: () => openMod('dinger') },
     { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
-    ...(OPEN.length ? [{ k: 'options', name: 'OPTIONS', blurb: 'THE CHOICES STILL OPEN, IN A SMALL PANEL OVER THE PARK (?)', run: () => toggleDock(true) }] : []), // (30 Oct, idea 12: with nothing open there is no dock)
+    { k: 'options', name: 'OPTIONS', blurb: 'EVERY CHOICE IN A SMALL PANEL OVER THE PARK, THE LOCKED ONES TOO: A LOCKED ONE CHANGED LASTS UNTIL YOU RELOAD (?)', run: () => toggleDock(true) },
+    { k: 'reel', name: 'GAG REEL', blurb: 'EVERY DODGER GAG ON THE SCOREBOARD, EACH WITH ITS OWN PLAY BUTTON, AND PLAY ALL', run: () => { if (mode === 'shot') setMode('replay'); if (show !== 'reel') setShow('reel') } },
   ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const menuKey = () => (mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
@@ -1574,6 +1577,34 @@ export async function build(root, api, U) {
     const rs = [...hb.querySelectorAll('.lpr')]
     for (let k = rs.length; k > 1 && hb.scrollHeight > hb.clientHeight + 1; k--) rs[k - 1].style.display = 'none'
   }
+  // GAG REEL in the shared panel (30 Oct, Andrew: "Can I see the gags in like another view so I can press play on all of them?"): the camera faces the scoreboard,
+  // every gag and show has its own PLAY, and PLAY ALL runs them one after another; leaving it (or another feature) stops the run. Also ?show=reel in the address
+  const REEL_TITLES = { dynamite: 'KA-BOOM', bonk: 'BONK', runover: 'DING! (CABLE CAR)', sealsnack: 'GULP (SEA LION)', leaves3rd: 'LEAVES IN THE 3RD', bipped: 'BIPPED', catapult: 'CATAPULT', chipper: 'WOOD CHIPPER', alcatraz: 'ALCATRAZ', tshirt: 'T-SHIRT CANNON (LOU SEAL)', steamroller: 'STEAMROLLER', birds: 'THE BIRDS', quake: 'EARTHQUAKE', balloon: 'BALLOON', bp: 'PITCHING MACHINE', driverless: 'DRIVERLESS', crabsnip: 'CRAB SNIP', hotdog: 'DODGER DOG', waterboard: 'WATERBOARD', ironmaiden: 'IRON MAIDEN', rack: 'THE RACK', wifeleaves: 'SHE LEFT HIM', bridgejump: 'THE BRIDGE' }
+  let reelAll = null, reelLooked = false
+  const reelList = () => (life ? life.gags() : [])
+  const reelBusy = () => !!life?.anim() || (life?.queued().length ?? 0) > 0
+  function reelPlay(n) { life.play(n, {}, 0, true); paintGagReel() }
+  // the row playing now lights up, and PLAY ALL says STOP while it runs (checked a few times a second while the reel is open)
+  setInterval(() => { if (show !== 'reel' || !life) return; const hb = E('#c25hb'), now = life.anim(); hb.querySelectorAll('[data-rl]').forEach((r) => { const on = r.dataset.rl === now; if (r.classList.contains('on') !== on) { r.classList.toggle('on', on); r.querySelector('b').innerHTML = on ? '&#9654;' : '&middot;' } }); const ra = E('#c25ra'); if (ra) ra.textContent = reelAll ? 'STOP' : 'PLAY ALL' }, 400)
+  function stopReelAll() { if (reelAll) { clearTimeout(reelAll.t); reelAll = null } }
+  function playReelAll(from = 0) {
+    stopReelAll()
+    const gags = reelList(), me = (reelAll = { i: from, t: 0 })
+    const next = () => { if (reelAll !== me || show !== 'reel') return; if (me.i >= gags.length) { reelAll = null; paintGagReel(); return } reelPlay(gags[me.i++]); me.t = setTimeout(wait, 600) }
+    const wait = () => { if (reelAll !== me) return; if (reelBusy()) { me.t = setTimeout(wait, 300); return } me.t = setTimeout(next, 700) }
+    next()
+  }
+  function paintGagReel() {
+    const el = E('#c25hi'), hb = E('#c25hb')
+    wordTitle(el, '/ G A G &nbsp; R E E L /', 'shot')
+    if (!life) { hb.innerHTML = '<div class="lph">THE GAG REEL LIVES ON THE ORACLE SCOREBOARD.</div>'; return }
+    if (!reelLooked) { reelLooked = true; lookThere('B') } // the camera faces the board (once per visit to the reel)
+    const gags = reelList(), now = life.anim(), row = (n) => `<div class="lpr${now === n ? ' on' : ''}" data-rl="${n}" role="button" tabindex="0" style="cursor:pointer;pointer-events:auto"><b>${now === n ? '&#9654;' : '&middot;'}</b><span class="nm">${REEL_TITLES[n] ?? n.toUpperCase()}</span><span></span><span></span><span class="wh">PLAY</span></div>`
+    hb.innerHTML = `<div class="lpl" style="overflow:auto;pointer-events:auto"><div class="lph">THE DODGER GAGS (${gags.length}). CLICK ONE TO PLAY IT ON THE BOARD.</div>
+      <span class="bt hot" id="c25ra" role="button" tabindex="0">${reelAll ? 'STOP' : 'PLAY ALL'}</span>` + gags.map(row).join('') + '</div>'
+    hb.querySelectorAll('[data-rl]').forEach((r) => r.addEventListener('click', () => { stopReelAll(); sound.play('pick'); reelPlay(r.dataset.rl) }))
+    E('#c25ra').addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); if (reelAll) { stopReelAll(); paintGagReel() } else playReelAll() })
+  }
   // SHOT CALLER (29 Oct, Andrew: its own mode; PLAY IT shows the most common flight paths; type a seat and see the numbers that could put a ball there). A spot, clicked
   // in the park or typed as a seat, goes to shotcaller.js, which flies a grid of speeds and angles at it; every swing that comes down there is ranked by how common a
   // ball hit like that is (real balls in the pool within 1 mph and 1 degree), and the first is set up to fly
@@ -1827,7 +1858,7 @@ export async function build(root, api, U) {
     E('#c25hw').style.display = show === 'hist' && mode !== 'shot' ? '' : 'none'
     if (mode === 'shot') { paintShot(); return }
     if (show === 'sm') { paintStars(); return }
-    if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(res); else if (show === 'my') paintMySeat(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
+    if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(res); else if (show === 'my') paintMySeat(); else if (show === 'reel') paintGagReel(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
   }
   // THE FUN LINE (28 Oct, night, Andrew: bring back the distance and speed similes). 29 Oct, evening (Andrew: "the thing keeps cycling through different speed and
   // distance stats - I only want one for distance and one for speed every time I press swing"): two lines under GONE IN that stay put, the distance against the
@@ -1932,12 +1963,12 @@ export async function build(root, api, U) {
   windFx = atOracle ? initWind25(api, { still: reduced, onChange: (w) => { if (life) life.wind = w && { ...w, cfDeg: window.__cp.ORACLE_AZ ?? 85 } } }) : null
   tonightWind = () => { if (windFx) Promise.resolve(getBay()).then((j) => { const H = j?.hourly; if (!H || mode === 'whatif') return; const now = new Date().toLocaleString('sv-SE', { timeZone: 'America/Los_Angeles' }).slice(0, 13).replace(' ', 'T'); const i = Math.max(0, H.time.findIndex((t) => t.startsWith(now))); windFx.set({ mph: H.wind_speed_10m[i], fromDeg: H.wind_direction_10m[i] }) }) }
   tonightWind()
-  const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, board: (k, a) => (k === 'evict' ? life?.show('RENT WENT UP', 'EVICTED', null, 3) : life?.play(k, a ?? {}, 0, true)) }) : null // the blimp, the ferry, King Street, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count, the board gets the IPO and the eviction
+  const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, }) : null // the blimp, the ferry, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count
   if (happen?.splashSign?.()) keepReadable(api, happen.splashSign(), 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the tags keep off the Splash Hits sign too
   window.__cpTrack = (pts, res, color, prev) => flight.track(pts, res, color, prev); window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
-  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, onBoard: () => life?.play('glitch', {}, 0, true), oracle: atOracle })
+  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, oracle: atOracle })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
@@ -1979,15 +2010,16 @@ export async function build(root, api, U) {
     push = null
     look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1: mid, base, out: false, req: { side: spot.clone() } }
   }
-  // LOOK AT IT in the dock (29 Oct, later): a glide up to the sign (Q) or the Coke corner (C), which are small from the broadcast seat, and back after a few seconds
+  // LOOK AT IT in the dock (29 Oct, later): a glide up to the sign (Q) or the Coke corner (C), which are small from the broadcast seat, and back after a few seconds;
+  // B (30 Oct): the scoreboard straight on for the GAG REEL, held
   function lookThere(k) {
     if (bird || reduced) return
     const THREE = api.NN.THREE, C = api.NN.camera, T = api.NN.controls.target
-    const [p1, t1] = k === 'Q' ? [api.toWorld([0, 92, 45]), api.toWorld([0, 148, 44])] : [new THREE.Vector3(-20, 14, -96), new THREE.Vector3(-51, 14, -139)]
+    const [p1, t1] = k === 'Q' ? [api.toWorld([0, 92, 45]), api.toWorld([0, 148, 44])] : k === 'B' ? [api.toWorld([0, 78, 27]), api.toWorld([0, 149, 25])] : [new THREE.Vector3(-20, 14, -96), new THREE.Vector3(-51, 14, -139)] // B: the scoreboard, straight on (GAG REEL)
     const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() })
     push = null
-    const me = look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1, base, out: false }
-    setTimeout(() => { if (look === me) unlook() }, 6500)
+    const me = look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1, base, out: false, req: { there: k } } // (30 Oct: a relayout starts it again, like lookAt)
+    if (k !== 'B') setTimeout(() => { if (look === me) unlook() }, 6500) // the GAG REEL's board view (B) stays until the reel closes
   }
   // the distance fade follows the camera (29 Oct, evening, Andrew: "the park gets insanely dark when I zoom out"): the fog starts 60 m past the park's middle as seen
   // from the camera and is gone 390 m past it, never closer than the old 230 and 560 m, so zooming out keeps the park lit and only the sea beyond fades; Karl thickens it
@@ -2106,29 +2138,18 @@ export async function build(root, api, U) {
   }
   // the scoreboard's animation for what just landed (park25.js keeps the two best when several apply); they wait until HOME RUN has flashed
   function boardFor(ev, hr, ft) {
-    const b = mode === 'replay' && cur && !edited ? cur : null, st = b && hr ? situation(b)?.stamp : null, off = b && hr ? offZone(b) : null, D = 2.6
+    const b = mode === 'replay' && cur && !edited ? cur : null, st = b && hr ? situation(b)?.stamp : null, off = b && hr ? offZone(b) : null, D = 2.6 // (off: the songs)
     if (hr) life.signFx(st && /WALK-OFF/.test(st) ? 'walk' : 'hr') // the ORACLE PARK sign over the board lights up
     // the songs: a walk-off gets San Francisco (Oracle plays it after a win), a grand slam gets CHARGE!
     if (st && !reel) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; if (/WALK-OFF/.test(st)) { jukebox.play('sf', { vol: 0.8 }); autoSong = true } else if (st === 'GRAND SLAM') { jukebox.play('charge'); autoSong = true } }, 2800) }
     // and more (29 Oct, later): a splash hit gets ODE TO JOY, an OFF THE MENU home run the CAN-CAN, a 450 ft bomb the WILLIAM TELL gallop
     else if (!reel && hr) { const song = ev.key === 'SPLASH' ? 'ode' : off ? 'cancan' : ft >= 450 ? 'tell' : null; if (song) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; jukebox.play(song); autoSong = true }, 2800) } }
-    if (st && /WALK-OFF/.test(st)) { life.play('walkoff', {}, D); if (/SLAM/.test(st)) life.play('slam', {}, D) }
-    else if (st === 'GRAND SLAM') life.play('slam', {}, D)
-    else if (st === 'GO-AHEAD' || st === 'TIES IT') { const on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0); life.play('flip', { word: st, bat: b.tb === 'Top' ? b.at : b.ht, fld: b.tb === 'Top' ? b.ht : b.at, b0: b.bsc, b1: b.bsc + 1 + on, f: b.fsc }, D) }
-    if (off) life.play({ low: 'golf', high: 'tomahawk', away: 'chase', inside: 'insidejob' }[off.where], {}, D)
-    if (ev.key === 'SPLASH') { life.play('seal', {}, D); life.play('odometer', { n: splashes + 1 }, D) } // the count goes up just after this
-    if (hr && ft >= 430) life.play('cable', { ft }, D)
-    if (ev.key === 'SPLASH') life.play('kayak', {}, D)
-    // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board
-    if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag of 24
-    if (api.state.ev >= 112) life.play('laser', { ev: api.state.ev }, D)
-    if (hr && ft >= 410 && ft < 430) life.play('nodoubt', {}, D)
-    if (hr && atOracle && (b ? (b.tb === 'Top' ? b.at : b.ht) === 'SF' : true)) life.play('fireworks', { word: b ? 'GIANTS HOME RUN' : 'HOME RUN' }, D) // a Giants home run at Oracle (and yours in the dojo)
-    if (ev.key === 'SCRAPER') life.play('crab', {}, D)
-    else if (ev.key === 'WALL' || ev.key === 'CLOSE') life.play(mode === 'replay' ? 'crab' : 'soclose', {}, D)
+    // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board, and that is all the board plays
+    // (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it")
+    if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag
   }
   // Karl: on by the forecast at Oracle when it says low cloud or poor visibility (one Open-Meteo request per visit, shared with BAY BAROMETER), and by hand with K
-  const toggleKarl = (on) => { const v = on ?? !fx.karlOn(); if (v && !fx.karlOn()) life?.play('karl', {}, 0, true); fx.karl(v, mix.K); if (life) life.fog = v; E('#c25kl').classList.toggle('on', v); E('#c25kl').textContent = v ? 'KARL: IN' : 'KARL' }
+  const toggleKarl = (on) => { const v = on ?? !fx.karlOn(); fx.karl(v, mix.K); if (life) life.fog = v; E('#c25kl').classList.toggle('on', v); E('#c25kl').textContent = v ? 'KARL: IN' : 'KARL' }
   E('#c25kl').addEventListener('click', () => { pressEl(E('#c25kl')); toggleKarl() })
   if (atOracle && q.get('karl') !== '0') Promise.resolve(getBay()).then(() => { if (bay && !bay.error && bay.hourly && karlIn(bay)) toggleKarl(true) }).catch(() => {})
 
@@ -2148,7 +2169,7 @@ export async function build(root, api, U) {
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, readable: () => readable() }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, reel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },

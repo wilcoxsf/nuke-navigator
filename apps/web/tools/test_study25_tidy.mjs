@@ -29,10 +29,36 @@ const page = await open(1827, 992)
 {
   const r = await page.evaluate(() => ({ ri: !!document.querySelector('#c25ri'), riding: 'riding' in window.__mix25, mx: document.querySelector('#c25mx')?.hidden, dock: document.querySelector('#c25dk')?.innerHTML.trim() ?? '' }))
   check('RIDE IT is gone: no button, no ride in the page', !r.ri && !r.riding, JSON.stringify(r))
-  check('nothing is open, so the MIX header group and the dock stay hidden', r.mx === true && r.dock === '', JSON.stringify(r))
+  check('the dock starts closed', r.dock === '', JSON.stringify(r))
   const cam0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(2)).join())
   await page.keyboard.press('v'); await page.waitForTimeout(800)
   check('V does nothing now', cam0 === (await page.evaluate(() => window.__cp.NN.camera.position.toArray().map((v) => +v.toFixed(2)).join())))
+}
+// ---- OPTIONS: every choice in the dock, the locked ones too (30 Oct, "how do I tweak options now") ----
+{
+  await page.keyboard.press('?'); await page.waitForTimeout(500)
+  const d = await page.evaluate(() => ({ chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, lk: document.querySelectorAll('#c25dk .dx .lk').length }))
+  check('? opens the dock with every choice, the locked ones marked', d.chips === 25 && d.lk >= 24, JSON.stringify(d))
+  await page.click('#c25dk .dx [data-ax="G"]'); await page.waitForTimeout(300)
+  const note = await page.evaluate(() => document.querySelector('#c25dk').innerText)
+  await page.click('#c25dk .do[data-c="3"]'); await page.waitForTimeout(400)
+  check('a locked choice can be tried (G3 flip dots), and says it lasts until a reload', (await page.evaluate(() => window.__mix25.get().G)) === 3 && /UNTIL YOU RELOAD/.test(note), note.slice(0, 120))
+  await page.reload(); await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 }); await page.waitForTimeout(1500)
+  check('a reload puts the lock back (G2)', (await page.evaluate(() => window.__mix25.get().G)) === 2)
+}
+// ---- GAG REEL ----
+{
+  await page.evaluate(() => window.__mix25.setShow('reel')); await page.waitForTimeout(1500)
+  const r = await page.evaluate(() => ({ rows: document.querySelectorAll('#c25hb [data-rl]').length, gags: window.__mix25.reel().list.length, t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, '') }))
+  check('GAG REEL lists the 23 Dodger gags and nothing else, each with its own PLAY', /GAGREEL/.test(r.t) && r.gags === 23 && r.rows === 23, JSON.stringify(r))
+  await page.click('#c25hb [data-rl="bonk"]'); await page.waitForTimeout(500)
+  const c1 = await page.evaluate(() => [window.__mix25.life.anim(), ...window.__mix25.life.queued(), window.__mix25.life.played().at(-1)])
+  check('clicking one plays it on the board', c1.includes('bonk'), JSON.stringify(c1))
+  await page.click('#c25ra'); await page.waitForTimeout(800)
+  const a1 = await page.evaluate(() => [window.__mix25.reel().all, window.__mix25.life.anim()])
+  check('PLAY ALL runs them from the first', a1[0] === true && a1[1] === 'dynamite', JSON.stringify(a1))
+  await page.evaluate(() => window.__mix25.setShow('reel')); await page.waitForTimeout(300)
+  check('leaving the reel stops PLAY ALL', !(await page.evaluate(() => window.__mix25.reel().all)))
 }
 // ---- the Seance ----
 await page.evaluate(() => window.__mix25.setMode('whatif'))

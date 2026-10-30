@@ -2,8 +2,8 @@
 // four-finger glove behind the left-field bleachers; the model's own copies are cut out (c25.js, under()).
 // 29 Oct, night (Andrew: "The coke bottle not there yet ... The coca cola text needs to be in voxel"; before that the wireframe-edge voxels read as noise and the
 // painted label floated off the bottle): both are baked from the park model's own TRIANGLES (science/bake_coke_vox.py, public/coke_vox.json, git-ignored).
-//   the bottle: the model's skeleton of rings and tubes, its envelope revolved into a closed shell of 0.25 m cubes, glass green; it lies with its neck at the low
-//     end, by the concourse, a lip ring round the mouth and a red cap on it. Round its body the red label in cubes, and "Coca-Cola" in a chunky script (strokes
+//   the bottle: the model's skeleton of rings and tubes, its envelope revolved into a closed shell of 0.25 m cubes, glass green; it stands on its base by the
+//     concourse with its neck up and its mouth open, a lip ring round it (30 Oct, Andrew: "The coke bottle is backwards and not hollow lol"). Round its body the red label in cubes, and "Coca-Cola" in a chunky script (strokes
 //     two cubes or more) running along it in white cubes of 0.2 m raised off the label, facing home plate, upright and reading left to right from there.
 //   the glove: the model's glove voxelized and filled solid (no hole through it), two tans with darker laces.
 //   a white slide from high in the body down the inside and out of a door in the neck's side (the side facing the field) onto the concourse, and three kids who climb up and slide down, over and over.
@@ -26,11 +26,11 @@ export async function initCoke25(api, o = {}) {
   const ground = 8.0 // the concourse round the mouth
   // the slide's side of the bottle: the one facing home plate, so the field sees the kids come out
   const toHome = api.toWorld([0, 0, 0]).sub(c0), side = side0.clone().multiplyScalar(Math.sign(side0.dot(toHome)) || 1)
-  // the slide: from high in the body (t 40) along the inside of that side wall, a swing up and down, toward the neck; at t 84 it comes out through a door in
-  // the wall (cut out of the shell) and runs down a chute onto the concourse. The bottle sinks below the concourse, so the slide keeps to the axis's height
-  const DOOR = 84, along = (t, k) => onAxis(t).addScaledVector(side, R(t) * k)
+  // the slide: from high in the body (t 60) along the inside of that side wall, a swing up and down, down toward the base; at t 14 it comes out through a door
+  // in the wall (cut out of the shell) and runs down a chute onto the concourse. The bottle sinks below the concourse, so the slide keeps to the axis's height
+  const DOOR = 14, along = (t, k) => onAxis(t).addScaledVector(side, R(t) * k)
   const slide = (f) => {
-    if (f < 0.7) { const t = 40 + (f / 0.7) * (DOOR - 40), p = along(t, 0.75); p.y += Math.sin(f * Math.PI * 3) * 1.2; return p }
+    if (f < 0.7) { const t = 60 + (f / 0.7) * (DOOR - 60), p = along(t, 0.75); p.y += Math.sin(f * Math.PI * 3) * 1.2; return p }
     if (f < 0.8) return along(DOOR, 0.75).lerp(along(DOOR, 1.15), (f - 0.7) / 0.1)
     const k = (f - 0.8) / 0.2, a = along(DOOR, 1.15), b = along(DOOR, 1.15).addScaledVector(side, 4.5).addScaledVector(u, 1.5); b.y = ground + 0.2
     const p = a.lerp(b, k); p.y = Math.max(ground + 0.2, p.y); return p

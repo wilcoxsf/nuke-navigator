@@ -35,16 +35,16 @@ const B = await page.evaluate(() => {
   // every letter cube on the label, just outside the shell: no more than a shell cube and a letter cube off the outline, never inside it
   let loose = 0
   for (const p of f.letters) { const [t, r] = tr(p), R = f.R(t); if (r < R - 0.05 || r > R + V + VF || t < f.band[0] || t > f.band[1]) loose++ }
-  // the cap meets the lip: the nearest cap cube to the lip ring along the bottle
-  const lipT = f.cells.filter((p) => p[3] === 5).map((p) => tr(p)[0]), capT = f.cells.filter((p) => p[3] === 4).map((p) => tr(p)[0])
-  const gap = ((Math.min(...capT) - Math.max(...lipT)) / 100) * f.L
+  // (30 Oct) the mouth is open: nothing across it inside the rim; and the neck is the high end
+  const mouthIn = f.cells.filter((p) => { const [t, r] = tr(p); return t > 97.5 && r < f.R(Math.min(100, t)) - 1.5 * V }).length
+  const neckUp = f.mouth.y > f.c0.y
   // the glove: no tunnel through its middle (a vertical line through the middle of its footprint passes through cubes)
   const gx = f.glove.reduce((a, p) => a + p[0], 0) / f.glove.length, gz = f.glove.reduce((a, p) => a + p[2], 0) / f.glove.length
   const column = f.glove.filter((p) => Math.abs(p[0] - gx) < 0.6 && Math.abs(p[2] - gz) < 0.6).length
-  return { n, off, worst: +worst.toFixed(2), loose, gap: +gap.toFixed(2), column, L: f.L }
+  return { n, off, worst: +worst.toFixed(2), loose, mouthIn, neckUp, column, L: f.L }
 })
 check('the bottle is a closed shell of cubes on its own outline (none more than 1.5 cubes off), with the red label', B.n.bottle > 8000 && B.off === 0 && B.n.red > 2000, JSON.stringify({ n: B.n, off: B.off, worst: B.worst }))
-check('a lip ring at the mouth and a red cap that meets it (no gap along the bottle)', B.n.lip > 50 && B.n.cap > 100 && B.gap <= 0.3, JSON.stringify({ lip: B.n.lip, cap: B.n.cap, gap: B.gap }))
+check('it stands neck up, with a lip ring round an open mouth (no cap, nothing across it)', B.neckUp && B.n.lip > 50 && B.n.cap === 0 && B.mouthIn === 0, JSON.stringify({ neckUp: B.neckUp, lip: B.n.lip, cap: B.n.cap, mouthIn: B.mouthIn }))
 check('"Coca-Cola" in cubes, every one raised one cube off the label (none floating, none sunk)', B.n.letters > 300 && B.loose === 0 && B.n.label === 1, JSON.stringify({ letters: B.n.letters, loose: B.loose }))
 check('the glove is solid: a column through its middle meets cubes, and it has the cubes of a shell', B.n.glove > 1500 && B.column > 0, JSON.stringify({ glove: B.n.glove, column: B.column }))
 check('the slide, three kids', B.n.slide > 100 && B.n.kids === 3, JSON.stringify({ slide: B.n.slide, kids: B.n.kids }))

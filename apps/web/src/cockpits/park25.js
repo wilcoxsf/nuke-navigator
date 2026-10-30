@@ -1,9 +1,7 @@
 // Study 25 park life (Oracle only): the scoreboard behind center field is a live LED board, and pixel seagulls circle the outfield the way they gather late at Oracle,
-// scattering when a ball leaves the park. The board shows two lines of text (the batter, TRACKING, the distance, HOME RUN flashing), and on top of that plays a
-// library of pixel animations (28 Oct, Andrew: "can we code a bunch of fun ones?"), each fired by what just happened:
-//   CRAZY CRAB (a wall scraper or a ball just short)   SEA LION (a splash hit)   SPLASH ODOMETER (the splash count rolls over)   CABLE CAR (430 ft or more)
-//   KARL (the fog eats the board)   GULL HEIST and GOLDEN GATE (idle)   GOLF SHOT, TOMAHAWK, CHASE SCENE, INSIDE JOB (the four OFF THE MENU home runs)
-//   WALK-OFF   GRAND SLAM   GO-AHEAD and TIES IT (a scoreline flip)   MOONSHOT   TWEAK THE TATER   SO CLOSE (a dojo swing that just missed)
+// scattering when a ball leaves the park. The board shows two lines of text (the batter, TRACKING, the distance, HOME RUN flashing), and on top of that plays
+// the Dodger gags (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it"): one after a Giants home run
+// against the Dodgers, and one now and then while the board idles.
 // The board is 72 x 36 LEDs of 0.61 m, sized to the screen of Oracle's own board in the park model; the animations use the middle 22 rows.
 // One animation plays at a time, with at most two waiting.
 // Over the board, the ORACLE PARK sign and its clock are bulbs too (29 Oct): the sign glows and reacts to home runs, the clock tells the time of the swing.
@@ -373,190 +371,75 @@ export function initPark25(api, col, o = {}) {
   }
 
   // ---- the sprites (one character per LED: o accent, w bone, b water, y gold, r red, g grey, n brown, d dark grey) ----
-  const GIANT = ['.oo.', '.ww.', 'oooo', '.oo.', '.oo.', '.dd.', 'd..d'], DODGER = ['.bb.', '.ww.', 'bwwb', '.ww.', '.ww.', '.dd.', 'd..d']
+  const DODGER = ['.bb.', '.ww.', 'bwwb', '.ww.', '.ww.', '.dd.', 'd..d'] // the small one, thrown by the catapult
   const SPR = {
     crab: [['rr...........rr', 'r.r.........r.r', '.rr..w...w..rr.', '...r.w...w.r...', '....rrrrrrr....', '..rrrrrrrrrrr..', '..rrrrrrrrrrr..', '.r.r.r...r.r.r.', 'r.r.r.....r.r.r'],
       ['.rr.........rr.', 'r.r.........r.r', '.rr..w...w..rr.', '...r.w...w.r...', '....rrrrrrr....', '..rrrrrrrrrrr..', '..rrrrrrrrrrr..', '..r.r.r.r.r.r..', '.r.r.r...r.r.r.']],
     seal: [['.....gggg.....', '...gggggggg...', '..gggwgggggg..', 'gggggggggggg..', 'gggggggggggg..', '.ggg..gggggg..', '......ggggggg.', '......gggggggg', '.....ggggggggg', '....gggggggggg'],
       ['.....gggg.....', '...gggggggg...', '..gggwgggggg..', 'ggggggggggggg.', '......gggggg..', 'gggg..gggggg..', '......ggggggg.', '......gggggggg', '.....ggggggggg', '....gggggggggg']],
     gull: [['w.....w', '.w...w.', '..www..'], ['..www..', '.w...w.', 'w.....w']],
-    fries: ['.y.y.y.', 'yy.y.yy', 'yyyyyyy', 'rrrrrrr', 'rwrwrwr', 'rrrrrrr', '.rrrrr.'],
-    ball: ['.www.', 'wrwrw', 'wwwww', 'wrwrw', '.www.'],
-    legs: [['w...w'], ['.w.w.']],
-    glove: ['.n.n.n..', 'nnnnnnn.', 'nnnnnnnn', 'nnyyynnn', 'nnnnnnnn', '.nnnnnn.', '..nnnn..'],
-    player: [['.w.', 'www', '.w.', 'w.w', 'w.w'], ['.o.', 'ooo', '.o.', 'o.o', 'o.o']],
-    rocket: ['..w..', '.www.', '.www.', '.wbw.', '.www.', 'wwwww', 'w.w.w'],
-    potato: ['...nnnnnn...', '.nnnnnnnnnn.', 'nnnynnnnnynn', 'nnnnnnnnnnnn', 'nnynnnnynnnn', 'nnnnnnnnnnnn', '.nnnnnnnynn.', '...nnnnnn...'],
-    // the rivalry's players: a Giant (orange cap and jersey) and a Dodger (blue cap, white jersey, blue sleeves); 4 wide, 7 tall, dark legs
-    face: ['...wwww...', '.wwwwwwww.', 'wwwwwwwwww', 'ww.ww.wwww', 'wwwwwwwwww', 'wwwwwwwwww', 'www....www', 'ww.wwww.ww', '.wwwwwwww.', '...wwww...'],
   }
 
   // ---- the animations: each draws a frame at time t (seconds), over dur seconds; a = its arguments ----
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   const water = (t, y0 = 19) => { for (let x = 0; x < GW; x++) { put(x, y0 + (Math.sin(x * 0.5 + t * 4) > 0.6 ? 0 : 1), 'b'); put(x, GH - 1, 'b') } }
-  function roll(a, b, x, y, t) { // an odometer: a rolls up and away, b rolls in under it, inside rows y .. y+9
-    const k = Math.round(ease(t) * 10)
-    text(a, x, y - k, 'o', [y - 1, y + 9]); text(b, x, y + 10 - k, 'o', [y - 1, y + 9])
-  }
-  // ---- for the rivalry, round two (29 Oct, night, Andrew: "insanely comical 'oh no jesus christ what the fuck that's deranged' gags. Surprise me") ----
-  // cue: a sound at a beat, once per run (window.__nnSound, the sound layer; null while peeking, so a peek is silent); a key ending #n repeats a beat (the same sound)
-  let fired = null
-  const cue = (t, at, key) => { if (fired && t >= at && !fired.has(key)) { fired.add(key); window.__nnSound?.('gag-' + key.replace(/#\d+$/, ''), {}) } }
   const ground = () => line(0, GH - 1, GW - 1, GH - 1, 'd')
   const hash = (i) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s) }
-  const HEADLESS = ['....', '....', 'bwwb', '.ww.', '.ww.', '.dd.', 'd..d']
   const SKEL = ['..wwww..', '.w.ww.w.', '..wwww..', '...ww...', '.wwwwww.', 'w.w..w.w', 'w.wwww.w', '..w..w..', '..wwww..', '...ww...', '..w..w..', '..w..w..', '..w..w..', '.ww..ww.']
   const SHIRT = ['oo..oo', 'oooooo', '.oooo.', '.oooo.']
-  // three-by-five letters for small labels (the LAD on the bucket)
-  const MINI = { L: ['#..', '#..', '#..', '#..', '###'], A: ['.#.', '#.#', '###', '#.#', '#.#'], D: ['##.', '#.#', '#.#', '#.#', '##.'] }
-  const mini = (s, x, y, ch) => [...s].forEach((c, k) => { const g = MINI[c]; if (g) blit(g.map((r) => r.replace(/#/g, ch)), x + k * 4, y) })
-  const ring = (cx, cy, r, ch, sy = 1) => { const n = Math.max(8, Math.round(r * 7)); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; put(cx + Math.cos(a) * r, cy + Math.sin(a) * r * sy, ch) } }
   const disc = (cx, cy, r, ch, sy = 1) => { const ry = Math.ceil(r * sy), rx = Math.ceil(r); for (let y = -ry; y <= ry; y++) for (let x = -rx; x <= rx; x++) if (x * x + (y * y) / (sy * sy) <= r * r) put(cx + x, cy + y, ch) }
+  // ---- the players (30 Oct, Andrew: "The giants player needs to have an SF on his shirt and the dodgers player an LA to make it abundantly clear"): 11 by 14 LEDs,
+  // drawn one to one. The Giant in a black cap and his orange jersey with SF across it in bone; the Dodger in a blue cap and home whites with LA in blue. The bill
+  // points the way he faces, so the letters never mirror
+  const LET = { S: ['###', '#..', '###', '..#', '###'], F: ['###', '#..', '##.', '#..', '#..'], L: ['#..', '#..', '#..', '#..', '###'], A: ['.#.', '#.#', '###', '#.#', '#.#'] }
+  const chest = (word, shirt, ink) => [0, 1, 2, 3, 4].map((j) => [...word].map((c) => LET[c][j].replace(/#/g, ink).replace(/\./g, shirt)).join(shirt)) // 7 wide
+  const kit = (cap, shirt, ink, word, dir) => [
+    '...' + cap.repeat(5) + '...', dir > 0 ? '...' + cap.repeat(7) + '.' : '.' + cap.repeat(7) + '...',
+    '...wwwww...', '...wdwdw...', '...wwwww...',
+    '.' + shirt.repeat(9) + '.',
+    ...chest(word, shirt, ink).map((c, j) => (j === 4 ? 'w' : shirt) + shirt + c + shirt + (j === 4 ? 'w' : shirt)), // arms, the letters, his hands
+    '..ggg.ggg..', '..gg...gg..', '.ddd...ddd.',
+  ]
+  const SFG = kit('d', 'o', 'w', 'SF', 1), SFGL = kit('d', 'o', 'w', 'SF', -1), LAD = kit('b', 'w', 'b', 'LA', -1), LADR = kit('b', 'w', 'b', 'LA', 1)
+  const run = (spr, f) => [...spr.slice(0, 11), ...(f ? ['..gg...gg..', '.gg.....gg.', 'dd.......dd'] : ['...ggggg...', '....ggg....', '...dd.dd...'])] // his legs, running
+  const headless = (spr) => [...Array(5).fill('...........'), ...spr.slice(5)]
+  const upside = (spr) => spr.slice().reverse()
+  // LOU SEAL (the Giants' mascot): a sea lion in the cap and the home jersey, SF in orange, his flippers out of the sleeves
+  const LOU = ['...ddodd...', '...ddddddd.', '...ggggg...', '..ggggdgg..', '..gggggggg.', '...gggggdw.', '....ggg....', '.wwwwwwwww.',
+    ...chest('SF', 'w', 'o').map((c) => 'gw' + c + 'wg'), 'gg.ggggg.gg']
+  // her (SHE LEFT HIM): blonde, a red dress; and the man with the cart (BIPPED): a beanie, a beard, a long brown coat
+  const WIFE = ['..yyyyy..', '.yyyyyyy.', '.ywwwwwy.', '.ywdwdwy.', '.ywwwwwy.', '.yy.w.yy.', '..rrrrr..', '.rrrrrrr.', 'w.rrrrr.w', '..rrrrr..', '.rrrrrrr.', 'rrrrrrrrr', '..w...w..', '.dd...dd.']
+  const MAN = ['..nnn..', '.nnnnn.', '.wwwww.', '.wdwdw.', '.ggggg.', '..ggg..', 'nnnnnnn', 'nnnnnnn', 'nnnnnnn', 'wnnnnnw', '.nnnnn.', '.dd.dd.', '.dd.dd.', 'dd..dd.']
+  // three-by-five letters for the small words (a thought bubble, what she says)
+  const MINI = { A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'], E: ['###', '#..', '##.', '#..', '###'],
+    F: ['###', '#..', '##.', '#..', '#..'], G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'], I: ['###', '.#.', '.#.', '.#.', '###'], K: ['#.#', '#.#', '##.', '#.#', '#.#'],
+    L: ['#..', '#..', '#..', '#..', '###'], M: ['#.#', '###', '###', '#.#', '#.#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'], P: ['##.', '#.#', '##.', '#..', '#..'],
+    R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'], V: ['#.#', '#.#', '#.#', '#.#', '.#.'],
+    W: ['#.#', '#.#', '###', '###', '#.#'], X: ['#.#', '#.#', '.#.', '#.#', '#.#'], Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], "'": ['#', '#', '.', '.', '.'], '?': ['##.', '..#', '.#.', '...', '.#.'], '!': ['#', '#', '#', '.', '#'], '.': ['.', '.', '.', '.', '#'] }
+  const mstep = (c) => (c === ' ' ? 3 : (MINI[c]?.[0].length ?? 3) + 1)
+  const miniW = (s) => [...s].reduce((w, c) => w + mstep(c), -1)
+  const mini = (s, x, y, ch) => { if (x === 'c') x = Math.round((GW - miniW(s)) / 2); for (const c of s) { const g = MINI[c]; if (g) blit(g.map((r) => r.replace(/#/g, ch)), x, y); x += mstep(c) } }
+  // a bubble round mini text, its box from (x, y); a speech bubble's tail runs to (tx, ty), a thought bubble trails two dots there instead
+  const bubble = (lines, x, y, tx, ty, thought = false) => {
+    const w = Math.max(...lines.map(miniW)) + 4, h = lines.length * 6 + 3
+    for (let j = 1; j < h - 1; j++) for (let i = 1; i < w - 1; i++) off(x + i, y + j)
+    line(x + 1, y, x + w - 2, y, 'g'); line(x + 1, y + h - 1, x + w - 2, y + h - 1, 'g'); line(x, y + 1, x, y + h - 2, 'g'); line(x + w - 1, y + 1, x + w - 1, y + h - 2, 'g')
+    lines.forEach((s, k) => mini(s, x + 2, y + 2 + k * 6, 'w'))
+    const bx = Math.min(Math.max(tx, x + 2), x + w - 3), by = y + h - 1
+    if (thought) { put(tx, ty, 'w'); rect((tx + bx) / 2, (ty + by) / 2, 2, 2, 'w') } else line(bx, by, tx, ty, 'g')
+  }
   const ANIM = {
-    crab: { dur: 4.6, draw(t) { const x = -16 + t * 20, f = Math.floor(t * 8) % 2; blit(SPR.crab[f], x, 12); if (Math.floor(t * 3) % 2) text('BOO!', 'c', 1, 'w'); else text('CRAZY CRAB', 'c', 1, 'r') } },
-    seal: { dur: 4.2, draw(t) {
-      water(t)
-      const rise = ease(t / 1.2) - ease((t - 3.2) / 0.8), open = t > 1.3 && t < 2.1
-      blit(SPR.seal[open ? 1 : 0], 30, 20 - rise * 11)
-      if (t < 2.05) { const k = Math.min(1, t / 2.0); put(30 + k * 2, 1 + k * 11, 'w'); put(31 + k * 2, 1 + k * 11, 'w'); put(30 + k * 2, 2 + k * 11, 'w'); put(31 + k * 2, 2 + k * 11, 'w') }
-      if (t > 2.1) text('GULP!', 2, 2, 'w')
-    } },
-    odometer: { dur: 3.4, draw(t, a) { text('SPLASHES', 'c', 1, 'b'); const n = a?.n ?? 1, s0 = '#' + (n - 1), s1 = '#' + n; roll(s0, s1, Math.round((GW - tw(s1)) / 2), 12, (t - 0.6) / 0.9) } },
-    cable: { dur: 5.2, draw(t, a) {
-      line(0, 1, GW, 1, 'g')
-      const w = 34, x = Math.round(-w + ease(t / 3.4) * (GW / 2 + w / 2) - (t > 4.2 ? (t - 4.2) * 60 : 0))
-      line(x + 22, 2, x + 18, 8, 'g')
-      rect(x, 8, w, 1, 'w'); rect(x, 9, w, 10, 'r'); for (let i = 2; i < w - 2; i += 4) rect(x + i, 10, 2, 2, 'y')
-      text(String(a?.ft ?? ''), x + 5, 12, 'w'); rect(x + 3, 19, 3, 2, 'g'); rect(x + w - 6, 19, 3, 2, 'g')
-      line(0, GH - 1, GW, GH - 1, 'd')
-      if (t > 3.0 && Math.floor(t * 4) % 2) text('DING', 52, 3, 'y')
-    } },
-    karl: { dur: 5.4, draw(t) {
-      text(lines[0] || 'ORACLE PARK', 'c', 7, 'a')
-      const front = (t / 3.2) * (GW + 10)
-      for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { if (x > front - ((y * 7) % 5)) continue; if ((x + y + Math.floor(t * 6)) % 3) off(x, y); else put(x, y, 'd') }
-      if (t > 3.6) text("KARL'S IN", 'c', 7, 'g')
-    } },
-    gulls: { dur: 5.6, draw(t) {
-      const grab = 2.4, f = Math.floor(t * 6) % 2
-      if (t < grab + 0.2) blit(SPR.fries, 33, 14)
-      const gx0 = t < grab ? -8 + (t / grab) * 42 : 34 + (t - grab) * 22, gy = t < grab ? 2 + (t / grab) * 9 : 11 - (t - grab) * 4
-      blit(SPR.gull[f], gx0, gy)
-      if (t >= grab) blit(SPR.fries, gx0, gy + 3)
-      text(t < grab ? 'GARLIC FRIES' : 'HEY!', t < grab ? 'c' : 4, t < grab ? 1 : 1, t < grab ? 'y' : 'w')
-    } },
-    bridge: { dur: 8, draw(t) {
-      for (const tx of [18, 54]) { line(tx, 3, tx, 18, 'o'); line(tx + 1, 3, tx + 1, 18, 'o') }
-      const cab = (x) => (x < 18 ? 3 + ((18 - x) / 18) * 5 : x < 54 ? 3 + 8 * (1 - ((x - 36) / 18) ** 2) : 3 + ((x - 54) / 18) * 5)
-      for (let x = 0; x < GW; x++) { put(x, cab(x), 'o'); if (x % 3 === 0 && x !== 18 && x !== 54) line(x, cab(x) + 1, x, 13, 'd') }
-      line(0, 14, GW, 14, 'o')
-      for (let x = 0; x < GW; x++) if ((x + Math.floor(t * 3)) % 5) put(x, 20, 'b')
-      const bx = ((t / 8) * (GW + 10)) - 6; rect(bx, 18, 5, 1, 'w'); put(bx + 2, 17, 'w')
-    } },
-    golf: { dur: 4.4, draw(t) {
-      const sw = t < 1.0 ? -2.6 * ease(t) : -2.6 + 4.2 * ease((t - 1.0) / 0.35), hit = t > 1.2
-      put(6, 8, 'w'); put(7, 8, 'w'); put(6, 9, 'w'); put(7, 9, 'w'); line(6, 10, 6, 15, 'w'); line(6, 15, 4, 19, 'w'); line(6, 15, 8, 19, 'w')
-      line(6, 11, 6 + Math.sin(sw) * 8, 11 + Math.cos(sw) * 8, 'g')
-      line(0, 20, GW, 20, 'd'); put(11, 19, 'y')
-      if (!hit) put(11, 18, 'w'); else { const k = Math.min(1, (t - 1.2) / 2.4), x = 11 + k * 58, y = 18 - 4 * 15 * k * (1 - k); put(x, y, 'w') }
-      if (t > 2.0) text('FORE!', 38, 3, 'o')
-    } },
-    tomahawk: { dur: 3.8, draw(t) {
-      text('TOMAHAWK', 'c', 1, 'o')
-      const th = t < 1.1 ? -1.9 + 0.3 * Math.sin(t * 8) : t < 1.35 ? -1.9 + 1.9 * ease((t - 1.1) / 0.25) : 0
-      const px = 26, py = 18, L = 14, hx = px + Math.cos(th) * L, hy = py + Math.sin(th) * L
-      line(px, py, hx, hy, 'n'); rect(hx - 1, hy - 2, 4, 4, 'g'); put(hx + 3, hy - 1, 'w'); put(hx + 3, hy, 'w')
-      blit(SPR.ball, 41, 15)
-      if (t > 1.35 && t < 2.2) for (let i = 0; i < 6; i++) put(42 + Math.cos(i) * (t - 1.35) * 14, 16 - Math.abs(Math.sin(i)) * (t - 1.35) * 12, 'y')
-      line(0, 20, GW, 20, 'd')
-    } },
-    chase: { dur: 4.6, draw(t) {
-      text('CHASE SCENE', 'c', 1, 'o')
-      const f = Math.floor(t * 10) % 2, bx = ((t * 26) % (GW + 30)) - 8
-      blit(SPR.ball, bx, 12); blit(SPR.legs[f], bx, 17)
-      blit(SPR.glove, bx - 16 - Math.sin(t * 9) * 1.5, 11)
-      for (let i = 1; i < 4; i++) put(bx - 3 - i * 2, 13 + (i % 2), 'g')
-      line(0, 19, GW, 19, 'd')
-    } },
-    insidejob: { dur: 4.8, draw(t) {
-      text('INSIDE JOB', 'c', 1, 'o')
-      const sx = 26, sy = 8, open = ease((t - 2.4) / 0.5)
-      rect(sx, sy, 20, 13, 'g'); rect(sx + 2, sy + 2, 16, 9, 'd')
-      if (open < 1) { rect(sx + 2 + open * 16, sy + 2, 16 - open * 16, 9, 'g'); const a = t * 5, dx = sx + 10 + Math.cos(a) * 3, dy = sy + 6 + Math.sin(a) * 3; put(sx + 10, sy + 6, 'w'); put(dx, dy, 'y') }
-      if (open >= 1) { const k = Math.min(1, (t - 2.9) / 1.2), x = sx + 8 + k * 26, y = sy + 5 - 9 * k * (1 - k) * 4; blit(SPR.ball, x, Math.min(16, y)) }
-    } },
-    walkoff: { dur: 5.2, draw(t) {
-      if (Math.floor(t * 4) % 2) text('WALK-OFF!', 'c', 1, 'o')
-      const hx = 36; put(hx - 1, 20, 'w'); put(hx, 20, 'w'); put(hx + 1, 20, 'w'); put(hx, 21, 'w')
-      for (let i = 0; i < 6; i++) { const from = i < 3 ? -6 - i * 6 : GW + 4 + (i - 3) * 6, k = ease(t / 1.6), x = from + (hx - 1 + (i - 2.5) * 3 - from) * k, jump = t > 1.6 ? Math.abs(Math.sin(t * 7 + i)) * 4 : 0; blit(SPR.player[i % 2], x, 14 - jump) }
-    } },
-    slam: { dur: 5.6, draw(t) {
-      const B = [[53, 20], [62, 14], [53, 8], [44, 14]]
-      for (let i = 0; i < 4; i++) { const [x0, y0] = B[i], [x1, y1] = B[(i + 1) % 4]; line(x0, y0, x1, y1, 'd') }
-      for (const [x, y] of B) rect(x - 1, y - 1, 2, 2, 'w')
-      text('GRAND', 0, 2, 'o'); text('SLAM', 0, 12, 'o')
-      let home = 0
-      for (let r = 0; r < 4; r++) { // the runner on third, second, first, then the batter, each heading home in turn
-        const start = 3 - r, k = Math.max(0, Math.min(1, (t - r * 0.9) / 1.2)), legs = r + 1, pos = start + k * legs
-        if (k >= 1) { home++; continue }
-        const seg = Math.floor(pos) % 4, f = pos - Math.floor(pos), [x0, y0] = B[seg], [x1, y1] = B[(seg + 1) % 4]
-        rect(x0 + (x1 - x0) * f - 1, y0 + (y1 - y0) * f - 1, 2, 2, 'o')
-      }
-      text(String(home), 50, 11, 'y')
-    } },
-    flip: { dur: 4.4, draw(t, a) {
-      text(a?.word ?? 'GO-AHEAD', 'c', 1, 'o')
-      // team and runs with no space between (SF5 LAD4) so both fit across 72 LEDs; the batting team's runs roll over
-      const bt = a?.bat ?? 'BAT', ft0 = `${a?.fld ?? 'FLD'}${a?.f ?? 0}`, s0 = String(a?.b0 ?? 0), s1 = String(a?.b1 ?? 1)
-      const w = tw(bt) + Math.max(tw(s0), tw(s1)), x = Math.round((GW - w - tw(ft0) - 6) / 2)
-      text(bt, x, 12, 'w'); roll(s0, s1, x + tw(bt), 12, (t - 1.0) / 0.9); text(ft0, x + w + 6, 12, 'w')
-    } },
-    moon: { dur: 4.8, draw(t) {
-      for (let i = 0; i < 14; i++) { const x = (i * 37) % GW, y = (i * 11) % 18; if ((i + Math.floor(t * 3)) % 4) put(x, y, 'd') }
-      for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) if (x * x + y * y <= 17) put(62 + x, 6 + y, 'g')
-      const k = ease(t / 3.6), rx = 40 + k * 14, ry = 13 - k * 11
-      blit(SPR.rocket, rx, ry); const fl = Math.floor(t * 10) % 2; put(rx + 2, ry + 7, fl ? 'o' : 'y'); put(rx + 1, ry + 7 + fl, 'y'); put(rx + 3, ry + 7 + fl, 'o')
-      text('MOON', 2, 2, 'w'); text('SHOT', 2, 12, 'o')
-    } },
-    tater: { dur: 4.4, draw(t) {
-      blit(SPR.potato, 4, 8)
-      const a = Math.sin(t * 7) * 0.6 - 0.6, cx = 21, cy = 11, ex = cx + Math.cos(a) * 8, ey = cy + Math.sin(a) * 8
-      line(cx, cy, ex, ey, 'g'); rect(ex - 1, ey - 1, 3, 3, 'g'); off(ex, ey); put(cx, cy, 'g')
-      text('TWEAK', 32, 2, 'o'); text('TATER', 32, 12, 'o')
-    } },
-    // a ball off the board itself: the text breaks up and its pixels fall off, column by column
-    glitch: { dur: 3.6, draw(t) {
-      text('HOME RUN', 'c', 7, 'a')
-      const snap = Uint8Array.from(buf); buf.fill(0)
-      for (let x = 0; x < GW; x++) {
-        const d = ((x * 73) % 17) / 17 * 1.1, fall = t < d ? 0 : 30 * (t - d) ** 2
-        for (let y = GH - 1; y >= 0; y--) { const k = snap[y * GW + x]; if (!k) continue; const ny = Math.round(y + fall + (Math.sin(x * 9 + t * 40) > 0.7 && t < 0.6 ? 1 : 0)); if (ny < GH) buf[ny * GW + x] = (x + y) % 9 === 0 ? ci('w') : k }
-      }
-      if (t > 1.5) text('OUCH', 'c', 7, 'w')
-    } },
-    // ---- THE RIVALRY (29 Oct, later, Andrew: "a giants player fucking up a dodger player ... spy vs. spy shit. Gore, blood"): cartoon slapstick, a generic Giant (orange
-    // cap and jersey) against a generic Dodger (blue cap, white jersey), no real players. They play after a Giants home run against the Dodgers, and now and then idle
-    // (the players are drawn at double size, 8 by 14 LEDs, standing on row 20)
-    anvil: { dur: 4.8, draw(t) {
-      const gy = 20, lx = 46
-      line(0, gy + 1, GW - 1, gy + 1, 'd')
-      big(GIANT, 6, gy - 13)
-      line(10, gy - 14, 10, 0, t < 1.0 ? 'g' : 'd'); if (t > 0.8 && t < 1.2) { put(9, 4, 'y'); put(11, 4, 'y'); put(10, 3, 'y') } // he cuts the rope
-      const ay = t < 1.0 ? 0 : Math.min(gy - 5, (t - 1.0) ** 2 * 70), hit = ay >= gy - 5
-      if (!hit) big(DODGER, lx, gy - 13)
-      else {
-        rect(lx - 2, gy, 12, 1, 'b'); rect(lx, gy - 1, 8, 1, 'w')
-        for (let i = 0; i < 24; i++) { const k = Math.min(1, (t - 1.35) * 2.5), a = (i / 23) * Math.PI; put(lx + 4 + Math.cos(a) * (4 + k * (6 + (i % 4) * 3)), gy - Math.sin(a) * k * (2 + (i % 5) * 2), 'r') }
-      }
-      rect(lx - 3, ay, 14, 3, 'g'); rect(lx, ay + 3, 8, 2, 'g') // the anvil
-      if (hit && t > 1.7) { text('SQUASHED', 'c', 0, 'r'); if (Math.floor(t * 4) % 2) text('HA', 15, 9, 'o') }
-    } },
+    // ---- THE RIVALRY (29 Oct, later, Andrew: "a giants player fucking up a dodger player ... spy vs. spy shit. Gore, blood"; 29 Oct, night: "insanely comical 'oh no
+    // jesus christ what the fuck that's deranged' gags. Surprise me"; 30 Oct: "I only want dodger gags on the board, that's literally it"): cartoon slapstick, a
+    // generic Giant against a generic Dodger, no real players. One after a Giants home run against the Dodgers, and one now and then while the board idles.
+    // Each has a still: the one frame shown under reduced motion. No sounds (30 Oct: "I don't want sound effects for these")
+    // KA-BOOM: a stick of dynamite lobbed into his hands; the cap, two shoes, a hand and a lot of red, each on its own arc
     dynamite: { dur: 5.2, draw(t) {
       const gy = 20, lx = 50
       line(0, gy + 1, GW - 1, gy + 1, 'd')
-      big(GIANT, 4, gy - 13)
+      blit(SFG, 2, gy - 13)
       const k = Math.min(1, t / 1.2), sx = 13 + k * 38, sy = gy - 10 - Math.sin(k * Math.PI) * 8
-      if (t < 2.4) { big(DODGER, lx, gy - 13); rect(sx, sy, 4, 2, 'r'); if (Math.floor(t * 12) % 2) { put(sx + 4, sy - 1, 'y'); put(sx + 5, sy - 2, 'w') } if (t > 1.3) text('?', lx + 9, 4, 'w') }
+      if (t < 2.4) { blit(LAD, lx - 2, gy - 13); rect(sx, sy, 4, 2, 'r'); if (Math.floor(t * 12) % 2) { put(sx + 4, sy - 1, 'y'); put(sx + 5, sy - 2, 'w') } if (t > 1.3) text('?', lx + 9, 4, 'w') }
       else {
         const u = t - 2.4, r = Math.min(14, u * 30), cx = lx + 4, cy = gy - 7
         if (u < 0.7) for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; put(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.6, i % 3 ? 'y' : 'o'); put(cx + Math.cos(a) * r * 0.6, cy + Math.sin(a) * r * 0.4, 'w') }
@@ -567,152 +450,106 @@ export function initPark25(api, col, o = {}) {
         if (u > 0.9) text('KA-BOOM', 'c', 0, 'y')
       }
     } },
-    bonk: { dur: 5, draw(t) {
-      const gy = 20, lx = 34
-      line(0, gy + 1, GW - 1, gy + 1, 'd')
-      big(GIANT, 18, gy - 13)
-      const sw = t < 0.9 ? -2.3 + 0.2 * Math.sin(t * 9) : Math.min(0.5, -2.3 + (t - 0.9) * 14)
-      for (const dd of [0, 1]) line(24, gy - 8 + dd, 24 + Math.cos(sw) * 14, gy - 8 + dd + Math.sin(sw) * 14, 'n') // the bat
-      if (t < 1.05) big(DODGER, lx, gy - 13)
-      else {
-        const u = t - 1.05, hx = lx + 2 + u * 30, hy = gy - 13 - 12 * u + 10 * u * u // the head goes for a ride, cap and all
-        if (hx < GW) { rect(hx, hy, 4, 2, 'b'); rect(hx, hy + 2, 4, 2, 'w') }
-        for (let i = 1; i < 10; i++) { const v = u - i * 0.05; if (v > 0) put(lx + 3 + v * 30, gy - 13 - 12 * v + 10 * v * v + 3, 'r') }
-        const fall = Math.min(1, u * 1.2)
-        if (fall < 1) { big(['bwwb', '.ww.', '.ww.', '.dd.', 'd..d'], lx, gy - 9); for (let i = 0; i < 3; i++) put(lx + 3 + (i - 1) * Math.sin(u * 20 + i), gy - 11 - ((u * 9 + i * 2) % 5), 'r') } // the fountain
-        else { rect(lx - 3, gy, 10, 1, 'w'); rect(lx - 3, gy - 1, 3, 1, 'b'); for (let i = 0; i < 6; i++) put(lx + 7 + i, gy, 'r') }
-        if (u > 0.7) text('BONK', 'c', 0, 'o')
+    // BONK (30 Oct, Andrew: "bat needs to swing horizontally not vertically"): a level swing seen side on. The bat starts behind him, comes round end-on through
+    // the zone and out flat at head height, and the Dodger's head goes for a ride, cap and all
+    bonk: { dur: 5.4, still: 1.25, draw(t) {
+      ground()
+      const lx = 36, hx = 15, hy = 10, hit = 1.2, sw = Math.max(0, Math.min(1, (t - 0.9) / 0.3))
+      blit(SFG, 5, 7)
+      const end = (p) => [hx + Math.cos(p) * (Math.cos(p) >= 0 ? 22 : 11), hy - Math.sin(p) * 3] // long out front, short behind him (foreshortened), a little up on the far side
+      const ph = t < 0.9 ? Math.PI * 0.85 + 0.1 * Math.sin(t * 7) : Math.PI * 0.85 * (1 - sw) - (t > hit ? Math.min(0.9, (t - hit) * 2) : 0) // the waggle, the swing, the follow-through
+      if (sw > 0 && sw < 1) for (let k = 1; k <= 4; k++) { const [x, y] = end(ph + k * 0.3); put(x, y, 'g') } // the whoosh
+      const [ex, ey] = end(ph)
+      line(hx, hy, ex, ey, 'n'); line(hx, hy + 1, ex, ey + 1, 'n')
+      if (t < hit) { blit(LAD, lx - 2, 7); return }
+      const u = t - hit, hx2 = lx + 1 + u * 30, hy2 = 7 - 12 * u + 10 * u * u
+      if (hx2 < GW) { rect(hx2, hy2, 5, 2, 'b'); rect(hx2, hy2 + 2, 5, 3, 'w'); put(hx2 + 1, hy2 + 3, 'd'); put(hx2 + 3, hy2 + 3, 'd') }
+      for (let i = 1; i < 10; i++) { const v = u - i * 0.05; if (v > 0) put(lx + 3 + v * 30, 11 - 12 * v + 10 * v * v, 'r') }
+      if (u < 0.85) { blit(headless(LAD), lx - 2, 7); for (let i = 0; i < 4; i++) put(lx + 3 + (i - 1.5) * Math.sin(u * 20 + i), 11 - ((u * 9 + i * 2) % 6), 'r') } // the fountain
+      else { rect(lx - 4, 19, 9, 2, 'w'); rect(lx + 5, 19, 5, 2, 'g'); rect(lx + 10, 19, 2, 2, 'd'); for (let i = 0; i < Math.min(14, (u - 0.85) * 12); i++) put(lx - 5 - i, 20, 'r') }
+      if (u > 0.6) text('BONK', 'c', 0, 'o')
+    } },
+    // DING (30 Oct, Andrew: "The cable car not clearly a cable car"): a Powell Street car side on: the roof and its overhang, the bell, the open ends with brass poles
+    // and riders hanging off them, the closed middle with its windows and cream band, the gripman up front with his lever, the running board, the grip down into
+    // the slot. It does not stop for anyone, least of all him
+    runover: { dur: 6.2, still: 1.6, draw(t) {
+      line(0, 20, GW - 1, 20, 'g'); line(0, 21, GW - 1, 21, 'd'); for (let x = 1; x < GW; x += 4) put(x, 21, 'g') // the rails, the slot
+      const W = 38, x = Math.round(-W - 2 + t * 24), hit = 46, past = x + W >= hit
+      if (!past) { blit(LAD, hit - 1, 6); if (x + W > hit - 16 && Math.floor(t * 3) % 2) text('?!', hit + 9, 0, 'w') }
+      else for (let i = 0; i < 20; i++) put(hit - 6 + ((i * 7) % 24), 19 + (i % 2), 'r') // what is left of him on the rails
+      const rider = (px, up) => { rect(px, 8, 2, 1, 'd'); rect(px, 9, 2, 1, 'w'); rect(px, 10, 2, 3, 'o'); rect(px, 13, 2, 3, 'g'); if (up) { put(px - 1, 8, 'w'); put(px + 2, 8, 'w') } }
+      if (x < GW + 4) {
+        rect(x - 1, 6, W + 2, 1, 'w'); rect(x, 7, W, 1, 'r'); rect(x + 18, 5, 2, 1, 'y') // the roof, its overhang, the bell
+        for (const px of [0, 4, 9, 28, 33, W - 1]) line(x + px, 8, x + px, 15, 'y') // the brass poles at the open ends
+        rect(x + 10, 8, 18, 8, 'r'); for (let i = 0; i < 4; i++) rect(x + 11 + i * 4, 9, 3, 3, 'y'); rect(x + 10, 12, 18, 1, 'w') // the closed middle: its windows, the cream band
+        rect(x, 13, 10, 1, 'n'); rect(x + 28, 13, 10, 1, 'n') // the benches
+        rect(x - 1, 16, W + 2, 1, 'n'); rect(x, 17, W, 1, 'd'); rect(x + 4, 18, 3, 2, 'd'); rect(x + W - 7, 18, 3, 2, 'd'); line(x + 19, 17, x + 19, 21, 'g') // the running board, the trucks, the grip
+        const cheer = past && Math.floor(t * 6) % 2
+        rider(x + 2, cheer); rider(x + 6, !cheer && past); rider(x + 35, cheer)
+        rider(x + 30, false); line(x + 32, 15, x + 34, 9, 'g') // the gripman and his lever
+        put(x - 4, 9, 'w'); put(x - 4, 8, 'd'); line(x - 3, 10, x - 1, 14, 'o'); line(x - 3, 10, x, 9, 'w'); line(x - 1, 14, x - 2, 16, 'g') // a rider hanging right off the back pole
       }
+      const ding = Math.floor(t * 4) % 2
+      text(t < 2.1 ? (ding ? 'DING' : '') : t < 4.6 ? 'DING!' : 'NO STOPPING', 'c', 0, 'y')
     } },
-    runover: { dur: 4.8, draw(t) {
-      line(0, 20, GW, 20, 'g'); line(0, 21, GW, 21, 'd')
-      const hit = 40, w = 28, x = Math.round(-w + (t / 2.6) * (GW + w) * 0.9)
-      if (x + w < hit) { big(DODGER, hit, 6); if (Math.floor(t * 3) % 2) text('?!', hit - 2, 0, 'w') }
-      else for (let i = 0; i < 18; i++) put(hit - 8 + ((i * 7) % 20), 20 - (i % 2), 'r') // what is left of him on the rails
-      rect(x, 6, w, 1, 'w'); rect(x, 7, w, 12, 'r'); for (let i = 2; i < w - 2; i += 4) rect(x + i, 8, 2, 3, 'y'); rect(x + 3, 19, 3, 2, 'g'); rect(x + w - 6, 19, 3, 2, 'g')
-      rect(x + 6, 12, 3, 2, 'w'); rect(x + 6, 14, 3, 3, 'o') // the Giant at the grip
-      if (x + w >= hit) { rect(x + w - 1, 10, 2, 8, 'r'); put(x + w + 1, 12, 'b'); put(x + w + 1, 13, 'b') }
-      if (t > 2.4) text('DING!', 'c', 0, 'y')
-    } },
+    // GULP: a Dodger treading water in the Cove, a Giant waving from the wall, and a sea lion comes up under him
     sealsnack: { dur: 5.2, draw(t) {
       water(t, 16)
       const lx = 40
-      if (t < 2.2) { big(['.bb.', '.ww.', 'bwwb'], lx, 11); if (Math.floor(t * 4) % 2) { rect(lx - 2, 9, 2, 2, 'w'); rect(lx + 8, 9, 2, 2, 'w') } text('HELP', 2, 0, 'b') } // a Dodger treading water in the Cove
+      if (t < 2.2) { blit(LAD.slice(0, 10), lx - 2, 7); if (Math.floor(t * 4) % 2) { rect(lx - 2, 9, 2, 2, 'w'); rect(lx + 8, 9, 2, 2, 'w') } text('HELP', 2, 0, 'b') } // a Dodger treading water in the Cove
       const rise = t < 2 ? 0 : t < 2.6 ? (t - 2) / 0.6 : t < 3.4 ? 1 : Math.max(0, 1 - (t - 3.4) / 0.6)
       if (rise > 0) blit(SPR.seal[t > 2.3 && t < 3.0 ? 1 : 0], lx - 3, 20 - rise * 11)
       if (t > 2.6) for (let i = 0; i < 26; i++) put(lx - 8 + ((i * 11) % 26), 16 + (i % 4) + Math.sin(t * 3 + i) * 0.6, 'r') // the water goes red
       if (t > 3.2) text('GULP', 'c', 0, 'w')
-      if (t > 1.0) big(GIANT.slice(0, 5), 4, 6) // a Giant on the wall, waving
+      if (t > 1.0) blit(SFG.slice(0, 10), 2, 6) // a Giant on the wall, waving
     } },
-    // ---- 29 Oct, evening (Andrew: "more scoreboard animations") ----
-    // LASER: a ball hit 112 mph or harder; the beam crosses the board, then the speed
-    laser: { dur: 3.4, draw(t, a) {
-      const k = ease(t / 0.55), x1 = Math.round(k * GW)
-      for (let x = 0; x < x1; x++) { put(x, 11, 'w'); if ((x + Math.floor(t * 30)) % 3) { put(x, 10, 'r'); put(x, 12, 'r') } }
-      if (t < 0.6) for (let i = 0; i < 5; i++) put(x1 - i * 3, 11 + ((i % 2) ? -2 : 2), 'y')
-      if (t > 0.6) { if (Math.floor(t * 5) % 2) text('LASER', 'c', 1, 'r'); text(`${Math.round(a?.ev ?? 112)} MPH`, 'c', 14, 'w') }
-    } },
-    // NO DOUBT: a stamp slams down on a home run nobody had to watch land (410 to 430 ft), dust off the bottom edge
-    nodoubt: { dur: 3.6, draw(t) {
-      if (t < 0.3) { const k = 1 - t / 0.3, m = Math.round(k * 8); rect(4 - m, 4 - m, 64 + 2 * m, 1, 'g'); rect(4 - m, 17 + m, 64 + 2 * m, 1, 'g'); return }
-      const sh = t < 0.45 ? (Math.floor(t * 40) % 2 ? 1 : -1) : 0
-      for (let x = 4; x < 68; x++) { put(x + sh, 4, 'o'); put(x + sh, 17, 'o') } for (let y = 4; y < 18; y++) { put(4 + sh, y, 'o'); put(67 + sh, y, 'o') }
-      text('NO DOUBT', 'c', 7, 'o')
-      if (t < 1.2) for (let i = 0; i < 10; i++) { const d = (t - 0.3) * 18, ang = (i / 9) * Math.PI; put(36 + Math.cos(ang) * (34 + d), 18 + Math.sin(ang) * d * 0.25, 'g') }
-    } },
-    // FIREWORKS: a Giants home run at Oracle; three shells go up and break in orange, bone and gold, then the word
-    fireworks: { dur: 4.4, draw(t, a) {
-      for (const [t0, x, y, c1, c2] of [[0, 16, 6, 'o', 'y'], [0.6, 52, 5, 'w', 'o'], [1.2, 34, 8, 'y', 'w'], [2.0, 24, 7, 'o', 'w'], [2.6, 46, 6, 'y', 'o']]) {
-        const u = t - t0
-        if (u < 0) continue
-        if (u < 0.5) { put(x, GH - 1 - (GH - 1 - y) * (u / 0.5), 'y'); continue }
-        const v = u - 0.5, r = Math.min(8, v * 14)
-        if (v > 1.4) continue
-        for (let i = 0; i < 14; i++) { const ang = (i / 14) * Math.PI * 2; put(x + Math.cos(ang) * r, y + Math.sin(ang) * r * 0.8 + v * v * 3, i % 2 ? c1 : c2); if (r > 3) put(x + Math.cos(ang) * (r - 2), y + Math.sin(ang) * (r - 2) * 0.8 + v * v * 3, c2) }
-      }
-      if (t > 3.0) text(a?.word ?? 'HOME RUN', 'c', 7, 'o')
-    } },
-    // KAYAK SCRAMBLE: after a splash hit, the kayaks race for the ball in the Cove; the one from the left gets it
-    kayak: { dur: 4.8, draw(t) {
-      water(t, 18)
-      const by = t < 0.5 ? 2 + (t / 0.5) * 15 : 17, bx = 36
-      if (t < 2.9) { put(bx, by, 'w'); put(bx + 1, by, 'w') }
-      if (t > 0.5 && t < 0.9) for (let i = 0; i < 6; i++) put(bx + (i - 2.5) * (t - 0.5) * 12, 16 - Math.abs(i - 2.5) * (t - 0.5) * 5, 'w')
-      const k = ease((t - 0.6) / 2.3), lx = Math.round(-10 + k * 41), rx = Math.round(GW + 2 - k * 30), f = Math.floor(t * 8) % 2
-      const boat = (x, flip) => { rect(x, 17, 9, 1, 'n'); rect(x + 1, 18, 7, 1, 'n'); put(x + 4, 16, 'o'); line(x + 1, f ? 14 : 16, x + 7, f ? 16 : 14, 'y') }
-      boat(lx, false); boat(rx, true)
-      if (t > 2.9) { put(lx + 4, 15, 'w'); text('GOT IT!', 'c', 2, 'w') } else text('KAYAKS!', 'c', 2, 'b')
-    } },
-    // DOT RACE (idle): the old scoreboard race, three dots round a track, the crowd's pick decided by a hair
-    dotrace: { dur: 6.4, draw(t, a) {
-      const seed = a?.seed ?? 7, sp = [0, 1, 2].map((i) => 0.86 + (((seed * (i + 3) * 37) % 17) / 17) * 0.18)
-      line(0, 9, GW - 1, 9, 'd'); line(0, 19, GW - 1, 19, 'd'); line(64, 9, 64, 19, 'w')
-      const C = ['o', 'w', 'b'], N = ['ORANGE!', 'BONE!', 'BLUE!'], pos = sp.map((v, i) => Math.min(64, 2 + ease(t / 5) * 62 * v + Math.sin(t * 3 + i) * 1.5))
-      pos.forEach((x, i) => rect(x, 10 + i * 3, 3, 3, C[i]))
-      const win = pos.indexOf(Math.max(...pos))
-      if (t < 4.6) text('DOT RACE', 'c', 0, 'y'); else if (Math.floor(t * 5) % 2) text(N[win], 'c', 0, C[win])
-    } },
-    // THE WAVE (idle): the crowd along the bottom, standing up as the wave goes by
-    wave: { dur: 5.2, draw(t) {
-      const wx = -6 + (t / 4.6) * (GW + 12)
-      for (let x = 1; x < GW; x += 2) { const up = Math.max(0, 1 - Math.abs(x - wx) / 6), h = Math.round(up * 4); put(x, 20 - h, 'w'); put(x, 21 - h, (x / 2) % 3 ? 'o' : 'y'); if (h > 2) { put(x - 1, 19 - h, 'w'); put(x + 1, 19 - h, 'w') } }
-      text('THE WAVE', 'c', 2, 'o')
-    } },
-    // BEACH BALL (idle): one gets loose in the bleachers and bounces along on the crowd's hands
-    beachball: { dur: 5.6, draw(t) {
-      for (let x = 0; x < GW; x += 3) { put(x, 21, 'g'); put(x + 1, 20, (x / 3) % 2 ? 'w' : 'o') }
-      const x = -4 + (t / 5.2) * (GW + 8), hop = (t * 1.6) % 1, y = 16 - 5 * 4 * hop * (1 - hop), r = Math.floor(t * 6) % 4
-      for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (i * i + j * j <= 10) { const q = (Math.floor(((Math.atan2(j, i) + Math.PI) / (Math.PI / 2)) + r) % 4); put(x + i, y + j, 'wrby'[q]) } // a six-cube ball in four colors, turning
-      if (hop < 0.12) { put(Math.round(x) + 1, 19, 'w'); put(Math.round(x) + 2, 19, 'w') }
-      text('BOUNCE!', 'c', 1, 'y')
-    } },
-    soclose: { dur: 4.2, draw(t) {
-      blit(SPR.face, 8, 6)
-      for (const ex of [10, 13]) { const k = ((t * 1.6 + ex * 0.2) % 1) * 6; put(ex, 10 + k, 'b') }
-      text('SO', 32, 2, 'w'); text('CLOSE', 32, 12, 'o')
-    } },
-    // ---- THE RIVALRY, ROUND TWO (29 Oct, night). His picks from the list of twenty, then eight of mine. Each has a still: the one frame shown under reduced motion ----
-    // LEAVES IN THE 3RD: he bolts to beat the traffic; the traffic wins, and by the end he is a skeleton in a cobwebbed car
-    leaves3rd: { dur: 6.6, still: 5.4, draw(t) {
+    // LEAVES IN THE 3RD: in his seat it comes to him in a thought bubble (30 Oct, Andrew: "let's have a thought bubble for 'gotta beat the traffic'"); he bolts, the traffic
+    // wins, and by the end he is a skeleton in a cobwebbed car
+    leaves3rd: { dur: 9.0, still: 7.6, draw(t) {
       ground()
-      if (t < 2.2) {
-        cue(t, 0.1, 'leaves3rd-run')
-        text(t < 1.1 ? 'BOT 3RD' : 'TO BEAT TRAFFIC', 'c', 0, t < 1.1 ? 'w' : 'b')
+      if (t < 2.4) { blit(LADR, 3, 7); if (t > 0.3) bubble(['GOTTA BEAT', 'THE TRAFFIC'], 22, 0, 14, 8, true); return }
+      if (t < 4.4) {
+        const u = t - 2.4
+        text('BOT 3RD', 'c', 0, 'w')
         rect(58, 9, 2, 12, 'g'); rect(68, 9, 2, 12, 'g'); line(58, 9, 69, 9, 'g'); for (let x = 61; x < 68; x += 2) line(x, 10, x, 20, 'd') // the gate
-        const x = 2 + ease(t / 2.1) * 48, f = Math.floor(t * 10) % 2
-        big([...DODGER.slice(0, 6), f ? 'd..d' : '.dd.'], x, 7)
-        for (let i = 1; i < 4; i++) put(x - i * 2, 17 + (i % 2), 'g') // his dust
+        const x = 3 + ease(u / 1.9) * 43, f = Math.floor(t * 10) % 2
+        blit(run(LADR, f), x, 7)
+        for (let i = 1; i < 4; i++) put(x - i * 2, 18 + (i % 2), 'g') // his dust
         return
       }
-      cue(t, 2.3, 'leaves3rd-honk'); cue(t, 5.0, 'leaves3rd-sad')
-      const C = ['r', 'y', 'b', 'w', 'g', 'o']
+      const T = t - 2.2, C = ['r', 'y', 'b', 'w', 'g', 'o']
       C.forEach((c, i) => {
         const x0 = -6 + i * 13
         rect(x0, 15, 12, 4, c); rect(x0 + 3, 11, 6, 4, c); rect(x0 + 4, 12, 4, 2, 'd'); rect(x0 + 1, 19, 2, 2, 'd'); rect(x0 + 9, 19, 2, 2, 'd')
-        if (Math.floor(t * 3 + i) % 2) put(x0, 16, 'r') // brake lights
+        if (Math.floor(T * 3 + i) % 2) put(x0, 16, 'r') // brake lights
         if (c !== 'b') return
-        if (t < 5.0) { put(x0 + 5, 12, 'b'); put(x0 + 5, 13, 'w') } // him at the wheel
+        if (T < 5.0) { put(x0 + 5, 12, 'b'); put(x0 + 5, 13, 'w') } // him at the wheel
         else { put(x0 + 5, 12, 'w'); put(x0 + 6, 12, 'w'); put(x0 + 5, 13, 'w'); put(x0 + 4, 12, 'g'); put(x0 + 7, 13, 'g'); put(x0 + 7, 12, 'g') } // a skull and cobwebs
       })
-      text(t < 3.0 ? '5TH' : t < 3.8 ? '7TH' : t < 4.6 ? '9TH' : t < 5.0 ? 'FINAL' : 'STILL HERE', 'c', 0, t < 5.0 ? 'w' : Math.floor(t * 3) % 2 ? 'b' : 'w')
+      text(T < 3.0 ? '5TH' : T < 3.8 ? '7TH' : T < 4.6 ? '9TH' : T < 5.0 ? 'FINAL' : 'STILL HERE', 'c', 0, T < 5.0 ? 'w' : Math.floor(T * 3) % 2 ? 'b' : 'w')
     } },
-    // BIPPED: he parks on King Street and walks to the game; a brick, the window, his bag gone, and a gull in the driver's seat honking at him
-    bipped: { dur: 6.8, still: 5.0, draw(t) {
+    // BIPPED: he parks on King Street and walks to the game; a brick, the window; and while he is gone a man pulling a shopping cart climbs in through the hole and
+    // makes himself at home in the driver's seat (30 Oct, Andrew: "For bipped let's have a homeless person get in the car")
+    bipped: { dur: 8.8, still: 7.4, draw(t) {
       ground()
-      const cx = Math.round(-30 + ease(t / 0.9) * 46), smashed = t >= 2.5
+      const cx = Math.round(-30 + ease(t / 0.9) * 46), smashed = t >= 2.8, inside = t >= 5.0
       rect(cx, 14, 26, 5, 'b'); rect(cx + 5, 10, 14, 4, 'b'); rect(cx + 2, 19, 4, 2, 'd'); rect(cx + 19, 19, 4, 2, 'd'); put(cx + 25, 15, 'y'); put(cx, 15, 'r')
-      if (!smashed) { rect(cx + 6, 11, 12, 2, 'g'); rect(cx + 13, 12, 3, 1, 'y') } // the glass, and his bag on the seat
-      else { rect(cx + 6, 11, 12, 2, 'd'); for (const [i, j] of [[6, 11], [8, 12], [11, 11], [17, 12], [15, 11], [17, 11]]) put(cx + i, j, 'w') } // a hole with a jagged rim
-      cue(t, 0.6, 'bipped-park')
-      if (t > 1.0 && t < 2.3) blit(DODGER, 44 + ((t - 1.0) / 1.2) * 32, 14) // off to the game
-      if (t > 2.1 && t < 2.5) { const k = (t - 2.1) / 0.4; rect(70 - k * 48, 2 + k * 9, 2, 2, 'n') } // the brick
-      cue(t, 2.5, 'bipped-smash')
-      if (smashed && t < 3.3) for (let i = 0; i < 12; i++) { const u = t - 2.5; put(cx + 8 + (i % 6) * 2 + (i - 6) * u * 4, 12 + u * 10 * (0.5 + (i % 3) * 0.3) + u * u * 12, 'w') }
-      if (t > 3.0) { const k = ease((t - 3.0) / 0.7); if (k < 1) blit(SPR.gull[Math.floor(t * 8) % 2], -6 + k * (cx + 15), 2 + k * 8); else { rect(cx + 9, 11, 3, 2, 'w'); put(cx + 8, 11, 'y'); put(cx + 10, 11, 'd') } } // the gull takes the wheel
-      cue(t, 3.1, 'bipped-gull')
-      if (t > 3.6) { const k = ease((t - 3.6) / 0.8); blit(DODGER, 74 - k * 28, 14); if (t > 4.4 && t < 4.7) text('?!', 50, 4, 'w') }
-      if (t > 4.7) { cue(t, 4.7, 'bipped-sting'); text('BIPPED', 'c', 0, Math.floor(t * 5) % 2 ? 'r' : 'w') } else if (t < 1.0) text('KING ST', 'c', 0, 'w')
-      if (t > 5.6) { cue(t, 5.6, 'bipped-honk'); if (Math.floor(t * 8) % 2) { put(cx + 4, 9, 'y'); put(cx + 3, 8, 'y'); put(cx + 2, 9, 'y') } }
+      if (!smashed) rect(cx + 6, 11, 12, 2, 'g') // the glass
+      else { rect(cx + 6, 11, 12, 2, 'd'); for (const [i, j] of [[6, 11], [8, 12], [11, 11], [17, 12], [15, 11]]) put(cx + i, j, 'w') } // a hole with a jagged rim
+      if (t > 1.0 && t < 2.6) blit(LADR, 44 + ((t - 1.0) / 1.5) * 32, 7) // off to the game
+      if (t > 2.4 && t < 2.8) { const k = (t - 2.4) / 0.4; rect(70 - k * 48, 2 + k * 9, 2, 2, 'n') } // the brick
+      if (smashed && t < 3.6) for (let i = 0; i < 12; i++) { const u = t - 2.8; put(cx + 8 + (i % 6) * 2 + (i - 6) * u * 4, 12 + u * 10 * (0.5 + (i % 3) * 0.3) + u * u * 12, 'w') }
+      // the man and his cart: he walks in pulling it, leaves it by the back bumper and climbs over the trunk and in through the hole
+      const cart = (x) => { line(x, 13, x + 9, 13, 'g'); line(x, 17, x + 9, 17, 'g'); line(x, 13, x + 1, 17, 'g'); line(x + 9, 13, x + 8, 17, 'g'); for (const [i, c] of [[2, 'y'], [4, 'w'], [6, 'b']]) rect(x + i, 11, 2, 2, c); rect(x + 1, 18, 1, 1, 'd'); rect(x + 8, 18, 1, 1, 'd'); line(x + 9, 13, x + 11, 11, 'g') }
+      if (t > 3.4) {
+        const k = ease((t - 3.4) / 1.0), mx = -18 + k * 26, climb = Math.max(0, Math.min(1, (t - 4.4) / 0.6))
+        cart(Math.min(mx - 12, -4))
+        if (!inside) blit(MAN, mx + climb * 12, 7 - climb * 7)
+        else { rect(cx + 13, 11, 3, 1, 'n'); rect(cx + 13, 12, 3, 1, 'w'); put(cx + 15, 12, 'g') } // in the driver's seat: his beanie, his face, his beard
+      }
+      if (t > 5.8) { const k = ease((t - 5.8) / 0.8); blit(LAD, 74 - k * 28, 7); if (t > 6.6 && t < 7.2) text('?!', 56, 0, 'w') }
+      if (t > 7.2 && Math.floor(t * 8) % 2) { put(cx + 27, 14, 'y'); put(cx + 28, 13, 'y'); put(cx + 28, 15, 'y') } // he honks at him
+      text(t < 1.0 ? 'KING ST' : t < 3.0 ? '' : t < 5.8 ? (Math.floor(t * 5) % 2 ? 'BIPPED' : '') : t < 7.2 ? '' : 'MOVED IN', 'c', 0, t < 5.8 ? 'r' : 'w')
     } },
     // CATAPULT: a trebuchet slings him over the right-field wall into the Cove, where three sea lions in bibs are waiting
     catapult: { dur: 6.4, still: 2.2, draw(t) {
@@ -722,9 +559,8 @@ export function initPark25(api, col, o = {}) {
       line(4, 20, 10, 11, 'n'); line(16, 20, 10, 11, 'n'); line(4, 20, 16, 20, 'n') // the frame
       const a = t < 1.0 ? Math.PI + 0.5 : Math.max(0.9, Math.PI + 0.5 - (t - 1.0) * 7), L = 10, ex = 10 + Math.cos(a) * L, ey = 11 - Math.sin(a) * L
       line(10, 11, ex, ey, 'n'); rect(10 - Math.cos(a) * 4 - 1, 11 + Math.sin(a) * 4 - 1, 3, 3, 'g') // the arm and its counterweight
-      blit(GIANT, 20, 14)
+      blit(SFG, 18, 7)
       const rel = 1.33
-      cue(t, 0.3, 'catapult-creak'); cue(t, 1.0, 'catapult-fling'); cue(t, rel, 'catapult-scream'); cue(t, 2.55, 'catapult-splash'); cue(t, 2.9, 'catapult-chomp'); cue(t, 4.5, 'catapult-burp')
       const flip = Math.floor(t * 10) % 2, me = flip ? DODGER.slice().reverse() : DODGER
       if (t < rel) blit(DODGER.slice().reverse(), ex - 2, ey - 3) // upside down in the sling
       else if (t < 2.55) { const u = (t - rel) / 1.22, x = 12.7 + u * 47, y = 1.4 + u * 15.6 - 30 * u * (1 - u); blit(me, x - 2, y - 3) }
@@ -736,130 +572,105 @@ export function initPark25(api, col, o = {}) {
       if (t > 4.4) { const u = t - 4.4; rect(59 + u * 6, 12 - u * 14 + u * u * 16, 3, 1, 'b') } // his cap, burped up
       text(t < 1.0 ? 'LOAD' : t < 2.6 ? 'FIRE!' : t < 4.4 ? 'DINNER' : 'BURP', 'c', 0, t < 2.6 ? 'o' : 'w')
     } },
-    // PIANO: a whistle, a shadow, a grand piano; a sour chord, his legs twitching out from under it, and the keys everywhere
-    piano: { dur: 5.6, still: 2.4, draw(t) {
+    // WOOD CHIPPER (30 Oct, Andrew: "I want them fed in from the top head first kicking their legs"): the Giant holds him up by the ankles over the hopper, lets go, and
+    // he goes in head first, his legs kicking until the last of them is gone; blue, white and red out of the chute and over the whole board, then his shoes
+    chipper: { dur: 7.0, still: 2.2, draw(t) {
       ground()
-      const lx = 32, hitT = 1.42
-      const piano = (x, y) => { rect(x, y, 18, 6, 'd'); line(x, y, x + 17, y, 'g'); rect(x, y + 6, 18, 2, 'w'); for (const i of [1, 2, 4, 5, 6, 8, 9, 11, 12, 13, 15, 16]) put(x + i, y + 6, 'd'); rect(x + 1, y + 8, 1, 3, 'd'); rect(x + 16, y + 8, 1, 3, 'd') }
-      cue(t, 0.9, 'piano-whistle')
-      if (t < hitT) {
-        big(DODGER, lx, 7)
-        if (t > 0.6) { const w = Math.round(2 + Math.min(1, (t - 0.6) / 0.8) * 16); rect(lx + 4 - w / 2, GH - 1, w, 1, 'g') } // the shadow
-        if (t > 0.5) text('?', lx + 10, 0, 'w')
-        piano(lx - 5, Math.round(-12 + Math.max(0, t - 0.9) ** 2 * 80))
-        return
-      }
-      cue(t, hitT, 'piano-drop'); cue(t, 2.3, 'piano-twitch')
-      const u = t - hitT, pool = Math.min(24, u * 14)
-      rect(lx + 4 - pool, GH - 1, pool * 2 + 1, 1, 'r')
-      piano(lx - 5, 10 + (u < 0.15 ? 1 : 0))
-      const tw = Math.sin(t * 28) > 0 ? 1 : 0
-      line(lx + 13, 20, lx + 17 + tw, 20, 'w'); line(lx + 13, 19, lx + 16 + (1 - tw), 18 + tw, 'w'); put(lx + 18 + tw, 20, 'b'); put(lx + 17 + (1 - tw), 18 + tw, 'b') // his legs
-      if (u < 0.9) for (let i = 0; i < 8; i++) put(lx + 4 + (i - 4) * u * 12, 14 - u * 12 * ((i % 3) + 1) + u * u * 30, i % 2 ? 'w' : 'd') // keys
-      text(u < 1.2 ? 'PLONK' : 'ENCORE?', 'c', 0, u < 1.2 ? 'w' : 'o')
-    } },
-    // GUILLOTINE: a drumroll, the blade, his head rolling into a bucket marked LAD, a fountain from the stump, and the crowd does the wave
-    guillotine: { dur: 6.6, still: 2.9, draw(t) {
-      ground()
-      const drop = 1.5, cut = t >= drop + 0.08
-      rect(24, 9, 2, 12, 'n'); rect(36, 9, 2, 12, 'n'); rect(24, 8, 14, 1, 'n') // the frame
-      const by = t < drop ? 9 : Math.min(12, 9 + (t - drop) * 40)
-      rect(26, by, 10, 2, 'g'); for (let i = 0; i < 10; i++) put(26 + i, by + 2 + (i > 4 ? 1 : 0), 'w') // the blade
-      rect(2, 17, 22, 2, 'n'); line(4, 19, 4, 20, 'n'); line(21, 19, 21, 20, 'n') // the bench
-      rect(4, 15, 6, 2, 'd'); rect(10, 15, 14, 2, 'w'); rect(15, 15, 2, 2, 'b') // him, lying on it
-      rect(24, 13, 14, 2, 'n') // the board his neck is through
-      rect(43, 14, 15, 7, 'g'); rect(44, 14, 13, 1, 'd'); mini('LAD', 45, 15, 'b') // the bucket
-      cue(t, 0.0, 'guillotine-drum'); cue(t, drop, 'guillotine-chop'); cue(t, 2.45, 'guillotine-thunk'); cue(t, 3.4, 'guillotine-cheer')
-      if (!cut) { rect(38, 12, 4, 1, 'b'); rect(38, 13, 4, 3, 'w'); put(40, 14, 'd') }
-      else {
-        const k = Math.min(1, (t - drop - 0.08) / 0.85)
-        if (k < 1) { const hx = 38 + k * 12, hy = 12 - 24 * k * (1 - k) + k * 2; rect(hx, hy, 4, 1, 'b'); rect(hx, hy + 1, 4, 3, 'w'); put(hx + 1 + (Math.floor(t * 12) % 2), hy + 2, 'd') }
-        else if (t < 3.0) for (let i = 0; i < 8; i++) put(46 + i * 1.5, 13 - (t - 2.45) * 12 * ((i % 3) + 1) + (t - 2.45) ** 2 * 30, 'r')
-        if (t < 4.2) for (let i = 0; i < 9; i++) { const s = (t * 2.6 + i / 9) % 1; put(38 + s * 10, 14 - 11 * s + 14 * s * s, 'r'); put(38 + s * 9, 13 - 9 * s + 12 * s * s, 'r') } // the stump
-        for (let i = 0; i < Math.min(12, (t - drop) * 6); i++) put(38 + i, 20, 'r')
-      }
-      if (t > 3.4) { const wx = -6 + ((t - 3.4) / 2.8) * (GW + 12); for (let x = 1; x < GW; x += 2) { const h = Math.round(Math.max(0, 1 - Math.abs(x - wx) / 5) * 4); if (h) { put(x, 21 - h, 'w'); put(x, 22 - h, 'o') } } }
-      text(t < drop ? 'LAST WORDS?' : t < 2.6 ? 'CHOP' : t < 3.4 ? 'HEADS UP' : 'THE WAVE!', 'c', 0, t < drop ? 'w' : 'o')
-    } },
-    // WOOD CHIPPER: feet first; it chews, it shakes, and blue, white and red come out of the chute and over the whole board
-    chipper: { dur: 6.4, still: 2.6, draw(t) {
-      ground()
-      const sh = t > 0.9 && t < 3.8 ? Math.floor(t * 30) % 2 : 0, into = Math.max(0, Math.min(1, (t - 0.5) / 2.6)), hx = 8 + into * 18
-      // him, lying, head toward the Giant, feet in the hopper: only what is left of him is drawn (left of x 23)
-      const body = [[0, 1, 'b'], [0, 2, 'b'], [2, 0, 'w'], [3, 0, 'w'], [2, 1, 'w'], [3, 1, 'd'], [2, 2, 'w'], [3, 2, 'w']]
-      for (let i = 4; i < 10; i++) for (let j = 0; j < 3; j++) body.push([i, j, i === 6 ? 'b' : 'w'])
-      for (let i = 10; i < 15; i++) body.push([i, 0, 'd'], [i, 2, 'd'])
-      for (const [i, j, c] of body) for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const x = hx * 2 - 8 + i * 2 + a; if (x < 23) put(x, 8 + j * 2 + b, c) }
-      big(GIANT, 0, 7)
-      rect(26 + sh, 12, 18, 8, 'y'); rect(26 + sh, 15, 18, 1, 'o'); rect(28 + sh, 19, 3, 2, 'd'); rect(39 + sh, 19, 3, 2, 'd') // the chipper
-      line(20 + sh, 7, 26 + sh, 12, 'g'); line(20 + sh, 8, 26 + sh, 13, 'g'); rect(18 + sh, 7, 3, 2, 'g') // the hopper
-      line(43 + sh, 12, 50 + sh, 5, 'g'); line(44 + sh, 12, 51 + sh, 5, 'g') // the chute
-      cue(t, 0.3, 'chipper-start'); cue(t, 0.9, 'chipper-grind'); cue(t, 1.4, 'chipper-spray'); cue(t, 3.8, 'chipper-sputter')
+      const drop = 1.1, sh = t > drop && t < 4.4 ? Math.floor(t * 30) % 2 : 0, kick = Math.floor(t * 12) % 2
+      blit(SFG, 14, 7)
+      // him, upside down, his shoes at the top; after the drop he sinks in, and only what is above the hopper's mouth (row 11) shows
+      const y0 = t < drop ? -2 : Math.min(14, -2 + ((t - drop) / 3.0) * 16), jig = t < drop ? Math.round(Math.sin(t * 9)) : kick
+      const me = upside(LAD).map((r, j) => (j < 3 && t >= drop ? (kick ? ['dd.......dd', '.gg.....gg.', '..gg...gg..'] : ['...dd.dd...', '....ggg....', '...ggggg...'])[j] : r))
+      me.forEach((r, j) => { const y = Math.round(y0) + j; if (y < 11) blit([r], 30 + jig, y) })
+      if (t < drop) line(24, 12, 31, 0, 'o') // the Giant's arm, up to the ankles
+      else { line(14, 12, 12, 6, 'o'); line(24, 12, 26, 6, 'o') } // and then both up
+      rect(27 + sh, 15, 20, 5, 'y'); rect(27 + sh, 17, 20, 1, 'o'); rect(29 + sh, 20, 3, 1, 'd'); rect(42 + sh, 20, 3, 1, 'd') // the chipper
+      line(27 + sh, 11, 30 + sh, 15, 'g'); line(44 + sh, 11, 41 + sh, 15, 'g'); rect(25 + sh, 11, 3, 1, 'g'); rect(44 + sh, 11, 3, 1, 'g') // the hopper
+      line(47 + sh, 16, 55 + sh, 8, 'g'); line(47 + sh, 17, 56 + sh, 8, 'g') // the chute
       for (let i = 0; i < 70; i++) {
-        const born = 0.9 + (i / 70) * 2.8, u = t - born
+        const born = 1.4 + (i / 70) * 2.8, u = t - born
         if (u < 0) continue
-        const x = 51 + (-55 + hash(i) * 75) * u, y = 5 + (-10 - hash(i + 7) * 16) * u + 22 * u * u
+        const x = 56 + (-55 + hash(i) * 75) * u, y = 8 + (-10 - hash(i + 7) * 16) * u + 22 * u * u
         put(x, Math.min(GH - 1, y), 'bwrr'[i % 4])
       }
-      const n = Math.max(0, Math.min(140, Math.round((t - 1.2) * 45))) // on the lens
+      const n = Math.max(0, Math.min(140, Math.round((t - 1.7) * 45))) // on the lens
       for (let i = 0; i < n; i++) put(Math.floor(hash(i + 500) * GW), Math.floor(hash(i + 900) * GH), i % 7 ? 'r' : 'b')
-      text(t < 0.9 ? 'FEED ME' : t < 3.8 ? '' : 'MULCHED', 'c', 0, Math.floor(t * 5) % 2 ? 'r' : 'w')
+      if (t > 4.4 && t < 5.4) for (const d of [0, 3]) { const u = t - 4.4 - d * 0.05; rect(56 + u * 14 + d, 8 - u * 10 + u * u * 16, 2, 1, 'd') } // his shoes, last
+      if (t > 4.8) text('MULCHED', 'c', 0, Math.floor(t * 5) % 2 ? 'r' : 'w')
     } },
-    // ALCATRAZ: the cell door slams on the Rock, the key goes into the bay, and a seal swallows it
-    alcatraz: { dur: 6.6, still: 3.7, draw(t) {
-      for (let x = 0; x < GW; x++) { put(x, 18 + (Math.sin(x * 0.5 + t * 4) > 0.6 ? 0 : 1), 'b'); line(x, 20, x, GH - 1, (x + Math.floor(t * 4)) % 9 ? 'b' : 'w') }
-      for (let x = 4; x < 38; x++) { const top = 16 - Math.round(1.5 * Math.sin((x - 4) * 0.1) + (x > 30 ? (x - 30) * 0.4 : 0)); line(x, top, x, 18, x % 3 ? 'g' : 'd') } // the Rock
-      line(34, 9, 34, 15, 'w'); put(34, 8, Math.floor(t * 2) % 2 ? 'y' : 'd') // the lighthouse
-      rect(8, 8, 20, 8, 'w'); rect(12, 9, 10, 6, 'd') // the cell block, one cell open to us
-      const rattle = t > 3.7 ? (Math.floor(t * 16) % 2 ? 1 : -1) : 0
-      blit(DODGER.slice(0, 6), 15 + rattle, 9)
-      const shut = Math.min(1, t / 0.8)
-      for (let k = 0; k < 5; k++) line(12 + k * 2 + (1 - shut) * 14, 9, 12 + k * 2 + (1 - shut) * 14, 14, 'g') // the bars slide shut
-      blit(GIANT, 29, 9)
-      cue(t, 0.75, 'alcatraz-slam'); cue(t, 1.6, 'alcatraz-toss'); cue(t, 2.6, 'alcatraz-plop'); cue(t, 3.3, 'alcatraz-gulp'); cue(t, 4.4, 'alcatraz-foghorn')
-      if (t > 1.6 && t < 2.6) { const u = (t - 1.6) / 1.0; rect(32 + u * 24, 11 + u * 7 - 14 * u * (1 - u), 3, 1, 'y'); put(32 + u * 24, 10 + u * 7 - 14 * u * (1 - u), 'y') } // the key
-      if (t > 2.6 && t < 3.0) for (let i = 0; i < 6; i++) { const u = t - 2.6; put(56 + (i - 3) * u * 8, 18 - u * 12 + u * u * 30, 'w') }
-      if (t > 2.9) { const rise = Math.min(1, (t - 2.9) / 0.4) - Math.max(0, (t - 5.4) / 0.6); if (rise > 0) blit(SPR.seal[t > 3.1 && t < 3.5 ? 1 : 0], 52, 22 - rise * 10) }
-      text(t < 1.4 ? 'THE ROCK' : t < 3.3 ? '' : t < 4.4 ? 'GULP' : 'NO PAROLE', 'c', 0, t < 4.4 ? 'w' : 'o')
-      if (t > 1.4 && t < 3.3) text('LIFE', 44, 0, 'w')
-    } },
-    // T-SHIRT CANNON: point blank into his head. The head is gone, the body stands a moment, topples, and the free shirt flutters down onto him
-    tshirt: { dur: 6.6, still: 1.9, draw(t) {
-      ground()
-      const lx = 30, fire = 1.5, rec = t > fire && t < fire + 0.3 ? -2 : 0
-      big(GIANT, 2, 7)
-      cue(t, 0.6, 'tshirt-pump'); cue(t, fire, 'tshirt-boom'); cue(t, fire + 0.05, 'tshirt-splat'); cue(t, fire + 1.8, 'tshirt-thud'); cue(t, fire + 3.1, 'tshirt-taps')
-      if (t < fire) { big(DODGER, lx, 7); text('FREE SHIRT', 'c', 0, 'o') }
-      else {
-        const u = t - fire
-        if (u < 1.4) for (let i = 0; i < 28; i++) { const a = -Math.PI * hash(i) * 1.1, v = 10 + hash(i + 3) * 22, x = lx + 4 + Math.cos(a) * v * u + 6 * u, y = 8 + Math.sin(a) * v * u + 18 * u * u; put(x, Math.min(GH - 1, y), 'rrrbww'[i % 6]) } // what was his head
-        if (u > 0.5) for (let i = 0; i < 14; i++) put(lx + 4 + hash(i + 20) * 30, GH - 1, 'r')
-        if (u < 1.4) { big(HEADLESS, lx, 7); for (let i = 0; i < 6; i++) { const s = (u * 2.5 + i / 6) % 1; put(lx + 3 + (i - 2.5) * s * 2, 10 - s * 9 + s * s * 10, 'r'); put(lx + 4 + (i - 2.5) * s * 2, 10 - s * 8 + s * s * 9, 'r') } }
-        else if (u < 1.8) { const k = (u - 1.4) / 0.4; for (const dd of [0, 1, 2]) line(lx + 3 + dd, 20, lx + 3 + dd + k * 10, 10 + k * 8, 'w'); line(lx + 3, 20, lx + 6, 20, 'd') }
-        else { rect(lx + 2, 18, 10, 2, 'w'); rect(lx + 5, 18, 2, 2, 'b'); rect(lx + 12, 18, 5, 2, 'd'); put(lx + 1, 18, 'r'); const p = Math.min(10, (u - 1.8) * 6); rect(lx - 4 - p, 20, 6 + p, 1, 'r') } // down, and the pool
-        const su = t - fire - 0.1, sx = lx + 3 + Math.sin(su * 6) * 5 * Math.max(0, 1 - su / 3.4), sy = su < 0.5 ? 6 - su * 12 : Math.min(15, ((su - 0.5) / 2.7) * 15)
-        blit(SHIRT, sx, sy)
-        rect(10 + rec, 9, 18, 3, 'g'); rect(10 + rec, 10, 3, 4, 'd'); rect(26 + rec, 8, 2, 5, 'g') // the cannon (the muzzle where his head was)
-        if (u < 0.5) text('BOOM', 'c', 0, 'y'); else if (u > 3.1) text(Math.floor(t * 2) % 2 ? 'R.I.P.' : 'FREE SHIRT', 'c', 0, 'w')
+    // ALCATRAZ (30 Oct, Andrew: "tough to read right now, let's see if we can do better"): three plain shots instead of one busy one. The cell, close: the bars
+    // slam shut on him and the Giant holds up the key. The Rock, wide: the key goes into the bay and a sea lion swallows it. The cell again: DAY 1, DAY 365, DAY 9999,
+    // the tally on the wall and his beard down to the floor
+    alcatraz: { dur: 9.6, still: 2.0, draw(t) {
+      const KEY = ['.yyy.......', 'yy.yyyyyyyy', '.yyy...y.y.']
+      const bars = (off) => { for (let k = 0; k < 7; k++) { const bx = 34 + k * 4 + off; if (bx < GW) line(bx, 6, bx, 20, 'g') } line(34 + off, 6, 58 + off, 6, 'g'); line(34 + off, 20, 58 + off, 20, 'g') }
+      if (t < 3.0) {
+        ground(); blit(LAD, 41, 7)
+        const shut = Math.min(1, t / 0.9), rattle = t > 0.9 && t < 1.2 ? (Math.floor(t * 30) % 2 ? 1 : -1) : 0
+        bars(Math.round((1 - shut) * 30) + rattle)
+        blit(SFG, 6, 7)
+        if (t > 1.4) blit(KEY, 17, 9 + Math.round(Math.sin(t * 6)))
+        text(t < 0.9 ? 'ALCATRAZ' : t < 1.6 ? 'CLANG' : 'LIFE', 'c', 0, t < 0.9 ? 'w' : t < 1.6 ? 'y' : 'o')
         return
       }
-      rect(10 + rec, 9, 18, 3, 'g'); rect(10 + rec, 10, 3, 4, 'd'); rect(26 + rec, 8, 2, 5, 'g')
-    } },
-    // STEAMROLLER: flat as a pennant, then run up a pole as one
-    steamroller: { dur: 7.0, still: 2.4, draw(t) {
-      ground()
-      const lx = 40, x = Math.round(-30 + (t / 3.2) * 110), front = x + 26, flat = front >= lx + 2
-      cue(t, 0.0, 'steamroller-rumble'); cue(t, 1.3, 'steamroller-crunch'); cue(t, 3.6, 'steamroller-peel'); cue(t, 4.6, 'steamroller-fanfare')
-      if (!flat) big(DODGER, lx, 7)
-      else if (t < 3.6) { rect(lx - 3, 20, 16, 1, 'w'); put(lx - 3, 20, 'b'); put(lx - 2, 20, 'b'); rect(lx + 9, 20, 4, 1, 'd'); put(lx + 1, 20, 'd'); for (let i = 0; i < 6; i++) put(lx - 5 + i * 4, GH - 1, 'r') }
-      if (x < GW + 4) {
-        disc(x + 21, 15, 5, 'g'); disc(x + 21, 15, 1, 'd') // the drum
-        rect(x, 11, 16, 7, 'y'); rect(x + 2, 13, 12, 1, 'o'); rect(x + 3, 5, 8, 6, 'y'); rect(x + 4, 6, 6, 3, 'd'); put(x + 6, 7, 'o'); put(x + 6, 8, 'w'); rect(x + 2, 17, 5, 4, 'd')
-        line(x + 13, 2, x + 13, 10, 'g'); for (let i = 0; i < 3; i++) put(x + 13 - ((t * 9 + i * 3) % 9), 1 - i * 0 + ((i + Math.floor(t * 6)) % 2), 'g') // the stack, puffing
+      if (t < 6.0) {
+        const u = t - 3.0
+        for (let x = 0; x < GW; x++) { put(x, 17 + (Math.sin(x * 0.5 + t * 4) > 0.6 ? 0 : 1), 'b'); line(x, 18, x, GH - 1, (x + Math.floor(t * 4)) % 9 ? 'b' : 'w') }
+        for (let x = 2; x < 38; x++) { const top = 15 - Math.round(1.5 * Math.sin((x - 2) * 0.12)); line(x, top, x, 17, x % 3 ? 'g' : 'd') } // the Rock
+        rect(6, 10, 20, 5, 'w'); for (let i = 0; i < 6; i++) put(8 + i * 3, 12, 'd') // the cell house
+        line(30, 8, 30, 14, 'w'); line(31, 8, 31, 14, 'w'); rect(30, 7, 2, 1, Math.floor(t * 2) % 2 ? 'y' : 'd') // the lighthouse
+        if (u > 0.4 && u < 1.4) { const k = (u - 0.4) / 1.0; rect(22 + k * 34, 9 + k * 9 - 16 * k * (1 - k), 4, 1, 'y'); put(22 + k * 34, 8 + k * 9 - 16 * k * (1 - k), 'y') } // the key
+        if (u > 1.4 && u < 1.9) for (let i = 0; i < 6; i++) { const v = u - 1.4; put(56 + (i - 3) * v * 8, 17 - v * 12 + v * v * 30, 'w') }
+        if (u > 1.6) { const rise = Math.min(1, (u - 1.6) / 0.4) - Math.max(0, (u - 2.6) / 0.4); if (rise > 0) blit(SPR.seal[u > 1.9 && u < 2.3 ? 1 : 0], 50, 22 - rise * 10) }
+        text(u < 1.4 ? 'THE KEY' : u < 2.0 ? 'PLOP' : 'GULP', 'c', 0, 'w')
+        return
       }
-      if (t >= 3.6) {
+      const u = t - 6.0, day = u < 0.9 ? 1 : u < 1.8 ? 365 : 9999
+      ground(); blit(LAD, 41, 7)
+      const beard = day === 1 ? 0 : day === 365 ? 4 : 9; if (beard) rect(45, 12, 3, beard, 'g')
+      const marks = day === 1 ? 1 : day === 365 ? 12 : 40; for (let m = 0; m < marks; m++) line(4 + (m % 10) * 3, 8 + Math.floor(m / 10) * 3, 4 + (m % 10) * 3, 9 + Math.floor(m / 10) * 3, 'w') // the tally on the wall
+      bars(0)
+      text(u < 2.8 ? `DAY ${day}` : 'NO PAROLE', 'c', 0, u < 2.8 ? 'w' : 'o')
+    } },
+    // T-SHIRT CANNON: Lou Seal (30 Oct, Andrew: "let's get lou seal firing it") puts one point blank into his head. The head is gone, the body stands a moment, topples,
+    // and the free shirt flutters down onto him
+    tshirt: { dur: 7.0, still: 2.3, draw(t) {
+      ground()
+      const lx = 33, fire = 2.0, rec = t > fire && t < fire + 0.3 ? -2 : 0
+      blit(LOU, 1 + rec, 7)
+      const cannon = () => { for (let d = 0; d < 3; d++) line(9 + rec, 15 + d, 27 + rec, 9 + d, 'g'); rect(9 + rec, 17, 3, 3, 'd'); rect(26 + rec, 8, 2, 5, 'g') } // up from under his flipper, the muzzle at the head
+      if (t < fire) { blit(LAD, lx - 2, 7); cannon(); text(t < 0.9 ? 'LOU SEAL' : 'FREE SHIRT', 'c', 0, 'o'); return }
+      const u = t - fire
+      if (u < 1.4) for (let i = 0; i < 28; i++) { const a = -Math.PI * hash(i) * 1.1, v = 10 + hash(i + 3) * 22, x = lx + 4 + Math.cos(a) * v * u + 6 * u, y = 9 + Math.sin(a) * v * u + 18 * u * u; put(x, Math.min(GH - 1, y), 'rrrbww'[i % 6]) } // what was his head
+      if (u > 0.5) for (let i = 0; i < 14; i++) put(lx + 4 + hash(i + 20) * 30, GH - 1, 'r')
+      if (u < 1.4) { blit(headless(LAD), lx - 2, 7); for (let i = 0; i < 6; i++) { const s = (u * 2.5 + i / 6) % 1; put(lx + 3 + (i - 2.5) * s * 2, 11 - s * 9 + s * s * 10, 'r'); put(lx + 4 + (i - 2.5) * s * 2, 11 - s * 8 + s * s * 9, 'r') } }
+      else if (u < 1.8) { const k = (u - 1.4) / 0.4; for (const dd of [0, 1, 2]) line(lx + 2 + dd, 20, lx + 2 + dd + k * 10, 12 + k * 7, 'w'); line(lx + 2, 20, lx + 5, 20, 'd') }
+      else { rect(lx + 1, 18, 11, 2, 'w'); rect(lx + 4, 18, 3, 2, 'b'); rect(lx + 12, 18, 5, 2, 'g'); put(lx, 18, 'r'); const p = Math.min(10, (u - 1.8) * 6); rect(lx - 5 - p, 20, 6 + p, 1, 'r') } // down, and the pool
+      const su = u - 0.1, sx = lx + 3 + Math.sin(su * 6) * 5 * Math.max(0, 1 - su / 3.4), sy = su < 0.5 ? 6 - su * 12 : Math.min(15, ((su - 0.5) / 2.7) * 15)
+      blit(SHIRT, sx, sy)
+      cannon()
+      if (u < 0.5) text('BOOM', 'c', 0, 'y'); else if (u > 3.1) text(Math.floor(t * 2) % 2 ? 'R.I.P.' : 'FREE SHIRT', 'c', 0, 'w')
+    } },
+    // STEAMROLLER (30 Oct, Andrew: "has to be a bigger machine"): the full height of the board, a drum taller than he is, the Giant up under the canopy; flat as a
+    // pennant, then run up a pole as one
+    steamroller: { dur: 8.0, still: 1.3, draw(t) {
+      ground()
+      const lx = 40, x = Math.round(-48 + (t / 4.0) * 124), flat = x + 42 >= lx + 2
+      if (!flat) blit(LAD, lx - 2, 7)
+      else if (t < 4.4) { rect(lx - 3, 20, 16, 1, 'w'); put(lx - 3, 20, 'b'); put(lx - 2, 20, 'b'); rect(lx + 9, 20, 4, 1, 'd'); put(lx + 1, 20, 'd'); for (let i = 0; i < 6; i++) put(lx - 5 + i * 4, GH - 1, 'r') }
+      if (x < GW + 4) {
+        const dc = x + 34, a = t * 5
+        disc(dc, 13, 8, 'g'); for (let k = 0; k < 4; k++) line(dc, 13, dc + Math.cos(a + (k * Math.PI) / 2) * 7, 13 + Math.sin(a + (k * Math.PI) / 2) * 7, 'd'); disc(dc, 13, 2, 'd') // the drum, turning
+        rect(x + 25, 3, 18, 2, 'y'); rect(x + 25, 3, 2, 8, 'y'); rect(x + 41, 3, 2, 8, 'y') // the yoke over it
+        rect(x, 9, 26, 10, 'y'); rect(x, 12, 26, 1, 'o'); rect(x + 2, 15, 20, 1, 'd') // the body
+        rect(x + 4, 0, 16, 1, 'y'); line(x + 5, 1, x + 5, 8, 'y'); line(x + 18, 1, x + 18, 8, 'y') // the canopy
+        blit(SFG.slice(0, 9), x + 7, 1) // the Giant at the wheel
+        disc(x + 8, 17, 4, 'd'); disc(x + 8, 17, 1, 'g') // the back wheel
+        line(x + 1, 1, x + 1, 8, 'g'); for (let i = 0; i < 3; i++) put(x + 1 - ((t * 9 + i * 3) % 9), ((i + Math.floor(t * 6)) % 2), 'g') // the stack, puffing
+      }
+      if (t >= 4.4) {
         line(62, 7, 62, 20, 'g'); put(62, 6, 'y')
-        const k = ease((t - 3.6) / 0.8)
+        const k = ease((t - 4.4) / 0.8)
         if (k < 1) rect(lx - 3 + k * (62 - lx - 13), 20 - k * 12, 16 - k * 4, 1, 'w')
         else { // him as a pennant: cap, face, jersey, legs, tapering away from the pole, waving
           const rows = [['b', 12], ['w', 11], ['w', 9], ['w', 8], ['d', 6], ['d', 4]]
@@ -872,12 +683,11 @@ export function initPark25(api, col, o = {}) {
     birds: { dur: 7.4, still: 3.4, draw(t) {
       ground()
       const lx = 32, top = 7
-      cue(t, 0.2, 'birds-caw'); cue(t, 2.0, 'birds-swarm'); cue(t, 2.2, 'birds-scream'); cue(t, 3.0, 'birds-peck'); cue(t, 5.6, 'birds-bones')
       const eaten = Math.max(0, Math.min(1, (t - 2.2) / 2.4))
       if (t < 5.6) {
-        big(DODGER, lx, top)
+        blit(LAD, lx - 2, top)
         const rows = Math.round(eaten * 14)
-        for (let j = 0; j < rows; j++) { for (let i = 0; i < 8; i++) off(lx + i, top + j); blit([SKEL[j]], lx, top + j) }
+        for (let j = 0; j < rows; j++) { for (let i = -2; i < 9; i++) off(lx + i, top + j); blit([SKEL[j]], lx, top + j) }
         if (t > 2.0 && t < 4.6) { const w = Math.floor(t * 10) % 2; line(lx - 1, top + 6, lx - 3, top + 2 + w * 2, 'w'); line(lx + 8, top + 6, lx + 10, top + 2 + (1 - w) * 2, 'w') } // flailing
       } else {
         const k = Math.min(1, (t - 5.6) / 0.5)
@@ -895,31 +705,48 @@ export function initPark25(api, col, o = {}) {
       if (t > 4.8) { const u = t - 4.8; rect(lx + 6 + u * 24, 4 - u * 9, 3, 1, 'b'); blit(SPR.gull[Math.floor(t * 8) % 2], lx + 5 + u * 24, 1 - u * 9) } // the one with the cap
       text(t < 2.0 ? 'CAW' : t < 4.8 ? (Math.floor(t * 4) % 2 ? 'AAAAH' : 'HELP') : 'THE BIRDS', 'c', 0, t < 4.8 && t >= 2.0 ? 'r' : 'w')
     } },
-    // EARTHQUAKE: the ground opens under only him and closes again; the Giant beside him never spills his beer
-    quake: { dur: 6.4, still: 2.0, draw(t) {
-      const sh = t > 0.6 && t < 2.8 ? (Math.floor(t * 24) % 2 ? 1 : -1) : 0, lx = 44, open = t > 1.3 && t < 2.6 ? Math.min(1, (t - 1.3) / 0.3) : 0
-      cue(t, 0.6, 'quake-rumble'); cue(t, 1.3, 'quake-crack'); cue(t, 1.5, 'quake-scream'); cue(t, 2.6, 'quake-slam'); cue(t, 3.8, 'quake-sip')
-      for (let x = 0; x < GW; x++) { const gap = open > 0 && Math.abs(x - (lx + 4)) < 7 * open; if (gap) { put(x, GH - 1, (x + Math.floor(t * 10)) % 3 ? 'r' : 'o') } else put(x + sh, GH - 1, 'd') }
-      if (open > 0) for (const s of [-1, 1]) { const ex = lx + 4 + s * 7 * open; line(ex, 19, ex, GH - 1, 'n') }
-      if (t > 0.8 && t < 2.8) for (let x = 2; x < GW; x += 9) put(x + sh, 20, 'n')
-      big(GIANT, 12 + sh, 7)
-      const sip = Math.max(0, Math.min(1, (t - 3.6) / 0.4)) - Math.max(0, Math.min(1, (t - 4.6) / 0.4)), cx = 22 - sip * 3, cy = 12 - sip * 3
-      rect(cx, cy, 3, 3, 'y'); rect(cx, cy - 1, 3, 1, 'w') // the beer, perfectly level the whole time
-      if (t < 1.4) big(DODGER, lx + sh, 7)
-      else if (t < 2.5) { const y = 7 + (t - 1.4) ** 2 * 60; big(DODGER, lx, y); line(lx - 1, y + 2, lx - 2, y - 2, 'w'); line(lx + 8, y + 2, lx + 9, y - 2, 'w') }
-      if (t > 2.6 && t < 3.1) for (let i = 0; i < 10; i++) { const u = t - 2.6; put(lx + 4 + (i - 5) * u * 10, 20 - u * 8 * (i % 3), 'g') }
-      if (t > 2.7) { const u = Math.min(1, (t - 2.7) / 0.5); rect(lx + 2 + u * 3, 20 - 6 * u * (1 - u) * 4, 4, 1, 'b') } // his cap, all that comes back up
-      text(t < 0.6 ? 'NICE NIGHT' : t < 1.4 ? 'QUAKE!' : t < 2.6 ? 'AAAAAH' : t < 3.8 ? '' : 'NOT A DROP', 'c', 0, t < 3.8 ? 'w' : 'y')
+    // EARTHQUAKE (30 Oct, Andrew: "I want a house falling on the dodger player, no giant player. Gruesome crushed by house"): the board shakes, and a painted lady comes
+    // down out of the sky on him, Wizard of Oz style; his shoes stick out from under it and twitch, he squirts out both sides, and an eye rolls away
+    quake: { dur: 7.6, still: 3.6, draw(t) {
+      const sh = t > 0.9 && t < 3.0 ? (Math.floor(t * 24) % 2 ? 1 : -1) : 0, lx = 56, land = 2.6, down = t >= land, X = 47
+      for (let x = 0; x < GW; x++) put(x + sh, GH - 1, 'd')
+      if (t > 1.0 && t < 3.0) for (let x = 2; x < 44; x += 7) { put(x + sh, 20, 'n'); put(x + 1 + sh, 19, 'n') } // the cracks
+      if (!down) {
+        blit(LAD, lx - 2 + sh, 7)
+        if (t > 1.7) { const w = Math.round(4 + ((t - 1.7) / 0.9) * 20); rect(X + 12 - w / 2, 21, w, 1, 'g'); if (Math.floor(t * 8) % 2) { put(lx - 3, 13, 'w'); put(lx + 9, 13, 'w') } } // the shadow, his arms up
+      } else {
+        const u = t - land, tw = Math.floor(t * 9) % 2
+        rect(X - 7, 20, 7, 1, 'g'); rect(X - 9, 19 + tw, 2, 2 - tw, 'd'); rect(X - 9, 20, 2, 1, 'd') // his legs out from under it, a shoe twitching
+        put(X + 24, 20, 'w') // a hand, the other side
+        if (u < 1.2) for (let i = 0; i < 10; i++) { const s = (u * 1.8 + i / 10) % 1; put(X - 1 - s * 14, 20 - s * 9 + s * s * 12, 'r'); put(X + 24 + s * 10, 19 - s * 8 + s * s * 11, 'r') } // he squirts out both sides
+        const pool = Math.min(30, u * 16); rect(X - 9 - pool, 21, pool, 1, 'r')
+        const ex = X - 10 - Math.min(1, u / 1.6) * 22, bounce = u < 1.6 ? Math.abs(Math.sin(u * 7)) * 3 * (1 - u / 1.6) : 0 // the eye
+        rect(ex, 19 - bounce, 2, 2, 'w'); put(ex + (u < 1.6 ? Math.floor(u * 8) % 2 : 1), 19 - bounce + (u < 1.6 ? 0 : 1), 'b')
+        if (u < 0.5) for (let i = 0; i < 12; i++) put(X - 4 + i * 3 + (i % 2), 20 - u * 10 * ((i % 3) + 1), 'g') // dust
+      }
+      // the painted lady: a peaked roof, a round gable window, gingerbread, a bay window, the door with a window over it
+      const hy = down ? 2 : Math.round(-21 + Math.max(0, (t - 1.7) / 0.9) ** 2 * 23)
+      if (t > 1.7) {
+        for (let j = 0; j < 7; j++) { const a = X + 11 - 2 * j, b = X + 12 + 2 * j; line(a, hy + j, b, hy + j, 'd'); put(a, hy + j, 'w'); put(b, hy + j, 'w') }
+        rect(X + 11, hy + 3, 2, 2, 'w')
+        rect(X + 1, hy + 7, 22, 12, 'y'); rect(X + 1, hy + 7, 22, 1, 'w'); line(X + 1, hy + 8, X + 1, hy + 18, 'w'); line(X + 22, hy + 8, X + 22, hy + 18, 'w')
+        for (let i = 0; i < 10; i++) put(X + 2 + i * 2, hy + 8, 'r')
+        rect(X + 3, hy + 9, 6, 8, 'w'); rect(X + 4, hy + 10, 4, 2, 'b'); rect(X + 4, hy + 13, 4, 2, 'b') // the bay window
+        rect(X + 15, hy + 9, 4, 2, 'b'); rect(X + 15, hy + 12, 4, 7, 'r'); put(X + 18, hy + 15, 'y') // the door
+      }
+      if (t < 0.9) text('NICE NIGHT', 'c', 0, 'w')
+      else if (t < land) text('QUAKE!', 2, 0, 'w')
+      else if (t < 4.2) text('CRUNCH', 2, 0, 'r')
+      else mini('FIXER UPPER', 2, 1, 'y')
     } },
     // BALLOON (mine): the Giant puts the helium hose in his mouth and keeps it there
     balloon: { dur: 6.0, still: 2.7, draw(t) {
       ground()
-      big(GIANT, 2, 7)
-      rect(12, 14, 4, 7, 'g'); rect(12, 13, 4, 1, 'w') // the tank
+      blit(SFG, 0, 7)
+      rect(13, 14, 4, 7, 'g'); rect(13, 13, 4, 1, 'w') // the tank
       const pop = 3.0, k = Math.min(1, t / pop), r = 3 + k * k * 9, cx = 42, cy = 13 - k * 3
-      cue(t, 0.2, 'balloon-hiss'); cue(t, 1.6, 'balloon-stretch'); cue(t, pop, 'balloon-pop'); cue(t, pop + 0.2, 'balloon-rain')
       if (t < pop) {
-        line(14, 13, cx - r, cy + 1, 'd')
+        line(15, 13, cx - r, cy + 1, 'd')
         disc(cx, cy, r, 'w', 0.9); rect(cx - 2, cy - r * 0.9 - 1, 4, 1, 'b')
         const ew = k > 0.6 ? 2 : 1; rect(cx - 3, cy - r * 0.4, ew, ew, 'd'); rect(cx + 2, cy - r * 0.4, ew, ew, 'd')
         put(cx - r - 1, cy, 'b'); put(cx + r + 1, cy, 'b'); line(cx - 1, cy + r * 0.9, cx - 1, cy + r * 0.9 + 2, 'd'); line(cx + 1, cy + r * 0.9, cx + 1, cy + r * 0.9 + 2, 'd')
@@ -932,74 +759,25 @@ export function initPark25(api, col, o = {}) {
       rect(cx - 2 + Math.sin(u * 4) * 3, Math.min(20, -2 + u * 7), 4, 1, 'b')
       text(u < 1.0 ? 'POP!' : 'OOPS', 'c', 0, u < 1.0 ? 'y' : 'w')
     } },
-    // BATTING PRACTICE (mine): the pitching machine on 105, thirty-odd balls, every one a hole in him, until there is more hole than Dodger
-    bp: { dur: 6.4, still: 3.4, draw(t) {
+    // BATTING PRACTICE (mine): the pitching machine (30 Oct, Andrew: "needs to go sideways"), side on, its two wheels one over the other and the ball out between them
+    // straight at him, the bucket feeding it from the top; thirty-odd balls, every one a hole in him, until there is more hole than Dodger
+    bp: { dur: 6.8, still: 3.4, draw(t) {
       ground()
-      line(6, 20, 10, 13, 'g'); line(14, 20, 10, 13, 'g'); rect(6, 8, 10, 5, 'g')
-      const sp = Math.floor(t * 20) % 2; rect(7, 9, 3, 3, sp ? 'd' : 'w'); rect(12, 9, 3, 3, sp ? 'w' : 'd') // the wheels
+      const sp = Math.floor(t * 20) % 2
+      line(11, 16, 7, 20, 'g'); line(11, 16, 15, 20, 'g') // the stand
+      line(6, 5, 16, 5, 'g'); line(6, 16, 16, 16, 'g'); line(6, 5, 6, 16, 'g'); line(16, 5, 16, 16, 'g') // the frame
+      for (const wy of [8, 13]) { disc(11, wy, 2, 'd'); put(11 + (sp ? 1 : -1), wy, 'w'); put(11, wy + (sp ? -1 : 1), 'w') } // the wheels, spinning
+      rect(17, 10, 4, 2, 'g') // the mouth
+      rect(1, 0, 6, 3, 'n'); put(2, 0, 'w'); put(4, 0, 'w'); line(5, 3, 9, 5, 'g') // the bucket and its feed
       const lx = 48, t0 = 0.6, gap = 0.09, NH = 34, hits = Math.max(0, Math.min(NH, Math.floor((t - t0 - 0.2) / gap) + 1))
-      cue(t, 0.2, 'bp-whir'); for (let n = 0; n < hits; n++) cue(t, 0, 'bp-thwack#' + n); cue(t, 4.6, 'bp-collapse')
-      for (let n = 0; n < NH; n++) { const u = (t - t0 - n * gap) / 0.2; if (u >= 0 && u < 1) put(16 + u * (lx - 16 + (n % 8)), 10 + (n % 7), 'w') }
+      for (let n = 0; n < NH; n++) { const u = (t - t0 - n * gap) / 0.2; if (u >= 0 && u < 1) put(21 + u * (lx - 23 + (n % 9)), 10.5 + (((n * 5) % 10) - 2) * u, 'w') }
       if (t < 4.6) {
         const jerk = hits && hits < NH && Math.floor(t / gap) % 2 ? 1 : 0
-        big(DODGER, lx + jerk, 7)
-        for (let n = 0; n < hits; n++) { const hx = lx + jerk + Math.floor(hash(n + 40) * 8), hy = 7 + Math.floor(hash(n + 80) * 14); off(hx, hy); if (n % 3 === 0) put(hx, hy + 1, 'r') }
-      } else { for (let i = 0; i < 16; i++) if (hash(i + 7) > 0.35) put(lx - 2 + i, 20, i < 3 ? 'b' : i > 11 ? 'd' : 'w'); for (let i = 0; i < 8; i++) put(lx - 4 + i * 3, GH - 1, 'r') }
+        blit(LAD, lx - 2 + jerk, 7)
+        for (let n = 0; n < hits; n++) { const hx = lx - 2 + jerk + 1 + Math.floor(hash(n + 40) * 9), hy = 7 + Math.floor(hash(n + 80) * 14); off(hx, hy); if (n % 3 === 0) put(hx, hy + 1, 'r') }
+      } else { for (let i = 0; i < 18; i++) if (hash(i + 7) > 0.35) put(lx - 3 + i, 20, i < 3 ? 'b' : i > 12 ? 'd' : 'w'); for (let i = 0; i < 8; i++) put(lx - 4 + i * 3, GH - 1, 'r') }
       for (let n = 0; n < hits; n++) put(lx + 10 + (n % 12), 20 - Math.floor(n / 12), 'w') // the balls, piling up behind him
       text(t < 0.6 ? 'B.P.' : t < 4.6 ? `${hits} HITS` : 'SWISS CHEESE', 'c', 0, t < 4.6 ? 'w' : 'y')
-    } },
-    // LIGHTNING (mine): the Giant points his bat at the sky; the X-ray flicker, a crisp, a pile of ash, and the wind takes the ash
-    lightning: { dur: 5.8, still: 1.7, draw(t) {
-      ground()
-      const lx = 58, z = 1.4
-      rect(lx - 6, 1, 20, 3, 'g'); for (let i = 0; i < 22; i++) put(lx - 7 + i, Math.round(1 + Math.sin(i * 0.9)), 'g') // the cloud
-      big(GIANT, 6, 7); line(14, 12, 21, 3, 'n')
-      cue(t, 0.2, 'lightning-rumble'); cue(t, z, 'lightning-zap'); cue(t, z + 0.3, 'lightning-sizzle'); cue(t, 3.6, 'lightning-crumble'); cue(t, 4.4, 'lightning-wind')
-      if (t < z) big(DODGER, lx, 7)
-      else if (t < z + 1.0) {
-        let x0 = lx + 4, y0 = 4; for (let s = 0; s < 4; s++) { const x1 = lx + 4 + (s % 2 ? -3 : 3), y1 = 4 + s; line(x0, y0, x1, y1 + 0, 'y'); x0 = x1; y0 = y1 } line(x0, y0, lx + 4, 7, 'y')
-        if (Math.floor(t * 14) % 2) blit(SKEL, lx, 7); else big(DODGER, lx, 7)
-      } else if (t < 3.6) {
-        big(DODGER.map((r) => r.replace(/[bw]/g, 'd')), lx, 7)
-        if (Math.floor(t * 3) % 3) { put(lx + 2, 9, 'w'); put(lx + 5, 9, 'w') } // he blinks
-        for (let i = 0; i < 4; i++) put(lx + 2 + i * 2 + Math.sin(t * 5 + i), 6 - ((t * 6 + i * 2) % 6), 'g')
-      } else {
-        const k = Math.min(1, (t - 3.6) / 0.5), drift = Math.max(0, t - 4.4) * 12
-        for (let i = 0; i < 30; i++) { const x = lx - 1 + (i % 10) + drift * (0.4 + hash(i) * 0.9), y = 20 - Math.floor(i / 10) * (1 - k) * 4 - (drift ? hash(i + 3) * drift * 0.2 : 0); put(x, k < 1 ? 7 + (i % 14) + k * (13 - (i % 14)) : y, 'd') }
-        rect(lx + 3, 20, 4, 1, 'b')
-      }
-      text(t < z ? 'STORMY' : t < z + 1.0 ? 'ZZZT' : t < 3.6 ? 'CRISPY' : t < 4.4 ? '' : 'POOF', 2, 0, t < z + 1.0 ? 'y' : 'w')
-    } },
-    // BOWLING (mine): ten little Dodgers for pins, one big ball, a strike
-    bowling: { dur: 6.2, still: 2.3, draw(t) {
-      ground()
-      big(GIANT, 2, 7)
-      const hitT = 2.0, PIN = ['bb', 'ww', 'bw', 'ww', 'dd'], LAY = ['bwbwd', 'bwwwd']
-      const P = [[54, 10], [58, 10], [62, 10], [66, 10], [56, 12], [60, 12], [64, 12], [58, 14], [62, 14], [60, 16]]
-      cue(t, 0.6, 'bowling-roll'); cue(t, hitT, 'bowling-crash'); cue(t, hitT + 0.1, 'bowling-screams'); cue(t, hitT + 0.5, 'bowling-strike')
-      if (t < hitT) P.forEach(([x, y]) => blit(PIN, x, y))
-      else P.forEach(([x0, y0], i) => {
-        const u = t - hitT, vx = (hash(i) - 0.3) * 40, vy = -10 - hash(i + 3) * 14, x = x0 + vx * u, y = y0 + vy * u + 22 * u * u
-        if (y < 16) { blit(Math.floor(t * 10 + i) % 2 ? PIN : LAY, x, y); put(x - vx * 0.03, y + 4, 'r') } else { blit(LAY, x0 + vx * Math.min(u, 0.6), 19); put(x0 + vx * Math.min(u, 0.6) + 5, 20, 'r') }
-      })
-      const bx = t < 0.6 ? 12 : 12 + ((t - 0.6) / (hitT - 0.6)) * 40, rot = Math.floor(t * 8) % 4
-      disc(bx, 17, 3, 'g'); put(bx + [1, 0, -1, 0][rot], 16 + [0, 1, 0, -1][rot], 'd'); put(bx + [0, -1, 0, 1][rot], 16 + [1, 0, -1, 0][rot], 'd')
-      text(t < hitT ? 'BOWL' : Math.floor(t * 6) % 2 ? 'STRIKE!' : 'X X X', 'c', 0, t < hitT ? 'w' : 'o')
-    } },
-    // WHACK-A-DODGER (mine): five holes, heads pop up, the mallet comes down; then all five at once, and a mallet the width of the board
-    whack: { dur: 6.8, still: 2.9, draw(t) {
-      ground()
-      const H = [8, 22, 36, 50, 64], S = [[1, 0.4], [3, 1.1], [0, 1.8], [4, 2.5], [2, 3.2]], smack = 0.45
-      for (const hx of H) rect(hx - 3, 20, 7, 1, 'n')
-      const head = (hx, k) => { const y = 20 - k * 5; rect(hx - 2, y, 4, 1, 'b'); rect(hx - 2, y + 1, 4, 3, 'w'); put(hx - 1, y + 2, 'd'); put(hx + 1, y + 2, 'd') }
-      const squash = (hx, u) => { rect(hx - 4, 20, 9, 1, 'r'); rect(hx - 2, 19, 4, 1, 'b'); if (u < 1.0) { put(hx - 1 - u * 10, 19 - u * 14 + 20 * u * u, 'w'); put(hx + 1 + u * 10, 19 - u * 14 + 20 * u * u, 'w') } }
-      let score = 0, mx = null, my = 6, wide = false
-      S.forEach(([hi, p], i) => { const u = t - p, hx = H[hi]; cue(t, p, 'whack-pop#' + i); cue(t, p + smack, 'whack-bonk#' + i); if (u < 0) return; if (u < smack) { head(hx, Math.min(1, u / 0.15)); mx = hx; my = u > smack - 0.12 ? 8 + ((u - (smack - 0.12)) / 0.12) * 6 : 6 } else { score++; squash(hx, u - smack) } })
-      const all = 4.4, U = t - all // the finale
-      cue(t, all, 'whack-pop#9'); cue(t, all + 0.5, 'whack-bonk#9'); cue(t, all + 0.9, 'whack-ding')
-      if (U >= 0) { if (U < 0.5) { H.forEach((hx) => head(hx, Math.min(1, U / 0.15))); wide = true; my = U > 0.3 ? 8 + ((U - 0.3) / 0.2) * 6 : 4 } else { score = 10; H.forEach((hx) => squash(hx, U - 0.5)) } }
-      if (wide) { rect(0, my, GW, 3, 'g'); line(GW - 1, my, GW - 1, 0, 'n') } else if (mx != null) { rect(mx - 3, my, 7, 3, 'g'); line(mx + 3, my + 1, mx + 9, 0, 'n') }
-      text(`WHACK ${score}`, 'c', 0, 'o')
     } },
     // DRIVERLESS (mine): a car with nobody in it hits him, stops, thinks about it, and backs over him, and again, and again
     driverless: { dur: 6.8, still: 2.6, draw(t) {
@@ -1008,8 +786,7 @@ export function initPark25(api, col, o = {}) {
       let x = K[K.length - 1][1]; for (let i = 0; i < K.length - 1; i++) if (t >= K[i][0] && t < K[i + 1][0]) { const k = (t - K[i][0]) / (K[i + 1][0] - K[i][0]); x = K[i][1] + (K[i + 1][1] - K[i][1]) * k; break }
       x = Math.round(x)
       const lx = 40, hit = t > 0.75, passes = [0.75, 2.0, 2.5, 3.0, 3.5].filter((p) => t >= p).length
-      cue(t, 0.0, 'driverless-whir'); [0.75, 2.0, 2.5, 3.0, 3.5].forEach((p, i) => cue(t, p, 'driverless-bump#' + i)); cue(t, 4.4, 'driverless-chime')
-      if (!hit) big(DODGER, lx, 7)
+      if (!hit) blit(LAD, lx - 2, 7)
       else { rect(lx - 4, 20, 16, 1, 'w'); put(lx - 4, 20, 'b'); rect(lx + 8, 20, 4, 1, 'd'); for (let i = 0; i < passes * 5; i++) put(lx - 8 + hash(i + 11) * 26, i % 2 ? 20 : GH - 1, 'r') }
       rect(x, 14, 24, 5, 'w'); rect(x + 4, 10, 15, 4, 'w'); rect(x + 5, 11, 13, 2, 'd'); rect(x + 3, 19, 4, 2, 'd'); rect(x + 17, 19, 4, 2, 'd'); put(x + 23, 15, 'y'); put(x, 15, 'r') // nobody at the wheel
       rect(x + 10, 8, 3, 2, 'g'); put(x + 10 + (Math.floor(t * 12) % 3), 8, 'y') // the spinning sensor
@@ -1019,13 +796,12 @@ export function initPark25(api, col, o = {}) {
     crabsnip: { dur: 6.2, still: 2.3, draw(t) {
       ground()
       const lx = 40, snip = 1.8, cx = t < 3.8 ? -16 + Math.min(1, t / 1.6) * 42 : 26 - (t - 3.8) * 24
-      cue(t, 0.1, 'crabsnip-scuttle'); cue(t, snip, 'crabsnip-snip'); cue(t, snip + 0.1, 'crabsnip-squirt'); cue(t, snip + 0.3, 'crabsnip-scream')
       blit(SPR.crab[Math.floor(t * 8) % 2], cx, 12)
-      if (t < snip) big(DODGER, lx, 7)
+      if (t < snip) blit(LAD, lx - 2, 7)
       else {
         const u = t - snip, run = Math.floor(t * 10) % 2, lxx = lx + Math.sin(u * 3) * 14
         big([run ? '.dd.' : 'd..d', run ? 'd..d' : '.dd.'], lxx, 17); for (let i = 0; i < 4; i++) { const s = (u * 3 + i / 4) % 1; put(lxx + 3 + (i - 1.5) * s * 2, 16 - s * 6 + s * s * 7, 'r') } // the legs, running, a fountain on top
-        const ty = Math.min(17, 7 + u * u * 30); big(DODGER.slice(0, 4), lx - Math.min(1, u) * 6 - Math.max(0, u - 1) * 3, ty); put(lx - 2, ty + 8, 'r') // the top half, dragging itself away
+        const ty = Math.min(10, 7 + u * u * 12), tx = lx - 2 - Math.min(1, u) * 6 - Math.max(0, u - 1) * 3; blit(LAD.slice(0, 11), tx, ty); rect(tx + 1, ty + 11, 9, 1, 'r') // the top half, dragging itself away
       }
       text(t < snip ? 'CRAZY CRAB' : t < 4.0 ? 'SNIP SNIP' : 'HALF OFF', 'c', 0, t < snip ? 'r' : 'w')
     } },
@@ -1033,7 +809,6 @@ export function initPark25(api, col, o = {}) {
     hotdog: { dur: 6.6, still: 3.0, draw(t) {
       ground()
       const bites = [2.4, 3.2, 4.0].filter((b) => t >= b).length, gulp = t >= 4.8, bx = 14 - bites * 12
-      cue(t, 0.6, 'hotdog-squirt'); cue(t, 1.1, 'hotdog-squirt#2'); [2.4, 3.2, 4.0].forEach((b, i) => cue(t, b, 'hotdog-chomp#' + i)); cue(t, 4.8, 'hotdog-burp')
       if (!gulp) {
         rect(bx + 2, 15, 34, 3, 'n'); rect(bx + 3, 10, 32, 2, 'n') // the bun
         rect(bx - 2, 12, 2, 3, 'b'); rect(bx, 12, 4, 3, 'w'); put(bx + 1, 13, 'd'); rect(bx + 4, 12, 22, 3, 'w'); rect(bx + 10, 12, 3, 3, 'b'); rect(bx + 26, 12, 10, 3, 'd') // him
@@ -1042,57 +817,131 @@ export function initPark25(api, col, o = {}) {
         if (bites < 3) for (let x = 0; x < 10; x++) for (let y = 9; y < 19; y++) off(x, y) // what is in his mouth is gone
         if (t > 2.0) for (let i = 0; i < bites * 6; i++) put(10 + hash(i) * 6, 16 + hash(i + 4) * 4, 'r')
       }
-      big(GIANT, 0, 7)
-      const chewing = [2.4, 3.2, 4.0].some((b) => t >= b && t < b + 0.3); if (chewing) rect(2, 10, 4, 1, 'r')
+      blit(SFG, 0, 7)
+      const chewing = [2.4, 3.2, 4.0].some((b) => t >= b && t < b + 0.3); if (chewing) rect(4, 11, 3, 1, 'r')
       if (gulp) { const u = t - 4.8; rect(8 + u * 26, 8 - u * 14 + u * u * 18, 4, 1, 'b'); if (u < 0.6) for (let i = 0; i < 6; i++) put(9 + i * 2, 8 - i % 2, 'y') }
       text(t < 0.6 ? 'DODGER DOG' : t < 2.4 ? 'RELISH?' : t < 4.8 ? 'CHOMP' : t < 5.6 ? 'BURP' : 'DELISH', 'c', 0, t < 2.4 ? 'w' : 'o')
     } },
-    // ---- idle bits: the kiss cam, The Machine; and the IPO, for the happenings ----
-    // KISS CAM: two fans in the heart; the one in Dodger blue shoves the other out of it, the heart cracks, and the park boos
-    kisscam: { dur: 6.8, still: 3.4, draw(t) {
-      const sc = 1 + 0.05 * Math.sin(t * 6), crack = t > 3.2 ? Math.min(2, (t - 3.2) * 6) : 0
-      for (let i = 0; i < 90; i++) { const a = (i / 90) * Math.PI * 2, x = 16 * Math.sin(a) ** 3, y = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)); put(36 + x * 1.1 * sc + Math.sign(x) * crack, 13.5 + y * 0.45 * sc, 'r') }
-      if (crack) for (let y = 8; y < 21; y++) put(36 + ((y % 2) ? 1 : -1), y, 'd')
-      cue(t, 0.0, 'kisscam-music'); cue(t, 2.6, 'kisscam-shove'); cue(t, 3.0, 'kisscam-boo')
-      const sfx = t < 2.6 ? 26 : 26 - (t - 2.6) * 40, sfy = t < 2.6 ? 9 : 9 - (t - 2.6) * 10 + (t - 2.6) ** 2 * 30
-      big(['.oo.', '.ww.', 'oooo'], sfx, sfy + 1); big(['.bb.', '.ww.', 'bwwb'], 38, 10)
-      if (t > 2.4 && t < 3.0) line(38, 14, 34, 13, 'w')
-      if (t > 3.0) { line(38, 13, 45, 16, 'b'); line(45, 13, 38, 16, 'b') } // arms crossed
-      if (t < 2.6) for (let i = 0; i < 4; i++) { const s = (t * 0.8 + i / 4) % 1; put(36 + Math.sin(s * 9 + i) * 3, 15 - s * 14, 'r') }
-      text(t < 3.0 ? 'KISS CAM' : Math.floor(t * 4) % 2 ? 'BOOOO' : 'BOO!', 'c', 0, t < 3.0 ? 'w' : 'o')
-    } },
-    // THE MACHINE: Brian Wilson's 2010 bit; the bearded closer is interviewed, and a figure in a black leather suit, mask and chains walks by behind him, stops,
-    // looks at us, and walks on; the closer crosses his arms in his X and points up
-    themachine: { dur: 8.0, still: 4.0, draw(t) {
+    // WATERBOARD: strapped to a plank head down, an orange rally towel over his face; the Giant wants two words out of him and pours the Gatorade cooler until he says
+    // them, and a crab from the Cove comes out with the water
+    waterboard: { dur: 9.4, still: 4.0, draw(t) {
       ground()
-      cue(t, 0.8, 'themachine-chains'); cue(t, 2.2, 'themachine-chains#2'); cue(t, 3.0, 'themachine-sting'); cue(t, 3.4, 'themachine-salute')
-      const mxx = t < 3.0 ? 74 - ((t - 0.8) / 2.2) * 44 : t < 4.4 ? 30 : 30 - ((t - 4.4) / 3.0) * 44, step = Math.floor(t * 5) % 2, still = t >= 3.0 && t < 4.4
-      if (t > 0.8) { big(['.dd.', '.dd.', 'dddd', 'dddd', '.dd.', '.dd.', still ? 'd..d' : step ? '.d.d' : 'd.d.'], mxx, 7); put(mxx + 2, 9, 'w'); put(mxx + 5, 9, 'w'); line(mxx + 2, 11, mxx + 5, 11, 'g'); line(mxx, 13, mxx + 7, 18, 'g'); line(mxx + 7, 13, mxx, 18, 'g'); if (still) put(mxx + 3, 9 + (Math.floor(t * 4) % 2), 'w') } // mask, eyes, zipper, chains
-      big(['.dd.', '.ww.', 'dddd', 'owwo', '.ww.', '.dd.', 'd..d'], 14, 7) // the closer, the beard
-      line(30, 11, 24, 11, 'g'); rect(23, 10, 2, 2, 'd') // the microphone
-      if (t > 3.4 && t < 4.6) { line(14, 12, 21, 17, 'o'); line(21, 12, 14, 17, 'o') } // the X
-      if (t >= 4.6 && t < 6.0) line(20, 12, 24, 1, 'o') // and up
-      text(t < 0.8 ? 'POSTGAME' : t < 3.0 ? 'THE MACHINE' : t < 4.6 ? '' : 'FEAR THE BEARD', 'c', 0, t < 3.0 ? 'w' : 'o')
+      const P = (i) => [17 + i, Math.round(17 - i * 0.22)], pour = t > 2.8 && t < 5.6, kick = pour && Math.floor(t * 10) % 2 // along the plank, head end low at the left
+      for (let i = -2; i <= 32; i++) { const [x, y] = P(i); put(x, y + 3, 'n') }
+      line(P(3)[0], P(3)[1] + 4, P(3)[0], 20, 'n'); line(P(28)[0], P(28)[1] + 4, P(28)[0], 20, 'n')
+      for (let i = 0; i < 30; i++) {
+        const [x, y] = P(i), c = i < 2 ? 'b' : i < 6 ? 'o' : i < 17 ? 'w' : i < 26 ? 'g' : 'd', th = i < 17 ? 2 : 1
+        for (let d = -th; d <= th; d++) put(x, y + d - (i >= 26 && kick ? 2 : 0), c)
+      }
+      mini('LA', 25, P(9)[1] - 2, 'b'); for (const i of [7, 21]) line(P(i)[0], P(i)[1] - 2, P(i)[0], P(i)[1] + 2, 'd') // the straps
+      blit(SFG, 1, 7)
+      const tip = pour ? 1 : 0
+      rect(11, 5 + tip, 7, 5, 'o'); rect(11, 4 + tip, 7, 1, 'w'); line(10, 12, 12, 9, 'o') // the cooler, tipped when he pours
+      if (pour) { line(17, 10, 18, 15, 'b'); line(18, 10, 19, 15, 'b'); for (let i = 0; i < 8; i++) { const s = (t * 2 + i / 8) % 1; put(15 + (i - 4) * s * 2, 15 - s * 6 + s * s * 10, 'b') } for (let i = 0; i < 3; i++) put(21 + i * 2, 12 - ((t * 6 + i) % 5), 'w') } // the water, the splashes, bubbles
+      if (t > 1.6 && t < 2.8) bubble(['NEVER'], 34, 0, 24, 12)
+      if (t > 6.6 && t < 8.2) bubble(['GO GIANTS'], 30, 0, 24, 12)
+      if (t > 7.6) { const k = Math.min(1, (t - 7.6) / 1.4); blit(['r...r', '.rrr.', 'r.r.r'], 18 + k * 30, P(Math.min(29, k * 30))[1] - 4) } // the crab, off down the plank
+      text(t < 1.6 ? 'SAY IT' : pour ? (Math.floor(t * 4) % 2 ? 'GLUG' : '') : t > 5.6 && t < 6.6 ? 'SAY IT' : t >= 8.2 ? 'COVE WATER' : '', 'c', 0, 'w')
     } },
-    // IPO: a gong, a ticker that only goes up, and cash coming down
-    ipo: { dur: 6.0, still: 2.4, draw(t, a) {
-      const tick = a?.tick ?? 'NUKE', pct = a?.pct ?? 312
-      cue(t, 0.4, 'ipo-gong'); cue(t, 1.0, 'ipo-ding'); cue(t, 1.2, 'ipo-cash')
-      if (t > 0.4 && t < 0.65) for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if ((x + y) % 2) put(x, y, 'y')
-      if (t > 0.4 && t < 1.6) ring(36, 11, (t - 0.4) * 40, 'y', 0.6)
-      text('$' + tick, 2, 1, 'w'); for (let j = 0; j < 6; j++) line(64 - j, 2 + j, 64 + j, 2 + j, 'y')
-      text(`${Math.round(ease((t - 0.6) / 1.8) * pct)}%`, 'c', 12, 'y')
-      if (t > 1.2) for (let i = 0; i < 30; i++) { const x = hash(i) * GW + Math.sin(t * 5 + i) * 2, y = (t - 1.2) * 8 * (0.6 + hash(i + 9)) - hash(i + 3) * 12; if (y >= 0 && y < GH) rect(x, y, 2, 1, i % 3 ? 'y' : 'w') }
+    // IRON MAIDEN: the Giant shoves him in and slams the door; it oozes; it opens and he walks out fine, more or less, and the Giant hands him a beer
+    ironmaiden: { dur: 8.8, still: 2.6, draw(t) {
+      ground()
+      const mx = 44, shut = t < 1.8 ? 0 : Math.min(1, (t - 1.8) / 0.3) - (t > 4.0 ? Math.min(1, (t - 4.0) / 0.4) : 0), sh = t > 2.1 && t < 2.4 ? (Math.floor(t * 30) % 2 ? 1 : -1) : 0
+      const holes = [...Array(14)].map((_, n) => [1 + Math.floor(hash(n + 40) * 9), 4 + Math.floor(hash(n + 80) * 10)])
+      // the maiden: an iron coffin with a face, spikes inside; the door hinged on its right
+      rect(mx + sh, 4, 14, 17, 'g'); rect(mx + 2 + sh, 8, 10, 12, 'd'); for (let j = 0; j < 4; j++) for (let i = 0; i < 5; i++) put(mx + 2 + i * 2 + (j % 2) + sh, 9 + j * 3, 'w')
+      put(mx + 4 + sh, 5, 'd'); put(mx + 9 + sh, 5, 'd'); line(mx + 5 + sh, 6, mx + 8 + sh, 6, 'd')
+      const gx = t < 1.0 ? 4 : t < 1.8 ? 4 + (t - 1.0) * 10 : t < 4.8 ? 12 : 4 // the Giant, shoving, then back
+      const dx = t < 1.0 ? 22 : t < 1.8 ? 22 + ((t - 1.0) / 0.8) * 23 : t < 4.8 ? 45 : t < 5.6 ? 45 - ((t - 4.8) / 0.8) * 23 : 22 // him
+      if (shut < 1 || t < 1.8) { const me = LAD.slice(); if (t > 4.0) for (const [hx, hy] of holes) me[hy] = me[hy].slice(0, hx) + '.' + me[hy].slice(hx + 1); blit(me, dx + sh, 7) }
+      const dw = Math.round(9 * (1 - shut)) // the door, swung open to the right, closing
+      if (shut >= 1) { rect(mx + 2 + sh, 8, 10, 12, 'g'); line(mx + 7 + sh, 8, mx + 7 + sh, 19, 'd'); for (const y of [9, 14, 19]) { put(mx + 3 + sh, y, 'd'); put(mx + 10 + sh, y, 'd') } }
+      else { rect(mx + 14 + sh, 4, dw, 17, 'g'); for (let j = 0; j < 5; j++) if (dw > 2) put(mx + 14 + sh, 6 + j * 3, 'w') }
+      blit(SFG, gx, 7)
+      if (t > 2.2 && t < 4.4) { const p = Math.min(12, (t - 2.2) * 6); rect(mx + 7 - p, 21, p * 2, 1, 'r'); for (let i = 0; i < 3; i++) put(mx + 13 + sh, 8 + ((t * 8 + i * 4) % 12), 'r') } // it oozes
+      if (t > 5.6) { // a beer for him, and every hole a fountain
+        const cupx = t < 6.0 ? 16 : 25, cupy = t < 6.0 ? 15 : 10
+        rect(cupx, cupy, 2, 3, 'y'); put(cupx, cupy - 1, 'w'); put(cupx + 1, cupy - 1, 'w')
+        if (t > 6.2) for (const [hx, hy] of holes) for (let k = 0; k < 4; k++) { const s = ((t - 6.2) * 2 + k / 4) % 1, dir = hx < 5 ? -1 : 1; put(dx + hx + dir * s * 7, 7 + hy + s * s * 7, 'y') }
+      }
+      text(t < 1.8 ? 'GET IN' : t < 2.8 ? (t > 2.1 ? 'CLANG' : '') : t < 4.0 ? (Math.floor(t * 4) % 2 ? 'OUCH' : '') : t < 5.6 ? '' : t < 6.2 ? 'THIRSTY?' : 'HOLEY MOLEY', 'c', 0, t > 2.1 && t < 2.8 ? 'y' : 'w')
+    } },
+    // THE RACK (the medieval stretcher): he lies on the rack, the Giant cranks, and he gets taller a notch at a time, the board keeping count, until he comes apart
+    rack: { dur: 8.4, still: 3.6, draw(t) {
+      ground()
+      const snap = 5.6, n = Math.max(0, Math.min(11, Math.floor((t - 0.8) / 0.4))), s = n * 2, a = n * (Math.PI / 2) + (t > 0.8 && t < snap ? ((t - 0.8) % 0.4) * 4 : 0)
+      rect(3, 17, 53, 2, 'n'); line(5, 19, 5, 20, 'n'); line(53, 19, 53, 20, 'n'); disc(4, 15, 2, 'n'); disc(54, 15, 2, 'n') // the rack, a roller at each end
+      const hx = 54 + Math.cos(a) * 4, hy = 15 + Math.sin(a) * 4; line(54, 15, hx, hy, 'g') // the crank
+      blit(SFGL, 59, 7); line(59, 13, hx, hy, 'o')
+      // him on his back, head at the left: the cap, the face, the jersey (LA), the pants, the shoes; ropes from his wrists and his ankles to the rollers
+      const xa = 8, lt = 8 + s / 2, lp = 6 + s / 2, gap = t < snap ? 0 : Math.min(9, (t - snap) * 30), jerk = t < snap && (t - 0.8) % 0.4 < 0.08 ? 1 : 0
+      line(4, 15, xa - 1, 14, 'g')
+      rect(xa, 12, 2, 5, 'b'); rect(xa + 2, 12, 4, 5, 'w'); put(xa + 3, 12, 'd'); put(xa + 5, 12, 'd') // looking up
+      rect(xa + 6, 12, lt, 5, 'w'); mini('LA', xa + 6 + Math.round(lt / 2) - 3, 12, 'b')
+      const px = xa + 6 + lt + gap + jerk
+      rect(px, 13, lp, 3, 'g'); rect(px + lp, 12, 2, 5, 'd'); line(px + lp + 2, 14, 52, 15, 'g')
+      if (gap) for (let i = 0; i < 12; i++) { const u = ((t - snap) * 1.5 + i / 12) % 1; put(xa + 6 + lt + gap / 2 + (i - 6) * u * 2, 14 - u * 12 + u * u * 16, 'r') } // what is between
+      const inch = 73 + n * 3
+      text(t < snap ? `${Math.floor(inch / 12)}'${inch % 12}"` : t < 6.6 ? 'SNAP' : 'TWO FOR ONE', 'c', 0, t < snap ? 'w' : 'r')
+    } },
+    // SHE LEFT HIM (30 Oct, Andrew: "a dodger fans wife leaving him because he's a loser"): on the couch in his cap; she has a suitcase and one line for him; a Giant is
+    // waiting at the door and she goes off on his arm; a rain cloud sets up over the couch
+    wifeleaves: { dur: 9.4, still: 2.0, draw(t) {
+      ground()
+      rect(2, 9, 4, 9, 'n'); rect(2, 17, 22, 2, 'n'); rect(22, 14, 3, 4, 'n'); for (const x of [3, 22]) rect(x, 19, 1, 2, 'd') // the couch
+      blit(LADR.slice(0, 11), 6, 4); rect(12, 15, 8, 2, 'g'); rect(18, 17, 2, 3, 'g'); rect(18, 20, 4, 1, 'd') // him, sitting
+      const open = t > 4.0 && t < 6.0
+      line(56, 5, 56, 20, 'n'); line(70, 5, 70, 20, 'n'); line(56, 5, 70, 5, 'n') // the door frame
+      if (t > 3.8 && t < 4.6) blit(SFGL, 58, 7) // a Giant, waiting
+      const wx = t < 3.2 ? 34 : t < 4.4 ? 34 + ((t - 3.2) / 1.2) * 13 : 47 + (t - 4.4) * 22
+      if (t < 6.0) { blit(WIFE, wx, 7); rect(wx + 9, 15, 5, 4, 'g'); put(wx + 11, 14, 'd') } // her and the suitcase
+      if (t > 4.6 && t < 6.0) blit(SFG, 58 + (t - 4.6) * 22, 7) // off on his arm
+      if (!open || t < 3.8) { rect(57, 6, 13, 15, 'n'); put(67, 13, 'y') } // the door, shut
+      if (t > 0.6 && t < 1.7) bubble(["YOU'RE A"], 24, -2, 38, 7); else if (t >= 1.7 && t < 2.8) bubble(['LOSER!'], 28, -2, 38, 7)
+      if (t > 2.8 && t < 3.6) text('?', 18, 0, 'w')
+      if (t > 7.0) { rect(4, 0, 15, 3, 'g'); for (let i = 0; i < 6; i++) put(5 + i * 2 + (i % 2), 3 + ((t * 9 + i * 2) % 3), 'b') } // a cloud of his own
+      if (t > 6.0 && t < 7.4) text('SHE LEFT', 'c', 0, 'w')
+      if (t >= 7.4) { mini('FOR A', 28, 1, 'w'); mini('GIANTS', 28, 7, 'o'); mini('FAN', 28, 13, 'o') }
+    } },
+    // THE BRIDGE (30 Oct, Andrew: "a dodger fan jumping off the bridge because his wife left him"): on the Golden Gate in the fog with a broken heart in a thought
+    // bubble; over the rail, the jump, the long way down, the splash, and his cap floating in the bay until a sea lion tries it on
+    bridgejump: { dur: 9.6, still: 1.6, draw(t) {
+      if (t < 3.6) {
+        rect(4, 0, 2, 22, 'o'); rect(10, 0, 2, 22, 'o'); for (const y of [3, 9]) rect(4, y, 8, 1, 'o') // a tower
+        for (let x = 12; x < GW; x++) { const y = Math.round(1 + (x - 12) * 0.16); put(x, y, 'o'); if (x % 4 === 0) line(x, y + 1, x, 14, 'o') } // the main cable and the suspenders
+        for (let i = 0; i < 10; i++) put((i * 17 + t * 6) % GW, 4 + ((i * 5) % 9), 'g') // fog
+        const climb = Math.max(0, Math.min(1, (t - 1.8) / 0.8)), jump = t > 3.0 ? t - 3.0 : 0
+        const x = 40 + climb * 4, y = 6 - climb * 5 + (t > 2.6 && t < 3.0 ? 1 : 0) - jump * 10 + jump * jump * 70
+        if (y < GH) blit(LADR, x, y)
+        line(0, 15, GW - 1, 15, 'o'); for (let x2 = 0; x2 < GW; x2 += 2) line(x2, 16, x2, 19, 'o'); rect(0, 20, GW, 2, 'o') // the rail and the deck, in front of him
+        if (t < 1.8) { // a broken heart in a thought bubble
+          line(57, 0, 70, 0, 'g'); line(57, 10, 70, 10, 'g'); line(56, 1, 56, 9, 'g'); line(71, 1, 71, 9, 'g')
+          blit(['.rr..rr.', 'rrr..rrr', 'rr..rrrr', '.rrr.rr.', '..r..r..', '...rr...'], 60, 2)
+          put(52, 8, 'w'); rect(54, 6, 2, 2, 'w')
+        }
+        if (jump) text('AAAAH', 'c', 0, 'w')
+        return
+      }
+      const u = t - 3.6
+      rect(0, 0, GW, 1, 'o') // the deck, far above
+      for (let x = 0; x < GW; x++) { put(x, 15 + (Math.sin(x * 0.5 + t * 3) > 0.6 ? 0 : 1), 'b'); line(x, 16, x, GH - 1, (x + Math.floor(t * 3)) % 11 ? 'b' : 'w') }
+      const fy = -14 + u * 30
+      if (fy < 15) upside(LAD).forEach((r, j) => { if (fy + j < 15) blit([r], 30, fy + j) }) // head first
+      if (u > 0.95 && u < 1.7) for (let i = 0; i < 12; i++) { const v = u - 0.95; put(35 + (i - 6) * v * 6, 15 - v * 22 * (0.6 + (i % 3) * 0.2) + v * v * 40, 'w') } // the splash
+      const sea = u > 3.0 ? Math.min(1, (u - 3.0) / 0.5) : 0
+      if (u > 2.0) { const capy = sea > 0.9 ? 22 - sea * 10 - 1 : 15 + Math.round(Math.sin(t * 3)); rect(sea > 0.9 ? 31 : 33, capy, 4, 1, 'b'); put(sea > 0.9 ? 35 : 37, capy, 'b') } // his cap
+      if (sea) blit(SPR.seal[0], 26, 22 - sea * 10)
+      text(u < 1.0 ? 'AAAAH' : u < 2.2 ? 'SPLASH' : 'STILL PAID THE TOLL', 'c', 0, u < 2.2 ? 'w' : 'o')
     } },
   }
-  // the gags: his eleven, the first five and eight more; a shuffled bag, so every gag plays before any plays twice and never the same one twice in a row
-  const GAGS = ['anvil', 'dynamite', 'bonk', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'catapult', 'piano', 'guillotine', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'balloon', 'bp', 'lightning', 'bowling', 'whack', 'driverless', 'crabsnip', 'hotdog']
+  // the gags; a shuffled bag, so every gag plays before any plays twice and never the same one twice in a row
+  const GAGS = ['dynamite', 'bonk', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'catapult', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'balloon', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'rack', 'wifeleaves', 'bridgejump']
   let bag = [], lastGag = null
   function nextGag() {
     if (!bag.length) { bag = GAGS.slice(); for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]] } if (bag[bag.length - 1] === lastGag) bag.unshift(bag.pop()) }
     lastGag = bag.pop(); return lastGag
   }
-  const PRIORITY = { glitch: 10, walkoff: 9, slam: 8, flip: 7, golf: 6, tomahawk: 6, chase: 6, insidejob: 6, seal: 5, nodoubt: 3, kayak: 3, laser: 3, fireworks: 2, odometer: 4, cable: 4, crab: 3, soclose: 3, tater: 3, moon: 3, karl: 2, gulls: 1, bridge: 1, dotrace: 1, wave: 1, beachball: 1, anvil: 6, dynamite: 6, bonk: 6, runover: 6, sealsnack: 6, ipo: 3, kisscam: 1, themachine: 1 }
+  const PRIORITY = {}
   for (const g of GAGS) PRIORITY[g] = 6
   let cur = null, queue = [], wait = 0, idleT = 0, played = []
   // play now (if the board is free) or wait; delay holds it back, e.g. until HOME RUN has flashed
@@ -1106,22 +955,24 @@ export function initPark25(api, col, o = {}) {
     if (!cur) wait = Math.max(wait, delay)
     return true
   }
+  // the gags run a little slower than they were drawn (30 Oct, Andrew: "each of these gags could be a little longer so people can make more sense of them - just a little slower")
+  const PACE = 0.8
   function frame(dt) {
     buf.fill(0)
     if (cur) {
-      cur.t += dt
+      cur.t += dt * PACE
       const A = ANIM[cur.name], tt = o.still && A.still != null ? A.still : cur.t // reduced motion: a gag holds its one still frame for its length
       animT = tt
       A.draw(tt, cur.a)
       if (cur.t >= A.dur) { played.push(cur.name); cur = null; if (!queue.length) idle(idleText) }
     } else if (queue.length && (wait -= dt) <= 0) {
-      const n = queue.shift(); cur = { name: n.name, a: n.a, t: 0 }; idleT = 0; wait = 0; fired = new Set()
+      const n = queue.shift(); cur = { name: n.name, a: n.a, t: 0 }; idleT = 0; wait = 0
       const A = ANIM[cur.name], tt = o.still && A.still != null ? A.still : 0
       animT = tt; A.draw(tt, cur.a)
     } else {
       drawLines()
-      // idle: now and then a gull steals fries or the bridge shows, while the board just scrolls the batter's name
-      if (marquee && !flash && o.idleAnims !== false && (idleT += dt) > 26 + Math.random() * 14) { idleT = 0; const I = ['gulls', 'bridge', 'dotrace', 'wave', 'beachball', 'kisscam', 'themachine', 'GAG', 'GAG', 'GAG']; let n = I[Math.floor(Math.random() * I.length)]; if (n === 'GAG') n = nextGag(); play(n, { seed: Math.floor(Math.random() * 1000) }) }
+      // idle: the board scrolls the batter's name, and now and then a gag plays
+      if (marquee && !flash && o.idleAnims !== false && (idleT += dt) > 26 + Math.random() * 14) { idleT = 0; play(nextGag()) }
     }
     paint()
   }
@@ -1227,9 +1078,9 @@ export function initPark25(api, col, o = {}) {
     board, names: () => Object.keys(ANIM), anim: () => cur?.name ?? null, queued: () => queue.map((q) => q.name), played: () => [...played],
     // for the tests: how many LEDs are lit right now, and the board's size in LEDs
     litCount: () => buf.reduce((s, k) => s + (k ? 1 : 0), 0), size: [GW, GH],
-    dur: (n) => ANIM[n]?.dur,
+    dur: (n) => ANIM[n]?.dur, pace: PACE,
     // draw one frame of an animation at time t right now (the next tick redraws); returns how many LEDs it lit, and the board as a picture when asked
-    peek(n, tt, a = {}, pic = false) { const f = fired; fired = null; buf.fill(0); animT = tt; ANIM[n].draw(tt, a); fired = f; paint(); return { lit: buf.reduce((s, k) => s + (k ? 1 : 0), 0), url: pic ? out.toDataURL() : null } },
+    peek(n, tt, a = {}, pic = false) { buf.fill(0); animT = tt; ANIM[n].draw(tt, a); paint(); return { lit: buf.reduce((s, k) => s + (k ? 1 : 0), 0), url: pic ? out.toDataURL() : null } },
     // the rivalry: the next gag from the bag (c25 plays it after a Giants home run against the Dodgers), the whole list, and for the tests a hash of the board
     nextGag, gags: () => [...GAGS], still: (n) => ANIM[n]?.still ?? null, sig: () => { let h = 0; for (let i = 0; i < buf.length; i++) h = (h * 31 + buf[i]) | 0; return h },
     // the wind on the pennants: { fromDeg, mph, cfDeg? } (null: the gentle wave), and what is set

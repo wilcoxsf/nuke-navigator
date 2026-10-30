@@ -3,6 +3,9 @@
 // at any distance and fade toward the horizon. The ballpark stands in it like an island; the post shader's edge ink outlines the shore.
 //   B1 SWELL: broken whitecaps on two swells rolling in from the bay   B2 SHIMMER: still crests, short glints that come and go   B3 SHORE LINES: broken rings rolling in
 //   B4 WAKES: still water, a boat's V-wake circling the park now and then   B0 STILL: the crests, not moving
+//   B5 RIPPLE RINGS (30 Oct, Andrew: "I actually sort of like the way water is handled in this view - can we re-institute these circles that grow and shrink"):
+//      the first version's sea (main.js): four crossing swells summed, a lighter tone where they stack up and a line round each patch and round its peak, so
+//      the rings swell, split and shrink as the swells move through each other
 // Still under prefers-reduced-motion. The water level is exported for the kayaks, the sea lion and the splash.
 // the sea's level in the plate frame (m below the field; Oracle's field is about at sea level); the kayaks, the sea lion and a splash use it too
 export const WATER_Z = -1.6
@@ -47,6 +50,11 @@ export function initWater25(api, o = {}) {
           // shore lines: broken rings around the park rolling in toward it
           float r = distance(p, center), f = (r + time * 6.) / 30., k = floor(f + 0.5), a = atan(p.y - center.y, p.x - center.x);
           v = lineAt(f) * smoothstep(0.5, 0.75, noise(vec2(a * 9., k * 0.5))) * 0.42 * smoothstep(150., 220., r);
+        } else if (mode > 4.5) {
+          // ripple rings: the first version's sea, in ink on black
+          float h = sin(p.x * 0.115 + time * 0.8) + sin(p.y * 0.150 - time * 0.6) + sin((p.x + p.y) * 0.074 + time * 0.45) + 0.5 * sin((p.x - p.y) * 0.250 - time * 1.1);
+          float w = max(fwidth(h), 1e-4), e1 = 1. - smoothstep(0.8, 1.8, abs(h - 0.35) / w), e2 = 1. - smoothstep(0.8, 1.8, abs(h - 1.9) / w);
+          v = step(0.35, h) * 0.07 + max(e1 * 0.2, e2 * 0.34);
         } else {
           // wakes: still crests, and a V-wake behind a boat circling the park
           v = caps(p, normalize(vec2(0.12, 0.99)), 24., 0., 0., 0.) * 0.22;

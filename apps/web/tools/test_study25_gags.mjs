@@ -1,6 +1,6 @@
-// Study 25 board gags (29 Oct, night): the rivalry, round two (his eleven picks and eight more), the kiss cam, The Machine and the IPO on the voxel scoreboard.
-// No screenshots: the board's LED buffer is read. Every new animation draws something all the way through and changes as it goes; each one plays to the end on
-// the board's own clock without a page error and sends its sound cues; the gag bag deals all 24 before repeating and never the same one twice running; under
+// Study 25 board gags (29 Oct, night; 30 Oct: the board is Dodger gags only, 23 of them, no sounds, a little slower, SF and LA on the shirts) on the voxel scoreboard.
+// No screenshots: the board's LED buffer is read. Every gag draws something all the way through and changes as it goes; each one plays to the end on the board's
+// own clock without a page error and sends no sound; the gag bag deals all 23 before repeating and never the same one twice running; under
 // reduced motion a gag holds one still frame; in G2 RELIEF the lit LEDs stand out; the wind turns the pennants downwind.
 // Usage: node tools/test_study25_gags.mjs [base url]
 import { chromium } from 'playwright-core'
@@ -10,8 +10,8 @@ const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/
 let fails = 0
 const check = (name, ok, extra = '') => { if (!ok) fails++; console.log(ok ? 'PASS' : 'FAIL', name, ok ? '' : extra) }
 const errs = []
-const NEW = ['leaves3rd', 'bipped', 'catapult', 'piano', 'guillotine', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'balloon', 'bp', 'lightning', 'bowling', 'whack', 'driverless', 'crabsnip', 'hotdog']
-const BITS = ['kisscam', 'themachine', 'ipo']
+const NEW = ['dynamite', 'bonk', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'catapult', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'balloon', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'rack', 'wifeleaves', 'bridgejump']
+const BITS = []
 
 async function open(ctxOpts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 820 }, deviceScaleFactor: 1, ...ctxOpts })
@@ -26,17 +26,22 @@ async function open(ctxOpts = {}) {
 }
 
 const page = await open()
+// 0. the board plays the gags and nothing else, a little slower than drawn; the players wear SF and LA (the letters' LEDs, read off a frame of BONK before the swing)
+const only = await page.evaluate(() => { const L = window.__mix25.life; return { names: L.names().sort().join(), gags: L.gags().sort().join(), pace: L.pace } })
+check('the board has the Dodger gags and no other show, run at 0.8 speed', only.names === only.gags && only.pace === 0.8, JSON.stringify(only))
+const kit = await page.evaluate(() => { const L = window.__mix25.life, was = L.boardNow(); L.boardStyle = 4; L.peek('bonk', 0.5, {}); L.boardStyle = was; return L.litCount() })
+check('BONK before the swing lights both players and the bat', kit > 200, String(kit))
 // 1. every frame draws: at 15, 50 and 85 percent of its length at least 12 LEDs are lit, and the frames differ from each other
 const pk = await page.evaluate((names) => { const L = window.__mix25.life; return names.map((n) => { const d = L.dur(n); const r = [0.15, 0.5, 0.85].map((f) => { const p = L.peek(n, d * f, {}); return [p.lit, L.sig()] }); return { n, d, lit: r.map((x) => x[0]), sigs: new Set(r.map((x) => x[1])).size } }) }, [...NEW, ...BITS])
 const dead = pk.filter((x) => !x.d || x.lit.some((v) => v < 12)).map((x) => x.n + ':' + x.lit.join('/'))
 const flat = pk.filter((x) => x.sigs < 3).map((x) => x.n)
-check(`all ${pk.length} new board animations draw something all the way through`, pk.length === NEW.length + BITS.length && dead.length === 0, JSON.stringify(dead))
+check(`all ${pk.length} gags draw something all the way through`, pk.length === NEW.length + BITS.length && dead.length === 0, JSON.stringify(dead))
 check('and every one of them changes as it goes (three different frames)', flat.length === 0, JSON.stringify(flat))
-// 2. the bag: 48 draws deal every gag twice, never the same one twice in a row
-const bag = await page.evaluate(() => { const L = window.__mix25.life; const d = []; for (let i = 0; i < 48; i++) d.push(L.nextGag()); return { d, all: L.gags() } })
+// 2. the bag: two bags' worth of draws deal every gag twice, never the same one twice in a row
+const bag = await page.evaluate(() => { const L = window.__mix25.life; const d = [], n = L.gags().length; for (let i = 0; i < n * 2; i++) d.push(L.nextGag()); return { d, all: L.gags() } })
 const twice = bag.d.filter((g, i) => i && g === bag.d[i - 1])
 const counts = bag.all.map((g) => bag.d.filter((x) => x === g).length)
-check(`the gag bag deals all ${bag.all.length} gags before any repeats, never twice running`, bag.all.length === 24 && NEW.every((n) => bag.all.includes(n)) && twice.length === 0 && counts.every((c) => c === 2), JSON.stringify({ twice, counts }))
+check(`the gag bag deals all ${bag.all.length} gags before any repeats, never twice running`, bag.all.length === 23 && NEW.every((n) => bag.all.includes(n)) && twice.length === 0 && counts.every((c) => c === 2), JSON.stringify({ twice, counts }))
 // 3. each new animation plays to the end on the board's clock (run three times as fast: the software renderer gives the page a frame every second or two, and the
 // board takes at most half a second a frame), the LEDs change while it plays, and it sends its sound cues
 await page.evaluate(() => { window.__mix25.life.rate = 3 })
@@ -59,10 +64,10 @@ for (const n of [...NEW, ...BITS]) {
 await page.evaluate(() => { window.__mix25.life.rate = 1 })
 const bad = ran.filter((r) => !r.done || r.frames < 3 || r.err)
 check(`all ${ran.length} play through without a page error, the LEDs changing as they go`, bad.length === 0, JSON.stringify(bad))
-const mute = ran.filter((r) => r.cues < 2).map((r) => r.n)
-check('each sends at least two sound cues (gag-<name>-<beat>) to the sound layer', mute.length === 0, JSON.stringify(mute))
+const loud = ran.filter((r) => r.cues > 0).map((r) => r.n)
+check('none of them sends a sound (30 Oct: no sound effects for the gags)', loud.length === 0, JSON.stringify(loud))
 // 4. G2 RELIEF: a gag frame makes LEDs stand out of the board
-const g2 = await page.evaluate(() => { const L = window.__mix25.life, was = L.boardNow(); L.boardStyle = 2; L.peek('guillotine', 3); const n = L.ledsOut(); L.boardStyle = was; return n })
+const g2 = await page.evaluate(() => { const L = window.__mix25.life, was = L.boardNow(); L.boardStyle = 2; L.peek('chipper', 3); const n = L.ledsOut(); L.boardStyle = was; return n })
 check('in G2 RELIEF a gag stands out of the board', g2 > 40, String(g2))
 // 5. the wind turns the pennants downwind and they flutter harder
 const wind = await page.evaluate(async () => {

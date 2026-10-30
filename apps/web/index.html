@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // one canonical version (30 Oct, Andrew: "we only need like one canonical version that actually shows up"): an address without mode= opens Study 25, keeping
+      // whatever else it carries (the friends' ?t= token, show=reel); the first version's page stays reachable with ?real=, ?look= or ?legacy=1
+      ;(() => { const q = new URLSearchParams(location.search); if (q.has('mode') || ['real', 'look', 'legacy'].some((k) => q.has(k))) return; q.set('mode', 'dojo'); if (!q.has('ui')) q.set('ui', 'K'); if (!q.has('cp')) q.set('cp', '25'); location.replace(location.pathname + '?' + q + location.hash) })()
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />

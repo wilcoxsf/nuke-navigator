@@ -160,10 +160,11 @@ for (const [w, h] of SIZES) {
     await page.keyboard.press('t'); await page.waitForTimeout(300)
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(600)
-    // 30 Oct (Andrew: RIDE IT "no one wants that. Kill that feature entirely"): with every choice locked there is no dock, and ? opens nothing
+    // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
-    const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), dock: document.querySelector('#c25dk').innerHTML.trim(), mx: document.querySelector('#c25mx').hidden, ride: !!document.querySelector('#c25ri') }))
-    check('everything locked: ? opens no dock, the MIX group is hidden, no RIDE IT', !dk.open && dk.dock === '' && dk.mx && !dk.ride, JSON.stringify(dk))
+    const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
+    check('? opens the dock with every choice; no RIDE IT', dk.open && dk.chips === 25 && !dk.ride, JSON.stringify(dk))
+    await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
     const lpx = await page.evaluate(() => ({ t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), rows: document.querySelectorAll('#c25hb .lpr').length }))
@@ -427,8 +428,8 @@ if (!process.env.PHONE_ONLY && on('C')) {
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
   const dead = pk.filter((x) => x.r.some((v) => v < 12)).map((x) => x.n)
   check(`all ${pk.length} board animations draw something all the way through`, pk.length >= 18 && dead.length === 0, JSON.stringify(dead))
-  await page.evaluate(() => window.__mix25.life.play('crab')); let done = false
-  for (let k = 0; k < 120 && !done; k++) { await page.waitForTimeout(500); done = await page.evaluate(() => window.__mix25.life.played().includes('crab') && !window.__mix25.life.anim()) } // the board runs on frame time, slow under the software renderer
+  await page.evaluate(() => window.__mix25.life.play('bonk')); let done = false
+  for (let k = 0; k < 120 && !done; k++) { await page.waitForTimeout(500); done = await page.evaluate(() => window.__mix25.life.played().includes('bonk') && !window.__mix25.life.anim()) } // the board runs on frame time, slow under the software renderer
   const after = await page.evaluate(() => ({ lit: window.__mix25.life.litCount(), t: window.__mix25.life.text() }))
   check('an animation plays through and the board goes back to its text', done && after.lit > 20, JSON.stringify(after))
   // real flights: a seats home run, a splash, a scraper, a wall ball (found with the engine's own probe)
@@ -454,28 +455,30 @@ if (!process.env.PHONE_ONLY && on('C')) {
   check('the new seat moments build: GULL GRAB, GOOD BOY, BEER SHOWER', nm.gull >= 1 && nm.dog >= 1 && nm.beer >= 1 && nm.log.join() === 'gull,dog,beer', JSON.stringify(nm))
   await page.waitForTimeout(3600)
   check('a splash hit: the sea lion surfaces in the Cove, on screen', s2.key !== 'SPLASH' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
-  let q = []
-  for (let k = 0; k < 40 && !(q.includes('seal') && q.includes('odometer')); k++) { await page.waitForTimeout(500); q = await page.evaluate(() => [...window.__mix25.life.played(), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
-  check('a splash hit plays SEA LION then the SPLASH ODOMETER on the board', s2.key !== 'SPLASH' || (q.includes('seal') && q.includes('odometer')), JSON.stringify({ key: s2.key, q }))
+  // (30 Oct: the board plays Dodger gags and nothing else)
+  const onlyGags = () => page.evaluate(() => { const L = window.__mix25.life, g = L.gags(); return [...L.played(), L.anim(), ...L.queued()].filter((n) => n && !g.includes(n)) })
+  await page.waitForTimeout(3000)
+  check('a splash hit plays no board show (the board is Dodger gags only)', (await onlyGags()).length === 0, JSON.stringify(await onlyGags()))
   const find = (key, la, dir) => page.evaluate(([key, la, dir]) => { for (let ev = 88; ev <= 112; ev += 0.25) { const r = window.__dojoProbe({ ev, la, dir, hand: 1, temp: 70, wind: 0, carry: 1, dws: 0 }); if (r.key === key) return ev } return null }, [key, la, dir])
   const evW = await find('WALL', 30, 0), evS = await find('SCRAPER', 30, 0)
   if (evW) { const s3 = await swing({ ev: evW, la: 30, dir: 0, hand: 1, temp: 70, wind: 0 }); check('a ball off the wall: dust and the ball dropping, at the wall', s3.moment === 'dust' && s3.boxes.some((b) => b.on), JSON.stringify(s3)) } else check('found a WALL swing to test', false)
   await page.waitForTimeout(3000)
   if (evS) {
     await swing({ ev: evS, la: 30, dir: 0, hand: 1, temp: 70, wind: 0 })
-    let cq = []
-    for (let k = 0; k < 30 && !cq.includes('crab'); k++) { await page.waitForTimeout(500); cq = await page.evaluate(() => [...window.__mix25.life.played().slice(1), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
-    check('a wall scraper sends CRAZY CRAB across the board', cq.includes('crab'), JSON.stringify(cq))
+    await page.waitForTimeout(3000)
+    check('a wall scraper plays no board show', (await onlyGags()).length === 0, JSON.stringify(await onlyGags()))
   } else check('found a SCRAPER swing to test', false)
-  // OFF THE MENU in the replay: a GOLF SHOT home run plays the golfer
-  await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && window.__mix25.offZone(b)?.where === 'low')); await page.waitForTimeout(800)
-  await page.click('#c25go')
-  let gq = []
-  for (let k = 0; k < 60 && !gq.includes('golf'); k++) { await page.waitForTimeout(500); gq = await page.evaluate(() => [...window.__mix25.life.played(), window.__mix25.life.anim(), ...window.__mix25.life.queued()]) }
-  check('an OFF THE MENU low pitch home run plays GOLF SHOT on the board', gq.includes('golf'), JSON.stringify(gq.slice(-5)))
-  // TWEAK THE TATER plays its board gag
+  // a Giants home run against the Dodgers in the replay plays a gag
+  const vsLA = await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD'))); await page.waitForTimeout(800)
+  if (vsLA >= 0) {
+    await page.click('#c25go')
+    let gq = []
+    for (let k = 0; k < 60 && !gq.some((n) => n); k++) { await page.waitForTimeout(500); gq = await page.evaluate(() => { const L = window.__mix25.life, g = L.gags(); return [L.anim(), ...L.queued()].filter((n) => n && g.includes(n)) }) }
+    check('a Giants home run against the Dodgers plays a Dodger gag on the board', gq.length > 0 && (await onlyGags()).length === 0, JSON.stringify({ gq, other: await onlyGags() }))
+  }
+  // TWEAK THE TATER no longer plays anything on the board
   await page.click('#c25tw'); await page.waitForTimeout(600)
-  check('TWEAK THE TATER plays the potato on the board', await page.evaluate(() => [window.__mix25.life.anim(), ...window.__mix25.life.queued(), ...window.__mix25.life.played()].includes('tater')))
+  check('TWEAK THE TATER plays no board show', (await onlyGags()).length === 0, JSON.stringify(await onlyGags()))
   // Z2 PUSH eases the camera toward the landing and brings it back
   await page.evaluate(() => window.__mix25.set('L2P5A2T1F1Z2')); await page.waitForTimeout(500)
   const cam0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
@@ -497,7 +500,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with five lines (29 Oct: Shot Caller its own mode; 30 Oct: no OPTIONS with nothing open)', m0.open && m0.n === 5 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with seven lines (29 Oct: Shot Caller its own mode; 30 Oct: OPTIONS with every choice, GAG REEL)', m0.open && m0.n === 7 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -673,10 +676,10 @@ if (!process.env.PHONE_ONLY && on('H')) {
   check('Q1 is the bulbs (no voxel letters), Q3 the voxel sign at night, Q2 back', sgs[0][0] === 1 && sgs[0][1] && sgs[0][2] === 0 && sgs[1][0] === 3 && !sgs[1][1] && sgs[1][2] > 1000 && sgs[2][0] === 2, JSON.stringify(sgs))
   // the scoreboard: G2 RELIEF by default (lit LEDs stand out of it), the four looks switch, the new animations draw
   const bd = []
-  for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('laser', { ev: 113 }, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
+  for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('bonk', {}, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
   check('G1 to G4: the voxel board (cubes, relief, flip dots) or the old bulbs, the lit LEDs counted on the voxel ones', bd.every((x, i) => x.g === [2, 1, 3, 4, 2][i]) && bd.filter((x) => x.g !== 4).every((x) => x.vox && !x.bulbs && x.out > 20) && bd[3].bulbs && !bd[3].vox, JSON.stringify(bd))
-  const an = await page.evaluate(() => { const L = window.__mix25.life; L.boardStyle = 4; const r = ['laser', 'nodoubt', 'fireworks', 'kayak', 'dotrace', 'wave', 'beachball'].map((n) => [n, L.peek(n, L.dur(n) * 0.55, { ev: 113, seed: 3 }).lit]); L.boardStyle = 2; return r })
-  check('the new board animations draw (laser, no doubt, fireworks, kayaks, dot race, the wave, beach ball)', an.every(([, n]) => n > 10), JSON.stringify(an))
+  const an = await page.evaluate(() => { const L = window.__mix25.life; L.boardStyle = 4; const r = L.gags().map((n) => [n, L.peek(n, L.dur(n) * 0.55, {}).lit]); L.boardStyle = 2; return r })
+  check('the gags draw on the old bulbs too (G4)', an.length === 23 && an.every(([, n]) => n > 10), JSON.stringify(an))
   await page.evaluate(() => window.__mix25.life.signFx('hr')); await page.waitForTimeout(400)
   check('a home run still lights the sign', await page.evaluate(() => window.__mix25.life.signState() === 'hr'))
   // the model's own sign and its own mound and boxes are out of the wire; ours are in
@@ -691,7 +694,7 @@ if (!process.env.PHONE_ONLY && on('H')) {
   for (let k = 0; k < 20 && !(await page.evaluate(() => !!window.__mix25.coke())); k++) await page.waitForTimeout(300)
   const ck = []
   for (const C of [1, 2, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'C' + C); await page.waitForTimeout(400); ck.push(await page.evaluate(() => { const c = window.__mix25.coke(); return { s: c.styleNow(), shown: c.shown(), n: c.count() } })) }
-  check('the Coke corner in voxels on the model wireframe: the bottle with its lip capped, the painted Coca-Cola label, a slide, three kids, the mitt; C2 paints it red', ck[0].shown && ck[0].n.bottle > 5000 && ck[0].n.cap > 20 && ck[0].n.label === 1 && ck[0].n.slide > 100 && ck[0].n.kids === 3 && ck[0].n.glove > 800 && ck[1].s === 2 && ck[2].s === 1, JSON.stringify(ck))
+  check('the Coke corner in voxels on the model wireframe: the bottle neck up with its mouth open (no cap), the painted Coca-Cola label, a slide, three kids, the mitt; C2 paints it red', ck[0].shown && ck[0].n.bottle > 5000 && ck[0].n.cap === 0 && ck[0].n.label === 1 && ck[0].n.slide > 100 && ck[0].n.kids === 3 && ck[0].n.glove > 800 && ck[1].s === 2 && ck[2].s === 1, JSON.stringify(ck))
   const kid = await page.evaluate(async () => { const c = window.__mix25.coke(), a = [0, 1, 2].map((i) => c.kidAt(i)); await new Promise((r) => setTimeout(r, 3000)); return { moved: Math.max(...a.map((p, i) => p.distanceTo(c.kidAt(i)))), cut: window.__mix25.cut() } }) // (30 Oct: the slower ladder climb; all three, over 3 s)
   check('the kids keep moving (up the inside, down the slide), and the model\'s own sign, board, bottle and glove are cut out of it', kid.moved > 0.2 && kid.cut > 5000, JSON.stringify(kid))
   // red team, 29 Oct: in DEJA-VU the arrows and + no longer edit the real ball behind your back
@@ -793,7 +796,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone (five modes: no OPTIONS with nothing open)', sm.open && sm.n === 5 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone (seven lines)', sm.open && sm.n === 7 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()

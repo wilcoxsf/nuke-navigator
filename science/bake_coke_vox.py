@@ -2,8 +2,8 @@
 History: 29 Oct, Andrew: "Can we actually build voxel coke bottle and mitt instead of having the 3D models?"; later the same day the wireframe-edge voxels read as
 scattered noise ("The coke bottle not there yet ... The coca cola text needs to be in voxel"), so this bake works from the model's surfaces instead.
   the bottle: the model's bottle is a skeleton (ten rings round it and eleven tubes along it, the slides). Its envelope (the outer edge of those triangles along the
-    bottle's own axis) is revolved into a closed shell of 0.25 m cubes: hollow, closed at the base, a lip ring at the mouth and a red cap on it. The model lies with
-    its neck at the low end, by the concourse. Its middle is the red
+    bottle's own axis) is revolved into a closed shell of 0.25 m cubes: hollow, closed at the base, a lip ring round the open mouth (30 Oct: no cap, so it reads hollow).
+    It stands on its base by the concourse with its neck up (30 Oct: the model has it the other way round). Its middle is the red
     label, and "Coca-Cola" in a bold script runs along it in white cubes of 0.2 m raised off the label, facing home plate, upright and reading left to right from there.
   the glove: the model's glove triangles voxelized at 0.25 m, closed and filled solid (no hole through it), drawn as its shell.
 Output: apps/web/public/coke_vox.json (git-ignored: derived from the park model). Usage: py science/bake_coke_vox.py (needs trimesh, scipy, Pillow: the cadenv python)
@@ -98,6 +98,9 @@ prof = np.array(prof)
 prof = ndi.median_filter(prof, size=5, mode="nearest")
 prof = ndi.uniform_filter1d(prof, size=3, mode="nearest")
 print("length", round(L, 2), "radius profile", np.round(prof, 2).tolist())
+# 30 Oct (Andrew: "The coke bottle is backwards and not hollow lol"): the real one stands on its base with its neck up, so the outline is turned end for end
+# along the same axis: the wide base where the model's neck was (low, by the concourse), the neck at the high end
+u, s0, s1 = -u, -s1, -s0
 
 
 def R(t):  # t in 0..100 along the bottle
@@ -129,6 +132,7 @@ rc = np.linalg.norm(d - sc[..., None] * u, axis=-1)
 tc = (sc - s0) / L * 100
 solid = (tc >= 0) & (tc <= 100) & (rc <= Rshell(np.clip(tc, 0, 100)))
 shell = solid & ~ndi.binary_erosion(solid, structure=ndi.generate_binary_structure(3, 1))
+shell &= ~((tc > 97.5) & (rc < Rshell(np.clip(tc, 0, 100)) - 1.5 * V))  # the mouth open, no cap: it reads hollow
 ijk = np.argwhere(shell)
 tt = tc[shell]
 
@@ -148,7 +152,7 @@ code[(np.abs(((ang - aC - 0.9) + np.pi) % (2 * np.pi) - np.pi) < 0.12) & (tt > 6
 code[(tt >= LB[0]) & (tt <= LB[1])] = 2
 code[((np.abs(tt - LB[0]) < 0.6) | (np.abs(tt - LB[1]) < 0.6))] = 3
 code[(tt >= LIP[0]) & (tt < LIP[1])] = 5
-code[tt >= CAP] = 4
+code[tt >= CAP] = 5  # the rim of the open mouth, like the lip
 print("shell cubes", len(ijk), {k: int((code == k).sum()) for k in range(6)})
 
 # ---- the word: "Coca-Cola" in a bold script along the bottle, as white cubes of 0.2 m raised off the label ----

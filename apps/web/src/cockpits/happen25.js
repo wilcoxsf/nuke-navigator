@@ -1,24 +1,19 @@
 // Study 25 happenings around the park (29 Oct, later, Andrew: "more fun voxel happenings too"; 29 Oct, night: "Can we get more of those zany happenings?"): things going
-// on while nobody is swinging, all in cubes. Always there: a Giants blimp circling high over the park, a ferry crossing the bay beyond right field, a driverless car
-// working up and down Terry Francois Blvd, a startup's sign on a roof across the Cove, and the SPLASH HITS counter on the right-field wall. Now and then (one at a time,
-// every 20 to 40 s, never while a ball is up):
+// on while nobody is swinging, all in cubes. Always there: a Giants blimp circling high over the park, a ferry crossing the bay beyond right field, and the SPLASH
+// HITS counter on the right-field wall. Now and then (one at a time, every 20 to 40 s, never while a ball is up):
 //   SEAL         a seal bobs up in McCovey Cove, sometimes balancing a ball on its nose        MOLE      a mole in a hard hat pops out of the outfield grass and looks around
-//   SERPENT      a sea serpent's three humps loop through the bay, then its head comes up     STARTUP   a new AI company: the sign on the roof across the Cove is replaced
-//   IPO          the startup goes public: cash rains on the stands, the board gets the ticker  EVICT     a couch, boxes and a lamp come out of a window onto the sidewalk
-//   ROBOCAR      the driverless car stops with a cone on its hood and honks                   JETS      Fleet Week: five jets over the park with smoke trails
+//   SERPENT      a sea serpent's three humps loop through the bay, then its head comes up     JETS      Fleet Week: five jets over the park with smoke trails
 //   ESCAPEE      an Alcatraz escapee paddles a raft across the bay, ball and chain aboard      FRIES     a gull steals a fan's garlic fries in the stands
-//   CABLECAR     a cable car rolls along King Street, riders hanging off, bell going           WHALE     a whale breaches beyond the Cove
-// The park stands in the sea like an island (water25.js). Two quays are added: King Street along the third-base side (where the real street runs from Third,
-// behind home, to Second, past left field) with a block across it and Second Street along the water beyond left field; and Mission Rock across McCovey Cove,
-// beyond right-center, with Terry Francois Blvd and two low buildings. From the broadcast seat the third-base stands and the readout hide King Street, while
-// Mission Rock sits clear to the right of the scoreboard, so the startup's roof, the eviction and the driverless car are there; the cable car comes up King and
-// turns onto Second. Plate frame as everywhere: x to the right, y toward center field, z up, metres.
+//   WHALE        a whale breaches beyond the Cove
+// The park stands in the sea like an island (water25.js), and nothing else: 30 Oct, Andrew: "kill the entire road, buildings, etc in the background it's just the
+// ballpark and the ocean" (King Street, Second Street, Mission Rock and its buildings went, and with them the startup, the IPO, the eviction, the driverless car and
+// the cable car). Plate frame as everywhere: x to the right, y toward center field, z up, metres.
 // Nothing starts while a ball is in the air, and the ones that come into the field or the Cove keep clear of the last flight's track and landing (its labels sit
 // there). Oracle only. Under reduced motion nothing moves and nothing is scheduled. Sounds go out as window.__nnSound('happen-<name>-<beat>', { at }).
 import { WATER_Z } from './water25.js'
 import { FONT } from './vox25.js'
 const GLYPH = { ...FONT, $: ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'], '!': ['#', '#', '#', '#', '#', '.', '#'] }
-export const HAPPENINGS = ['seal', 'mole', 'serpent', 'startup', 'ipo', 'evict', 'robocar', 'jets', 'escapee', 'fries', 'cablecar', 'whale']
+export const HAPPENINGS = ['seal', 'mole', 'serpent', 'jets', 'escapee', 'fries', 'whale']
 export function initHappen25(api, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld, cube = new THREE.BoxGeometry(1, 1, 1), still = !!o.still
@@ -60,90 +55,6 @@ export function initHappen25(api, o = {}) {
   for (let x = -6; x <= 5; x++) for (let z = -2; z <= 2; z++) for (let y = 2; y <= 3; y++) F.push([x, y, z, Math.abs(z) === 2 && x % 2 ? '#1f2a3a' : '#e9e6dc'])
   for (let y = 4; y <= 6; y++) F.push([1, y, 0, y === 6 ? '#fd5a1e' : '#141414'])
   const ferry = build(F, 1.2)
-
-  // ---------------- King Street: a quay along the third-base side, the street, its sidewalks, rails, and a block across it ----------------
-  // King Street across x (plate): the park's sidewalk -145..-139, the road -161..-145 (rails down the middle at -153, cars at -148.5 going out and -157.5 coming
-  // back), the far sidewalk -167..-161, buildings -197..-169, from behind home (y -95) to the corner with Second Street past left field. Second Street runs from
-  // that corner toward center field across y 199..215 (rails at 207), its far sidewalk 215..221, then
-  // the water. The readout covers the corner from the broadcast seat (it sits at the readout's height), so only the cable car's turn happens there.
-  const K = { y0: -95, y1: 207, rail: -153, up: -148.5, down: -157.5, face: -169, sy: 207, sUp: 202.5, sDown: 211.5, sx1: -55, sFace: 221 }
-  const slabs = {}, slab = (x0, x1, y0, y1, z0, z1, c) => { const a = P(x0, y0, z0), b = P(x1, y1, z1); (slabs[c] ??= []).push([(a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, Math.abs(b.x - a.x), Math.abs(b.y - a.y), Math.abs(b.z - a.z)]) } // drawn once per color below
-  slab(-200, -96, -100, 186, WATER_Z - 0.6, -0.35, '#2a2b2e'); slab(-200, -48, 186, 262, WATER_Z - 0.6, -0.35, '#2a2b2e') // the quay, under the stands' edge so no water shows between
-  slab(-145, -139, K.y0, 199, -0.35, -0.12, '#5c5d60'); slab(-167, -161, K.y0, 221, -0.35, -0.12, '#5c5d60') // King Street's sidewalks
-  slab(-145, -50, 195, 199, -0.35, -0.12, '#5c5d60'); slab(-161, -50, 215, 221, -0.35, -0.12, '#5c5d60') // Second Street's
-  slab(-161, -145, K.y0, 215, -0.35, -0.25, '#17181b'); slab(-145, -50, 199, 215, -0.35, -0.25, '#17181b')
-  for (const dx of [-0.75, 0.75]) { slab(K.rail + dx - 0.12, K.rail + dx + 0.12, K.y0, K.sy + 0.87, -0.25, -0.15, '#8a8f99'); slab(K.rail - 0.87, K.sx1, K.sy + dx - 0.12, K.sy + dx + 0.12, -0.25, -0.15, '#8a8f99') }
-  { const L = []
-    for (let y = K.y0 + 2; y < 196; y += 6) for (const x of [-151, -155]) L.push([P(x, y + 1.5, -0.2), 0])
-    for (let x = -143; x < -56; x += 6) for (const y of [205, 209]) L.push([P(x + 1.5, y, -0.2), 1]) // dashes beside the rails
-    const m = new THREE.InstancedMesh(cube, lam('#d9c25a'), L.length), m4 = new THREE.Matrix4()
-    L.forEach(([w, cross], i) => m.setMatrixAt(i, m4.makeScale(cross ? 3 : 0.3, 0.1, cross ? 0.3 : 3).setPosition(w.x, w.y, w.z))); root.add(m) }
-  // Mission Rock across the Cove (plate): its quay x 26..152, y 214..272; a sidewalk on the water 214..218, Terry Francois Blvd 218..230 (cars at 221 going out,
-  // 227 coming back), the far sidewalk 230..234, two low buildings beyond (kept low: from the broadcast seat their roofs stay under the cards top right)
-  const M = { x0: 26, x1: 152, out: 221, back: 227, walk: 232, face: 234 }
-  slab(26, 152, 210, 272, WATER_Z - 0.6, -0.35, '#2a2b2e')
-  slab(26, 152, 214, 218, -0.35, -0.12, '#5c5d60'); slab(26, 152, 230, 234, -0.35, -0.12, '#5c5d60'); slab(26, 152, 218, 230, -0.35, -0.25, '#17181b')
-  { const m = new THREE.InstancedMesh(cube, lam('#d9c25a'), 20), m4 = new THREE.Matrix4(); for (let i = 0; i < 20; i++) { const w = P(30 + i * 6, 224, -0.2); m.setMatrixAt(i, m4.makeScale(3, 0.1, 0.3).setPosition(w.x, w.y, w.z)) } root.add(m) }
-  // the blocks across the streets, windows on the side facing the park (some lit), a parapet; the left one at Mission Rock carries the startup's sign
-  const BLDG = [{ x0: -197, x1: K.face, y0: -92, y1: -14, h: 20, c: '#6d5444' }, { x0: -197, x1: K.face, y0: -6, y1: 52, h: 26, c: '#5e4236' }, { x0: -197, x1: K.face, y0: 60, y1: 124, h: 32, c: '#77736b' },
-    { x0: -197, x1: K.face, y0: 132, y1: 192, h: 22, c: '#535d69' }, { x0: 40, x1: 92, y0: M.face, y1: 262, h: 12, c: '#5f6b78', side: 1 }, { x0: 98, x1: 146, y0: M.face, y1: 258, h: 9, c: '#7b6a58', side: 1 }]
-  { const lit = [], dark = [], m4 = new THREE.Matrix4(), lit0 = (u, z) => Math.abs((Math.sin(u * 12.9898 + z * 78.233) * 43758.5453) % 1) > 0.35
-    for (const b of BLDG) {
-      slab(b.x0, b.x1, b.y0, b.y1, -0.35, b.h, b.c); slab(b.x0, b.x1 + (b.side ? 0 : 0.6), b.y0 - (b.side ? 0.6 : 0), b.y1, b.h, b.h + 1.2, '#2c2d30')
-      if (!b.side) for (let y = b.y0 + 3; y <= b.y1 - 3; y += 4) for (let z = 4; z <= b.h - 3; z += 4.2) (lit0(y, z) ? dark : lit).push([P(b.x1 + 0.1, y, z), 0])
-      else for (let x = b.x0 + 3; x <= b.x1 - 3; x += 4) for (let z = 3; z <= b.h - 2.5; z += 3.4) (lit0(x, z) ? dark : lit).push([P(x, b.y0 - 0.1, z), 1])
-    }
-    for (const [list, c] of [[lit, '#f2d06b'], [dark, '#1a2230']]) { const m = new THREE.InstancedMesh(cube, lam(c), list.length); list.forEach(([w, side], i) => m.setMatrixAt(i, m4.makeScale(side ? 1.6 : 0.4, 2.2, side ? 0.4 : 1.6).setPosition(w.x, w.y, w.z))); root.add(m) } }
-
-  { const m4 = new THREE.Matrix4(); for (const [c, list] of Object.entries(slabs)) { const m = new THREE.InstancedMesh(cube, lam(c), list.length); list.forEach(([x, y, z, sx, sy, sz], i) => m.setMatrixAt(i, m4.makeScale(sx, sy, sz).setPosition(x, y, z))); root.add(m) } }
-
-  // ---------------- the driverless car (always driving; ROBOCAR stops it with a cone) ----------------
-  const RC = []
-  box(RC, -6, 6, 1, 3, -2, 2, '#f2f2f2'); box(RC, -3, 3, 4, 5, -2, 2, (x, y, z) => (Math.abs(z) === 2 || Math.abs(x) === 3 ? '#1f2a3a' : '#f2f2f2'))
-  for (const [x, z] of [[-4, -2], [4, -2], [-4, 2], [4, 2]]) box(RC, x - 1, x, 0, 1, z, z, '#111')
-  box(RC, -1, 1, 6, 6, -1, 1, '#2b2e33'); RC.push([0, 7, 0, '#4ecdc4'])
-  const robo = build(RC, 0.45), haz = build([[6, 2, -2, '#f2a03a'], [6, 2, 2, '#f2a03a'], [-6, 2, -2, '#f2a03a'], [-6, 2, 2, '#f2a03a']], 0.45, robo)
-  // a path through plate points, walked by distance: where along it, and which way it points
-  const path = (pts, loop) => {
-    const seg = [], all = loop ? [...pts, pts[0]] : pts
-    let L = 0
-    for (let i = 0; i + 1 < all.length; i++) { const [x0, y0] = all[i], [x1, y1] = all[i + 1], l = Math.hypot(x1 - x0, y1 - y0); seg.push({ x0, y0, dx: (x1 - x0) / l, dy: (y1 - y0) / l, l, s0: L }); L += l }
-    return { L, at(s) { s = loop ? ((s % L) + L) % L : Math.min(Math.max(s, 0), L); const g = seg.find((q) => s <= q.s0 + q.l) ?? seg[seg.length - 1], u = s - g.s0; return { x: g.x0 + g.dx * u, y: g.y0 + g.dy * u, dx: g.dx, dy: g.dy } } }
-  }
-  // up Terry Francois Blvd on the near lane, a U-turn at the end, back on the far lane, a U-turn
-  const roboPath = path([[M.x0 + 4, M.out], [M.x1 - 4, M.out], [M.x1 - 4, M.back], [M.x0 + 4, M.back]], true)
-  let roboS = 0, roboStop = false
-  const placeRobo = () => { const p = roboPath.at(roboS); robo.position.copy(P(p.x, p.y, -0.25)); along(robo, p.dx, -p.dy) }
-  haz.visible = false; placeRobo()
-
-  // ---------------- the startup's sign on the roof across the street ----------------
-  const A1 = ['GOOSE', 'VIBE', 'SNACK', 'HYPER', 'DOGGO', 'FOG', 'CRAB', 'BURRITO', 'QUANT', 'LATTE', 'GULL', 'NAP', 'DELULU', 'RIZZ', 'BAGEL', 'MOCHI', 'KALE', 'YIELD', 'SOURDO', 'CLAM']
-  const A2 = ['.AI', 'FORCE', 'LY', 'GPT', 'HQ', 'STACK', 'LABS', 'BOT', 'IFY', 'OS', '.IO', 'HUB']
-  const ROUNDS = ['SEED ROUND $40M', 'PRE-SEED $12M', 'SERIES A $300M', 'SERIES B $1.2B', 'PIVOT TO AI', 'STEALTH MODE', 'SERIES F $9B', 'ACQUI-HIRED', 'BRIDGE ROUND $6M', 'UNICORN $1B']
-  const newName = () => { for (;;) { const n = pick(A1) + pick(A2); if (n.length <= 10) return n } }
-  const ROOF = { x: 66, y: 248, z: BLDG[4].h + 1.2 } // Mission Rock, across the Cove: in view to the right of the scoreboard
-  let startup = null // { name, round, g, line2 }
-  function makeSign(name, round, color) {
-    const g = new THREE.Group(), w1 = textW(name) * 0.8, w2 = textW(round) * 0.45, W = Math.max(w1, w2) + 3, Hh = 7 * 0.8 + 7 * 0.45 + 3 // about 12 m tall on a 12 m roof
-    const at = P(ROOF.x, ROOF.y, ROOF.z); g.position.copy(at); facing(g, at, home); root.add(g)
-    const back = new THREE.Mesh(cube, lam('#141414')); back.scale.set(W, Hh, 0.6); back.position.set(0, 2 + Hh / 2, -0.4); g.add(back)
-    for (const s of [-1, 1]) { const leg = new THREE.Mesh(cube, lam('#3a3f47')); leg.scale.set(0.6, 2, 0.6); leg.position.set(s * W * 0.35, 1, -0.4); g.add(leg) }
-    const c1 = [], c2 = []
-    text(c1, name, color, 0, 0, 0); text(c2, round, '#f4f2ea', 0, 0, 0)
-    const l1 = build(c1, 0.8, g), l2 = build(c2, 0.45, g)
-    l1.position.set(-w1 / 2, 2 + 1 + 7 * 0.45 + 1, 0.2); l2.position.set(-w2 / 2, 2 + 1, 0.2)
-    g.scale.y = 0.001
-    return { name, round, g, l2, w2 }
-  }
-  const SIGN_C = ['#7cf2c8', '#f27ce0', '#7cc6f2', '#f2c94c', '#fd5a1e']
-  function newStartup(first) {
-    const old = startup
-    startup = makeSign(first ? 'GOOSE.AI' : newName(), first ? ROUNDS[0] : pick(ROUNDS), pick(SIGN_C))
-    if (first || still) startup.g.scale.y = 1
-    return old
-  }
-  newStartup(true)
-  const setRound = (s) => { const st = startup; kill(st.l2); const c = []; text(c, s, '#fd5a1e', 0, 0, 0); st.w2 = textW(s) * 0.45; st.l2 = build(c, 0.45, st.g); st.l2.position.set(-st.w2 / 2, 3, 0.2); st.round = s }
 
   // ---------------- the SPLASH HITS counter on the right-field wall (placed once the park model is in) ----------------
   let splashG = null, digits = null, splashN = 0, flipT = -1, nextN = 0
@@ -285,103 +196,6 @@ export function initHappen25(api, o = {}) {
     }
   }
   // STARTUP: the sign on the roof comes down and a new company's goes up
-  H.startup = () => {
-    const old = newStartup(false), sg = startup.g
-    sound('startup-launch', sg.position)
-    return {
-      step(dt, t) {
-        if (old) old.g.scale.y = Math.max(0.001, 1 - t / 0.6)
-        const k = Math.max(0, (t - 0.7) / 1.0)
-        sg.scale.y = k <= 0 ? 0.001 : k < 1 ? Math.max(0.001, ease(k) * 1.12) : 1 + Math.max(0, 0.12 - (k - 1) * 0.4)
-        if (old && t > 0.6 && old.g.parent) kill(old.g)
-        if (t > 1.7 && t - dt <= 1.7) sound('startup-ding', sg.position)
-        return t < 3
-      },
-      end() { if (old?.g.parent) kill(old.g); startup.g.scale.y = 1 },
-    }
-  }
-  // IPO: the company on the roof goes public; cash comes down on the stands on both sides (not in front of the board), the board gets the ticker
-  const BILL = new THREE.BoxGeometry(1.6, 0.06, 0.8)
-  H.ipo = () => {
-    if (!startup) return null
-    const st = startup, ticker = st.name.replace(/[^A-Z]/g, '').slice(0, 5), pct = Math.round(rnd(150, 900))
-    setRound(`IPO! +${pct}%`)
-    o.board?.('ipo', { name: st.name, ticker, pct, word: `$${ticker} +${pct}%` })
-    sound('ipo-bell', st.g.position)
-    const N = 180, ms = ['#3f8f4f', '#5aa868'].map((c) => new THREE.InstancedMesh(BILL, lam(c), N / 2)), bills = []
-    const g = fly(new THREE.Group()); ms.forEach((m) => g.add(m)); root.add(g)
-    for (let i = 0; i < N; i++) {
-      const left = i % 3 !== 0, x = left ? rnd(-130, -62) : rnd(34, 74), y = left ? rnd(-40, 120) : rnd(-40, 70)
-      bills.push({ p: P(x, y, rnd(48, 90)), v: rnd(5, 8), ph: rnd(0, 6), sw: rnd(1.5, 3), r: V(rnd(0, 6), rnd(0, 6), rnd(0, 6)) })
-    }
-    const d = new THREE.Object3D()
-    return {
-      step(dt, t) {
-        bills.forEach((b, i) => {
-          b.p.y -= b.v * dt; d.position.set(b.p.x + Math.sin(t * 1.6 + b.ph) * b.sw, b.p.y, b.p.z + Math.cos(t * 1.3 + b.ph) * b.sw)
-          d.rotation.set(b.r.x + t * 2.3, b.r.y + t, b.r.z + Math.sin(t * 3 + b.ph)); d.scale.setScalar(b.p.y < H0.y ? 0.001 : 1); d.updateMatrix()
-          ms[i % 2].setMatrixAt(i >> 1, d.matrix)
-        })
-        ms.forEach((m) => { m.instanceMatrix.needsUpdate = true })
-        st.l2.visible = Math.floor(t * 4) % 2 === 0 || t > 8
-        if (t > 1 && t - dt <= 1) sound('ipo-cash', st.g.position)
-        return t < 9
-      },
-      end() { done(g); st.l2.visible = true },
-    }
-  }
-  // EVICT: out of a window at Mission Rock, onto the sidewalk across the Cove: a couch, three boxes, a lamp, a mattress; the tenant stands by; the board says RENT WENT UP
-  H.evict = () => {
-    const S = 0.4, items = [], tenant = []
-    const couch = []; box(couch, -6, 6, 0, 2, -2, 2, '#8c3a2b'); box(couch, -6, 6, 3, 5, -2, -1, '#8c3a2b'); box(couch, -7, -7, 0, 4, -2, 2, '#5a2219'); box(couch, 7, 7, 0, 4, -2, 2, '#5a2219')
-    const cbox = (c = []) => (box(c, -2, 2, 0, 3, -2, 2, (x, y, z) => (z === 0 && y === 3 ? '#d9c49a' : '#b8864b')), c)
-    const lamp = []; box(lamp, 0, 0, 0, 7, 0, 0, '#2b2e33'); box(lamp, -2, 2, 7, 9, -2, 2, '#f2e6b8')
-    const mat = []; box(mat, -5, 5, 0, 1, -3, 3, (x, y, z) => ((x + z) % 3 === 0 ? '#9fb7d6' : '#e9e6dc'))
-    const land = [[couch, 64, 232], [cbox(), 72, 231], [cbox(), 56, 233], [cbox(), 77, 232.5], [lamp, 51, 232], [mat, 68, 231]]
-    const win = P(66, M.face - 0.5, 8)
-    for (const [cells, x, y] of land) { const g = fly(build(cells, S)); g.position.copy(win); items.push({ g, to: P(x, y, -0.12), spin: V(rnd(-4, 4), rnd(-3, 3), rnd(-4, 4)), down: false }) }
-    box(tenant, 0, 1, 0, 4, 0, 1, '#2b2e33'); box(tenant, 0, 1, 5, 9, 0, 1, '#2f5bd3'); box(tenant, 0, 1, 10, 11, 0, 1, '#e0b48a'); tenant.push([2, 7, 0, '#e0b48a'], [-1, 7, 0, '#e0b48a'])
-    const tg = fly(build(tenant, S)); tg.position.copy(P(84, 232, -0.12)); facing(tg, tg.position, home)
-    let said = false
-    return {
-      step(dt, t) {
-        items.forEach((it, i) => {
-          const k = (t - i * 0.45) / 1.1
-          if (k <= 0) { it.g.visible = false; return }
-          it.g.visible = true
-          if (k < 1) { it.g.position.lerpVectors(win, it.to, k); it.g.position.y += Math.sin(k * Math.PI) * 4 - 0; it.g.rotation.set(it.spin.x * k, it.spin.y * k, it.spin.z * k) }
-          else if (!it.down) { it.down = true; it.g.position.copy(it.to); it.g.rotation.set(0, it.spin.y * 0.3, 0); sound('evict-thud', it.to) }
-        })
-        if (!said && t > 3.4) { said = true; o.board?.('evict', { word: 'RENT WENT UP' }); sound('evict-sigh', tg.position) }
-        tg.rotation.z = t > 3.4 ? Math.sin(t * 3) * 0.05 : 0
-        const fade = t > 20 ? Math.max(0.001, 1 - (t - 20) / 1.5) : 1
-        for (const it of items) it.g.scale.setScalar(fade); tg.scale.setScalar(fade)
-        return t < 21.5
-      },
-      end() { for (const it of items) done(it.g); done(tg) },
-    }
-  }
-  // ROBOCAR: the driverless car stops dead with a traffic cone on its hood and honks, hazards going; the cone slides off and it carries on
-  H.robocar = () => {
-    const cc = []; for (let y = 0; y < 6; y++) { const r = Math.max(0, 2 - Math.floor(y / 2)); box(cc, -r, r, y, y, -r, r, y === 2 || y === 3 ? '#f4f2ea' : '#f27a1a') } box(cc, -3, 3, -1, -1, -3, 3, '#f27a1a')
-    const cone = fly(build(cc, 0.3)); roboStop = true
-    const hood = () => robo.localToWorld(V(4.2 * 0.45, 3.6 * 0.45, 0))
-    let honks = 0
-    return {
-      step(dt, t) {
-        const h = hood()
-        if (t < 0.5) cone.position.copy(h).add(V(0, (0.5 - t) * 14, 0))
-        else if (t < 8) cone.position.copy(h)
-        else { const k = Math.min(1, (t - 8) / 0.6); cone.position.copy(h).add(robo.localToWorld(V(1, 0, 0)).sub(robo.position).multiplyScalar(k * 2.5)).add(V(0, -k * 1.6, 0)); cone.rotation.z = -k * 1.4 }
-        haz.visible = t < 8 && Math.floor(t * 3) % 2 === 0
-        const beats = [0.8, 2.0, 3.2, 4.6, 6.0]
-        if (honks < beats.length && t > beats[honks]) { honks++; sound('robocar-honk', h) }
-        if (t > 8.6) roboStop = false
-        return t < 12
-      },
-      end() { done(cone); haz.visible = false; roboStop = false },
-    }
-  }
   // JETS: Fleet Week, five in a delta over the park with smoke trails
   const JET = []
   box(JET, 0, 15, 0, 1, -1, 0, (x) => (x > 12 ? '#1d3f86' : '#14306b')); box(JET, 9, 11, 2, 2, -1, 0, '#8fd3ff')
@@ -467,33 +281,6 @@ export function initHappen25(api, o = {}) {
     }
   }
   // CABLECAR: one rolls the length of King Street on the rails, riders hanging off both sides, bell going
-  H.cablecar = () => {
-    const S = 0.5, C = []
-    box(C, -12, 12, 1, 3, -3, 3, '#b3202a'); box(C, -12, 12, 4, 7, -3, 3, (x, y, z) => (Math.abs(z) === 3 && y >= 5 && y <= 6 && x % 3 ? '#1f2a3a' : '#efe3c2'))
-    box(C, -13, 13, 8, 8, -3, 3, '#4a3b2a'); box(C, -12, 12, 3, 3, -3, 3, (x, y, z) => (Math.abs(z) === 3 ? '#d4a72c' : '#b3202a'))
-    for (const x of [-9, 9]) for (const z of [-3, 3]) box(C, x - 1, x + 1, 0, 0, z, z, '#111')
-    const shirts = ['#2f5bd3', '#fd5a1e', '#f2c230', '#4ecdc4', '#e87ba4']
-    for (const x of [-8, -3, 2, 7]) for (const s of [-1, 1]) { const z = s * 4, c = pick(shirts); box(C, x, x, 2, 3, z, z, '#2b2e33'); box(C, x, x, 4, 6, z, z, c); C.push([x, 7, z, '#e0b48a'], [x, 8, z, '#e0b48a']) }
-    box(C, -13, -13, 6, 6, -1, 1, '#f2d06b')
-    const g = fly(build(C, S))
-    // up King, a quarter turn on the corner (a turntable, like Powell and Market), along Second
-    const up = K.sy - (K.y0 + 6), along2 = K.sx1 + 6 - K.rail, v = 7.5, turn = 2.6, d1 = up / v, d2 = along2 / v, dur = d1 + turn + d2
-    const bells = [0.2, 2.2, d1 + 0.3, d1 + turn + 1, dur - 2]
-    let rung = 0
-    return {
-      step(dt, t) {
-        let x = K.rail, y = K.y0 + 6, hd = 0 // hd: 0 along King (plate +y), 1 along Second (plate +x)
-        if (t < d1) y += v * t
-        else if (t < d1 + turn) { y = K.sy; hd = ease((t - d1) / turn) }
-        else { y = K.sy; x = K.rail + v * (t - d1 - turn); hd = 1 }
-        g.position.copy(P(x, y, -0.15)); if (hd === 0 || hd === 1) g.position.y += Math.abs(Math.sin(t * 6)) * 0.05
-        const a = (hd * Math.PI) / 2; along(g, Math.sin(a), -Math.cos(a))
-        if (rung < bells.length && t > bells[rung]) { rung++; sound('cablecar-bell', g.position) }
-        return t < dur
-      },
-      end() { done(g) },
-    }
-  }
   // WHALE (29 Oct, later): up, a twist, a slap
   const Wc = []
   for (let x = -6; x <= 6; x++) for (let y = -2; y <= 2; y++) for (let z = -2; z <= 2; z++) { if ((x / 6.5) ** 2 + (y / 2.5) ** 2 + (z / 2.5) ** 2 > 1) continue; Wc.push([x, y, z, y <= -1 && x > -4 ? '#e9e6dc' : '#3a4250']) }
@@ -547,7 +334,6 @@ export function initHappen25(api, o = {}) {
       blimp.position.set(mid.x + Math.cos(a) * r, sea + 120 + Math.sin(t * 0.3) * 2, mid.z + Math.sin(a) * r); blimp.rotation.y = -a - Math.PI / 2
       const f = (t / 90) % 2, k = f < 1 ? f : 2 - f
       ferry.position.copy(P(300, -150 + k * 650, WATER_Z + 0.6)); ferry.rotation.y = f < 1 ? Math.PI / 2 : -Math.PI / 2
-      if (!roboStop) { roboS += dt * 8; placeRobo() }
     }
     if (splashG && flipT >= 0) {
       flipT += dt
@@ -570,12 +356,11 @@ export function initHappen25(api, o = {}) {
   step(0)
   api.NN.frames.push(() => { const now = performance.now(), dt = Math.min(0.25, (now - wall) / 1000); wall = now; step(dt) })
   return {
-    blimp, ferry, whale, robo, breaches: () => breaches, breach() { start('whale', true) },
+    blimp, ferry, whale, breaches: () => breaches, breach() { start('whale', true) },
     force: (name) => start(name, true), stop, active: () => active?.name ?? null, clock: () => t, since: () => (active ? t - active.t0 : null), log: () => log.map((l) => ({ ...l })), names: HAPPENINGS.slice(),
     setGap(lo, hi) { gap = [lo, hi]; nextAt = Math.min(nextAt, t + hi) },
-    startup: () => (startup ? { name: startup.name, round: startup.round } : null), splash: () => splashN, setSplash(n) { splashN = nextN = n; setDigits(n) }, bump,
+    splash: () => splashN, setSplash(n) { splashN = nextN = n; setDigits(n) }, bump,
     splashSign: () => splashG, root, live: () => live.size, groupOf: (name) => (active?.name === name ? [...live] : []),
-    K, M,
     set visible(v) { root.visible = v },
   }
 }
