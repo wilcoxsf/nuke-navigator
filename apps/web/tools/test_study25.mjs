@@ -160,40 +160,10 @@ for (const [w, h] of SIZES) {
     await page.keyboard.press('t'); await page.waitForTimeout(300)
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(600)
-    // the options dock (28 Oct): ? and the header ? open a small panel in the park's bottom-right; nothing else is covered and no full-screen overlay comes up
+    // 30 Oct (Andrew: RIDE IT "no one wants that. Kill that feature entirely"): with every choice locked there is no dock, and ? opens nothing
     await page.keyboard.press('?'); await page.waitForTimeout(500)
-    const dk = await page.evaluate(() => {
-      const R = (s) => document.querySelector(s)?.getBoundingClientRect(), d = R('#c25dk'), hit = (a, b) => a && b && b.width > 0 && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-      const park = R('#c25h'), bs = [...document.querySelectorAll('#c25ch .bt')].map((b) => b.getBoundingClientRect())
-      return { open: document.querySelector('.c25').classList.contains('dk'), w: d.width, h: d.height, inPark: d.left >= park.left && d.right <= park.right + 0.5 && d.bottom <= park.bottom + 0.5 && d.top >= park.top, corner: park.right - d.right < 20 && park.bottom - d.bottom < 20,
-        covers: ['.c25>.pitch', '.c25>.batter', '.c25>.hists', '.c25>.slice', '#c25v', '#c25bug'].filter((s) => hit(d, R(s))), bsel: bs.filter((b) => hit(d, b)).length, overlay: document.querySelector('#c25m').classList.contains('open'), chips: document.querySelectorAll('#c25dk .dx .bt').length, focus: document.activeElement?.id }
-    })
-    check('? opens the options dock in the park corner, covering no panel, button or overlay; only the open choice (V)', dk.open && dk.inPark && dk.corner && dk.w <= 302 && dk.covers.length === 0 && dk.bsel === 0 && !dk.overlay && dk.chips === 1 && dk.focus === 'c25dk', JSON.stringify(dk))
-    await page.click('#c25dk .dx [data-ax="V"]'); await page.waitForTimeout(300)
-    await page.click('#c25dk .do[data-c="2"]'); await page.waitForTimeout(400)
-    const dy = await page.evaluate(() => ({ v: window.__mix25.get().V, n: document.querySelectorAll('#c25dk .do').length, on: document.querySelector('#c25dk .do.on b')?.textContent, dd: document.querySelector('#c25dk .dd').textContent }))
-    await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300)
-    const v3 = await page.evaluate(() => window.__mix25.get().V)
-    check('the dock: pick RIDE IT, click CHASE CAM (V2, of three), right arrow tries SKY CAM', dy.v === 2 && dy.n === 3 && dy.on === 'V2' && /DRONE/.test(dy.dd) && v3 === 3, JSON.stringify({ dy, v3 }))
-    await page.click('#c25dk .do[data-c="1"]'); await page.waitForTimeout(300)
-    await page.click('#c25dk [data-dk="see"]')
-    let rd = null; for (let k = 0; k < 40 && rd !== 'riding'; k++) { await page.waitForTimeout(250); rd = await page.evaluate(() => window.__mix25.riding()) }
-    const rc0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
-    let rc1 = rc0 // the pitch comes first, then the ride: watch for the camera leaving
-    for (let k = 0; k < 40 && Math.hypot(...rc1.map((v, i) => v - rc0[i])) <= 3; k++) { await page.waitForTimeout(300); rc1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray()) }
-    for (let k = 0; k < 60 && (await page.evaluate(() => window.__mix25.riding())); k++) await page.waitForTimeout(300)
-    for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.look()?.moving)); k++) await page.waitForTimeout(300)
-    check('the dock: RIDE ONE rides the ball (the camera moves with it), then glides back', rd === 'riding' && Math.hypot(...rc1.map((v, i) => v - rc0[i])) > 3 && !(await page.evaluate(() => window.__mix25.riding())), JSON.stringify({ rd, rc0, rc1 }))
-    for (let k = 0; k < 80 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(400)
-    await page.evaluate(() => window.__mix25.set('L1P5A3T1')); await page.waitForTimeout(400)
-    await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
-    const dkc = await page.evaluate(() => ({ dk: document.querySelector('.c25').classList.contains('dk'), menu: document.querySelector('.c25 .sm').classList.contains('open') }))
-    check('Esc in the dock closes the dock (not the menu)', !dkc.dk && !dkc.menu, JSON.stringify(dkc))
-    // the options legend (ALL in the dock) lists every open option with the layout reasons
-    await page.click('#c25lg'); await page.waitForTimeout(300); await page.click('#c25dk [data-dk="all"]'); await page.waitForTimeout(500)
-    const lg = await page.evaluate(() => ({ opts: document.querySelectorAll('#c25mb .legend .o').length, why: document.querySelectorAll('#c25mb .legend .o em').length, txt: document.querySelector('#c25mb').textContent }))
-    check('ALL lists every open option (V) and names the locked ones', lg.opts === 3 && /LOCKED: L2 AT THE PLATE/.test(lg.txt) && /U2 PIXEL LINE/.test(lg.txt) && /Y3 ICE/.test(lg.txt) && /Q2 THE REAL SIGN/.test(lg.txt), JSON.stringify({ opts: lg.opts, why: lg.why }))
-    await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+    const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), dock: document.querySelector('#c25dk').innerHTML.trim(), mx: document.querySelector('#c25mx').hidden, ride: !!document.querySelector('#c25ri') }))
+    check('everything locked: ? opens no dock, the MIX group is hidden, no RIDE IT', !dk.open && dk.dock === '' && dk.mx && !dk.ride, JSON.stringify(dk))
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
     const lpx = await page.evaluate(() => ({ t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), rows: document.querySelectorAll('#c25hb .lpr').length }))
@@ -527,7 +497,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with six lines (29 Oct: Shot Caller is its own mode, the dojo its own line)', m0.open && m0.n === 6 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with five lines (29 Oct: Shot Caller its own mode; 30 Oct: no OPTIONS with nothing open)', m0.open && m0.n === 5 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -590,8 +560,8 @@ for (const [w, h] of on('D') ? [[390, 844], [360, 740]] : []) {
 if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
-  check('only the open choice sits in the header (V); the locked ones are gone from it, TYPE too', hdr === 'V' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 J2 W1 Q2 C1 O2 G2, with V open', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2 V1/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('nothing open sits in the header; the locked ones are gone from it, TYPE too', hdr === '' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 J2 W1 Q2 C1 O2 G2, nothing open (30 Oct: V went with RIDE IT)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
   const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
@@ -722,7 +692,7 @@ if (!process.env.PHONE_ONLY && on('H')) {
   const ck = []
   for (const C of [1, 2, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'C' + C); await page.waitForTimeout(400); ck.push(await page.evaluate(() => { const c = window.__mix25.coke(); return { s: c.styleNow(), shown: c.shown(), n: c.count() } })) }
   check('the Coke corner in voxels on the model wireframe: the bottle with its lip capped, the painted Coca-Cola label, a slide, three kids, the mitt; C2 paints it red', ck[0].shown && ck[0].n.bottle > 5000 && ck[0].n.cap > 20 && ck[0].n.label === 1 && ck[0].n.slide > 100 && ck[0].n.kids === 3 && ck[0].n.glove > 800 && ck[1].s === 2 && ck[2].s === 1, JSON.stringify(ck))
-  const kid = await page.evaluate(async () => { const c = window.__mix25.coke(), a = c.kidAt(0); await new Promise((r) => setTimeout(r, 1500)); return { moved: a.distanceTo(c.kidAt(0)), cut: window.__mix25.cut() } })
+  const kid = await page.evaluate(async () => { const c = window.__mix25.coke(), a = [0, 1, 2].map((i) => c.kidAt(i)); await new Promise((r) => setTimeout(r, 3000)); return { moved: Math.max(...a.map((p, i) => p.distanceTo(c.kidAt(i)))), cut: window.__mix25.cut() } }) // (30 Oct: the slower ladder climb; all three, over 3 s)
   check('the kids keep moving (up the inside, down the slide), and the model\'s own sign, board, bottle and glove are cut out of it', kid.moved > 0.2 && kid.cut > 5000, JSON.stringify(kid))
   // red team, 29 Oct: in DEJA-VU the arrows and + no longer edit the real ball behind your back
   await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(800)
@@ -823,12 +793,9 @@ if (!process.env.PHONE_ONLY && on('G')) {
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone', sm.open && sm.n === 6 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone (five modes: no OPTIONS with nothing open)', sm.open && sm.n === 5 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
-  await page.keyboard.press('?'); await page.waitForTimeout(400)
-  const pd = await page.evaluate(() => { const d = document.querySelector('#c25dk').getBoundingClientRect(); return { open: d.height > 0, l: d.left, r: d.right, b: d.bottom, t: d.top, side: document.documentElement.scrollWidth > innerWidth + 1, h: innerHeight } })
-  check('the options dock fits a phone (bottom of the screen, under half its height)', pd.open && pd.l >= 0 && pd.r <= 390 && pd.b <= pd.h && pd.b - pd.t <= pd.h * 0.47 && !pd.side, JSON.stringify(pd))
   await page._ctx.close()
   // the dojo on a phone at the locked layout (its controls top left on a big screen) keeps the strip along the bottom
   const pdj = await open(390, 844, '&menu=0&mode25=whatif', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })

@@ -29,13 +29,13 @@ export function initFlight25(api, colors) {
   const column = (x, z, y0, y1, step) => { const out = []; for (let y = y0; y <= y1; y += step) out.push(new THREE.Vector3(x, y, z)); return out }
   // two lines of voxel letters (a small caption over a big number), on a pole top, facing the camera
   // side: -1 sets the tag off to the camera's left of its post, 1 to the right, so the zenith and the clearance tags never sit on each other; kept readable (vox25.js)
-  function tag(small, bigTxt, at, color, side = 0) {
+  function tag(small, bigTxt, at, color, side = 0, prio = 1) {
     const g = new THREE.Group(), inner = new THREE.Group(), a = voxText(THREE, small, { px: 0.36, color: colors().tx, back: '#141414' }), b = voxText(THREE, bigTxt, { px: 0.72, color, back: '#141414' })
     a.position.y = 6.4; inner.add(a, b)
     const w = Math.max(a.userData.width, b.userData.width)
     inner.position.x = side * (w / 2 + 1.5)
     g.add(inner); g.position.copy(at)
-    return keepReadable(api, g, 230, 0.35, 2.4)
+    return keepReadable(api, g, 230, 0.35, 1.7, { prio }) // (30 Oct: a lower one steps out of a higher one's way; it grew too big before at 2.4)
   }
   // the track: pts are world points along the flight; res the engine's result; color the verdict color; preview the ghost before a swing
   function track(pts, res, color, preview) {
@@ -74,7 +74,7 @@ export function initFlight25(api, colors) {
     const zen = new THREE.Group()
     // the two posts in the pitch color, like the dots (29 Oct, evening, Andrew: the zenith and home-run height lines in ICE too)
     zen.add(cubes(geo, lam(c.mk || c.pc || c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5), 0.45))
-    zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1))
+    zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1, 1))
     zen.add(cubes(geo, lam(c.mk ?? c.tx), [top], 1.4)) // the dot at the top of the flight
     g.add(zen); g.userData.reveal.push([ai / Math.max(1, src.length - 1), zen])
     // the clearance post: from the top of the wall to the ball as it crossed (GONE), or from the top down to where it hit (WALL)
@@ -86,7 +86,7 @@ export function initFlight25(api, colors) {
         const cl = new THREE.Group()
         cl.add(cubes(geo, lam(c.mk || c.pc || c.acc), column(b.x, b.z, lo, hi, 0.8), 0.5))
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
-        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : '-'}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1))
+        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : '-'}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3))
         cl.add(cubes(geo, lam(c.mk ?? c.tx), [ball], 1.4)) // the dot where it crossed the wall
         g.add(cl); g.userData.reveal.push([ci / Math.max(1, src.length - 1), cl])
       }
@@ -95,7 +95,7 @@ export function initFlight25(api, colors) {
     if (!preview) {
       const end = toWorld(src[src.length - 1].p), lp = res.landing?.point ?? end, ld = new THREE.Group(), base = lp.clone(); base.y = Math.max(base.y, ground)
       ld.add(cubes(geo, lam(color), column(base.x, base.z, base.y + 0.6, base.y + 7, 1.1), 0.45))
-      ld.add(tag(res.verdict.kind === 'GONE' ? 'LANDED' : 'CAME DOWN', `${Math.round(res.landFt)} FT`, base.clone().add(new THREE.Vector3(0, 8, 0)), color, -1)) // to the left: the clearance tag sits to the right
+      ld.add(tag(res.verdict.kind === 'GONE' ? 'LANDED' : 'CAME DOWN', `${Math.round(res.landFt)} FT`, base.clone().add(new THREE.Vector3(0, 8, 0)), color, -1, 2)) // to the left: the clearance tag sits to the right
       g.add(ld); g.userData.reveal.push([0.985, ld])
     }
     // the ghost: while you tweak a real home run, the real flight stays up as faint cubes, so your change reads against it

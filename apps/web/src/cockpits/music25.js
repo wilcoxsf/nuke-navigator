@@ -107,9 +107,10 @@ export const jukebox = {
     if (!song) return false
     this.stop()
     try {
-      ac ??= new AudioContext()
+      const A = window.__nnAudio // sound25.js: the page's one context, and the MUSIC level of its mixer
+      ac = A ? A.ctx() : (ac ?? new AudioContext())
       if (ac.state === 'suspended') ac.resume().catch(() => {})
-      master = ac.createGain(); master.gain.value = 0.9 * (o.vol ?? 1); master.connect(ac.destination)
+      master = ac.createGain(); master.gain.value = 0.9 * (o.vol ?? 1); master.connect(A ? A.bus('music') : ac.destination)
       const P = parseABC(song.abc), beat = 60 / song.bpm, sec = (u) => u * P.unit * 4 * beat // a beat is a quarter note
       const t0 = ac.currentTime + 0.08
       const voice = (type, f, at, dur, peak, slide) => {

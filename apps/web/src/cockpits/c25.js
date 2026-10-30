@@ -40,7 +40,11 @@ import { initPark25 } from './park25.js'
 import { initCoke25 } from './coke25.js'
 import { initDiamond25 } from './diamond25.js'
 import { initGhost25 } from './ghost25.js'
+import { keepReadable, readable } from './vox25.js'
 import { initHappen25 } from './happen25.js'
+import { initWind25 } from './wind25.js'
+import { initControls25 } from './controls25.js'
+import { initMySeat25 } from './myseat25.js'
 import { initMoments25 } from './moments25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
@@ -197,12 +201,6 @@ export const AXES = {
     { c: 2, name: 'THE REAL SIGN', desc: 'the real one in voxels, from your photo: tall cream letters in a red neon outline on the green arch, the pink clock face, the eight World Series pennants flying above' },
     { c: 3, name: 'REAL SIGN, NIGHT', desc: 'the same at night: the neon brighter and one tube that flickers' },
   ] },
-  // RIDE IT's camera (29 Oct, evening)
-  V: { name: 'RIDE IT', opts: [
-    { c: 1, name: "BALL'S EYE", desc: 'just behind the ball, looking where it is going: the stands come at you' },
-    { c: 2, name: 'CHASE CAM', desc: 'behind and above the ball, like a drone chasing it, the ball in frame the whole way' },
-    { c: 3, name: 'SKY CAM', desc: 'alongside the flight, the way a wire camera sees it: the whole arc goes by' },
-  ] },
   // the scoreboard in voxels (29 Oct, evening, Andrew: "give me like 3-4 basic voxel options to choose from with a couple animations so I can see what's what")
   G: { name: 'SCOREBOARD', opts: [
     { c: 1, name: 'CUBES', desc: 'every LED a cube in a dark voxel frame; the lit ones step forward a little' },
@@ -242,7 +240,7 @@ export const AXES = {
     { c: 4, name: 'RED', desc: 'red stitches, as it was', col: '#e4002b' },
   ] },
 }
-const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C', 'O', 'G', 'V']
+const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C', 'O', 'G']
 // locked 28 Oct, night (Andrew): these are set and leave the mixer; a code can still load another value (the tests do), but the dock and the header show only what is open.
 // 29 Oct: U2 PIXEL LINE, D1 PIXEL SLUGGER, M1 STACKED too
 // 29 Oct, later: X2 (the arc dots in the pitch color) and E1 (the stitches in the pitch color) as well
@@ -251,7 +249,7 @@ const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 
 const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, J: 2, W: 1, Q: 2, C: 1, G: 2, O: 2 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 const HDR_AX = OPEN // what is still open sits in the header
-const DEF = { ...LOCKED, V: 1 }
+const DEF = { ...LOCKED }
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
@@ -712,15 +710,15 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U, { hand: false }), ses = makeSession(api), NS = ctl.SLOTS.length
   const q = new URLSearchParams(location.search)
   const mix = q.get('mix') != null ? parseMix(q.get('mix')) : { ...parseMix(store('nn-mix25') ?? ''), ...LOCKED } // a stored mix keeps its open choices; the locks win over it
-  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false, slotLabels = null, coke = null, cutN = 0, ghost = null
+  let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false, slotLabels = null, coke = null, cutN = 0, ghost = null, ctl3d = null, windFx = null, windKey = '', tonightWind = () => {}
   const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'giants', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx">MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
-    <div class="h2"><span class="grp"><span class="gl">IN THE PARK</span> <span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span></span>
+    <span class="grp" id="c25mx"${OPEN.length ? '' : ' hidden'}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
+    <div class="h2"><span class="grp"><span class="gl">IN THE PARK</span> <span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span></span>
     <span class="grp"><span class="gl">TONIGHT</span> <span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span></span>
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
     <span class="grp"><span class="gl">YOU</span> <span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
@@ -760,13 +758,13 @@ export async function build(root, api, U) {
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
   const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99' }), se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true, dim: '#8a8f99' })
-  let show = ['lp', 'se', 'rc', 'sm'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
+  let show = ['lp', 'se', 'rc', 'sm', 'my'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
   if (q.get('show') === 'sc') mode = 'shot'
-  const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
+  const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25my', 'my'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
   // the star map is. I don't care about the odds receipt"); KARL comes in only when the forecast says fog, no button
   for (const id of ['#c25sc', '#c25rc', '#c25sm', '#c25kl']) E(id).style.display = 'none'
-  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se'].includes(show)) unlook(); if (show !== 'se') ghost?.hide(); if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
+  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my'].includes(show)) unlook(); if (show !== 'se') ghost?.hide(); if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
@@ -775,7 +773,9 @@ export async function build(root, api, U) {
   const onPark = (e) => e.target === (api.NN.renderer?.domElement ?? null) || (!api.NN.renderer && e.target?.tagName === 'CANVAS' && !e.target.closest?.('.pnl.p, .sm, .mod')) // (red team: the face canvas and the menu's animation are canvases too)
   addEventListener('pointerdown', (e) => { down = onPark(e) ? [e.clientX, e.clientY] : null })
   addEventListener('pointerup', (e) => {
-    if (mode !== 'shot' || !down || !onPark(e) || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return
+    if (!down || !onPark(e) || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return
+    if (mode !== 'shot' && show === 'my' && (myEdit || !mySaved())) { const p = sc.pick(e.clientX, e.clientY), x = p && seatOf(p); if (x?.what === 'seat') mySave(x); return } // MY SEAT: the click is your seat
+    if (mode !== 'shot') return
     const spot = sc.pick(e.clientX, e.clientY)
     if (spot) shotAt(spot)
   })
@@ -889,7 +889,7 @@ export async function build(root, api, U) {
   // Options that only show when something happens get a SEE IT button: a ball flies (landing, camera, pitch arc), Karl rolls in, or the menu opens (its title).
   const dock = E('#c25dk')
   let dockAx = OPEN.includes(store('nn-dock25')) ? store('nn-dock25') : OPEN[0]
-  const SEE = { V: 'RIDE ONE', G: 'PLAY A SHOW', O: 'SHOW ME', N: 'CALL A SEAT', Q: 'LOOK AT IT', C: 'LOOK AT IT', D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', X: 'FLY A BALL', E: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
+  const SEE = { G: 'PLAY A SHOW', O: 'SHOW ME', N: 'CALL A SEAT', Q: 'LOOK AT IT', C: 'LOOK AT IT', D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', X: 'FLY A BALL', E: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
   const dockOpts = (k) => AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c)
   function paintDock() {
     if (!OPEN.length) return
@@ -909,7 +909,7 @@ export async function build(root, api, U) {
     dock.querySelector('[data-dk="see"]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); seeIt(k) })
   }
   const dockTo = (k) => { dockAx = k; store('nn-dock25', k); paintDock(); dock.focus({ preventScroll: true }) }
-  const seeIt = (k) => { if (k === 'V') { if (mode === 'shot') setMode('replay'); rideIt(); return } if (k === 'G') { life?.play('crab', {}, 0, true); life?.play('cable', { ft: 452 }); return } if (k === 'O') { if (mode !== 'replay') setMode('replay'); openMod('before'); return } if (k === 'Q' || k === 'C') { lookThere(k); return } if (k === 'N') { if (mode !== 'shot') setMode('shot'); if (!scRes) { const r = se.seatPoint('140', '12', '8'); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }) } return } if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
+  const seeIt = (k) => { if (k === 'G') { life?.play('crab', {}, 0, true); life?.play('cable', { ft: 452 }); return } if (k === 'O') { if (mode !== 'replay') setMode('replay'); openMod('before'); return } if (k === 'Q' || k === 'C') { lookThere(k); return } if (k === 'N') { if (mode !== 'shot') setMode('shot'); if (!scRes) { const r = se.seatPoint('140', '12', '8'); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }) } return } if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
   function toggleDock(on) {
     if (!OPEN.length) return // everything locked: nothing to try
     const v = on ?? !grid.classList.contains('dk')
@@ -935,14 +935,14 @@ export async function build(root, api, U) {
     cur = b; edited = false
     cancelPlay(); pitchCam?.clear() // the last pitch arc belongs to the last ball, and a pitch still on its way is called off
     if (life) { const n = pname(b.b); life.idle(`${(n ? n[0] : 'BATTER ' + b.b).toUpperCase()}  ·  ${b.d}  ·  ${b.ft} FT`); life.setClock(b.tm ? { hm: b.tm } : { live: true }) } // the clock: when it was hit, in that park's time
-    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false })
+    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false })
     api.setPreview(true); api.update()
   }
   // a blank swing (29 Oct, Andrew: TWEAK THE TATER only changes a real home run; DINGER DOJO starts from scratch)
-  const DOJO0 = { ev: 103, la: 28, dir: 0, temp: 62, wind: 0, carry: 1, dws: 0, tab: true }
+  const DOJO0 = { ev: 103, la: 28, dir: 0, temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }
   function setMode(m) {
     if (m === 'shot' && !atOracle) m = 'replay' // Shot Caller knows Oracle's seats only
-    dropRide()
+    if (uiReady && m !== mode) sound.play('mode-' + m) // a stinger for each mode
     cancelPlay(); flight?.setGhost(null); stepped = null // tweak() sets it again after this
     if (reel && m !== 'replay') stopReel()
     stopShot()
@@ -969,8 +969,8 @@ export async function build(root, api, U) {
     sound.play('pick'); life?.play('tater', {}, 0, true)
     setMode('whatif'); stepped = from; syncMode(); relayout()
     // the real ball's own carry and side spin come along (28 Oct, night): untouched, the numbers fly the real flight, so every change you make is the only difference
-    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false })
-    from.real = { ev: b.ev, la: b.la, dir: b.dir, temp: b.temp, wind: 0, hand: b.s === 'R' ? 1 : -1, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false }
+    Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false })
+    from.real = { ev: b.ev, la: b.la, dir: b.dir, temp: b.temp, wind: 0, xwind: 0, hand: b.s === 'R' ? 1 : -1, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false }
     { const r0 = api.fly({ ...api.state }, {}), src = r0.visPath ?? r0.path; flight?.setGhost(src.filter((_, k) => k % 4 === 0).map((q) => api.toWorld(q.p))) }
     api.update(); from.ft = Math.round(api.fly({ ...api.state }, {}).landFt); paintChooser()
   }
@@ -988,13 +988,12 @@ export async function build(root, api, U) {
     }
     const bn = pname(cur?.b), pn = pname(cur?.p)
     el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="previous ball">&lt;</span><span class="bt" data-st="1" aria-label="next ball">&gt;</span> BALL ${idx + 1} OF ${balls.length}
-      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt hot" id="c25ri" title="ride the ball (V)">RIDE IT</span><span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
+      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
       <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ?? ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); filter = b.dataset.f; balls = filtered(); idx = 0; applyBall(balls[0]); paintChooser() }))
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
     E('#c25go').addEventListener('click', () => { pressEl(E('#c25go')); play() })
-    E('#c25ri').addEventListener('click', () => { pressEl(E('#c25ri')); rideIt() })
     E('#c25rl').addEventListener('click', () => { pressEl(E('#c25rl')); if (reel) stopReel(); else startReel() })
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
@@ -1084,8 +1083,8 @@ export async function build(root, api, U) {
 
   // ---- pop-ups ----
   let iniCancel = null
-  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; modal = k; E('#c25m').classList.add('open'); paintModal(); if (k === 'moon') life?.play('moon', {}, 0, true) }
-  const closeMod = () => { modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null }
+  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) sound.play('modal-open'); modal = k; E('#c25m').classList.add('open'); paintModal(); if (k === 'moon') life?.play('moon', {}, 0, true) }
+  const closeMod = () => { if (modal) sound.play('modal-close'); modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
   function paintModal() {
@@ -1161,7 +1160,8 @@ export async function build(root, api, U) {
   function paintJukebox(body) {
     E('#c25mt').textContent = '/ J U K E B O X /'
     const on = jukebox.playing(), mmss = (x) => `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, '0')}`
-    body.innerHTML = `<div class="bul"><div class="bulh">BALLPARK CLASSICS AS CHIPTUNE, PLAYED BY THE BROWSER${sound.on() ? '' : ' · SOUND IS OFF: PRESS S'}</div><div class="btab">${jukebox.songs.map((x) => `<div class="r mo jk"><span>${x.name}${x.note ? ` <i>(${x.note.toUpperCase()})</i>` : ''}</span><b>${mmss(jukebox.length(x.id))}</b><span><span class="bt" data-song="${x.id}">${on === x.id ? 'STOP' : 'PLAY'}</span></span></div>`).join('')}</div><div class="baya">A WALK-OFF PLAYS SAN FRANCISCO; A GRAND SLAM PLAYS CHARGE!. TAKE ME OUT (1908), THE SAINTS, CHARGE! AND THE HAT DANCE ARE PUBLIC DOMAIN; SAN FRANCISCO IS NOT, SO IT STAYS ON THIS PRIVATE SITE.</div></div>`
+    body.innerHTML = `<div class="bul"><div class="bulh">BALLPARK CLASSICS AS CHIPTUNE, PLAYED BY THE BROWSER${sound.on() ? '' : ' · SOUND IS OFF: PRESS S'}</div><div class="btab">${jukebox.songs.map((x) => `<div class="r mo jk"><span>${x.name}${x.note ? ` <i>(${x.note.toUpperCase()})</i>` : ''}</span><b>${mmss(jukebox.length(x.id))}</b><span><span class="bt" data-song="${x.id}">${on === x.id ? 'STOP' : 'PLAY'}</span></span></div>`).join('')}</div><div class="baya">A WALK-OFF PLAYS SAN FRANCISCO; A GRAND SLAM PLAYS CHARGE!. TAKE ME OUT (1908), THE SAINTS, CHARGE! AND THE HAT DANCE ARE PUBLIC DOMAIN; SAN FRANCISCO IS NOT, SO IT STAYS ON THIS PRIVATE SITE.</div>${sound.mixerHTML()}</div>`
+    sound.bindMixer(body) // the sound mixer: master, music, effects, crowd and bay
     body.querySelectorAll('[data-song]').forEach((b) => b.addEventListener('click', () => { pressEl(b); autoSong = false; if (jukebox.playing() === b.dataset.song) jukebox.stop(); else { if (!sound.on()) sound.set(true); jukebox.play(b.dataset.song, { onEnd: () => { if (modal === 'jukebox') paintJukebox(E('#c25mb')) } }) } paintJukebox(body) }))
   }
   // the type picker: every pixel type set drawn with the same real pieces of the screen; click one to use it
@@ -1182,7 +1182,7 @@ export async function build(root, api, U) {
   let bay = null
   const OM = 'https://api.open-meteo.com/v1/forecast?latitude=37.7786&longitude=-122.3893&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,cloud_cover_low,visibility&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles&forecast_days=2'
   const getBay = () => { if (!bay) bay = fetch(OM).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))).then((j) => (bay = j)).catch(() => (bay = { error: true })); return bay }
-  const REF = { ev: 103, la: 28, dir: 0, hand: 1, wind: 0, carry: 1, dws: 0, tab: true }
+  const REF = { ev: 103, la: 28, dir: 0, hand: 1, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }
   const carryFt = (t, hpa) => api.fly({ ...api.state, ...REF, temp: t }, { hPa: hpa }).landFt
   const compass = (d) => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((d % 360) + 360) % 360 / 45) % 8]
   const nowRow = (B) => { const H = B.hourly, i0 = Math.max(0, H.time.findIndex((t) => new Date(t).getTime() > Date.now() - 3600e3)); return { i0, low: H.cloud_cover_low[i0], vis: H.visibility[i0] } }
@@ -1311,7 +1311,7 @@ export async function build(root, api, U) {
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, CLICKED OR TYPED: EVERY SWING THAT PUTS A BALL THERE', run: () => setMode('shot'), off: () => !atOracle },
     { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS, THEN SEE EVERY HOME RUN FROM THE NIGHT", run: () => openMod('dinger') },
     { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
-    { k: 'options', name: 'OPTIONS', blurb: 'THE CHOICES STILL OPEN, IN A SMALL PANEL OVER THE PARK (?)', run: () => toggleDock(true) },
+    ...(OPEN.length ? [{ k: 'options', name: 'OPTIONS', blurb: 'THE CHOICES STILL OPEN, IN A SMALL PANEL OVER THE PARK (?)', run: () => toggleDock(true) }] : []), // (30 Oct, idea 12: with nothing open there is no dock)
   ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const menuKey = () => (mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
@@ -1335,7 +1335,6 @@ export async function build(root, api, U) {
     else if (e.key === 'c' || e.key === 'C') setMode(mode === 'shot' ? 'replay' : 'shot')
     else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); sound.play('move') }
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
-    else if (e.key === 'v' || e.key === 'V') rideIt()
     else if (e.key === 'n' || e.key === 'N') setShow('sm')
     else if (e.key === 'z' || e.key === 'Z') { mix.Z = mix.Z === 2 ? 1 : 2; sound.play('move'); applyMix('Z'); banner(mix.Z === 2 ? 'PUSH ON' : 'PUSH OFF', 'THE CAMERA ' + (mix.Z === 2 ? 'EASES TO THE LANDING' : 'STAYS PUT') + ' (Z)') }
     else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
@@ -1492,11 +1491,31 @@ export async function build(root, api, U) {
     for (let n = rs.length; n > 1 && hb.scrollHeight > hb.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
   }
   // SEAT SEANCE in the shared panel: where 300 ghosts of this ball come down, by outcome and by zone
-  function paintSeance() {
+  // 30 Oct (Andrew: "Seat seance bugs with tweak the tater into the field"; "way way way too busy"): the seance waits until the dragging stops (half a second
+  // with no change) before it flies its 300 ghosts, and only calls a seat for a ball that leaves the park; one that stays in gets a line in the panel, no ghost, no
+  // cloud. The ghost carries the call (GH1); the board only calls the seat when nothing is flying
+  let seWait = null, seGone = true
+  const HR_KEYS = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE']
+  function paintSeance(res) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb')
     wordTitle(el, '/ S E A T &nbsp; S E A N C E /', 'seance')
-    const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(s.dir * 2), Math.round(s.temp), s.wind, s.hand, s.carry, s.dws].join()
-    if (key !== seKey) { seKey = key; const cs = getComputedStyle(root); seRes = se.run({ ...s }, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim() }); lookAt([seRes.at], Math.max(12, seRes.most * 0.3048)); ghost?.show(seRes.at); const sc0 = seRes.call; if (sc0.what === 'seat') life?.show('SEC ' + sc0.sec, `ROW ${sc0.row} SEAT ${sc0.seat}`); else life?.show(sc0.short) } // the board calls the seat too
+    const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(s.dir * 2), Math.round(s.temp), s.wind, s.xwind, s.hand, s.carry, s.dws].join()
+    if (key !== seKey) {
+      seKey = key; seRes = null; se.clear(); ghost?.hide(); clearTimeout(seWait)
+      seGone = !res || (res.verdict?.kind ?? (HR_KEYS.includes(res.key) ? 'GONE' : '')) === 'GONE'
+      if (seGone) seWait = setTimeout(() => {
+        if (seKey !== key || show !== 'se') return
+        const cs = getComputedStyle(root)
+        seRes = se.run({ ...api.state }, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim() }, { sign: !ghost, tall: 4, out: true })
+        lookAt([seRes.at], Math.max(12, seRes.most * 0.3048))
+        ghost?.show(seRes.at, seRes.call, cs.getPropertyValue('--acc').trim())
+        const sc0 = seRes.call, flying = !!api.anim?.() && !api.anim().exploded
+        if (!flying) { if (sc0.what === 'seat') life?.show('SEC ' + sc0.sec, `ROW ${sc0.row} SEAT ${sc0.seat}`); else life?.show(sc0.short) } // the board calls the seat too
+        paintSeance(last)
+      }, window.__fixedTime !== undefined ? 0 : 450)
+    }
+    if (!seGone) { hb.innerHTML = '<div class="sel"><div class="lph">THIS ONE STAYS IN THE PARK: NO SEAT TO HAUNT.</div><div class="lph">SEND ONE OUT AND THE SEANCE FLIES HUNDREDS OF GHOSTS OF IT AND CALLS THE SEAT THEY COME DOWN IN.</div></div>'; return }
+    if (!seRes) { hb.innerHTML = '<div class="sel"><div class="lph">SUMMONING THE GHOSTS...</div></div>'; return }
     // the call first (28 Oct, night, Andrew: gun to its head, a seat), then how tight the cloud is and where the rest come down
     const r = seRes, c = r.call, P = (n) => Math.round((100 * n) / r.N)
     const big = c.what === 'seat' ? `<div class="scall"><span>${c.area}</span><b>SECTION ${c.sec}</b><b>ROW ${c.row} · SEAT ${c.seat}</b></div>` : `<div class="scall"><span>THE CALL</span><b>${c.line}</b></div>`
@@ -1504,6 +1523,56 @@ export async function build(root, api, U) {
       r.zones.slice(0, 5).map(([z, n]) => `<div class="lpr2"><span>${z}</span><b>${P(n)}%</b></div>`).join('') + '<div class="lph">SEATS ARE A BEST GUESS FROM A SEATING CHART: SECTION BY ANGLE, ROW BY DEPTH, SEAT ALONG THE ROW.</div></div>'
     const rs = [...hb.querySelectorAll('.lpr2')]
     for (let n = rs.length; n > 1 && hb.scrollHeight > hb.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
+  }
+  // MY SEAT in the shared panel (30 Oct, idea 3): your seat, typed once or clicked in the park and kept on this device, and the real home runs that came down
+  // within 10 ft of it (myseat25.js); with none that close, the five closest. Click one to fly it
+  const mySeat = initMySeat25(api, R.balls)
+  let myKey = '', myRes = null, myEdit = false
+  const mySaved = () => { try { return JSON.parse(store('nn-myseat25') || 'null') } catch { return null } }
+  const mySave = (x) => { store('nn-myseat25', JSON.stringify({ sec: x.sec, row: x.row, seat: x.seat })); myEdit = false; myKey = ''; sound.play('pick'); if (last) render(last) }
+  function paintMySeat() {
+    const el = E('#c25hi'), hb = E('#c25hb'), me = mySaved()
+    wordTitle(el, '/ M Y &nbsp; S E A T /', 'seat')
+    if (!me || myEdit) {
+      mySeat.clear()
+      if (hb.querySelector('.sfm')) return // built once, so typing is never interrupted
+      hb.innerHTML = `<div class="sfm"><div class="hd">WHERE DO YOU SIT?</div>
+        <label>SECTION<select id="c25ms">${se.SECTIONS.map((x) => `<option value="${x[2]}">${x[2]} · ${x[3]}</option>`).join('')}</select></label>
+        <label>ROW<input id="c25mr" maxlength="2" autocomplete="off" spellcheck="false" aria-label="row"></label><label>SEAT<input id="c25mt" maxlength="2" inputmode="numeric" autocomplete="off" aria-label="seat"></label>
+        <span class="bt hot" id="c25mg" role="button" tabindex="0">THAT'S MY SEAT</span><div class="sfn" id="c25mn"></div>
+        <div class="sfo">OR CLICK IT IN THE PARK. KEPT ON THIS DEVICE ONLY.</div></div>`
+      E('#c25ms').value = me?.sec ?? '140'; if (me) { E('#c25mr').value = me.row; E('#c25mt').value = me.seat }
+      const go = () => { const r = se.seatPoint(E('#c25ms').value, E('#c25mr').value, E('#c25mt').value); E('#c25mn').textContent = r.err ?? ''; if (r.err) { sound.play('back'); return } mySave(r) }
+      E('#c25mg').addEventListener('click', (e) => { pressEl(e.currentTarget); go() })
+      E('#c25mg').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } })
+      hb.querySelectorAll('input,select').forEach((x) => x.addEventListener('keydown', (e) => { if (e.key === 'Escape') { x.blur(); return } e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } }))
+      return
+    }
+    const key = [me.sec, me.row, me.seat].join()
+    if (key !== myKey) {
+      myKey = key; myRes = null
+      hb.innerHTML = `<div class="sel"><div class="lph">SEC ${me.sec} · ROW ${me.row} · SEAT ${me.seat}</div><div class="lph myp">FINDING WHERE EVERY ORACLE HOME RUN CAME DOWN...</div></div>`
+      mySeat.landings((n, N) => { const p = hb.querySelector('.myp'); if (p) p.textContent = `FINDING WHERE EVERY ORACLE HOME RUN CAME DOWN... ${Math.round((100 * n) / N)}%` }).then(() => {
+        if (show !== 'my' || myKey !== key) return
+        const r = se.seatPoint(me.sec, me.row, me.seat)
+        if (r.err) { store('nn-myseat25', ''); myKey = ''; if (last) render(last); return }
+        myRes = { at: r.at, ...mySeat.near(r.at) }
+        mySeat.show(r.at, myRes.closest, cs0().getPropertyValue('--acc').trim())
+        lookAt([r.at], 14)
+        paintMySeat()
+      })
+      return
+    }
+    if (!myRes) return
+    const n = myRes.inside.length
+    hb.innerHTML = `<div class="lpl"><div class="scall"><span>YOUR SEAT</span><b>SECTION ${me.sec}</b><b>ROW ${me.row} · SEAT ${me.seat}</b></div>
+      <div class="lph">${n ? `${n} HOME RUN${n > 1 ? 'S' : ''} CAME DOWN WITHIN 10 FT OF IT SINCE JULY 2023 (OF ${mySeat.count()} AT ORACLE).` : `NONE OF ${mySeat.count()} ORACLE HOME RUNS SINCE JULY 2023 CAME DOWN WITHIN 10 FT YET. THE CLOSEST:`}</div>` +
+      myRes.closest.map((x, i) => { const nm = pname(x.b.b); return `<div class="lpr" data-my="${i}" role="button" tabindex="0" style="cursor:pointer;pointer-events:auto"><b>${i + 1}</b><span class="nm">${(nm ? nm[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d}</span><span>${x.b.ft} FT</span><span class="wh">${Math.round(x.ft)} FT AWAY</span></div>` }).join('') +
+      '<span class="bt" id="c25mc" role="button" tabindex="0">CHANGE SEAT</span></div>'
+    hb.querySelectorAll('[data-my]').forEach((row) => row.addEventListener('click', () => { const b = myRes.closest[Number(row.dataset.my)].b; sound.play('pick'); if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.indexOf(b); if (i >= 0) { idx = i; applyBall(b); paintChooser(); play() } }))
+    E('#c25mc').addEventListener('click', (e) => { pressEl(e.currentTarget); myEdit = true; mySeat.clear(); hb.innerHTML = ''; paintMySeat() })
+    const rs = [...hb.querySelectorAll('.lpr')]
+    for (let k = rs.length; k > 1 && hb.scrollHeight > hb.clientHeight + 1; k--) rs[k - 1].style.display = 'none'
   }
   // SHOT CALLER (29 Oct, Andrew: its own mode; PLAY IT shows the most common flight paths; type a seat and see the numbers that could put a ball there). A spot, clicked
   // in the park or typed as a seat, goes to shotcaller.js, which flies a grid of speeds and angles at it; every swing that comes down there is ranked by how common a
@@ -1530,7 +1599,7 @@ export async function build(root, api, U) {
     if (!r?.ways?.length) { if (last) render(last); paintChooser(); return }
     scSel = (i + r.ways.length) % r.ways.length
     const w = r.ways[scSel]
-    Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, carry: 1, dws: 0, tab: true })
+    Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true })
     api.setPreview(true); api.update(); paintChooser()
   }
   // PLAY IT: the three most common ways, flown one after another
@@ -1543,7 +1612,7 @@ export async function build(root, api, U) {
     const p = shotPlayS
     if (!p || mode !== 'shot') { stopShot(); return }
     const w = p.list[p.i]; scSel = scRes.ways.indexOf(w)
-    Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, carry: 1, dws: 0, tab: true })
+    Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true })
     api.setPreview(true); api.update(); paintChooser()
     banner(p.i === 0 ? 'MOST COMMON' : `WAY ${p.i + 1} OF ${p.list.length}`, `${w.ev} MPH AT ${w.la}°`)
     p.t.push(setTimeout(() => { if (shotPlayS === p) { p.wait = true; ses.fire() } }, 700))
@@ -1758,7 +1827,7 @@ export async function build(root, api, U) {
     E('#c25hw').style.display = show === 'hist' && mode !== 'shot' ? '' : 'none'
     if (mode === 'shot') { paintShot(); return }
     if (show === 'sm') { paintStars(); return }
-    if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
+    if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(res); else if (show === 'my') paintMySeat(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
   }
   // THE FUN LINE (28 Oct, night, Andrew: bring back the distance and speed similes). 29 Oct, evening (Andrew: "the thing keeps cycling through different speed and
   // distance stats - I only want one for distance and one for speed every time I press swing"): two lines under GONE IN that stay put, the distance against the
@@ -1802,6 +1871,8 @@ export async function build(root, api, U) {
   }
   function render(res) {
     last = res
+    if (ctl3d) { ctl3d.visible = mode === 'whatif'; ctl3d.sync(api.state) }
+    if (windFx) { const k = mode === 'whatif' ? `${api.state.wind},${api.state.xwind ?? 0}` : 'tonight'; if (k !== windKey) { windKey = k; if (mode === 'whatif') windFx.setField({ wind: api.state.wind, xwind: api.state.xwind ?? 0 }); else tonightWind() } } // the socks show the dojo's wind, or tonight's
     paintHead(res)
     paintPanel(res)
     paintBatter(); paintSide(); paintPitch(); paintSlots(); paintTally(); paintVerdict(false); paintBug(); if (['parks', 'moon', 'before', 'mix'].includes(modal)) paintModal() // (red team: the data modals were rebuilt on every beat, eating clicks)
@@ -1835,25 +1906,34 @@ export async function build(root, api, U) {
   const colors = () => { const cs = getComputedStyle(root), gs = getComputedStyle(grid); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), pc: gs.getPropertyValue('--pc').trim(), mk: gs.getPropertyValue('--mk').trim(), sc: gs.getPropertyValue('--sc').trim() } }
   let splashes = Number(store('nn-splash25') ?? 0) || 0
   let bannerT = 0
-  const banner = (big, small) => { const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('go'), 2600) } // the class comes off on a timer too: reduced motion drops the fade that used to hide it
+  const banner = (big, small) => { sound.play('banner'); const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('go'), 2600) } // the class comes off on a timer too: reduced motion drops the fade that used to hide it
   fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
   let pendingSplash = false
   life = atOracle ? initPark25(api, colors, { still: reduced, gullFace: mix.W, signStyle: mix.Q, boardStyle: mix.G }) : null
+  if (life) for (const b of [life.board, life.vboard, life.vsign]) if (b) keepReadable(api, b, 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the 3D tags keep off the scoreboard and the sign (30 Oct)
   if (atOracle) coke = await initCoke25(api, { style: mix.C, still: reduced }).catch((e) => { console.warn('Coke corner', e); return null }) // (red team: a bad file used to stop everything after it)
+  const diamond = initDiamond25(api) // the infield in voxels: dirt, grass, chalk, the raised mound, the bases and the plate (29 Oct, later; all voxel 30 Oct). Before the cut, which uses it
   // the model's own sign, clock and arch and its own bottle and glove are cut out of it (29 Oct, evening, Andrew: "you can still see the old oracle park lettering
   // and clock behind the new voxel ones - let's delete those"; "kill the wireframe beneath both the coke bottle and mitt"); the voxel ones stand in their place.
   // The sign: 35.4 to 49.5 m up, 144 to 154 m out, within 8.5 degrees of center (the light towers stand at 9 to 11)
   if (atOracle) {
     const h0 = api.toWorld([0, 0, 0]), sign = (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz); const b = Math.abs(Math.atan2(dx, -dz)); return (y > 35.4 && y < 49.5 && d > 144 && d < 154 && b < 0.148) || (y > 12.4 && y <= 35.4 && d > 146 && d < 153 && b < 0.159) } // the sign, then the board (to 9.1 degrees)
-    const cut = () => { cutN = window.__nn.cutStadium?.((x, y, z) => sign(x, y, z) || !!coke?.under(x, y, z)) ?? 0 }
+    const cut = () => { cutN = window.__nn.cutStadium?.((x, y, z) => sign(x, y, z) || !!coke?.under(x, y, z) || !!diamond?.under(x, y, z)) ?? 0 } // and the model's infield (30 Oct, IF2: all voxel, diamond25.js)
     if (window.__nn.stadium) cut(); else addEventListener('nn-stadium', cut, { once: true })
   }
   water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
   pitchCam = initPitchArc(api, colors)
   flight = initFlight25(api, colors); flight.setStyle(mix.U)
-  const diamond = initDiamond25(api) // the raised voxel mound, the bases and the plate (29 Oct, later)
   ghost = initGhost25(api, { still: reduced }) // SEAT SEANCE's ghost
-  const happen = atOracle ? initHappen25(api, { still: reduced }) : null // the blimp, the ferry, the whale
+  // the dojo's controls in the park (30 Oct: LA1 protractor, DR1 spray fan, EV1 slingshot, the wind rose); they set the same numbers as the typed boxes and sliders
+  { const cs = cs0(); ctl3d = initControls25(api, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), words: { dir: FIELD }, set: (ch) => { Object.assign(api.state, ch); api.update() }, fire: () => fire(), sound: (k) => sound.play(k), enabled: () => mode === 'whatif' && !modal }) }
+  // the wind (30 Oct, Andrew: "Is the wind slightly horizontal? If so I need to know that somehow"): windsocks on the foul poles, the sign's pennants and faint air
+  // streams over the field show tonight's forecast wind at Oracle (shown, not flown); in the dojo they show the wind you set, which is flown, across as well as out
+  windFx = atOracle ? initWind25(api, { still: reduced, onChange: (w) => { if (life) life.wind = w && { ...w, cfDeg: window.__cp.ORACLE_AZ ?? 85 } } }) : null
+  tonightWind = () => { if (windFx) Promise.resolve(getBay()).then((j) => { const H = j?.hourly; if (!H || mode === 'whatif') return; const now = new Date().toLocaleString('sv-SE', { timeZone: 'America/Los_Angeles' }).slice(0, 13).replace(' ', 'T'); const i = Math.max(0, H.time.findIndex((t) => t.startsWith(now))); windFx.set({ mph: H.wind_speed_10m[i], fromDeg: H.wind_direction_10m[i] }) }) }
+  tonightWind()
+  const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, board: (k, a) => (k === 'evict' ? life?.show('RENT WENT UP', 'EVICTED', null, 3) : life?.play(k, a ?? {}, 0, true)) }) : null // the blimp, the ferry, King Street, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count, the board gets the IPO and the eviction
+  if (happen?.splashSign?.()) keepReadable(api, happen.splashSign(), 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the tags keep off the Splash Hits sign too
   window.__cpTrack = (pts, res, color, prev) => flight.track(pts, res, color, prev); window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
@@ -1922,7 +2002,7 @@ export async function build(root, api, U) {
   if (life) life.gullsOn = mix.F !== 3
   if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) }
   // PLAY IT: a new batter gets their walk-up jingle, the pitch flies into the zone, then the hit-stop and the crack
-  function cancelPlay() { for (const t of playT) clearTimeout(t); playT = []; playing = false; pitchCam?.stop(); dropRide() }
+  function cancelPlay() { for (const t of playT) clearTimeout(t); playT = []; playing = false; pitchCam?.stop() }
   function play() {
     if (mode !== 'replay' || !cur || playing || pitchCam?.busy()) return
     playing = true
@@ -1984,7 +2064,7 @@ export async function build(root, api, U) {
   }
   function stopReel() { if (reel) for (const t of reel.t) clearTimeout(t); reel = null }
   addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
-  addEventListener('pointerdown', (e) => { if (reel && onPark(e)) stopReel(); if (ride && !ride.landed && onPark(e)) { ride.landed = true; ride = null } }) // a drag during a ride takes the camera over
+  addEventListener('pointerdown', (e) => { if (reel && onPark(e)) stopReel() })
   let fires = 0
   const voxBall = (bm) => { const v0 = bm.userData.vox; if (v0?.isObject3D) { if (v0.parent !== bm) bm.add(v0); bm.material.visible = false; return } if (v0) return; bm.userData.vox = 1; loadModels(api.NN.THREE).then((M) => { if (!M.ball) return; const v = cloneModel(M.ball, 2.0 / 0.42 / 0.09); v.traverse((o) => { if (o.isMesh && o.material.color.r > 0.5 && o.material.color.g < 0.35) o.userData.seam = true }); bm.add(v); bm.material.visible = false; bm.userData.vox = v; paintSeams() }) }
   // the voxel ball's stitches take the E color too
@@ -1999,56 +2079,22 @@ export async function build(root, api, U) {
     life?.clear()
     life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
-    sound.play('crack', { ev: api.state.ev })
+    sound.play('crack', { ev: api.state.ev }); sound.swing(api.state.ev) // the whoosh follows the ball; the crowd leans in
   }
-  window.__cpOnFly = (pos, fr) => { flight.reveal(fr); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35; if (ride) rideCam(pos, fr) }
-  // RIDE IT (29 Oct, evening, Andrew: carte blanche, "a whole new 'huh, that's fucking sick' thing"): the camera rides the home run, from the bat to wherever it comes
-  // down, holds on the landing, then glides back to where it was. V picks the ride: 1 BALL'S EYE (just behind the ball, looking where it is going), 2 CHASE CAM
-  // (behind and above, the ball in frame), 3 SKY CAM (alongside, the whole arc going by). the RIDE IT button in DEJA-VU, the V key anywhere (it swings in the dojo)
-  let ride = null
-  function dropRide() { if (!ride) return; const r = ride; ride = null; if (!r.landed) { api.NN.camera.position.copy(r.p0); api.NN.controls.target.copy(r.t0); api.NN.controls.update() } } // called off: the camera goes straight back
-  function rideIt() {
-    if (bird || reduced || ride) return
-    const flying = !!api.anim?.() && !api.anim().exploded // the last flight stays as the engine's anim after it lands
-    if (mode === 'replay' ? !cur || playing || pitchCam?.busy() || flying : mode !== 'whatif' || flying) return
-    const C = api.NN.camera, T = api.NN.controls.target
-    endPush(); look = null
-    ride = { p0: C.position.clone(), t0: T.clone(), style: mix.V, dir: null, prev: null, landed: false }
-    sound.play('pick')
-    if (mode === 'replay') play(); else fire()
-  }
-  function rideCam(pos, fr) {
-    const THREE = api.NN.THREE, C = api.NN.camera, T = api.NN.controls.target, up = new THREE.Vector3(0, 1, 0)
-    if (ride.landed) return
-    if (ride.prev) { const d = pos.clone().sub(ride.prev); if (d.lengthSq() > 1e-4) ride.dir = ride.dir ? ride.dir.lerp(d.normalize(), 0.25).normalize() : d.normalize() }
-    ride.prev = pos.clone()
-    const dir = ride.dir ?? api.toWorld([0, 1, 0.3]).sub(api.toWorld([0, 0, 0])).normalize()
-    const flat = dir.clone().setY(0).normalize(), side = flat.clone().cross(up).normalize()
-    let cam, tgt
-    if (ride.style === 2) { cam = pos.clone().addScaledVector(flat, -16).add(new THREE.Vector3(0, 6, 0)); tgt = pos.clone().addScaledVector(dir, 12) }
-    else if (ride.style === 3) { cam = pos.clone().addScaledVector(side, -34).addScaledVector(flat, -6).add(new THREE.Vector3(0, 7, 0)); tgt = pos.clone().addScaledVector(flat, 8) }
-    else { cam = pos.clone().addScaledVector(dir, -3.2).add(new THREE.Vector3(0, 0.9, 0)); tgt = pos.clone().addScaledVector(dir, 40) }
-    const k = ride.prev && fr > 0.02 ? 0.5 : 1
-    C.position.lerp(cam, k); T.lerp(tgt, k); api.NN.controls.update()
-  }
-  // after the landing: hold a beat on where it came down, then glide home
-  function rideLand() {
-    if (!ride) return
-    const r = ride; r.landed = true
-    setTimeout(() => { if (ride !== r) return; const C = api.NN.camera, T = api.NN.controls.target; look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: r.p0, t1: r.t0, out: true }; ride = null }, 1800)
-  }
+  window.__cpOnFly = (pos, fr) => { flight.reveal(fr); sound.fly(pos); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
   let lands = 0
   window.__cpOnLand = (ev) => {
     flight.done()
     lands++
     const ft = Math.round(window.__dojo?.landFt ?? 0), hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)
+    sound.land(ev, { ft }) // the crowd: a roar sized by distance, a groan off the wall, the foghorn on a splash, CHARGE! on the organ
     if (reel?.mine) { reel.mine = false; reel.i++; reel.t.push(setTimeout(reelNext, 2600)) }
     fx.land(ev)
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
-    lastMoment = mix.F === 1 ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null
+    lastMoment = mix.F === 1 && show !== 'se' ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
     if (life) boardFor(ev, hr, ft)
-    if (ride) rideLand(); else camPush(ev.at)
+    camPush(ev.at)
     if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
     if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
     else if (['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key)) sound.play('fanfare')
@@ -2074,7 +2120,7 @@ export async function build(root, api, U) {
     if (hr && ft >= 430) life.play('cable', { ft }, D)
     if (ev.key === 'SPLASH') life.play('kayak', {}, D)
     // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board
-    if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) { const G = ['anvil', 'dynamite', 'bonk', 'runover', 'sealsnack']; life.play(G[Math.floor(Math.random() * G.length)], {}, D) }
+    if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag of 24
     if (api.state.ev >= 112) life.play('laser', { ev: api.state.ev }, D)
     if (hr && ft >= 410 && ft < 430) life.play('nodoubt', {}, D)
     if (hr && atOracle && (b ? (b.tb === 'Top' ? b.at : b.ht) === 'SF' : true)) life.play('fireworks', { word: b ? 'GIANTS HOME RUN' : 'HOME RUN' }, D) // a Giants home run at Oracle (and yours in the dojo)
@@ -2102,7 +2148,7 @@ export async function build(root, api, U) {
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, riding: () => (ride ? (ride.landed ? 'landed' : 'riding') : null), rideIt: () => rideIt() }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, readable: () => readable() }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },

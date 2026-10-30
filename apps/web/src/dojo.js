@@ -36,6 +36,13 @@ const state = {
   hand: Q.get('hand') === 'L' ? -1 : 1, temp: Number(Q.get('temp')) || 62, wind: Number(Q.get('wind')) || 0, ui: (Q.get('ui') || 'K').toUpperCase(),
 }
 
+// a compass wind (mph, the direction it blows FROM, as Open-Meteo gives it) in the field's frame: wind = toward center field, xwind = toward right field.
+// Oracle's home-plate-to-center-field azimuth is 85 degrees (MLB Stats API venues, data/raw/game_context/venues.parquet), so right field is 175 (the Cove side)
+export const ORACLE_AZ = 85
+export function windParts(mph, fromDeg, az = ORACLE_AZ) {
+  const h = ((fromDeg + 180 - az) * Math.PI) / 180 // where it blows to, measured clockwise from straight out to center
+  return { wind: mph * Math.cos(h), xwind: mph * Math.sin(h) }
+}
 function airDensity(tF, rh = 60, hPa = 1013) {
   const t = ((tF - 32) * 5) / 9, tk = t + 273.15
   const pv = (rh / 100) * 6.1078 * 10 ** ((7.5 * t) / (t + 237.3)) * 100
@@ -50,7 +57,7 @@ function fly(s, opt = {}) {
   const wb = Math.max(0, -763 + 120 * s.la + (s.dwb || 0)) * RPM, ws = (-s.hand * 864 - 75 * s.dir + (s.dws || 0)) * RPM
   const r = [Math.cos(phi), -Math.sin(phi), 0]
   const om = [wb * r[0], wb * r[1], ws], wm = Math.hypot(...om) + 1e-9
-  const wind = [0, (s.wind * 0.44704), 0] // what-if wind along the field (positive = toward center field)
+  const wind = [(s.xwind ?? 0) * 0.44704, (s.wind * 0.44704), 0] // what-if wind along the field (positive = toward center field) and across it (xwind, positive = toward right field; absent = calm across)
   let p = [0, 0, 1.0]
   let v = [v0 * Math.cos(th) * Math.sin(phi), v0 * Math.cos(th) * Math.cos(phi), v0 * Math.sin(th)]
   const q = (0.5 * rho * AREA) / MASS
@@ -541,6 +548,6 @@ const crestWall = (w, c) => {
   return out
 }
 Promise.all([fetch('/oracle_wall.json').then((r) => r.json()), fetch(PARKX ? `/parks/${PARKX}/crest.json` : '/oracle_crest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null), PARKX ? fetch('/parks30.json').then((r) => (r.ok ? r.json() : null)).catch(() => null) : null]).then(([w, c, p30]) => { wall = crestWall(w, c); const pk = p30?.parks?.find((p) => p.abbr === PARKX); if (pk?.hpa) parkHPa = pk.hpa; update(); tick(); fx = initFx(NN); window.__fx = fx; if (state.ui === 'K') { const L0 = LOOKS_K[lookK]; NN.setSat?.(L0.sat); NN.setDuo?.(L0.duo); NN.setBg?.(L0.bg) } window.__krab = Q.get('krab') === '1' ? initKrab(NN, { wallDistM: (bd) => wallDistAt(bd) * FT }) : null; // the crab is off for now (?krab=1 brings it back) initSeance({ NN, state, fly, toWorld, colors }); if (Q.get('grid') !== '0') grid = initGrid({ state, fly, onChange: () => update() }); radar = initRadar3D({ NN, state, fly, toWorld, getWall: () => wall, findLanding }); window.__radarCtl = radar; update()
-  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, toWorld, findLanding: (path) => findLanding(NN, path, toWorld), wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, ballMesh: () => ball, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
+  window.__cp = { state, update: () => update(), PRESETS, FT, fly, NN, THREE, toWorld, windParts, ORACLE_AZ, findLanding: (path) => findLanding(NN, path, toWorld), wallAt: (b) => { if (!wall) return null; const k = Math.min(Math.max(b, -47), 47) + 47, i = Math.floor(k), f = k - i, j = Math.min(i + 1, 94); return [wall.wall_ft[i] * (1 - f) + wall.wall_ft[j] * f, wall.height_ft[i] * (1 - f) + wall.height_ft[j] * f] }, scrub: (f) => { scrubF = f }, fire: () => { window.__cpFire = true; try { update() } finally { window.__cpFire = false } }, setPreview: (on) => { window.__cpPreview = !!on; update() }, anim: () => anim, ballMesh: () => ball, res: () => window.__dojo, progress: () => (window.__fixedTime !== undefined || !anim ? 1 : (scrubF ?? Math.min((performance.now() - anim.t0) / anim.dur, 1))) }
   if (Q.get('cp')) { document.body.classList.add('cp'); import('./cockpits/index.js').then((m) => m.start(Number(Q.get('cp')), window.__cp)).then(() => { window.__cpReady = true }) }
   window.__dojoReady = true })

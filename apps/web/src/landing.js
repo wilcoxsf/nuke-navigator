@@ -57,7 +57,7 @@ export function landingParty(api, balls, o = {}) {
       if (o.vox) {
         // Study 25 (28 Oct, night): a voxel number on a voxel stake where it came down, the flight as a few faint cubes
         const n = voxText(THREE, String(i + 1), { px: 0.8, color, back: '#141414' }), top = new THREE.Vector3(p.x, p.y + 6, p.z)
-        n.position.copy(top); keepReadable(api, n, 140, 0.5, 2.4)
+        n.position.copy(top); keepReadable(api, n, 140, 0.5, 1.8, { prio: 2 })
         group.add(n, voxPost(THREE, p, top, { px: 0.45, gap: 1.2, color }))
         group.add(voxDots(THREE, res.path.filter((_, k) => k % 9 === 4).map((q) => api.toWorld(q.p)), { px: 0.35, color: o.dim ?? color }))
       } else {

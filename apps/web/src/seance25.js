@@ -44,27 +44,32 @@ export function seatSeance25(api) {
     if (kind === 'GONE' || kind === 'FOUL') { const h = api.findLanding(res.path); at = h.point; if (kind === 'GONE') kind = h.kind } else at = api.toWorld(res.path[res.path.length - 1].p)
     return { at, kind }
   }
-  function run(state, colors) {
+  function run(state, colors, o = {}) {
     clear()
     const rng = mulberry(11), pts = []
     for (let k = 0; k < N; k++) pts.push(land({ ...state, ev: state.ev + SPREAD.ev * gauss(rng), la: state.la + SPREAD.la * gauss(rng), dir: state.dir + SPREAD.dir * gauss(rng), temp: state.temp + SPREAD.temp * gauss(rng), wind: (state.wind ?? 0) + SPREAD.wind * gauss(rng), dwb: SPREAD.dwb * gauss(rng), dws: (state.dws ?? 0) + SPREAD.dws * gauss(rng) }))
     // the heat map: count per 2 m cell, a voxel column per cell (1 m cubes), as tall as its share of the busiest cell, dim to accent with the count
     const cells = new Map()
     for (const p of pts) { const k = Math.round(p.at.x / CELL) + ',' + Math.round(p.at.z / CELL); const c = cells.get(k) ?? { n: 0, y: 0, x: Math.round(p.at.x / CELL) * CELL, z: Math.round(p.at.z / CELL) * CELL, kinds: {} }; c.n++; c.y += p.at.y; c.kinds[p.kind] = (c.kinds[p.kind] ?? 0) + 1; cells.set(k, c) }
-    const list = [...cells.values()].sort((a, b) => b.n - a.n), top = list[0], max = top.n
+    const all = [...cells.values()].sort((a, b) => b.n - a.n)
+    // o.out (30 Oct, Study 25: a ball that leaves the park is called in the seats, never in the field): only the cells where ghosts left the park count and are drawn
+    const OUT = ['STANDS', 'SPLASH', 'STREET'], gone = (c) => Object.keys(c.kinds).some((k) => OUT.includes(k)), outs = o.out ? all.filter(gone) : []
+    const list = outs.length ? outs : all, top = list[0], max = top.n
     group = new THREE.Group()
     const ramp = [colors.dim, colors.tx, colors.acc]
     for (const c of list) {
-      const h = Math.max(1, Math.round((c.n / max) * 7)), col = ramp[Math.min(2, Math.floor((c.n / max) * 3))], base = c.y / c.n
+      const h = Math.max(1, Math.round((c.n / max) * (o.tall ?? 7))), col = ramp[Math.min(2, Math.floor((c.n / max) * 3))], base = c.y / c.n
       const vc = []
       for (let j = 0; j < h; j++) vc.push([0, j, 0, col])
       const g = voxCells(THREE, vc, 1.1); g.position.set(c.x, base, c.z); group.add(g)
     }
     // the call: the busiest cell's middle, named, on a stake over the cloud
-    const kind = Object.entries(top.kinds).sort((a, b) => b[1] - a[1])[0][0], at = new THREE.Vector3(top.x, top.y / top.n, top.z), call = seatAt(at, kind)
-    const stakeTop = at.clone().add(new THREE.Vector3(0, 16, 0)), label = voxText(THREE, call.line, { px: 0.55, color: colors.acc, back: '#141414' })
-    label.position.copy(stakeTop); keepReadable(api, label, 120, 0.4, 2.2)
-    group.add(voxPost(THREE, at.clone().add(new THREE.Vector3(0, 9, 0)), stakeTop, { px: 0.4, gap: 1, color: colors.acc }), label)
+    const kind = Object.entries(top.kinds).filter(([k]) => !outs.length || OUT.includes(k)).sort((a, b) => b[1] - a[1])[0][0], at = new THREE.Vector3(top.x, top.y / top.n, top.z), call = seatAt(at, kind)
+    if (o.sign !== false) { // (30 Oct: Study 25's ghost carries the call instead, o.sign false)
+      const stakeTop = at.clone().add(new THREE.Vector3(0, 16, 0)), label = voxText(THREE, call.line, { px: 0.55, color: colors.acc, back: '#141414' })
+      label.position.copy(stakeTop); keepReadable(api, label, 120, 0.4, 2.2, { prio: 4 })
+      group.add(voxPost(THREE, at.clone().add(new THREE.Vector3(0, 9, 0)), stakeTop, { px: 0.4, gap: 1, color: colors.acc }), label)
+    }
     api.NN.scene.add(group)
     // how tight: the share inside the call's section, and the radius that holds half and nine in ten of the ghosts
     const d = pts.map((p) => Math.hypot(p.at.x - at.x, p.at.z - at.z)).sort((a, b) => a - b), ft = (m) => Math.round(m / 0.3048)
