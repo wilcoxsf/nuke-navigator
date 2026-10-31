@@ -145,8 +145,7 @@ new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_c
   // cut parts out of the park model for good (29 Oct, evening: Study 25 rebuilds the ORACLE PARK sign, its clock and the Coke corner in voxels, and the model's own
   // copies showed through): every triangle whose centre passes test(x, y, z) (world metres) is collapsed to a point, so it draws no face, no edge and no contour.
   // Returns how many were cut; a wire built before the cut needs rebuilding
-  window.__nn.cutStadium = (test) => {
-    window.__nn.cutTest = test // the wire leaves out edges touching a cut (red team: the hole's rim was drawn as a line)
+  const collapse = (test) => {
     gltf.scene.updateMatrixWorld(true)
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3()
     let n = 0
@@ -164,6 +163,19 @@ new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_c
       if (hit) { if (idx) idx.needsUpdate = true; else pos.needsUpdate = true; n += hit }
     })
     return n
+  }
+  window.__nn.cutStadium = (test) => {
+    window.__nn.cutTest = test // the wire leaves out edges touching a cut (red team: the hole's rim was drawn as a line)
+    return collapse(test)
+  }
+  // a cut that can be undone (30 Oct, later, Andrew: "a toggle to completely remove the higher parts of the stands and/or everything in foul territory"): the
+  // model as the permanent cuts left it is kept the first time, put back on every call, and test (null: nothing) cut from it; the wire needs rebuilding after
+  const kept = new Map()
+  window.__nn.maskStadium = (test) => {
+    const base = (window.__nn.cutBase ??= window.__nn.cutTest ?? (() => false))
+    gltf.scene.traverse((m) => { if (!m.isMesh) return; const at = m.geometry.index ?? m.geometry.attributes.position; if (!kept.has(at)) kept.set(at, at.array.slice()); else { at.array.set(kept.get(at)); at.needsUpdate = true } })
+    window.__nn.cutTest = test ? (x, y, z) => base(x, y, z) || test(x, y, z) : base
+    return test ? collapse(test) : 0
   }
   window.dispatchEvent(new Event('nn-stadium'))
   const box = new THREE.Box3().setFromObject(gltf.scene)
