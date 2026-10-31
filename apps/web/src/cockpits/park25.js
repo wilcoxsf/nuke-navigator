@@ -358,6 +358,25 @@ export function initPark25(api, col, o = {}) {
     for (let j = 0; j < rows; j++) { if (clip && (j < clip[0] || j >= clip[1])) continue; for (let i = 0; i < GW; i++) if (px[(j * GW + i) * 4 + 3] > 110) dst[j * GW + i] = ci(ch) }
     for (const ox of x2 != null ? [x, x2] : [x]) [...s].forEach((c, k) => { const g = BIG[c]; if (g) for (let j = 0; j < 7; j++) for (let i = 0; i < 7; i++) if (g[j][i] === '#') { const xx = ox + k * 8 + i, yy = y + j; if (xx >= 0 && xx < GW && yy >= 0 && yy < rows) dst[yy * GW + xx] = ci(ch) } })
   }
+  // SLIM (31 Oct): a 5 by 7 face, six LEDs a letter, so a punch of up to eleven letters fits the band standing still (POINT TAKEN, NO FEEDING, EXTRA MEAT)
+  const SLIM = {
+    A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'], B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'], C: ['.####', '#....', '#....', '#....', '#....', '#....', '.####'],
+    D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'], E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'], F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
+    G: ['.####', '#....', '#....', '#.###', '#...#', '#...#', '.###.'], H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'], I: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '#####'],
+    K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'], L: ['#....', '#....', '#....', '#....', '#....', '#....', '#####'], M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
+    N: ['#...#', '##..#', '#.#.#', '#..##', '#...#', '#...#', '#...#'], O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
+    R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'], S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'], T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+    U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'], X: ['#...#', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '#...#'],
+    Y: ['#...#', '#...#', '.#.#.', '..#..', '..#..', '..#..', '..#..'], '?': ['.###.', '#...#', '....#', '..##.', '..#..', '.....', '..#..'], '!': ['..#..', '..#..', '..#..', '..#..', '..#..', '.....', '..#..'],
+  }
+  // the band in SLIM, centered (during a gag; otherwise the board's own text)
+  function slim(s, ch = 'a') {
+    if (!gagOn) { text(s, 'c', 0, ch); return }
+    if (hush) return
+    const w = [...s].reduce((a, c) => a + (c === ' ' ? 4 : 6), -1), x0 = Math.round((GW - w) / 2)
+    let x = x0
+    for (const c of s) { const g = SLIM[c]; if (g) for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (g[j][i] === '#') { const xx = x + i; if (xx >= 0 && xx < GW) tbuf[(2 + j) * GW + xx] = ci(ch) } x += c === ' ' ? 4 : 6 }
+  }
   const BIG = { M: ['#.....#', '##...##', '#.#.#.#', '#..#..#', '#.....#', '#.....#', '#.....#'], W: ['#.....#', '#.....#', '#.....#', '#..#..#', '#.#.#.#', '##...##', '#.....#'] }
   let gagOn = false // a gag is drawing (its words go to the band)
   let lines = ['NUKE NAVIGATOR', ''], color = null, flash = 0, scroll = 0, marquee = true
@@ -423,7 +442,7 @@ export function initPark25(api, col, o = {}) {
   // three-by-five letters for the small words (a thought bubble, what she says)
   const MINI = { A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'], E: ['###', '#..', '##.', '#..', '###'],
     F: ['###', '#..', '##.', '#..', '#..'], G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'], I: ['###', '.#.', '.#.', '.#.', '###'], K: ['#.#', '#.#', '##.', '#.#', '#.#'],
-    L: ['#..', '#..', '#..', '#..', '###'], M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'], P: ['##.', '#.#', '##.', '#..', '#..'],
+    L: ['#..', '#..', '#..', '#..', '###'], M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'], P: ['##.', '#.#', '##.', '#..', '#..'], Q: ['.#.', '#.#', '#.#', '##.', '.##'],
     R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['###', '#..', '###', '..#', '###'], T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'], V: ['#.#', '#.#', '#.#', '#.#', '.#.'],
     W: ['#...#', '#...#', '#.#.#', '#.#.#', '.#.#.'], X: ['#.#', '#.#', '.#.', '#.#', '#.#'], Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], "'": ['#', '#', '.', '.', '.'], '?': ['##.', '..#', '.#.', '...', '.#.'], '!': ['#', '#', '#', '.', '#'], '.': ['.', '.', '.', '.', '#'], $: ['.#.', '###', '##.', '.##', '###'], ...DIG }
   const mstep = (c) => (c === ' ' ? 3 : (MINI[c]?.[0].length ?? 3) + 1)
@@ -1158,9 +1177,105 @@ export function initPark25(api, col, o = {}) {
       splat(t, 4.6, 46, 18, 0.4)
       text(t < 3.0 ? (t < 1.0 ? 'ONE' : t < 2.0 ? 'TWO' : 'THREE') : u < 1.4 ? '' : 'SPLASH HIT', 'c', 0, t < 3.0 ? 'o' : 'b')
     } },
+    // ---- 31 Oct (Andrew's picks from GPT's list: "I like mission burrito, parking boot, bison, transamerica pyramid (point taken is fucking hilarious)") ----
+    // MISSION BURRITO: he lies down on the taqueria counter on a giant tortilla; the two sides fold over him; a cleaver chops it in three; the middle slice, turned
+    // to us, has his blue cap in it
+    burrito: { dur: 9.4, still: 6.2, draw(t) {
+      ground(); rect(8, 16, 56, 2, 'n'); rect(8, 16, 56, 1, 'y'); rect(10, 18, 2, 3, 'd'); rect(60, 18, 2, 3, 'd') // the counter
+      mini('TAQUERIA', 'c', 1, 'y', true)
+      const lie = t >= 1.2, wrapped = t >= 3.0, chop1 = t >= 3.7, chop2 = t >= 4.5, face = t >= 5.3
+      const body = (x, y) => { rect(x, y, 2, 2, 'b'); rect(x + 2, y, 3, 3, 'w'); put(x + 3, y + 1, 'd'); rect(x + 5, y, 9, 3, 'b'); put(x + 8, y + 1, 'w'); put(x + 10, y + 1, 'w'); rect(x + 14, y + 1, 5, 2, 'g'); rect(x + 19, y, 2, 3, 'd') } // lying down, head left
+      if (!lie) blit(run(LADR, Math.floor(t * 6) % 2), -12 + Math.min(1, t / 1.0) * 30, 2)
+      if (lie && !wrapped) {
+        rect(6, 15, 58, 1, 'y'); for (let x = 8; x < 62; x += 5) put(x, 15, 'n') // the tortilla under him
+        body(24, 12)
+        if (t >= 1.6) { const k = ease((t - 1.6) / 1.4), L = 16 // the two sides fold up and over
+          for (const [hx, a0, a1] of [[22, 180, 0], [48, 0, 180]]) { const a = ((a0 + (a1 - a0) * k) * Math.PI) / 180; for (let i = 0; i <= L; i++) { const px = hx + Math.cos(a) * i, py = 15 - Math.sin(a) * i; put(px, py, i % 5 === 2 ? 'n' : 'y'); put(px, py - 1, 'y') } } }
+      }
+      if (wrapped) {
+        const sl = (x0, dx, w) => { rect(x0 + dx, 10, w, 6, 'y'); for (let i = 0; i < w; i += 3) put(x0 + dx + i, 11 + (i % 2) * 2, 'n') }
+        const a = chop1 ? -Math.min(3, (t - 3.7) * 10) : 0, c = chop2 ? Math.min(3, (t - 4.5) * 10) : 0
+        sl(20, a, 10); if (!face) sl(30, 0, 10); sl(40, c, 10)
+        put(19 + a, 12, 'y'); put(19 + a, 13, 'y'); put(50 + c, 12, 'y'); put(50 + c, 13, 'y') // the round ends
+        if (!chop2) { const w = Math.floor(t * 8) % 2; put(51 + c, 11 + w, 'd'); put(52 + c, 11 + w, 'd') } // his shoes, kicking, until the second chop
+        if (chop1) { line(29 + a, 10, 29 + a, 15, 'r'); put(29 + a, 12, 'w') } // the cut faces
+        if (chop2) { line(40 + c, 10, 40 + c, 15, 'r'); put(40 + c, 13, 'w'); for (let i = 0; i < 4; i++) put(41 + c + i, 16, 'r') }
+        if (face) { disc(35, 12, 5, 'y'); disc(35, 12, 4, 'r'); rect(33, 11, 4, 2, 'b'); put(33, 13, 'b'); put(38, 10, 'w'); put(32, 14, 'w'); put(37, 14, 'g') } // the middle slice turned to us: his cap in it, a bone, a tooth
+      }
+      for (const [tc, x] of [[3.7, 25], [4.5, 36]]) { const u = t - (tc - 0.35); if (u > 0 && u < 0.75) { const y = u < 0.35 ? -10 + (u / 0.35) * 18 : 8 - Math.max(0, u - 0.5) * 50; rect(x, y, 10, 8, 'g'); rect(x, y + 7, 10, 1, 'w'); rect(x + 3, y - 4, 3, 4, 'n') } } // the cleaver
+      splat(t, 3.7, 30, 13, 0.6)
+      if (t < 1.6) slim('ONE SUPER', 'w'); else if (t < 3.4) slim('WRAP IT', 'y'); else if (t < 5.3) slim(Math.floor(t * 3) % 2 ? 'CHOP' : '', 'r'); else slim('EXTRA MEAT', 'r')
+    } },
+    // PARKING BOOT: he stands by his car on a red curb; a giant orange boot rolls in and clamps his ankles, then keeps closing, folding him down into it like an
+    // accordion from the feet up until only his cap is left on top of it; the ticket flutters down onto the cap
+    boot: { dur: 9.0, still: 6.0, draw(t) {
+      ground(); line(0, GH - 1, 34, GH - 1, 'r') // the red curb
+      rect(2, 13, 28, 5, 'g'); rect(8, 9, 15, 4, 'g'); rect(10, 10, 5, 2, 'b'); rect(17, 10, 5, 2, 'b'); disc(8, 18, 2, 'd'); disc(24, 18, 2, 'd'); rect(28, 14, 2, 1, 'y') // the car
+      const ticketDown = t >= 5.2
+      if (!ticketDown) rect(21, 10, 2, 2, 'w') // the ticket, under the wiper
+      const k0 = Math.min(1, Math.max(0, (t - 0.8) / 0.8)), bx = 46 + (1 - ease(k0)) * 30, sq = Math.min(1, Math.max(0, (t - 2.0) / 2.8)), hb = Math.round(10 * (1 - ease(sq)))
+      // him: the cap, and under it the face to the knees (sprite rows 2 to 11) squeezed into hb rows over the jaw on his ankles; once the top jaw is on, the cap rides on it
+      const src = LAD, clamp = t >= 1.6, mid = Array.from({ length: hb }, (_, r) => src[2 + Math.round((r * 9) / Math.max(1, hb - 1))])
+      if (!clamp) blit(src, 34, 7)
+      else { blit(mid, 34, 19 - hb); blit(src.slice(0, 2), 34, 15 - hb) }
+      if (sq > 0 && sq < 1) for (let i = 0; i < 6; i++) { const u = (t * 3 + i / 6) % 1; put(33 - u * 6, 18 - hb / 2 - u * 3 + u * u * 8, 'r'); put(46 + u * 6, 18 - hb / 2 - u * 3 + u * u * 8, 'r') } // squirting out both sides
+      // the boot: a jaw on his ankles, a jaw on top of what is left of him, the big orange body with its lock; it all rolls in together
+      const top = 17 - hb
+      rect(Math.max(32, bx - 16), 19, bx - Math.max(32, bx - 16), 2, 'o'); if (clamp) rect(32, top, bx - 32, 2, 'o')
+      rect(bx, Math.min(top, 12), 8, 21 - Math.min(top, 12), 'o'); disc(bx + 4, 16, 2, 'y'); put(bx + 4, 16, 'd')
+      if (ticketDown) { const u = Math.min(1, (t - 5.2) / 1.4), x = 21 + u * 16 + Math.sin(u * 9) * 2, y = 10 + u * (top - 14); rect(x, y, 2, 2, 'w'); put(x, y, 'd') } // the ticket, onto the cap
+      splat(t, 2.4, 39, 17, 0.4)
+      slim(t < 0.8 ? 'NO PARKING' : t < 2.0 ? 'BOOTED' : t < 5.0 ? (Math.floor(t * 2) % 2 ? 'TIGHTER' : '') : 'EXPIRED', t < 2.0 ? 'o' : t < 5.0 ? 'r' : 'o')
+    } },
+    // GOLDEN GATE PARK BISON: he holds out a peanut to the bison; it lowers its head, charges, and launches him; he comes down skewered on the stake of a park sign;
+    // a Giant walks up and turns the sign around
+    bison: { dur: 9.8, still: 7.6, draw(t) {
+      ground()
+      // the sign: two posts, one sharpened and standing up past the board; the board's back, then (turned) its front
+      line(7, 0, 7, 21, 'n'); put(7, 0, 'w'); line(15, 8, 15, 21, 'n')
+      const fl = t < 6.0 ? 1 : Math.abs(Math.cos(Math.min(1, (t - 6.0) / 0.6) * Math.PI)), front = t >= 6.3, bw = Math.max(1, Math.round(17 * fl))
+      rect(11 - bw / 2, 8, bw, 11, 'n'); if (!front) for (let y = 10; y < 19; y += 3) line(11 - bw / 2, y, 11 + bw / 2 - 1, y, 'd')
+      if (front) { rect(3, 8, 17, 11, 'w'); disc(11, 13, 4.6, 'r'); disc(11, 13, 3.4, 'w'); rect(9, 12, 4, 2, 'y'); put(9, 12, 'n'); put(12, 13, 'n'); line(8, 10, 14, 16, 'r'); line(8, 11, 13, 16, 'r') } // the front: no peanuts
+      // the bison, half the frame: hump, head down when it charges, horns, beard, legs that run
+      const ch = t >= 2.4 && t < 4.6, cx = t < 2.4 ? 42 : t < 2.9 ? 42 - ((t - 2.4) / 0.5) * 12 : t < 4.6 ? 30 : 30 + (t - 4.6) * 40, dn = t >= 1.8 && t < 4.6 ? 2 : 0
+      disc(cx + 17, 13, 9, 'n', 0.6); disc(cx + 9, 10, 6, 'd'); rect(cx, 9 + dn, 8, 7, 'd'); rect(cx + 1, 16 + dn, 5, 2, 'd'); put(cx + 2, 11 + dn, 'w'); put(cx + 1, 8 + dn, 'w'); put(cx, 7 + dn, 'w'); put(cx + 6, 8 + dn, 'w'); put(cx + 7, 7 + dn, 'w')
+      const st = ch ? Math.floor(t * 10) % 2 : 0; for (const [lx, o] of [[8, 0], [12, 1], [21, 0], [25, 1]]) rect(cx + lx + (st === o ? 1 : 0), 17, 2, 4, 'd'); put(cx + 27, 11, 'd'); put(cx + 28, 12, 'd')
+      if (ch && t < 2.9) for (let i = 0; i < 5; i++) put(cx + 28 + hash(i + Math.floor(t * 9)) * 6, 19 + hash(i + 3) * 2, 'g') // dust
+      // him: holding out the peanut; launched; skewered
+      const u = t - 2.75
+      if (u < 0) { blit(LADR, 23, 7); line(33, 12, 36, 12, 'b'); rect(37, 12, 2, 1, 'y') }
+      else if (u < 1.0) { const k = u / 1.0, x = 23 - k * 21, y = 7 - Math.sin(k * Math.PI) * 9 - k * 6; blit(Math.floor(t * 8) % 2 ? upside(LADR) : LADR, x, y) } // tumbling through the air
+      else { rect(0, 1, 2, 2, 'b'); rect(2, 1, 3, 3, 'w'); put(3, 2, 'd'); rect(5, 1, 5, 3, 'b'); rect(10, 2, 4, 2, 'g'); rect(14, 2, 2, 2, 'd'); line(7, 0, 7, 4, 'n'); put(7, 0, 'w'); for (let i = 0; i < 3; i++) put(7, 5 + ((t * 5 + i * 2) % 3), 'r') } // on the stake, dripping
+      if (t >= 5.4) { const k = Math.min(1, (t - 5.4) / 0.5); blit(k < 1 ? run(SFGL, Math.floor(t * 6) % 2) : SFGL, 72 - k * 52, 7) } // the Giant walks up to the sign
+      splat(t, 3.75, 7, 3, 0.45)
+      slim(t < 1.8 ? 'NICE BISON' : t < 2.75 ? 'UH OH' : t < 6.3 ? '' : 'NO FEEDING', t < 1.8 ? 'w' : t < 2.75 ? 'y' : 'r')
+    } },
+    // POINT TAKEN (the Transamerica Pyramid): he stands at its foot and looks up; the top of the pyramid creaks, folds down at its point like a spear and runs him
+    // through; it rises back into the skyline with his blue cap on the tip
+    pyramid: { dur: 9.0, still: 6.6, draw(t) {
+      ground()
+      const AX = 36, AY = 3, HY = 11, hw = (y) => ((y - AY) * 5.5) / 18 // the pyramid: apex at (36, 3), base 11 wide on the ground, tall and thin; the top hinges at its right corner at y 11
+      for (let y = HY; y <= 20; y++) { const w = hw(y); line(AX - w, y, AX + w, y, y % 2 ? 'g' : 'w') }
+      const hx = AX + hw(HY), hy = HY
+      const th = t < 1.8 ? 0 : t < 2.6 ? Math.sin(t * 30) * 0.05 : t < 3.0 ? ((t - 2.6) / 0.4) ** 2 * 1.65 : t < 4.6 ? 1.65 : t < 5.6 ? 1.65 * (1 - ease((t - 4.6) / 1.0)) : 0
+      const rot = (x, y) => { const dx = x - hx, dy = y - hy, c = Math.cos(th), sn = Math.sin(th); return [hx + dx * c - dy * sn, hy + dx * sn + dy * c] }
+      const P = [rot(AX, AY), rot(AX - hw(HY), HY), rot(hx, HY)]
+      const inT = (px, py) => { const [[x1, y1], [x2, y2], [x3, y3]] = P, d = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1), a = ((x2 - px) * (y3 - py) - (y2 - py) * (x3 - px)) / d, b = ((x3 - px) * (y1 - py) - (y3 - py) * (x1 - px)) / d; return a >= -0.02 && b >= -0.02 && 1 - a - b >= -0.02 }
+      for (let y = -2; y < GH; y++) for (let x = 20; x < GW; x++) if (inT(x + 0.5, y + 0.5)) put(x, y, (y + Math.round(th * 3)) % 2 ? 'g' : 'w')
+      const [tx, ty] = P[0]
+      // him: walking up, looking up, run through, then on the ground without his cap
+      const hit = t >= 3.0
+      if (t < 1.4) blit(run(LAD, Math.floor(t * 6) % 2), 64 - Math.min(1, t / 1.4) * 22, 7)
+      else if (!hit) { blit(LADR.map((r, j) => (j === 3 ? '...wdwdw...' : j === 4 ? '...wwwww...' : r)), 42, 7); if (t > 1.8) mini('?', 47, 1, 'w', true) } // looking up
+      else if (t < 4.6) { blit(headless(LADR), 42, 7); rect(45, 8, 5, 3, 'r'); line(tx, ty, 47, 11, 'w') } // run through
+      else { rect(42, 19, 13, 2, 'b'); rect(55, 19, 2, 2, 'r'); for (let i = 0; i < 18; i++) put(40 + i, 21 - 1, 'r') } // flat, headless
+      if (hit) { const ct = t < 4.6 ? [47, 8] : [tx, ty - 2]; rect(ct[0] - 1, ct[1], 3, 2, 'b') } // his cap, on the tip
+      splat(t, 3.0, 47, 9, 0.6)
+      slim(t < 1.8 ? 'LOOK UP' : t < 2.6 ? 'CREAK' : t < 4.6 ? '' : 'POINT TAKEN', t < 2.6 ? 'w' : 'r')
+    } },
   }
   // the gags; a shuffled bag, so every gag plays before any plays twice and never the same one twice in a row
-  const GAGS = ['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump']
+  const GAGS = ['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump', 'burrito', 'boot', 'bison', 'pyramid']
   let bag = [], lastGag = null
   function nextGag() {
     if (!bag.length) { bag = GAGS.slice(); for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]] } if (bag[bag.length - 1] === lastGag) bag.unshift(bag.pop()) }

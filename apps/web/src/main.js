@@ -143,7 +143,8 @@ new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_c
   // cut parts out of the park model for good (29 Oct, evening: Study 25 rebuilds the ORACLE PARK sign, its clock and the Coke corner in voxels, and the model's own
   // copies showed through): every triangle whose centre passes test(x, y, z) (world metres) is collapsed to a point, so it draws no face, no edge and no contour.
   // Returns how many were cut; a wire built before the cut needs rebuilding
-  const collapse = (test) => {
+  // any: a triangle goes when any corner passes (31 Oct: the STANDS cuts; by the centre, tall roof and rafter triangles centred under the line stayed as black spikes)
+  const collapse = (test, any = false) => {
     gltf.scene.updateMatrixWorld(true)
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3()
     let n = 0
@@ -154,7 +155,7 @@ new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_c
       let hit = 0
       for (let t = 0; t < nt; t++) {
         a.fromBufferAttribute(pos, vi(t * 3)).applyMatrix4(m.matrixWorld); b.fromBufferAttribute(pos, vi(t * 3 + 1)).applyMatrix4(m.matrixWorld); c.fromBufferAttribute(pos, vi(t * 3 + 2)).applyMatrix4(m.matrixWorld)
-        if (!test((a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3, (a.z + b.z + c.z) / 3)) continue
+        if (any ? !(test(a.x, a.y, a.z) || test(b.x, b.y, b.z) || test(c.x, c.y, c.z)) : !test((a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3, (a.z + b.z + c.z) / 3)) continue
         if (idx) { const v = idx.getX(t * 3); idx.setX(t * 3 + 1, v); idx.setX(t * 3 + 2, v) } else { for (const k of [1, 2]) pos.setXYZ(t * 3 + k, pos.getX(t * 3), pos.getY(t * 3), pos.getZ(t * 3)) }
         hit++
       }
@@ -169,11 +170,12 @@ new GLTFLoader().load(PARKX ? `/parks/${PARKX}/wire.glb` : REAL ? '/stadium_sf_c
   // a cut that can be undone (30 Oct, later, Andrew: "a toggle to completely remove the higher parts of the stands and/or everything in foul territory"): the
   // model as the permanent cuts left it is kept the first time, put back on every call, and test (null: nothing) cut from it; the wire needs rebuilding after
   const kept = new Map()
+  window.__nn.fullArray = (attr) => kept.get(attr) ?? null // the model as the permanent cuts left it, for the rays (seance.js)
   window.__nn.maskStadium = (test) => {
     const base = (window.__nn.cutBase ??= window.__nn.cutTest ?? (() => false))
     gltf.scene.traverse((m) => { if (!m.isMesh) return; const at = m.geometry.index ?? m.geometry.attributes.position; if (!kept.has(at)) kept.set(at, at.array.slice()); else { at.array.set(kept.get(at)); at.needsUpdate = true } })
     window.__nn.cutTest = test ? (x, y, z) => base(x, y, z) || test(x, y, z) : base
-    return test ? collapse(test) : 0
+    return test ? collapse(test, true) : 0
   }
   window.dispatchEvent(new Event('nn-stadium'))
   const box = new THREE.Box3().setFromObject(gltf.scene)

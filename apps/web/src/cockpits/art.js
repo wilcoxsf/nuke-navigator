@@ -173,7 +173,10 @@ export function drawBatter(opts = {}) {
 }
 
 // A generic head and shoulders for any player without a baked portrait, drawn like the batter and converted like any other picture.
+// (31 Oct: drawn once per size and kept; reading its pixels back cost 100 ms and more on every beat of the dojo)
+const bustMemo = new Map()
 export function drawBust(size = 160) {
+  if (bustMemo.has(size)) return bustMemo.get(size)
   const cv = typeof document !== 'undefined' ? document.createElement('canvas') : null
   if (!cv) return null
   cv.width = size; cv.height = size
@@ -188,7 +191,8 @@ export function drawBust(size = 160) {
   shape(() => { ctx.moveTo(78 * k, 50 * k); ctx.lineTo(134 * k, 54 * k); ctx.lineTo(128 * k, 61 * k); ctx.lineTo(78 * k, 58 * k); ctx.closePath() }) // brim
   ctx.fillStyle = '#000'; for (const dx of [-12, 12]) { ctx.beginPath(); ctx.ellipse((80 + dx) * k, 70 * k, 4 * k, 2.6 * k, 0, 0, 7); ctx.fill() } // eyes
   ctx.fillRect(70 * k, 88 * k, 20 * k, 1.8 * k) // mouth line
-  return canvasSource(cv)
+  const src = canvasSource(cv); bustMemo.set(size, src)
+  return src
 }
 
 export function loadPng(dataUrl) {

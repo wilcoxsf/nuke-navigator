@@ -34,7 +34,7 @@ import { TYPES, TYPE_FONTS, typeVars } from './type25.js'
 import { hist25 } from './hist25.js'
 import { sliceSVG, sliceCaption, ballSVG } from './slice25.js'
 import { MENU_CSS, selectMenu } from './menu25.js'
-import { PIXCTL, PIXCTL_CSS, initPixCtl } from './pixctl25.js'
+import { PIXCTL, PIXCTL_CSS, DESIGNS, initPixCtl } from './pixctl25.js'
 import { sound } from './sfx25.js'
 import { initFx25 } from './fx25.js'
 import { initPark25 } from './park25.js'
@@ -42,6 +42,7 @@ import { initCoke25 } from './coke25.js'
 import { initDiamond25 } from './diamond25.js'
 import { initGhost25 } from './ghost25.js'
 import { keepReadable, readable } from './vox25.js'
+import { screenTags, setTagStyle } from './stag25.js'
 import { initHappen25 } from './happen25.js'
 import { initWind25 } from './wind25.js'
 import { initControls25 } from './controls25.js'
@@ -187,17 +188,23 @@ export const AXES = {
     { c: 0, name: 'STILL', desc: 'no motion on the water' },
   ] },
   V: { name: 'STANDS', opts: [
+    { c: 5, name: 'LOWER BOWL', desc: 'the stands cut 9 m up: the decks and the clubs go, the lower bowl stays all the way round (31 Oct, later: his pick, first)' },
     { c: 1, name: 'ALL', desc: 'the whole park' },
     { c: 2, name: 'NO UPPER DECKS', desc: 'everything over 13 m up in the stands taken away (the board, the sign and center field stay)' },
     { c: 3, name: 'NO FOUL GROUND', desc: 'everything outside the foul lines taken away, the stands behind the plate too; the field stays' },
     { c: 4, name: 'FAIR AND LOW', desc: 'both: just the field and the lower stands from line to line' },
     // 31 Oct (Andrew: "a few mediums between no upper decks and no foul ground - maybe cut off at varying levels of low / close?"): the stands cut lower, or the
     // foul-ground stands kept only near the lines (the outfield wall and the arcade always stay)
-    { c: 5, name: 'LOWER BOWL', desc: 'the stands cut 9 m up: the decks and the clubs go, the lower bowl stays all the way round' },
     { c: 6, name: 'FIELD LEVEL', desc: 'the stands cut 5 m up: a few rows round the field, the wall and the arcade' },
     { c: 7, name: 'FOUL: CLOSE', desc: 'past the foul lines only the stands within 14 m of the line stay, all the way up' },
     { c: 8, name: 'FOUL: FRONT ROWS', desc: 'past the foul lines only the first 6 m of seats stay' },
     { c: 9, name: 'LOW AND CLOSE', desc: 'the stands cut 7 m up, and past the foul lines only the first 10 m of seats' },
+    // 31 Oct (Andrew: "I think lower bowl is the right v ... Give me 5 more options riffing on this"); every cut now takes any piece that reaches over the line
+    { c: 10, name: 'BOWL 7 M', desc: 'the lower bowl cut lower, 7 m up' },
+    { c: 11, name: 'BOWL 11 M', desc: 'the lower bowl cut higher, 11 m up: a few more rows' },
+    { c: 12, name: 'STEPPED BOWL', desc: '11 m up behind the plate stepping down to 6 m at the foul poles' },
+    { c: 13, name: 'BOWL, NO BLEACHERS', desc: 'the lower bowl at 9 m, and the left-field bleachers gone too' },
+    { c: 14, name: 'BOWL, FOUL CLOSE', desc: 'the lower bowl at 9 m, and past the foul lines only the seats within 14 m of the line' },
   ] },
   Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put (Z key)' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake (Z key; on by default since 28 Oct)' }] },
   H: { name: 'PITCH ARC', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT draws the pitch on the park on its real path and break, in the pitch color, then the hit flies' }, { c: 0, name: 'OFF', desc: 'PLAY IT goes straight to the hit' }] },
@@ -247,13 +254,13 @@ export const AXES = {
   // thermometer ... a semi-diagetic pixel control of an angle / arc ... a ton of options for all of the LHS dojo controls"): open again, with the pixel instruments
   // (pixctl25.js) in five looks and a big-arcs layout in two; J2 (the sliders) first, as it was
   J: { name: 'DOJO CONTROLS', opts: [
+    { c: 8, name: 'BIG ARCS', desc: 'the angle and the aim side by side and big, the air and the wind side by side under them, the speed (a roadrunner on a rail) under those; each drawing picked in THE LAB (31 Oct: his favorite, first)' },
     { c: 2, name: 'SLIDERS', desc: 'the icons with the word beside them (SPEED, ANGLE, AIM, AIR, WIND), the number and a slider (as it was)' },
     { c: 1, name: 'SLIDERS, ICONS ONLY', desc: 'a pixel icon for each control, no words: a ball with whoosh lines, a launch ramp, the field with an arrow, a thermometer, a windsock' },
-    { c: 3, name: 'PIXEL INSTRUMENTS', desc: 'a little drawing for each you drag: a speed dial, a launch ray on a quarter arc, the field from above with the aim line, a thermometer, a windsock from above (drag its end: out, in and across)' },
+    { c: 3, name: 'PIXEL ROWS', desc: 'the same drawings in a row each' },
     { c: 5, name: 'GAME BOY', desc: 'the same drawings in four greens on a green screen' },
     { c: 6, name: 'CHALKBOARD', desc: 'the same drawings in dusty chalk on a dugout chalkboard, the values in yellow chalk' },
     { c: 7, name: 'BLUEPRINT', desc: 'the same drawings as white lines on blueprint blue' },
-    { c: 8, name: 'BIG ARCS', desc: 'the angle and the aim side by side and big, the thermometer (standing up) and the windsock side by side under them, the speed dial under those' },
   ] },
   // the Shot Caller frontier's look (29 Oct, later)
   N: { name: 'FRONTIER', opts: [
@@ -269,17 +276,107 @@ export const AXES = {
     { c: 4, name: 'RED', desc: 'red stitches, as it was', col: '#e4002b' },
   ] },
 }
+// THE LAB (31 Oct): the mixer has used every letter, so the newer choices live here, two letters each, kept on this device (and ?lab=BI2-BC3 for a link); they
+// are listed under OPTIONS after the mixer. NUKE IT (31 Oct, Andrew: "let's make it nuke it and let's always have like a fun little nuclear bomb icon. Give me options on
+// both icon and color"): one button, the same place in every mode, its own color
+// the icons are drawn by rule on a 16 by 16 grid (31 Oct, later, Andrew: "the icon should be a like nuclear atom bomb. Give me better pixel icons"): '#' the button's ink,
+// 'g' a mid grey, 'w' bone, 'y' yellow, 'r' red
+const nukeGrid = (f) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => f(x + 0.5, y + 0.5) || '.').join(''))
+const trefoil = (x, y, cx, cy, R) => { const dx = x - cx, dy = cy - y, r = Math.hypot(dx, dy), a = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360; if (r < R * 0.22) return true; return r > R * 0.36 && r < R && [90, 210, 330].some((c) => Math.abs(((a - c + 540) % 360) - 180) < 30) }
+const inEll = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1
+export const NUKE_ICONS = {
+  1: { name: 'FAT MAN', rows: nukeGrid((x, y) => { // the round bomb: an egg body, a box tail, a yellow trefoil on its side
+    if (x > 12 && x < 16 && y > 4 && y < 12 && (x < 13 || x > 15 || y < 5 || y > 11 || Math.abs(y - 8) < 0.6)) return '#'
+    if (x > 11 && x < 13.5 && y > 6.5 && y < 9.5) return 'g'
+    if (inEll(x, y, 6.5, 8, 6.2, 5.6)) return trefoil(x, y, 6.2, 8, 3.7) ? 'y' : inEll(x, y, 4.2, 5.2, 1.5, 1) ? 'w' : '#'
+  }) },
+  2: { name: 'TREFOIL BOMB', rows: nukeGrid((x, y) => { // a cartoon bomb, the radiation sign on it, a lit fuse
+    if ((x > 12.5 && y < 2.5 && (x + y) % 2 < 1) || (x > 13.5 && x < 15 && y > 0.5 && y < 2)) return x > 14 ? 'r' : 'y'
+    if (Math.abs(x - y * -1 - 14.5) < 0.9 && y > 2 && y < 5) return 'g'
+    if (x > 9 && x < 12 && y > 3 && y < 5.5) return '#'
+    if (inEll(x, y, 7.5, 9.5, 6.3, 6.3)) return trefoil(x, y, 7.5, 9.5, 4.6) ? 'y' : inEll(x, y, 5, 6.8, 1.6, 1.1) ? 'w' : '#'
+  }) },
+  3: { name: 'FALLING ATOM BOMB', rows: nukeGrid((x, y) => { // nose down, fins up, an atom on its side
+    if (y < 4 && ((x > 3 && x < 6) || (x > 10 && x < 13) || (x > 7 && x < 9))) return '#'
+    if (inEll(x, y, 8, 9.5, 4.6, 6.3)) { const dx = x - 8, dy = y - 9.6, e = (u, v) => Math.abs(u * u / 9 + v * v / 1.4 - 1) < 0.35; const rot = (t) => [dx * Math.cos(t) - dy * Math.sin(t), dx * Math.sin(t) + dy * Math.cos(t)]; if (Math.hypot(dx, dy) < 0.9) return 'r'; if ([0, 1.05, 2.1].some((t) => e(...rot(t)))) return 'y'; return inEll(x, y, 6, 6, 1, 1.4) ? 'w' : '#' }
+  }) },
+  4: { name: 'MUSHROOM CLOUD', rows: nukeGrid((x, y) => { // the cap with its glow, the stem, the ring at its foot
+    if (inEll(x, y, 8, 4.6, 7.2, 3.9)) return inEll(x, y, 8, 5.4, 4.6, 2) ? 'y' : inEll(x, y, 5, 2.6, 1.8, 0.9) ? 'w' : '#'
+    if (y > 7 && y < 12.5 && Math.abs(x - 8) < 1.8 + (y - 7) * 0.12) return Math.abs(x - 8) < 0.7 ? 'y' : '#'
+    if (inEll(x, y, 8, 13.6, 7, 2.2)) return '#'
+  }) },
+  5: { name: 'ATOM', rows: nukeGrid((x, y) => { // three orbits round a red nucleus
+    const dx = x - 8, dy = y - 8
+    if (Math.hypot(dx, dy) < 1.9) return Math.hypot(dx + 0.6, dy + 0.6) < 0.8 ? 'w' : 'r'
+    for (const t of [0, Math.PI / 3, (2 * Math.PI) / 3]) { const u = dx * Math.cos(t) + dy * Math.sin(t), v = -dx * Math.sin(t) + dy * Math.cos(t); if (Math.abs((u * u) / 49 + (v * v) / 5.3 - 1) < 0.24) return '#' }
+  }) },
+  6: { name: 'LITTLE BOY', rows: nukeGrid((x, y) => { // the long one: a round nose, a band, box fins
+    if (x > 12.5 && y > 4 && y < 12 && (x > 15 || y < 5 || y > 11 || x < 13.5)) return '#'
+    if (x > 1 && x < 13 && y > 5.5 && y < 10.5) return x > 8 && x < 9.6 ? 'y' : y < 7 && x > 3 ? 'w' : '#'
+    if (inEll(x, y, 2.4, 8, 2.2, 2.5)) return '#'
+  }) },
+}
+// nuclear greens (31 Oct, later, Andrew: "I want the nuke color to read as like nuclear green"; outside his palette library at his ask), and the acid yellow from before
+const NUKE_COLORS = { 1: ['NUCLEAR GREEN', '#5dff3a'], 2: ['GEIGER', '#9dff00'], 3: ['URANIUM GLASS', '#ccff00'], 4: ['REACTOR', '#00ff9c'], 5: ['ACID YELLOW', '#dee000'] }
+export const LAB = {
+  BI: { name: 'NUKE IT: ICON', opts: Object.entries(NUKE_ICONS).map(([c, o]) => ({ c: Number(c), name: o.name, desc: 'the little bomb on the button' })) },
+  BC: { name: 'NUKE IT: COLOR', opts: Object.entries(NUKE_COLORS).map(([c, [n, hex]]) => ({ c: Number(c), name: n, desc: hex, hex })) },
+  // the 3D controls in the park (controls25.js): the Y-forks first (31 Oct, later: "I like chunky y fork but still want more options there")
+  SL: { name: 'SLINGSHOT (IN THE PARK)', opts: [
+    { c: 1, name: 'CHUNKY Y-FORK', desc: 'a thick fork, broad orange bands, a notched angle arc beside it' },
+    { c: 5, name: 'WRIST ROCKET', desc: 'a steel fork with an arm brace behind it, black rubber bands, a leather pouch' },
+    { c: 6, name: 'TREE BRANCH', desc: 'a forked branch in bark, a twig off one arm, tan bands and a pouch' },
+    { c: 7, name: 'GIANTS FORK', desc: 'black arms, an orange stem in bands, orange tips' },
+    { c: 8, name: 'DOUBLE BANDS', desc: 'a wide fork, two bands a side, a big pouch: the heavy one' },
+    { c: 2, name: 'PINBALL PLUNGER', desc: 'a steel housing and barrel, a spring back to the ball' },
+    { c: 3, name: 'BAT CATAPULT', desc: 'a big bat from a pivot to the ball, a stop post for the angle' },
+    { c: 4, name: 'BALLISTA', desc: 'a rail, a steel bow, an orange string to the ball' },
+  ] },
+  SK: { name: 'WINDSOCK (IN THE PARK)', opts: [
+    { c: 5, name: 'HOLLOW SOCK', desc: 'like the ones on the foul poles, bigger and finer: open rings, orange and white, a hoop at the mast (31 Oct, later: his ask)' },
+    { c: 6, name: 'HOLLOW SOCK, FINE', desc: 'the same with more rings and more cubes round each: a smoother tube' },
+    { c: 1, name: 'AIRPORT SOCK', desc: 'a cuff and five solid bands, still but for a flutter at the tail' },
+    { c: 2, name: 'WEATHER VANE', desc: 'an arrow along the wind, longer the stronger, compass pegs under it' },
+    { c: 3, name: 'STAIR-STEP PENNANT', desc: 'four rectangles rising to the horizontal as it blows' },
+    { c: 4, name: 'GIANTS PENNANT', desc: 'an orange triangle edged in white, on a steel pole' },
+  ] },
+  TH: { name: 'THERMOMETER (IN THE PARK)', opts: [ // (31 Oct, later: "needs to stay a mercury thermo but it looks cheap rn, give me more options there")
+    { c: 5, name: 'GLASS TUBE', desc: 'a clear tube with a glint down it, a steel cap, a red bulb, ticks every 10 degrees and 40, 70, 100 in voxels' },
+    { c: 6, name: 'PORCH BOARD', desc: 'the tube on a wooden board with dark ticks, like a porch thermometer' },
+    { c: 7, name: 'ENAMEL SIGN', desc: 'the tube on an orange enamel sign, F at the top' },
+    { c: 8, name: 'CHROME CASE', desc: 'the tube in a steel case with a window and bolts' },
+    { c: 1, name: 'MERCURY TOWER', desc: 'the first one: a chunky stem, a big bulb, three notches' },
+  ] },
+  // the words in the park (stag25.js; 31 Oct, later: "the diagetic zenith, cleared the wall, distance still needs to be voxel. Give me options for that too")
+  TG: { name: 'PARK TAGS', def: 2, opts: [
+    { c: 1, name: 'VOXEL, STEADY', desc: 'voxel letters held at one size on the screen, placed clear of everything' },
+    { c: 2, name: 'VOXEL ON A BOARD', desc: 'the same on a dark board, like a little scoreboard' },
+    { c: 3, name: 'VOXEL NUMBER ONLY', desc: 'just the number in voxels, no caption' },
+    { c: 4, name: 'PIXEL TYPE', desc: 'flat pixel type on a dark strip (the last version)' },
+  ] },
+  // LANDING PARTY in the park (landing.js; 31 Oct, later: "show the top 5 other ones as like points on the map")
+  LP: { name: 'LANDING PARTY MARKS', opts: [
+    { c: 1, name: 'DOTS', desc: 'the next five as dots where they came down; the one in focus lit, with its tag' },
+    { c: 2, name: 'NUMBERED PINS', desc: 'the next five on short stakes with their numbers in voxels' },
+    { c: 3, name: 'FLAGS', desc: 'the next five as little orange-and-white flags' },
+    { c: 4, name: 'TRAILS', desc: 'the next five as faint flights ending in dots' },
+    { c: 5, name: 'HALO', desc: 'a faint ring round where all six came down, and a dot for each' },
+  ] },
+  // the dojo's drawings on the left (pixctl25.js), five each, his picks first (31 Oct, later: RUNNING, GROUND RAY, DIAMOND, UPRIGHT, WIND PAD)
+  ...Object.fromEntries([['CS', 'ev', 'SPEED', 4], ['CA', 'la', 'ANGLE', 1], ['CD', 'dir', 'AIM', 2], ['CT', 'temp', 'AIR', 4], ['CW', 'wind', 'WIND', 1]].map(([L2, k, w, def]) => [L2, { name: 'DOJO ' + w, def, opts: DESIGNS[k].map((n, i) => ({ c: i + 1, name: n, desc: 'the ' + w.toLowerCase() + ' control on the left (J8, J3, J5 to J7)' })).sort((a, b) => (b.c === def) - (a.c === def)) }])),
+}
+const nukeSVG = (n, px = 3, ink = '#0b0b0b') => { const rows = (NUKE_ICONS[n] ?? NUKE_ICONS[1]).rows, C = { '#': ink, g: '#5a5f68', w: '#f4f2ea', r: '#e4002b', y: '#ffd23f' }; let r = ''; rows.forEach((row, j) => [...row].forEach((ch, i) => { if (C[ch]) r += `<rect x="${i}" y="${j}" width="1" height="1" fill="${C[ch]}"/>` })); return `<svg class="nki" width="${rows[0].length * px}" height="${rows.length * px}" viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>` }
 const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'V', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C', 'O', 'G']
 // locked 28 Oct, night (Andrew): these are set and leave the mixer; a code can still load another value (the tests do), but the dock and the header show only what is open.
 // 29 Oct: U2 PIXEL LINE, D1 PIXEL SLUGGER, M1 STACKED too
 // 29 Oct, later: X2 (the arc dots in the pitch color) and E1 (the stitches in the pitch color) as well
 // 29 Oct, evening: Y3 ICE, N1, J2, W1, Q2 (with a voxel clock), C1 GLASS
 // 29 Oct, later still: G2 RELIEF and O2 BOX SCORE / FRONT OFFICE / NO LIFE
-const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2 }
+const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 const HDR_AX = OPEN // what is still open sits in the header
 // 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
-const DOCK = [...OPEN, ...ORDER.filter((k) => k in LOCKED)]
+const DOCK = [...OPEN, ...Object.keys(LAB)] // (31 Oct, later: only what is open, and the lab)
 const DEF = { ...Object.fromEntries(OPEN.map((k) => [k, AXES[k].opts[0].c])), ...LOCKED } // an open choice starts at its first option
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
@@ -306,8 +403,8 @@ const LAYOUT_CSS = `
   // the dojo has no batter card (30 Oct, later, Andrew: "in dinger dojo you don't need the top right at all anymore. You can kill the your swing / the slugger"): its
   // cell goes to the panel under it (or over it)
   const noBat = L.areas.map((row, r) => row.split(' ').map((a, c) => (a === 'batter' ? L.areas[r + 1]?.split(' ')[c] ?? L.areas[r - 1]?.split(' ')[c] ?? a : a)).join(' '))
-  return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}#cp .c25.L${n}.wi.ns{grid-template-areas:${q(noBat)}}}`
-}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi .pnl.batter{display:none}}' // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
+  return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}#cp .c25.L${n}.wi.ns,#cp .c25.L${n}.shot{grid-template-areas:${q(noBat)}}}`
+}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi .pnl.batter,#cp .c25.shot .pnl.batter{display:none}}' // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
 const FRAME_CSS = `
 #cp .c25 .pnl{overflow:visible}
 #cp .c25.P1 .pnl>.t{top:-6px}
@@ -349,7 +446,8 @@ const PHONE_CSS = `
 #cp .c25 .chip{right:8px;top:10px;max-width:36%;padding:5px 8px}
 #cp .c25 .chip .hd{font-size:calc(17px * var(--ts))}
 #cp .c25 .chip .sb{font-size:calc(12px * var(--ts))}
-#cp .c25 .bsel{left:8px;right:8px;bottom:6px;font-size:calc(13px * var(--ts))}
+#cp .c25 .bsel,#cp .c25.c25.ns .bsel{left:8px;right:8px;bottom:52px;font-size:calc(13px * var(--ts))} /* (phones: the chooser over the button, full width) */
+#cp .c25 .nuke{right:6px;bottom:6px;height:40px;min-width:0;padding:0 8px;gap:6px}#cp .c25 .nuke b{font-size:11px}#cp .c25 .nuke i{display:none}#cp .c25 .nuke .nkw{width:24px;height:30px}#cp .c25 .nuke .nkw svg{width:auto;height:24px}
 #cp .c25 .bsel .bt{padding:3px 6px}
 #cp .c25 .tly{display:none}
 #cp .c25.c25.c25 .park .bug.bug{display:none}
@@ -427,6 +525,7 @@ export async function build(root, api, U) {
 #cp .c25 .lpr[data-n]{cursor:pointer}
 #cp .c25 .lpr[data-n]:hover b,#cp .c25 .lpr[data-n]:focus b{color:var(--acc)}
 #cp .c25 .lpr[data-n]:hover .nm,#cp .c25 .lpr[data-n]:focus .nm{text-decoration:underline}
+#cp .c25 .rd.pick>*{display:none}#cp .c25 .rd.pick::before{content:'PICK A SEAT';display:block;font-family:PS2P,monospace;font-size:26px;color:var(--tx)}#cp .c25 .rd.pick::after{content:'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT';display:block;margin-top:10px;color:var(--dim)}#cp .c25 .chip.pick{display:none}
 #cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
 #cp .c25 .rd .fun{color:var(--tx);font-size:16px;margin-top:4px;max-width:620px;line-height:1.2}
 #cp .c25 .rd .fun span{display:block}
@@ -446,13 +545,23 @@ export async function build(root, api, U) {
 #cp .c25 .chip .sb{font-size:15px;color:var(--dim);margin-top:3px}
 #cp .c25 .chip .st{display:inline-block;margin-top:8px;font-family:PS2P,monospace;font-size:12px;letter-spacing:.04em;background:var(--acc);color:var(--k);padding:5px 7px;transform:rotate(-3deg)}
 #cp .c25 .rd .sit{color:var(--tx);font-size:15px;margin-top:6px}
-#cp .c25 .bsel{position:absolute;left:18px;bottom:12px;right:190px;display:grid;gap:4px;font-size:17px}
-#cp .c25.ns .bsel{right:18px}
+#cp .c25 .bsel{position:absolute;left:18px;bottom:12px;right:236px;display:grid;gap:4px;font-size:17px}
+#cp .c25.ns .bsel{right:236px}
+#cp .c25 .nuke{position:absolute;right:16px;bottom:12px;height:58px;min-width:204px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px 0 12px;background:var(--nk,#dee000);color:#0b0b0b;cursor:pointer;pointer-events:auto;z-index:3;user-select:none;box-shadow:4px 4px 0 color-mix(in srgb,var(--nk,#dee000) 35%,#000)}
+#cp .c25 .nuke b{font-family:PS2P,monospace;font-weight:400;font-size:17px;letter-spacing:.02em;white-space:nowrap}
+#cp .c25 .nuke i{font-style:normal;font-family:var(--lf),monospace;font-size:10px;opacity:.6;align-self:flex-end;margin:0 0 8px auto}
+#cp .c25 .nuke .nkw{display:flex;align-items:center;justify-content:center;width:42px;height:42px;flex:none}
+#cp .c25 .nuke:hover .nkw svg{animation:nkwob .36s steps(2) infinite}
+#cp .c25 .nuke.go{transform:translate(3px,3px);box-shadow:1px 1px 0 color-mix(in srgb,var(--nk,#dee000) 35%,#000)}
+#cp .c25 .nuke:focus-visible{outline:2px solid var(--tx);outline-offset:3px}
+@keyframes nkwob{50%{transform:translateY(-2px) rotate(-6deg)}}
+@media (prefers-reduced-motion:reduce){#cp .c25 .nuke:hover .nkw svg{animation:none}}
+#cp .c25 .strip .bt.hot{display:none}
 #cp .c25 .bsel .r1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 #cp .c25 .bsel .r2{color:var(--dim);background:var(--k);justify-self:start;padding:1px 4px 1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #cp .c25 .bsel .r2 b{font-weight:400;color:var(--tx)}
 #cp .c25 .bsel .bt.hot{background:var(--acc);color:var(--k);border-color:var(--acc)}
-#cp .c25 .tly{position:absolute;right:16px;bottom:12px;width:170px;font-size:15px;display:grid;gap:1px;pointer-events:none;text-align:right}
+#cp .c25 .tly{position:absolute;right:16px;bottom:80px;width:170px;font-size:15px;display:grid;gap:1px;pointer-events:none;text-align:right}
 #cp .c25 .tly div{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .tly div.n{color:var(--acc)}
 #cp .c25 .tly .c{color:var(--tx)}
@@ -591,7 +700,7 @@ export async function build(root, api, U) {
 #cp .c25 .wd.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .wd.on sup{color:var(--k)}
 #cp .c25 .wsum{display:grid;gap:4px}
-#cp .c25 .strip{position:relative;display:grid;grid-template-columns:repeat(5,1fr) 1.4fr;gap:10px;padding-bottom:6px}
+#cp .c25 .strip{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding-bottom:6px}
 #cp .c25 .strip .bt{padding:8px 34px 18px 10px;display:flex;flex-direction:column;justify-content:space-between;position:relative;min-width:0}
 #cp .c25 .strip .bt .sld{position:absolute;left:10px;right:34px;bottom:4px;height:12px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;pointer-events:auto}
 #cp .c25 .strip .bt .sld::-webkit-slider-runnable-track{height:2px;background:var(--dim)}
@@ -653,6 +762,8 @@ export async function build(root, api, U) {
 #cp .c25 .legend h5{margin:0 0 6px;font-weight:400;color:var(--acc)}
 #cp .c25 .legend .o{display:grid;grid-template-columns:34px minmax(0,1fr);gap:2px 8px;padding:3px 4px;cursor:pointer;font-size:16px;line-height:1.1;pointer-events:auto}
 #cp .c25 .legend .o:hover{background:var(--ln)}
+#cp .c25 .legend .o .sw{display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:-2px}#cp .c25 .legend .o .nki{vertical-align:-4px;margin-right:4px}
+#cp .c25 .legend div:has(>h5.lab){grid-column:1/-1;border-top:1px solid var(--ln);padding-top:10px}#cp .c25 .legend h5.lab span{color:var(--dim);margin-left:10px}
 #cp .c25 .legend .o.on{outline:1px solid var(--acc)}
 #cp .c25 .legend .o b{font-weight:400;color:var(--acc)}
 #cp .c25 .legend .o span{color:var(--dim);grid-column:2}
@@ -676,6 +787,7 @@ export async function build(root, api, U) {
 #cp .c25 .dock .do{display:grid;grid-template-columns:30px minmax(0,1fr);gap:6px;padding:2px 5px;cursor:pointer;border:1px solid transparent;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .dock .do:hover{background:var(--ln)}
 #cp .c25 .dock .do.on{border-color:var(--acc);color:var(--acc)}
+#cp .c25 .dock .do .sw{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px}#cp .c25 .dock .do .nki{vertical-align:-5px;margin-right:4px}#cp .c25 .dock .dx .bt.lb{color:var(--dim)}#cp .c25 .dock .dx .bt.lb.on{color:var(--acc)}
 #cp .c25 .dock .do b{font-weight:400;color:var(--dim)}
 #cp .c25 .dock .do.on b{color:var(--acc)}
 #cp .c25 .dock .dd{color:var(--dim);font-size:14px;min-height:2.3em}
@@ -710,7 +822,7 @@ export async function build(root, api, U) {
 #cp .c25 .sfro span{color:var(--dim);margin-right:6px}
 #cp .c25 .sfro i{font-style:normal;color:var(--dim);flex-basis:100%}
 #cp .c25.shot .hdr #c25lp,#cp .c25.shot .hdr #c25se,#cp .c25.shot .hdr #c25rc,#cp .c25.shot .hdr #c25sm{opacity:.45}
-#cp .c25.ns.dj>.strip{display:grid;grid-area:pitch;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(5,minmax(0,1fr)) minmax(0,1.2fr);gap:8px;padding:24px 0 0}
+#cp .c25.ns.dj>.strip{display:grid;grid-area:pitch;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(5,minmax(0,1fr));gap:8px;padding:24px 0 0}
 #cp .c25.dj>.pitch{display:none}
 #cp .c25 .strip>.swi{display:none}
 #cp .c25.dj>.strip>.swi{display:block;position:absolute;left:0;top:2px;color:var(--tx);pointer-events:none}
@@ -720,7 +832,7 @@ export async function build(root, api, U) {
 #cp .c25.dj>.strip .bt b{flex:1;text-align:right}
 #cp .c25.dj>.strip .bt.hot{justify-content:center;padding:6px 10px}
 #cp .c25.ns.dj .tly{display:grid}
-#cp .c25.ns.dj .bsel{right:190px}
+#cp .c25.ns.dj .bsel{right:236px}
 #cp .c25 .ty{border:1px solid var(--ln);padding:12px 14px;display:grid;gap:6px;cursor:pointer;pointer-events:auto;font-family:var(--tf),monospace;font-size:calc(20px * var(--ts));letter-spacing:var(--sp,.02em);min-width:0}
 #cp .c25 .ty:hover{border-color:var(--tx)}
 #cp .c25 .ty.on{border-color:var(--acc);outline:1px solid var(--acc)}
@@ -749,6 +861,14 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U, { hand: false }), ses = makeSession(api), NS = ctl.SLOTS.length
   const q = new URLSearchParams(location.search)
   const mix = q.get('mix') != null ? parseMix(q.get('mix')) : { ...parseMix(store('nn-mix25') ?? ''), ...LOCKED } // a stored mix keeps its open choices; the locks win over it
+  let lastInput = -1e9, settleT = 0 // SETTLE (see render)
+  const moving = () => performance.now() - lastInput < 260
+  function markInput() { lastInput = performance.now(); clearTimeout(settleT); settleT = setTimeout(() => { lpKey = ''; if (last) render(last) }, 300) }
+  const labRead = (t) => Object.fromEntries([...(t ?? '').toUpperCase().matchAll(/([A-Z]{2})(\d+)/g)].filter(([, k, n]) => LAB[k]?.opts.some((o) => o.c === Number(n))).map(([, k, n]) => [k, Number(n)]))
+  const lab = { ...Object.fromEntries(Object.entries(LAB).map(([k, a]) => [k, a.def ?? a.opts[0].c])), ...labRead((() => { try { return localStorage.getItem('nn-lab25') } catch { return '' } })()), ...labRead(q.get('lab')) }
+  const labCode = () => Object.entries(lab).map(([k, n]) => k + n).join('-')
+  let applyLab = () => {}
+  function setLab(k, n) { if (!LAB[k]?.opts.some((o) => o.c === n)) return; lab[k] = n; try { localStorage.setItem('nn-lab25', labCode()) } catch {} applyLab(k) }
   let pix = null, pixStyle = null // the pixel instruments on the left (J3 to J9), made once the strip is
   let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false, slotLabels = null, coke = null, cutN = 0, ghost = null, ctl3d = null, windFx = null, windKey = '', tonightWind = () => {}
   const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
@@ -763,7 +883,7 @@ export async function build(root, api, U) {
     <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
     <span class="grp"><span class="gl">YOU</span> <span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
-    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div><div class="dock" id="c25dk" tabindex="-1" role="dialog" aria-label="options"></div></div>
+    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="nuke" id="c25nk" role="button" tabindex="0" aria-label="nuke it"><span class="nkw"></span><b>NUKE IT</b><i>SPACE</i></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div><div class="dock" id="c25dk" tabindex="-1" role="dialog" aria-label="options"></div></div>
   <div class="pnl p pitch"><span class="t">/ T H E &nbsp; P I T C H /</span><div class="pin"><div class="zg" id="c25zg"></div><div class="pl" id="c25pl"></div></div></div>
   <div class="pnl p batter"><span class="t">/ B A T T E R /</span><div class="bin"><div class="fbox" id="c25f"><pre class="art"></pre></div><div class="info" id="c25i"></div><div class="bug bugc" id="c25bugc"></div></div></div>
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
@@ -797,7 +917,7 @@ export async function build(root, api, U) {
   const [parks, R, pool, D, facesRaw, bio] = await Promise.all([loadParks(), loadReplay(), loadPool(), loadDists(), getJSON('/faces_tone.json'), getJSON('/batter_bio.json')]) // bio: heights from the MLB Stats API (science/pull_batter_bio.py)
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
-  const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99' }), se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true, dim: '#8a8f99' })
+  const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99', name: (b) => pname(b.b)?.[0]?.split(' ').slice(-1)[0] ?? '' }); lp.warm(); const se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true, dim: '#8a8f99' })
   let show = ['lp', 'se', 'rc', 'sm', 'my', 'reel'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
   if (q.get('show') === 'sc') mode = 'shot'
   const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25my', 'my'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
@@ -899,8 +1019,9 @@ export async function build(root, api, U) {
   function setStands(v) {
     standsNow = v
     // h: the height the stands are cut at (fair ground never under 8.5 m, so the arcade and the wall stay); fl: past the foul lines, how far from the line the stands stay
-    const h0 = api.toWorld([0, 0, 0]), cut = { 1: [Infinity, Infinity], 2: [13, Infinity], 3: [Infinity, 0], 4: [13, 0], 5: [9, Infinity], 6: [5, Infinity], 7: [Infinity, 14], 8: [Infinity, 6], 9: [7, 10] }[v] ?? [Infinity, Infinity], [h, fl] = cut
-    const test = v === 1 ? null : (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz), b = Math.abs(Math.atan2(dx, -dz)); return (y > (b < Math.PI / 4 ? Math.max(h, 8.5) : h) && d > 35 && !(b < 0.45 && d > 105)) || (b > 0.8 && y > 0.8 && d > 18 && d * Math.sin(b - Math.PI / 4) > fl) }
+    const h0 = api.toWorld([0, 0, 0]), cut = { 1: [Infinity, Infinity], 2: [13, Infinity], 3: [Infinity, 0], 4: [13, 0], 5: [9, Infinity], 6: [5, Infinity], 7: [Infinity, 14], 8: [Infinity, 6], 9: [7, 10], 10: [7, Infinity], 11: [11, Infinity], 12: [-1, Infinity], 13: [9, Infinity], 14: [9, 14] }[v] ?? [Infinity, Infinity], [h0c, fl] = cut, bleach = v === 13
+    const hAt = (b) => (h0c < 0 ? 6 + 5 * Math.min(1, Math.max(0, (b - Math.PI / 4) / (Math.PI * 0.75))) : h0c) // STEPPED: 6 m at the poles, 11 m behind the plate
+    const test = v === 1 ? null : (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz), b = Math.abs(Math.atan2(dx, -dz)); const sb = Math.atan2(dx, -dz); return (y > (b < Math.PI / 4 ? Math.max(hAt(b), 8.5) : hAt(b)) && d > 35 && !(b < 0.45 && d > 105)) || (b > 0.8 && y > 0.8 && d > 18 && d * Math.sin(b - Math.PI / 4) > fl) || (bleach && sb < -0.12 && sb > -0.8 && d > 104 && y > 1.2) }
     window.__nn.maskStadium(test)
     if (showWire.built) showWire()
   }
@@ -942,7 +1063,7 @@ export async function build(root, api, U) {
     }
   }
   const relayout = () => requestAnimationFrame(() => { syncCam?.(); camTo(bird ? 'top' : 'home') })
-  const stepAx = (k, d) => { const os = AXES[k].opts.filter((o) => !o.hide), n = os.length, i = os.findIndex((o) => o.c === mix[k]); mix[k] = os[(i + d + n) % n].c; applyMix(k); const b = root.querySelector(`.mx[data-ax="${k}"]`); b?.classList.add('ch'); setTimeout(() => b?.classList.remove('ch'), 500) }
+  const stepAx = (k, d) => { const os = dockOpts(k), n = os.length, i = os.findIndex((o) => o.c === kVal(k)); kSet(k, os[(i + d + n) % n].c); const b = root.querySelector(`.mx[data-ax="${k}"]`); b?.classList.add('ch'); setTimeout(() => b?.classList.remove('ch'), 500) }
   root.querySelectorAll('.mx[data-ax]').forEach((b) => {
     b.addEventListener('click', (e) => { pressEl(b); sound.play('move'); stepAx(b.dataset.ax, e.shiftKey ? -1 : 1) })
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); pressEl(b); stepAx(b.dataset.ax, -1) })
@@ -953,18 +1074,20 @@ export async function build(root, api, U) {
   const dock = E('#c25dk')
   let dockAx = DOCK.includes(store('nn-dock25')) ? store('nn-dock25') : DOCK[0]
   const SEE = { G: 'PLAY A SHOW', O: 'SHOW ME', N: 'CALL A SEAT', Q: 'LOOK AT IT', C: 'LOOK AT IT', D: 'SHOW ME', F: 'FLY A BALL', Z: 'FLY A BALL', H: 'FLY A BALL', U: 'FLY A BALL', X: 'FLY A BALL', E: 'FLY A BALL', K: 'BRING IN KARL', M: 'OPEN THE MENU' }
-  const dockOpts = (k) => AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c)
+  const dockOpts = (k) => (AXES[k] ? AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c) : LAB[k].opts)
+  const kVal = (k) => (AXES[k] ? mix[k] : lab[k]), kName = (k) => (AXES[k] ?? LAB[k]).name, kOpt = (k, c) => dockOpts(k).find((o) => o.c === c) ?? dockOpts(k)[0]
+  const kSet = (k, c) => { if (AXES[k]) { mix[k] = c; applyMix(k) } else { setLab(k, c); paintDock() } }
   function paintDock() {
     if (!grid.classList.contains('dk')) return
-    const k = dockAx, os = dockOpts(k), o = optOf(k, mix[k]), n = os.findIndex((x) => x.c === mix[k])
+    const k = dockAx, os = dockOpts(k), o = kOpt(k, kVal(k)), n = os.findIndex((x) => x.c === kVal(k))
     dock.innerHTML = `<div class="dh"><b>OPTIONS</b><span class="bt" data-dk="all" aria-label="every option at once">ALL</span><span class="bt" data-dk="x" aria-label="close the options">X</span></div>
-      <div class="dx" style="grid-template-columns:repeat(${Math.min(5, DOCK.length)},minmax(0,1fr))">${DOCK.map((a) => `<span class="bt${a === k ? ' on' : ''}${a in LOCKED ? ' lk' : ''}" data-ax="${a}" title="${AXES[a].name}${a in LOCKED ? ' (LOCKED)' : ''}" aria-label="${AXES[a].name}">${a}${mix[a]}</span>`).join('')}</div>
-      <div class="da">${AXES[k].name}<span>${n + 1} OF ${os.length}</span></div>${k in LOCKED ? `<div class="df">LOCKED AT ${k}${LOCKED[k]}. TRY ANOTHER: IT LASTS UNTIL YOU RELOAD.</div>` : ''}
-      <div class="dl">${os.map((x) => `<div class="do${x.c === mix[k] ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}"><b>${k}${x.c}</b>${x.name}</div>`).join('')}</div>
+      <div class="dx" style="grid-template-columns:repeat(${Math.min(5, DOCK.length)},minmax(0,1fr))">${DOCK.map((a) => `<span class="bt${a === k ? ' on' : ''}${LAB[a] ? ' lb' : ''}" data-ax="${a}" title="${kName(a)}" aria-label="${kName(a)}">${a}${kVal(a)}</span>`).join('')}</div>
+      <div class="da">${kName(k)}<span>${n + 1} OF ${os.length}</span></div>
+      <div class="dl">${os.map((x) => `<div class="do${x.c === kVal(k) ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}"><b>${k}${x.c}</b><span>${k === 'BI' ? nukeSVG(x.c, 1.5, 'var(--tx)') + ' ' : k === 'BC' ? `<i class="sw" style="background:${x.hex}"></i>` : ''}${x.name}</span></div>`).join('')}</div>
       <div class="dd">${(o.desc ?? '').toUpperCase()}</div>
       <div class="df">&larr; &rarr; TRY &nbsp; &uarr; &darr; WHAT${SEE[k] ? `<span class="bt" data-dk="see">${SEE[k]}</span>` : ''}</div>`
     dock.querySelectorAll('[data-ax]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); dockTo(b.dataset.ax) }))
-    dock.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { sound.play('move'); mix[k] = Number(b.dataset.c); applyMix(k); dock.focus({ preventScroll: true }) }))
+    dock.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { sound.play('move'); kSet(k, Number(b.dataset.c)); dock.focus({ preventScroll: true }) }))
     dock.querySelector('[data-dk="x"]').addEventListener('click', () => toggleDock(false))
     dock.querySelector('[data-dk="all"]').addEventListener('click', () => { toggleDock(false); openMod('mix') })
     dock.querySelector('[data-dk="see"]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); seeIt(k) })
@@ -1019,6 +1142,7 @@ export async function build(root, api, U) {
     const dj = mode === 'whatif' && !stepped && mix.L === 2 // the dojo's controls top left (on L2; the other layouts keep the strip along the bottom)
     grid.classList.toggle('ns', mode !== 'whatif' || dj); grid.classList.toggle('dj', dj); grid.classList.toggle('wi', mode === 'whatif'); grid.classList.toggle('shot', mode === 'shot')
     E('#c25sc').classList.toggle('on', mode === 'shot')
+    if (ctl3d) ctl3d.visible = mode === 'whatif' // (at once, not on the next frame's render)
     E('#c25ti').textContent = 'NUKE NAVIGATOR // ' + (mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo)
     paintTitles()
   }
@@ -1032,7 +1156,7 @@ export async function build(root, api, U) {
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false })
     from.real = { ev: b.ev, la: b.la, dir: b.dir, temp: b.temp, wind: 0, xwind: 0, hand: b.s === 'R' ? 1 : -1, carry: b.carry ?? 1, dws: b.dws ?? 0, tab: false }
     { const r0 = api.fly({ ...api.state }, {}), src = r0.visPath ?? r0.path; flight?.setGhost(src.filter((_, k) => k % 4 === 0).map((q) => api.toWorld(q.p))) }
-    api.update(); from.ft = Math.round(api.fly({ ...api.state }, {}).landFt); paintChooser()
+    api.update(); from.ft = Math.round((window.__dojo ?? api.fly({ ...api.state }, {})).landFt); paintChooser()
   }
   // any real ball into TWEAK THE TATER (from a LANDING PARTY row): the replay goes to it first, so BACK TO THE REPLAY lands on it
   function tweakBall(b) {
@@ -1054,12 +1178,11 @@ export async function build(root, api, U) {
     }
     const bn = pname(cur?.b), pn = pname(cur?.p)
     el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="previous ball">&lt;</span><span class="bt" data-st="1" aria-label="next ball">&gt;</span> BALL ${idx + 1} OF ${balls.length}
-      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt hot" id="c25go">PLAY IT</span><span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
+      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
       <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ?? ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); filter = b.dataset.f; balls = filtered(); idx = 0; applyBall(balls[0]); paintChooser() }))
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
-    E('#c25go').addEventListener('click', () => { pressEl(E('#c25go')); play() })
     E('#c25rl').addEventListener('click', () => { pressEl(E('#c25rl')); if (reel) stopReel(); else startReel() })
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
@@ -1077,20 +1200,21 @@ export async function build(root, api, U) {
     const sb = pname(stepped.b.b), who = (sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase(), s = api.state, R0 = stepped.real
     const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = s[k] - R0[k], t = Math.abs(d) < 1 ? d.toFixed(1) : String(Math.round(d)); return Math.abs(d) >= 0.05 ? `${d > 0 ? '+' : ''}${t}${u}` : null }).filter(Boolean)
     if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND SWING.`
-    const fl = api.fly({ ...api.state }, {}), now = Math.round(fl.landFt), dd = now - stepped.ft, gone = fl.verdict?.kind === 'GONE'
+    const fl = window.__dojo ?? api.fly({ ...api.state }, {}), now = Math.round(fl.landFt), dd = now - stepped.ft, gone = fl.verdict?.kind === 'GONE' // (the engine's own last flight, 31 Oct)
     return `${who}, ${stepped.b.d}, WITH ${ch.join(', ')}: <b>${now} FT</b> (${dd >= 0 ? '+' : ''}${dd}), ${gone ? 'STILL GONE' : 'NOT GONE'}${stepped.b.hr && !gone ? '. YOU TOOK AWAY A HOME RUN' : !stepped.b.hr && gone ? '. YOU MADE IT A HOME RUN' : ''}`
   }
   const slots = [...root.querySelectorAll('.strip .bt')]
   ctl.els = slots
   ctl.onArm = () => paintSlots()
-  ctl.onChange = () => { edited = true; paintSlots(); if (mode !== 'replay') { const r2 = E('#c25ch .r2'); if (r2) r2.innerHTML = tweakLine() } }
+  ctl.onChange = () => { edited = true; markInput(); paintSlots(); if (mode !== 'replay') { const r2 = E('#c25ch .r2'); if (r2) r2.innerHTML = tweakLine() } }
   slots.forEach((el, i) => {
     el.addEventListener('click', (e) => { const d = e.target.closest('i[data-d]'); if (i === NS) { fire(); return } ctl.arm(i); if (d) ctl.change(i, Number(d.dataset.d)) })
     el.addEventListener('wheel', (e) => { if (i === NS) return; e.preventDefault(); ctl.arm(i); ctl.change(i, e.deltaY < 0 ? 1 : -1) }, { passive: false })
   })
-  const fire = () => { if (mode === 'replay') { play(); return } pressEl(slots[NS]); ses.fire() }
+  const fire = () => { const nk = E('#c25nk'); nk?.classList.add('go'); setTimeout(() => nk?.classList.remove('go'), 140); if (mode === 'replay') { play(); return } if (mode === 'shot') { if (scRes?.ways?.length) playShot(); else banner('PICK A SEAT', 'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT'); return } ses.fire() }
   // (29 Oct red team: the arrows and +/- silently edited the real ball in DEJA-VU and Shot Caller, and Space swung behind an open modal)
-  ctl.bind(fire, 'h', (kind) => !modal && (kind === 'fire' ? mode !== 'shot' : mode === 'whatif'))
+  ctl.bind(fire, 'h', (kind) => !modal && (kind === 'fire' ? true : mode === 'whatif'))
+  E('#c25nk').addEventListener('click', () => { if (!uiReady) return; fire() })
   const paintSlots = () => { pix?.paint(); slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { const bb = el.querySelector('b'); if (!bb.querySelector('input')) bb.innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } }) }
   // sliders (28 Oct, Andrew: TWEAK THE TATER should have sliders): drag a slot's slider to set it; its keys stay with the slider, not the strip's arrow keys
   slots.forEach((el, i) => { const sl = el.querySelector('.sld'); if (!sl) return; sl.addEventListener('input', () => { ctl.arm(i); ctl.setFrac(i, Number(sl.value) / 1000); ctl.onChange() }); sl.addEventListener('keydown', (e) => { if (e.key !== 'Escape' && e.key !== 'Enter') e.stopPropagation() }); sl.addEventListener('wheel', (e) => e.stopPropagation()); sl.addEventListener('change', () => sl.blur()) }) // (red team: a dragged slider kept the focus and swallowed Enter, Esc and the shortcuts)
@@ -1167,7 +1291,9 @@ export async function build(root, api, U) {
     if (modal === 'mix') {
       E('#c25mt').textContent = '/ O P T I O N S /'
       body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">LOCKED: ${Object.entries(LOCKED).map(([a, c]) => a + c + ' ' + optOf(a, c).name).join(' · ')}. CLICK AN OPTION TO TRY IT.</div>` + OPEN.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c).map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${o.desc}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
-      body.querySelectorAll('.o').forEach((o) => o.addEventListener('click', () => { mix[o.dataset.k] = Number(o.dataset.i); sound.play('move'); applyMix(o.dataset.k) }))
+      body.querySelector('.legend').insertAdjacentHTML('beforeend', `<div><h5 class="lab">THE LAB <span>${labCode()}</span></h5></div>` + Object.entries(LAB).map(([k, a]) => `<div><h5>${k} ${a.name}</h5>${a.opts.map((o) => `<div class="o${lab[k] === o.c ? ' on' : ''}" data-lab="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${k === 'BI' ? nukeSVG(o.c, 2, 'var(--tx)') + ' ' : k === 'BC' ? `<i class="sw" style="background:${o.hex}"></i>` : ''}${o.name}<span>${o.desc}</span></div>`).join('')}</div>`).join(''))
+      body.querySelectorAll('.o[data-lab]').forEach((o) => o.addEventListener('click', (e) => { e.stopImmediatePropagation(); sound.play('move'); setLab(o.dataset.lab, Number(o.dataset.i)); paintModal() }))
+      body.querySelectorAll('.o:not([data-lab])').forEach((o) => o.addEventListener('click', () => { mix[o.dataset.k] = Number(o.dataset.i); sound.play('move'); applyMix(o.dataset.k) }))
       return
     }
     if (modal === 'before') { paintBefore(body); return }
@@ -1176,15 +1302,17 @@ export async function build(root, api, U) {
     if (modal === 'jukebox') { paintJukebox(body); return }
     if (modal === 'news') { // (30 Oct, night) what is new, and the things you would not find by looking
       E('#c25mt').textContent = "/ W H A T ' S   N E W /"
-      const L = [['DOJO CONTROLS', 'IN OPTIONS (J, IN THE HEADER): PIXEL INSTRUMENTS ON THE LEFT IN FIVE LOOKS, AND BIG ARCS; DRAG THE DRAWINGS'],
-        ['THE WINDSOCK', 'ON FIRST BASE IN THE DOJO, A THERMOMETER BESIDE IT: DRAG THE END OF THE SOCK, OR THE TOP OF THE RED; DOUBLE-CLICK THE SOCK FOR CALM'],
-        ['LANDING PARTY', 'POINT AT A HOME RUN IN THE LIST FOR ITS FLIGHT; CLICK IT TO TWEAK IT'],
-        ['CLICK THE SCOREBOARD', 'IN THE PARK: IT PLAYS THE NEXT DODGER GAG'], ['GAG REEL', 'IN THE MENU: ALL THE GAGS, EACH WITH A PLAY BUTTON; THE NEW ONES MARKED'],
-        ['MENU ART', 'IN THE MENU: LEFT AND RIGHT (OR A CLICK ON THE ART) FOR THE NEXT ONE; A PLAYS THEM ALL'],
-        ['THE DOJO', 'EVERY HOME RUN YOU HIT GETS A GAG; SO DOES A DODGER HOME RUN AGAINST THE GIANTS IN THE REPLAY'],
-        ['THE SLINGSHOT', 'PULL BACK FOR SPEED, OFF TO THE SIDE TO AIM; WHILE HOLDING IT, THE WHEEL OR UP AND DOWN SET THE ANGLE (SHIFT: FIVE AT A TIME)'],
-        ['STANDS', 'IN OPTIONS (V): NO UPPER DECKS, LOWER BOWL, FIELD LEVEL, FOUL GROUND CLOSE OR FRONT ROWS, NONE, OR BOTH'],
-        ['BAY WATER', 'IN OPTIONS (B): THE RIPPLE RINGS, AND FOUR FAINTER KINDS OF THEM (B6 TO B9)'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
+      const L = [['NUKE IT', 'ONE BUTTON, BOTTOM RIGHT OF THE PARK IN EVERY MODE (OR SPACE): PLAYS THE REAL ONE, SWINGS YOURS, FLIES THE SHOT CALLER WAYS'],
+        ['THE SIDE MENU (?)', 'ONLY WHAT IS OPEN NOW, AND THE LAB: THE BUTTON\'S ICON AND COLOR, THE DOJO DRAWINGS, THE SLINGSHOT, THE WINDSOCK, THE THERMOMETER, THE PARK TAGS, THE LANDING PARTY MARKS'],
+        ['DOJO CONTROLS', 'BIG ARCS ON THE LEFT: DRAG THE DRAWINGS; THE SPEED IS A ROADRUNNER ON A RAIL (J IN THE HEADER FOR THE OTHER LAYOUTS)'],
+        ['THE PARK\'S TAGS', 'VOXEL AGAIN, ON A LITTLE BOARD, ONE SIZE ON THE SCREEN AT ANY ZOOM, NEVER ON EACH OTHER (FOUR LOOKS IN THE SIDE MENU)'],
+        ['A HOME RUN IN A CROSSWIND', 'A BALL CURVING ACROSS INTO A NEARER STRETCH OF WALL NOW COUNTS AS GONE (IT USED TO READ AS IN PLAY)'],
+        ['LANDING PARTY', 'THE SIX NEAREST MARKED WHERE THEY CAME DOWN (FIVE WAYS), ONE LIT AT A TIME, #1 FIRST; POINT AT ANOTHER FOR ITS FLIGHT, CLICK IT TO TWEAK IT'],
+        ['SHOT CALLER', 'STARTS CLEAN: PICK A SEAT'], ['FASTER', 'THE DOJO ANSWERS AS YOU DRAG; THE CHARTS AND THE 30 PARKS CATCH UP WHEN YOU STOP'],
+        ['NEW GAGS', 'MISSION BURRITO, PARKING BOOT, BISON, POINT TAKEN (GAG REEL)'], ['THE INNING', 'IN THE MENU: A GAME THAT NEVER ENDS; THE ART RUNS EACH SCENE TWICE, THEN ANOTHER'],
+        ['STANDS', 'THE LOWER BOWL NOW (V5; MORE IN THE SIDE MENU); A BALL STILL COMES DOWN IN THE SEATS THAT ARE CUT AWAY'],
+        ['BAY WATER', 'WIDE AND SLOW, BARELY THERE (B12)'],
+        ['CLICK THE SCOREBOARD', 'IN THE PARK: IT PLAYS THE NEXT DODGER GAG'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
         ['↑↑↓↓←→←→ B A', 'TRY IT']]
       body.innerHTML = `<div class="lpl">${L.map(([a, b]) => `<div class="lpr"><b>&middot;</b><span class="nm">${a}</span><span></span><span></span><span class="wh">${b}</span></div>`).join('')}</div>`
       return
@@ -1395,8 +1523,8 @@ export async function build(root, api, U) {
   // the menu (28 Oct, night, Andrew: "many of these are superfluous"): five lines. Moonshot and the Bay Barometer became the fun line under the distance, Thirty Parks is
   // GONE IN N PARKS (click it) and the PARK button, Blast Bulletin is Daily Dinger's results page, the highlight reel is the REEL button by PLAY IT, the jukebox is J
   menu = selectMenu(grid, [
-    { k: 'replay', name: NAMES.replay, blurb: 'EVERY REAL HOME RUN SINCE JULY 2023, FLOWN AGAIN; TWEAK THE TATER ON ANY OF THEM', run: () => setMode('replay') },
-    { k: 'dojo', name: NAMES.dojo, blurb: 'A BLANK SWING: SET THE SPEED, THE ANGLE AND THE AIM, AND SEND IT', run: () => setMode('whatif') },
+    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'WATCH A REAL GIANTS HOME RUN FLY AGAIN', run: () => setMode('replay') },
+    { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT ONE YOURSELF: PICK THE SPEED, THE ANGLE AND THE AIM, THEN NUKE IT', run: () => setMode('whatif') },
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, CLICKED OR TYPED: EVERY SWING THAT PUTS A BALL THERE', run: () => setMode('shot'), off: () => !atOracle },
     { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS, THEN SEE EVERY HOME RUN FROM THE NIGHT", run: () => openMod('dinger') },
     { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
@@ -1457,6 +1585,7 @@ export async function build(root, api, U) {
   }
   let faceKey = ''
   function paintBatter() {
+    if (E('.c25>.batter')?.offsetParent === null) return // (31 Oct: the dojo and Shot Caller hide it; it was still drawn on every beat)
     const s = api.state, id = cur ? String(cur.b) : stepped ? String(stepped.b.b) : null, bat = id ? pname(id) : null, hand = cur ? cur.s : s.hand > 0 ? 'R' : 'L'
     const real = id && facesRaw[id], gen = !real && id && hasGen ? genericFace('composite', id) : null
     const src = real ? faceSource(facesRaw[id]) : gen ? gen.src : drawBust(160)
@@ -1670,8 +1799,8 @@ export async function build(root, api, U) {
   }
   // GAG REEL in the shared panel (30 Oct, Andrew: "Can I see the gags in like another view so I can press play on all of them?"): the camera faces the scoreboard,
   // every gag and show has its own PLAY, and PLAY ALL runs them one after another; leaving it (or another feature) stops the run. Also ?show=reel in the address
-  const REEL_NEW = new Set(['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'alcatraz']) // made or redone on 30 Oct, night
-  const REEL_TITLES = { muniwait: 'MUNI WAIT', foghorn: 'FOGHORN', thirdrail: 'THIRD RAIL', ipa: '$19 IPA', covedive: 'COVE DIVE', bagcheck: 'SECURITY CHECK', noreentry: 'NO REENTRY', captcha: 'CAPTCHA', rentctrl: 'RENT CTRL', meter: 'PARKING METER', merch: 'NO TP', garlic: 'GARLIC PRESS', lombard: 'LOMBARD', coit: 'COIT SCOPE', seat: 'STUBHUB', humanbat: 'HUMAN BAT', crabpot: 'CRAB POT', bartdoors: 'BART DOORS', boardfry: 'DIAMOND VISION FRY', mowedin: 'GROUNDSKEEPER', gatecable: 'GATE CABLE', dynamite: 'KA-BOOM', bonk: 'BONK', runover: 'DING! (CABLE CAR)', sealsnack: 'GULP (SEA LION)', leaves3rd: 'LEAVES IN THE 3RD', bipped: 'BIPPED', catapult: 'CATAPULT', chipper: 'WOOD CHIPPER', alcatraz: 'ALCATRAZ', tshirt: 'T-SHIRT CANNON (LOU SEAL)', steamroller: 'STEAMROLLER', birds: 'THE BIRDS', quake: 'EARTHQUAKE', balloon: 'BALLOON', bp: 'PITCHING MACHINE', driverless: 'DRIVERLESS', crabsnip: 'CRAB SNIP', hotdog: 'DODGER DOG', waterboard: 'WATERBOARD', ironmaiden: 'IRON MAIDEN', rack: 'THE RACK', wifeleaves: 'SHE LEFT HIM', bridgejump: 'THE BRIDGE' }
+  const REEL_NEW = new Set(['burrito', 'boot', 'bison', 'pyramid']) // made on 31 Oct
+  const REEL_TITLES = { burrito: 'MISSION BURRITO', boot: 'PARKING BOOT', bison: 'BISON', pyramid: 'POINT TAKEN', muniwait: 'MUNI WAIT', foghorn: 'FOGHORN', thirdrail: 'THIRD RAIL', ipa: '$19 IPA', covedive: 'COVE DIVE', bagcheck: 'SECURITY CHECK', noreentry: 'NO REENTRY', captcha: 'CAPTCHA', rentctrl: 'RENT CTRL', meter: 'PARKING METER', merch: 'NO TP', garlic: 'GARLIC PRESS', lombard: 'LOMBARD', coit: 'COIT SCOPE', seat: 'STUBHUB', humanbat: 'HUMAN BAT', crabpot: 'CRAB POT', bartdoors: 'BART DOORS', boardfry: 'DIAMOND VISION FRY', mowedin: 'GROUNDSKEEPER', gatecable: 'GATE CABLE', dynamite: 'KA-BOOM', bonk: 'BONK', runover: 'DING! (CABLE CAR)', sealsnack: 'GULP (SEA LION)', leaves3rd: 'LEAVES IN THE 3RD', bipped: 'BIPPED', catapult: 'CATAPULT', chipper: 'WOOD CHIPPER', alcatraz: 'ALCATRAZ', tshirt: 'T-SHIRT CANNON (LOU SEAL)', steamroller: 'STEAMROLLER', birds: 'THE BIRDS', quake: 'EARTHQUAKE', balloon: 'BALLOON', bp: 'PITCHING MACHINE', driverless: 'DRIVERLESS', crabsnip: 'CRAB SNIP', hotdog: 'DODGER DOG', waterboard: 'WATERBOARD', ironmaiden: 'IRON MAIDEN', rack: 'THE RACK', wifeleaves: 'SHE LEFT HIM', bridgejump: 'THE BRIDGE' }
   let reelAll = null, reelLooked = false
   const reelList = () => (life ? life.gags() : [])
   const reelBusy = () => !!life?.anim() || (life?.queued().length ?? 0) > 0
@@ -1744,10 +1873,9 @@ export async function build(root, api, U) {
   const shotName = (r) => (r.seat?.what === 'seat' ? r.seat.line : r.seat?.line ?? 'THAT SPOT')
   function paintShotBar(el) {
     const r = scRes, w = r?.ways?.[scSel]
-    el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}<span class="bt hot" id="c25go">PLAY IT</span></div><div class="r2"><b>${shotName(r)}</b>: ${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
+    el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}</div><div class="r2"><b>${shotName(r)}</b>: ${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
       : `<div class="r2">${r ? `NO SWING GETS A BALL TO ${shotName(r)}` : 'CLICK A SEAT IN THE PARK, OR TYPE ONE TOP LEFT'}</div>`
     el.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); stopShot(); pickWay(scSel + Number(b.dataset.sw)) }))
-    el.querySelector('#c25go')?.addEventListener('click', (e) => { pressEl(e.currentTarget); playShot() })
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
   // CALL A SEAT, in the pitch panel's place (Shot Caller has no pitch): section, row and seat; Enter or FIND IT goes. Built once, so typing is never interrupted
@@ -1950,6 +2078,7 @@ export async function build(root, api, U) {
     E('#c25hw').style.display = show === 'hist' && mode !== 'shot' ? '' : 'none'
     if (mode === 'shot') { paintShot(); return }
     if (show === 'sm') { paintStars(); return }
+    if (moving() && (show === 'hist' || show === 'lp')) return // (the histograms and the party catch up when the numbers stop)
     if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(res); else if (show === 'my') paintMySeat(); else if (show === 'reel') paintGagReel(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
   }
   // THE FUN LINE (28 Oct, night, Andrew: bring back the distance and speed similes). 29 Oct, evening (Andrew: "the thing keeps cycling through different speed and
@@ -1977,15 +2106,16 @@ export async function build(root, api, U) {
   function goneReady() { if (last) paintHead(last); if (modal === 'parks') paintModal() } // the 30-park band is in: repaint its line, never the whole engine (that cancelled a swing in the air)
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing
   function paintHead(res) {
+    E('#c25rd').classList.toggle('pick', mode === 'shot' && !scRes); E('#c25v').classList.toggle('pick', mode === 'shot' && !scRes); { const fl = flight?.last(); if (fl) fl.visible = !(mode === 'shot' && !scRes) } // (and no old flight in the park)
     const o = odds(), rd = E('#c25rd'), d = Math.round(res.landFt), pv = !!ses.beat?.preview
     if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn" role="button" title="every park"></div><div class="fun"></div><span class="sub sit"></span>`; rd.querySelector('.gn').addEventListener('click', () => { pressEl(rd.querySelector('.gn')); openMod('parks') }) }
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
-    set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api), goneReady)} PARKS` : '')
+    if (!moving() || !rd.querySelector('.gn')?.textContent) set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api), goneReady)} PARKS` : '') // (30 parks: when the numbers stop)
     set('.op', pct(o.p))
     { const k = [d, Math.round(api.state.ev), Math.round(api.state.la), lib ? 1 : 0].join(); if (k !== fun.key) { fun = { key: k, list: funList(res) }; showFun() } }
     set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
-    set('.osrc', 'HOME RUN ODDS · ' + o.src)
+    set('.osrc', o.p != null ? `HOW RARE: ${pct(o.p)}% OF BALLS HIT LIKE THIS GO OUT · ${o.src}` : 'HOW RARE · ' + o.src)
     rd.querySelectorAll('.meter s').forEach((s, i) => s.classList.toggle('on', o.p != null && o.p * 20 > i + 0.5))
     const dEl = E('#c25d')
     if (window.__cpFire || pv || !ses.beat) dEl.textContent = d
@@ -2049,7 +2179,7 @@ export async function build(root, api, U) {
   flight = initFlight25(api, colors); flight.setStyle(mix.U)
   ghost = initGhost25(api, { still: reduced }) // SEAT SEANCE's ghost
   // the dojo's controls in the park (30 Oct: LA1 protractor, DR1 spray fan, EV1 slingshot, the wind rose); they set the same numbers as the typed boxes and sliders
-  { const cs = cs0(); ctl3d = initControls25(api, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), words: { dir: FIELD }, set: (ch) => { Object.assign(api.state, ch); api.update() }, fire: () => fire(), sound: (k) => sound.play(k), enabled: () => mode === 'whatif' && !modal }) }
+  { const cs = cs0(); ctl3d = initControls25(api, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), words: { dir: FIELD }, set: (ch) => { markInput(); Object.assign(api.state, ch); api.update() }, fire: () => fire(), sound: (k) => sound.play(k), enabled: () => mode === 'whatif' && !modal }) }
   // the wind (30 Oct, Andrew: "Is the wind slightly horizontal? If so I need to know that somehow"): windsocks on the foul poles, the sign's pennants and faint air
   // streams over the field show tonight's forecast wind at Oracle (shown, not flown); in the dojo they show the wind you set, which is flown, across as well as out
   windFx = atOracle ? initWind25(api, { still: reduced, onChange: (w) => { if (life) life.wind = w && { ...w, cfDeg: window.__cp.ORACLE_AZ ?? 85 } } }) : null
@@ -2131,7 +2261,7 @@ export async function build(root, api, U) {
     if (mode !== 'replay' || !cur || playing || pitchCam?.busy()) return
     playing = true
     let wait = 560
-    if (cur.b !== lastJingle) { lastJingle = cur.b; if (sound.on()) { sound.play('jingle', { id: cur.b }); wait = 1900 } }
+    if (cur.b !== lastJingle) { lastJingle = cur.b; if (sound.on()) sound.play('jingle', { id: cur.b }) } // (31 Oct, GPT red team: the walk-up jingle no longer holds the pitch back 1.9 s; it plays over it)
     // H1 PITCH ARC: the pitch drawn on the park on its fitted path, then the hit
     const go = () => { playing = false; playT = []; api.fire() }
     playT.push(setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && pitchCam.play(cur, go, reduced ? { dur: 0.01, hold: 0.3 } : {}))) playT.push(setTimeout(go, 560)) }, wait - 560))
@@ -2260,12 +2390,16 @@ export async function build(root, api, U) {
   if (wantMod) setTimeout(() => openMod(wantMod), 1200)
   if (q.get('menu') !== '0' && !wantMod) menu.show(menuKey())
   uiReady = true
+  // the lab applied: the button's icon and color now; the controls' looks join below as they are built
+  const labHooks = [() => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => lp.setStyle(lab.LP)]
+  applyLab = (k) => { const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5); grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#5dff3a') } for (const f of labHooks) f(k) }
+  applyLab()
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }
   return {
     render,
-    beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },
+    beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last && (!b.preview || mode !== 'whatif')) render(last) }, // (31 Oct: in the dojo a preview beat is followed by its own render; in the replay and Shot Caller it is a new ball or way)
   }
 }

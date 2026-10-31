@@ -15,7 +15,7 @@
 // air temperature; drag the top of the red up or down.
 // The typed boxes and the slider stay; these set the same numbers through o.set. A grab takes the pointer from the camera until it lets go. Sizes grow with the
 // camera's distance so the handles stay grabbable from the broadcast seat.
-import { voxText } from './vox25.js'
+import { voxText, VOX_FONT } from './vox25.js'
 const FT = 0.3048, RAD = Math.PI / 180
 export function initControls25(api, o = {}) {
   const { THREE, scene, camera } = api.NN
@@ -28,57 +28,153 @@ export function initControls25(api, o = {}) {
   const fill = (m, pts) => { m.count = Math.min(pts.length, m.instanceMatrix.count); for (let i = 0; i < m.count; i++) { const p = pts[i]; d.position.set(p[0], p[1], p[2]); d.scale.setScalar(p[3]); d.updateMatrix(); m.setMatrixAt(i, d.matrix) } m.instanceMatrix.needsUpdate = true }
   let k = 1, st = { ev: 103, la: 28, dir: 0, wind: 0, xwind: 0, temp: 70 }, drag = null, pull = null
   const along = (b, r, z = 0.25) => F(Math.sin(b * RAD) * r, Math.cos(b * RAD) * r, z)
-  // ---- the slingshot: a fork of two posts behind the plate, two bands to the ball; its own group, scaled with the camera like the protractor ----
+  // ---- 31 Oct, later (Andrew: "The 3D diagetic controls look sort of shitty too give me better voxel versions of those and 3-4 options each"; of the slingshot,
+  // "gimme options I am not at this point convinced"): four of each, picked in THE LAB (OPTIONS): SL slingshot, SK windsock, TH thermometer. Every piece is cubes in
+  // a few colors (one pool per color); the sock and the thermometer grow with the camera's distance only up to a cap (they stood over Levi's Landing), and the
+  // thermometer is drawn again only when its number or the camera's side changes (GPT red team: no work every frame for a still thing) ----
+  let sty = { sl: 1, sk: 5, th: 5 }, ks = 1
+  const pools = new Map(), poolOf = (piece, color, n, parent) => { const key = piece + color; if (!pools.has(key)) pools.set(key, { piece, m: pool(n, color, parent) }); return pools.get(key).m }
+  const paintPiece = (piece, parent, parts) => { for (const [key, p] of pools) if (p.piece === piece && !(key.slice(piece.length) in parts)) fill(p.m, []); for (const [c, pts] of Object.entries(parts)) fill(poolOf(piece, c, 640, parent), pts) }
+  const WOOD = '#a8703f', STEEL = '#8a8f99', WHITE = '#f4f2ea', RED = '#e0403a', GREEN = '#3b8a52', ORANGE = '#f0802a'
+  // ---- the slingshot behind the plate: its own group, scaled with the camera; the ball is the grip for speed and aim, the lit handle on top for the angle ----
   const sg = new THREE.Group(); sg.position.copy(F(0, -5, 0)); g.add(sg)
   const L = (x, y, z) => new THREE.Vector3(x, z, -y) // the plate frame inside the group: x right, y toward center field, z up
-  const REST = [0, 0, 1.5], sling = pool(60, '#a8703f', sg), band = pool(60, C.tx, sg), ballH = pool(1, '#f4f2ea', sg)
-  const lean = () => ((st.la - 25) / 35) * 0.5 // the fork's lean back (radians) for the launch angle
-  const tilt = (x, y, z) => { const a = lean(); return L(x, y - Math.sin(a) * z, Math.cos(a) * z) } // a point of the fork, leaned about its foot
+  const REST = [0, 0, 1.5]
+  const lean = () => ((st.la - 25) / 35) * 0.5 // the lean back (radians) for the launch angle
+  const tilt = (x, y, z) => { const a = lean(); return L(x, y - Math.sin(a) * z, Math.cos(a) * z) } // a point of the launcher, leaned about its foot
   const ballLocal = () => { const p = pull ?? [0, 0], r = tilt(REST[0], 0, REST[2]); return new THREE.Vector3(r.x + p[0], r.y, r.z - p[1]) }
-  const forkTop = () => sg.localToWorld(tilt(0, 0, 2.9))
+  const GRIP = { 1: [0, 0, 2.95], 2: [0, 0, 3.1], 3: [0, 0, 2.9], 4: [0, 0.2, 2.9] }
+  const forkTop = () => sg.localToWorld(tilt(...(GRIP[sty.sl] ?? GRIP[1])))
   const ballAt = () => sg.localToWorld(ballLocal())
   function paintSling() {
-    const pts = [], q = (x, y, z, s) => { const p = L(x, y, z); pts.push([p.x, p.y, p.z, s]) }
-    const qt = (x, y, z, s) => { const p = tilt(x, y, z); pts.push([p.x, p.y, p.z, s]) }
-    for (const s of [-1, 1]) for (let z = 1.2; z <= 2.4; z += 0.3) qt(s * (0.6 + (z - 1.2) * 0.4), 0, z, 0.32)
-    for (let z = 0; z <= 1.2; z += 0.3) qt(0, 0, z, 0.36)
-    qt(0, 0, 2.9, 0.5) // the grip on top, for the lean
-    fill(sling, pts)
-    const b = ballLocal(), bl = []
-    for (const s of [-1, 1]) { const a = tilt(s * 1.08, 0, 2.4); for (let t = 0; t <= 1; t += 0.1) bl.push([a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, 0.16]) }
-    fill(band, bl)
-    fill(ballH, [[b.x, b.y, b.z, 0.8]])
+    const P = {}, put = (c, v, s) => (P[c] ??= []).push([v.x, v.y, v.z, s]), qt = (c, x, y, z, s) => put(c, tilt(x, y, z), s), q = (c, x, y, z, s) => put(c, L(x, y, z), s)
+    const line = (c, a, b, s, step = 0.12) => { const n = Math.max(1, Math.ceil(a.distanceTo(b) / step)); for (let i = 0; i <= n; i++) put(c, a.clone().lerp(b, i / n), typeof s === 'function' ? s(i / n) : s) }
+    const b = ballLocal()
+    // the Y-forks (1, 5 to 8): a stem, two arms, bands from the tips to a pouch behind the ball; o: colors and sizes for each
+    const fork = (o) => {
+      for (let z = 0; z <= 1.3; z += 0.22) for (const x of o.thin ? [0] : [-0.2, 0.2]) qt(o.stem(z), x + (o.wob ? Math.sin(z * 5) * 0.06 : 0), 0, z, o.thin ? 0.34 : 0.42)
+      for (const s of [-1, 1]) {
+        for (let z = 1.3; z <= 2.5; z += 0.18) qt(o.arm(z, s), s * (0.25 + (z - 1.3) * o.spread) + (o.wob ? Math.sin(z * 7 + s) * 0.08 : 0), 0, z, o.armW)
+        const tip = [s * (0.25 + 1.2 * o.spread), 0, 2.6]; qt(o.tip, ...tip, o.armW + 0.1)
+        for (const dz of o.bands === 2 ? [-0.16, 0.16] : [0]) line(o.band, tilt(tip[0], tip[1], tip[2] - 0.05 + dz), b, o.bandW)
+      }
+      if (o.pouch) for (const dx of [-0.32, 0, 0.32]) for (const dz of [-0.28, 0, 0.28]) put(o.pouch, new THREE.Vector3(b.x + dx, b.y + dz, b.z + 0.32), 0.3) // the pouch, behind the ball
+      if (o.brace) { line(STEEL, tilt(0, 0, 0.7), tilt(0, -1.7, 0.95), 0.2); for (const s of [-1, 1]) put(STEEL, tilt(s * 0.35, -1.75, 0.95), 0.24) }
+      if (o.twig) { line(o.arm(2, -1), tilt(-0.7, 0, 1.9), tilt(-1.5, 0.2, 2.6), 0.2); put('#5f8f3a', tilt(-1.55, 0.2, 2.72), 0.3) }
+    }
+    if (sty.sl === 1) { // CHUNKY Y-FORK, with its notched angle arc
+      fork({ stem: () => WOOD, arm: () => WOOD, tip: WOOD, armW: 0.4, spread: 0.75, band: ORANGE, bandW: 0.24 })
+      for (let a = -10; a <= 60; a += 5) { const r = 1.6, v = L(1.95, Math.cos(a * RAD) * r - 0.6, 0.25 + Math.sin(a * RAD) * r); put(a % 30 ? STEEL : WHITE, v, a % 30 ? 0.16 : 0.26) }
+      for (let t = 0.3; t <= 1.6; t += 0.32) put(ORANGE, L(1.95, Math.cos(st.la * RAD) * t - 0.6, 0.25 + Math.sin(st.la * RAD) * t), 0.22)
+    } else if (sty.sl === 5) fork({ stem: () => STEEL, arm: () => STEEL, tip: '#2a2d33', armW: 0.26, spread: 0.7, band: '#222326', bandW: 0.2, pouch: '#7a4a2a', brace: true, thin: true }) // WRIST ROCKET
+    else if (sty.sl === 6) fork({ stem: (z) => (Math.floor(z * 5) % 3 ? '#6b4a2b' : '#8b6a43'), arm: (z) => (Math.floor(z * 6) % 3 ? '#6b4a2b' : '#8b6a43'), tip: '#6b4a2b', armW: 0.36, spread: 0.8, band: '#d8c08a', bandW: 0.2, pouch: '#7a4a2a', wob: true, twig: true }) // TREE BRANCH
+    else if (sty.sl === 7) fork({ stem: (z) => (Math.floor(z * 4) % 2 ? '#141414' : ORANGE), arm: () => '#1a1a1a', tip: ORANGE, armW: 0.38, spread: 0.75, band: ORANGE, bandW: 0.24 }) // GIANTS FORK
+    else if (sty.sl === 8) fork({ stem: () => WOOD, arm: () => WOOD, tip: STEEL, armW: 0.44, spread: 1.05, band: ORANGE, bandW: 0.18, bands: 2, pouch: '#7a4a2a' }) // DOUBLE BANDS
+    else if (sty.sl === 2) { // PINBALL PLUNGER
+      for (let x = -0.6; x <= 0.61; x += 0.3) for (let y = -0.45; y <= 0.46; y += 0.3) for (let z = 0; z <= 0.9; z += 0.3) q(STEEL, x, y, z, 0.32)
+      for (let z = 1.0; z <= 3.0; z += 0.25) for (const [x, y] of [[0.38, 0], [-0.38, 0], [0, 0.38], [0, -0.38]]) qt(STEEL, x, y, z, 0.24)
+      const base = tilt(0, 0, 0.95); for (let i = 0; i <= 10; i++) { const t = i / 10, p = base.clone().lerp(b, t); p.x += (i % 2 ? 0.25 : -0.25); put(ORANGE, p, 0.16) }
+    } else if (sty.sl === 3) { // BAT CATAPULT
+      for (let x = -0.7; x <= 0.71; x += 0.35) for (let y = -0.35; y <= 0.36; y += 0.35) q(STEEL, x, y, 0.1, 0.38)
+      line(WOOD, tilt(0, 0, 0.35), b, (t) => 0.22 + t * 0.4, 0.15)
+      for (let z = 0.3; z <= 2.7; z += 0.3) qt(STEEL, 0, 0.55, z, 0.2)
+    } else { // BALLISTA
+      for (let z = 0.4; z <= 2.9; z += 0.2) qt(WOOD, 0, 0.2, z, 0.34)
+      for (let x = -1.9; x <= 1.91; x += 0.19) qt(STEEL, x, 0.2 - 0.55 * (x / 1.9) ** 2, 2.3, 0.26)
+      for (const s of [-1, 1]) line(ORANGE, tilt(s * 1.9, -0.35, 2.3), b, 0.14)
+      for (const s of [-1, 1]) line(WOOD, L(s * 0.9, -0.3, 0), tilt(0, 0.2, 1.2), 0.24, 0.2)
+    }
+    put(ORANGE, tilt(...(GRIP[sty.sl] ?? GRIP[1])), 0.45) // the lit grip for the angle
+    put(WHITE, b, 0.6) // the ball
+    paintPiece('sl', sg, P)
   }
-  // ---- the windsock on first base: a pole, and the sock off its top, along the wind, its length the wind's strength ----
-  const B1 = 90 * FT * Math.SQRT1_2, C2 = F(B1, B1, 0), PH = 7, RW = 10, pole = pool(40, C.tx), sock = pool(120, '#f0802a'), sockW = pool(60, '#f4f2ea'), windEnd = pool(1, '#f0802a')
-  const poleTop = () => C2.clone().setY(C2.y + PH * k)
-  const windTip = () => { const m = Math.hypot(st.wind, st.xwind), top = poleTop(), r = (0.25 + (Math.min(25, m) / 25) * 0.75) * RW * k; if (!m) return top.clone().add(new THREE.Vector3(0.6 * k, -r * 0.8, 0)); return new THREE.Vector3(top.x + (st.xwind / m) * r, top.y - (1 - Math.min(25, m) / 25) * r * 0.6, top.z - (st.wind / m) * r) }
-  function paintSock() {
-    const pts = []
-    for (let y = 0; y <= PH; y += 0.5) pts.push([C2.x, C2.y + y * k, C2.z, 0.35 * k])
-    fill(pole, pts)
-    const top = poleTop(), tip = windTip(), o1 = [], o2 = []
-    const m = Math.hypot(st.wind, st.xwind), ft = performance.now() / 1000 * (2 + m * 0.3)
-    for (let f = 0; f <= 1; f += 0.05) { const wob = Math.sin(ft * 3 - f * 6) * f * f * 0.5 * k, x = top.x + (tip.x - top.x) * f + wob, y = top.y + (tip.y - top.y) * f + wob * 0.6, z = top.z + (tip.z - top.z) * f - wob, w = (1.3 - f * 0.7) * k; (Math.floor(f * 5) % 2 ? o2 : o1).push([x, y, z, w]) } // orange and white bands, narrowing
-    fill(sock, o1); fill(sockW, o2)
-    fill(windEnd, [[tip.x, tip.y, tip.z, 1.1 * k]])
+  // ---- the windsock on first base, a little lower than it was, its size capped ----
+  const B1 = 90 * FT * Math.SQRT1_2, C2 = F(B1, B1, 0), PH = 6, RW = 7
+  const poleTop = () => C2.clone().setY(C2.y + PH * ks)
+  const HOLLOW = () => sty.sk === 5 || sty.sk === 6, SOCKL = 7.2
+  const sockAxis = () => { const m = Math.hypot(st.wind, st.xwind), dx = m ? st.xwind / m : 1, dz = m ? -st.wind / m : 0, droop = 0.2 + Math.min(1, m / 15) * (Math.PI / 2 - 0.25); return new THREE.Vector3(dx * Math.sin(droop), -Math.cos(droop), dz * Math.sin(droop)) }
+  const windTip = () => { if (HOLLOW()) return poleTop().addScaledVector(sockAxis(), SOCKL * ks); const m = Math.hypot(st.wind, st.xwind), top = poleTop(), r = (0.25 + (Math.min(25, m) / 25) * 0.75) * RW * ks; if (!m) return top.clone().add(new THREE.Vector3(0.5 * ks, -r * 0.8, 0)); const droop = sty.sk === 2 ? 0 : (1 - Math.min(25, m) / 25) * r * 0.6; return new THREE.Vector3(top.x + (st.xwind / m) * r, top.y - droop, top.z - (st.wind / m) * r) }
+  let sockAt = 0
+  function paintSock(now = performance.now()) {
+    sockAt = now
+    const P = {}, put = (c, x, y, z, s) => (P[c] ??= []).push([x, y, z, s])
+    for (let y = 0; y <= PH; y += 0.45) put(sty.sk === 4 ? STEEL : C.tx, C2.x, C2.y + y * ks, C2.z, 0.4 * ks)
+    const top = poleTop(), tip = windTip(), m = Math.hypot(st.wind, st.xwind), ft = (now / 1000) * (2 + m * 0.3)
+    const at = (f, wob = 0) => [top.x + (tip.x - top.x) * f + wob, top.y + (tip.y - top.y) * f + wob * 0.5, top.z + (tip.z - top.z) * f - wob]
+    if (HOLLOW()) { // HOLLOW SOCK (5), HOLLOW SOCK, FINE (6): a steel hoop, then rings tapering from 0.95 to 0.4 m, two rings to a stripe
+      const fine = sty.sk === 6, SEG = fine ? 16 : 10, AR = fine ? 18 : 12, cube = (fine ? 0.17 : 0.22) * ks, ax = sockAxis(), upv = new THREE.Vector3(0, 1, 0)
+      const u = new THREE.Vector3().crossVectors(ax, Math.abs(ax.y) > 0.95 ? new THREE.Vector3(1, 0, 0) : upv).normalize(), w = new THREE.Vector3().crossVectors(ax, u).normalize(), sideV = new THREE.Vector3().crossVectors(upv, ax).normalize()
+      for (let i = -1; i < SEG; i++) {
+        const f = Math.max(0, (i + 0.5) / SEG), r = (0.95 - 0.55 * f) * ks, fl = Math.sin(ft * 3 + i * 0.8) * (0.04 + 0.012 * m) * f * ks * 3
+        const c = top.clone().addScaledVector(ax, (i + 0.5) * (SOCKL / SEG) * ks).addScaledVector(sideV, fl).addScaledVector(upv, fl * 0.3)
+        for (let k2 = 0; k2 < AR; k2++) { const th = (k2 / AR) * Math.PI * 2, pnt = c.clone().addScaledVector(u, Math.cos(th) * r).addScaledVector(w, Math.sin(th) * r); put(i < 0 ? STEEL : Math.floor(i / (fine ? 3 : 2)) % 2 ? WHITE : ORANGE, pnt.x, pnt.y, pnt.z, cube) }
+      }
+    } else if (sty.sk === 1) { // AIRPORT SOCK: a steel cuff, five bands orange and white, still but for a flutter at the tail
+      for (const [dx, dz] of [[0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6]]) put(STEEL, top.x + dx * ks, top.y, top.z + dz * ks, 0.35 * ks)
+      for (let f = 0; f <= 1; f += 0.04) { const wob = f > 0.7 ? Math.sin(ft * 3 - f * 6) * (f - 0.7) * 0.8 * ks : 0; put(Math.floor(f * 5) % 2 ? WHITE : ORANGE, ...at(f, wob), (1.5 - f * 0.8) * ks) }
+    } else if (sty.sk === 2) { // WEATHER VANE: an arrow along the wind, its head downwind, a white fin at the back; longer the stronger
+      const back = [top.x - (tip.x - top.x) * 0.35, top.y, top.z - (tip.z - top.z) * 0.35]
+      for (let f = 0; f <= 1; f += 0.05) put(C.tx, back[0] + (tip.x - back[0]) * f, top.y, back[2] + (tip.z - back[2]) * f, 0.3 * ks)
+      const dx = tip.x - top.x, dz = tip.z - top.z, L2 = Math.hypot(dx, dz) || 1, ux = dx / L2, uz = dz / L2
+      for (let i = 0; i <= 4; i++) for (const s of [-1, 1]) put(ORANGE, tip.x - ux * i * 0.35 * ks + -uz * s * i * 0.3 * ks, top.y, tip.z - uz * i * 0.35 * ks + ux * s * i * 0.3 * ks, 0.38 * ks)
+      for (let i = 0; i <= 3; i++) for (let j = -1; j <= 1; j++) put(WHITE, back[0] - ux * i * 0.3 * ks, top.y + j * 0.3 * ks, back[2] - uz * i * 0.3 * ks, 0.3 * ks)
+      for (const [cx, cz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put(STEEL, top.x + cx * 0.9 * ks, top.y - 0.9 * ks, top.z + cz * 0.9 * ks, 0.22 * ks) // the compass pegs
+    } else { // 3 STAIR-STEP PENNANT: four rectangles, smaller and smaller, rising to the horizontal as it blows; 4 GIANTS PENNANT: an orange triangle, white along its edge
+      for (let f = 0; f <= 1; f += 0.03) {
+        const wob = Math.sin(ft * 2.5 - f * 5) * f * 0.3 * ks, wd = sty.sk === 3 ? 1.6 - Math.floor(f * 4) * 0.32 : 1.8 * (1 - f) + 0.15, p = at(f, wob)
+        for (let j = 0; j <= wd; j += 0.3) put(sty.sk === 3 ? (Math.floor(f * 4) % 2 ? WHITE : ORANGE) : j > wd - 0.31 ? WHITE : ORANGE, p[0], p[1] - j * ks, p[2], 0.34 * ks)
+      }
+    }
+    put(ORANGE, tip.x, tip.y, tip.z, 0.9 * ks) // the grip
+    paintPiece('sk', g, P)
   }
-  // ---- the thermometer, just left of the sock as seen from home: a white glass tube on a bulb, red up to the temperature (40 to 100 F) ----
-  const glass = pool(80, C.tx), merc = pool(60, '#e0403a'), tick = pool(12, C.dim), tempEnd = pool(1, '#e0403a')
-  const thBase = () => F(B1 - 3.4 * k, B1, 0), T0 = 1.6, T1 = 6.2 // the tube's bottom and top, in k above the ground
+  // ---- the thermometer, just left of the sock as seen from home ----
+  const thBase = () => F(B1 - 3.4 * ks, B1, 0), T0 = 1.6, T1 = 6.2 // the gauge's bottom and top, in ks above the ground
   const thSide = () => new THREE.Vector3(camera.position.z - C2.z, 0, -(camera.position.x - C2.x)).normalize() // across the line of sight
-  const tempTip = () => { const b = thBase(); return b.setY(b.y + (T0 + ((st.temp - 40) / 60) * (T1 - T0)) * k) }
-  function paintTherm() {
-    const b = thBase(), sd = thSide(), gl = [], me = [], tk = [], at = (y, a) => [b.x + sd.x * a * k, b.y + y * k, b.z + sd.z * a * k]
-    for (let y = T0; y <= T1 + 0.01; y += 0.4) for (const a of [-0.5, 0.5]) gl.push([...at(y, a), 0.3 * k])
-    gl.push([...at(T1 + 0.3, 0), 0.3 * k])
-    for (const [y, a] of [[0.3, 0], [0.7, -0.45], [0.7, 0.45], [1.1, -0.5], [1.1, 0.5]]) gl.push([...at(y, a), 0.34 * k])
-    const top = T0 + ((st.temp - 40) / 60) * (T1 - T0)
-    for (const [y, a] of [[0.7, 0], [1.1, 0], [0.8, -0.2], [0.8, 0.2]]) me.push([...at(y, a), 0.5 * k])
-    for (let y = 1.3; y <= top; y += 0.25) me.push([...at(y, 0), 0.34 * k])
-    for (let n = 0; n <= 6; n++) tk.push([...at(T0 + (n / 6) * (T1 - T0), -0.95), (n % 3 ? 0.14 : 0.24) * k]) // a tick every 10 degrees, longer at 40, 70, 100
-    fill(glass, gl); fill(merc, me); fill(tick, tk)
-    const tp = tempTip(); fill(tempEnd, [[tp.x, tp.y, tp.z, 0.75 * k]])
+  const tempTip = () => { const b = thBase(); return b.setY(b.y + (T0 + ((st.temp - 40) / 60) * (T1 - T0)) * ks) }
+  let thKey = ''
+  function paintTherm(force) {
+    const b = thBase(), sd = thSide(), key = [sty.th, st.temp, ks.toFixed(2), sd.x.toFixed(2), sd.z.toFixed(2)].join()
+    if (!force && key === thKey) return
+    thKey = key
+    // a point of the gauge: y up (in ks), a across the line of sight, dep away from the camera (a board sits behind the tube)
+    const bk = new THREE.Vector3(b.x - camera.position.x, 0, b.z - camera.position.z).normalize()
+    const P = {}, at = (y, a, dep = 0) => [b.x + (sd.x * a + bk.x * dep) * ks, b.y + y * ks, b.z + (sd.z * a + bk.z * dep) * ks], put = (c, y, a, s, dep) => (P[c] ??= []).push([...at(y, a, dep), s * ks])
+    const f = (st.temp - 40) / 60, lvl = T0 + f * (T1 - T0)
+    // voxel digits from the park's font, cs a cell, a0 its left edge
+    const digits = (txt, y, a0, cs, c, dep = 0) => { let x = 0; for (const ch of txt) { const rows = VOX_FONT[ch] ?? VOX_FONT[' ']; rows.forEach((r, j) => [...r].forEach((q, i) => { if (q === '#') put(c, y + (6 - j) * cs, a0 + (x + i) * cs, cs * 1.05, dep) })); x += rows[0].length + 1 } }
+    // the mercury thermometer itself: a glass tube, a glint, a red column to the temperature, a red bulb in a glass rim, a cap (5 to 8 share it)
+    const tube = (glass, glint, cap) => {
+      for (let y = T0; y <= T1 + 0.01; y += 0.22) for (const a of [-0.42, 0.42]) put(glass, y, a, 0.2)
+      if (glint) for (let y = T0 + 0.4; y <= T1 - 0.4; y += 0.5) put(WHITE, y, -0.2, 0.09, -0.05)
+      for (let y = T0 - 0.2; y <= lvl; y += 0.18) put(RED, y, 0, 0.3)
+      for (let y = 0.3; y <= 1.5; y += 0.22) for (let a = -0.8; a <= 0.81; a += 0.22) { const r = Math.hypot((y - 0.9) / 0.62, a / 0.72); if (r <= 0.78) put(RED, y, a, 0.26); else if (r <= 1.02) put(glass, y, a, 0.2) }
+      put(WHITE, 1.15, -0.35, 0.14, -0.1) // the bulb's shine
+      for (const a of [-0.3, 0, 0.3]) put(cap, T1 + 0.25, a, 0.3)
+    }
+    const ticks = (c, digitsC, a0 = 0.62) => { for (let n = 0; n <= 6; n++) { const y = T0 + (n / 6) * (T1 - T0), big = n % 3 === 0; put(c, y, a0, big ? 0.2 : 0.12); if (big) put(c, y, a0 + 0.18, 0.2); if (big && digitsC) digits(String(40 + n * 10), y - 0.25, a0 + 0.42, 0.075, digitsC) } }
+    if (sty.th === 5) { tube('#cfe3ef', true, STEEL); ticks(WHITE, WHITE) } // GLASS TUBE
+    else if (sty.th === 6) { // PORCH BOARD: a wooden board behind, dark ticks and numbers
+      for (let y = 0.0; y <= T1 + 0.75; y += 0.3) for (let a = -1.05; a <= 1.66; a += 0.3) put((Math.floor(y * 3.3) + Math.floor(a * 3.3)) % 5 ? '#8b5a2b' : '#7a4c22', y, a, 0.32, 0.3)
+      tube('#e9eef2', true, '#3a2a1a'); ticks('#2a1a0e', '#2a1a0e')
+    } else if (sty.th === 7) { // ENAMEL SIGN: an orange board, a white rim, black ticks, F at the top
+      for (let y = 0.0; y <= T1 + 1.2; y += 0.3) for (let a = -1.05; a <= 1.66; a += 0.3) { const rim = y < 0.15 || y > T1 + 1.05 || a < -0.95 || a > 1.55; put(rim ? WHITE : ORANGE, y, a, 0.32, 0.3) }
+      tube(WHITE, false, '#141414'); ticks('#141414', '#141414'); digits('F', T1 + 0.45, 0.62, 0.075, '#141414')
+    } else if (sty.th === 8) { // CHROME CASE: steel rails and caps round the tube, a dark window, bolts
+      for (let y = 0.1; y <= T1 + 0.6; y += 0.22) for (const a of [-0.72, 0.72]) put('#b8bec8', y, a, 0.26)
+      for (let a = -0.72; a <= 0.73; a += 0.24) { put('#b8bec8', 0.05, a, 0.26); put('#b8bec8', T1 + 0.65, a, 0.26) }
+      for (let y = T0; y <= T1; y += 0.3) for (const a of [-0.3, 0.3]) put('#1c2026', y, a, 0.3, 0.25)
+      for (const [y, a] of [[0.05, -0.72], [0.05, 0.72], [T1 + 0.65, -0.72], [T1 + 0.65, 0.72]]) put(WHITE, y, a, 0.3, -0.05)
+      tube('#cfe3ef', true, '#b8bec8'); ticks(WHITE, null, 0.95)
+    } else { // MERCURY TOWER (the first one)
+      for (let y = T0; y <= T1 + 0.01; y += 0.35) for (const a of [-0.7, 0.7]) put(WHITE, y, a, 0.4)
+      for (const a of [-0.35, 0, 0.35]) put(WHITE, T1 + 0.35, a, 0.4)
+      for (let y = 0.2; y <= 1.5; y += 0.32) for (let a = -0.9; a <= 0.91; a += 0.3) { const r = Math.hypot((y - 0.85) / 0.7, a / 0.95); if (r <= 1) put(r > 0.7 ? WHITE : RED, y, a, 0.36) }
+      for (let y = 1.4; y <= lvl; y += 0.3) for (const a of [-0.25, 0.25]) put(RED, y, a, 0.32)
+      for (const n of [0, 0.5, 1]) for (const a of [-1.15, -1.45]) put(STEEL, T0 + n * (T1 - T0), a, 0.24)
+    }
+    const tp = tempTip(); (P[RED] ??= []).push([tp.x, tp.y, tp.z, 0.5 * ks]) // the grip, the top of the red
+    paintPiece('th', g, P)
   }
   // the value while a handle is held, over the handle
   const tagG = new THREE.Group(); g.add(tagG)
@@ -86,15 +182,16 @@ export function initControls25(api, o = {}) {
   function showTag(txt, at) {
     if (txt !== tagTxt) { tagTxt = txt; tagG.clear(); if (txt) tagG.add(voxText(THREE, txt, { px: 0.3, color: C.acc, back: '#141414' })) }
     if (!txt) return
-    tagG.position.copy(at).add(new THREE.Vector3(0, 3.2 * k, 0)); tagG.scale.setScalar(k)
+    tagG.position.copy(at).add(new THREE.Vector3(0, 3.2 * Math.min(k, 1.7), 0)); tagG.scale.setScalar(Math.min(k, 1.7))
     tagG.rotation.y = Math.atan2(camera.position.x - tagG.position.x, camera.position.z - tagG.position.z)
   }
-  const paint = () => { paintSling(); paintSock(); paintTherm() }
+  const paint = () => { paintSling(); paintSock(); paintTherm(true) }
   paint()
   api.NN.frames.push(() => {
     if (!g.visible) return
     const nk = Math.min(3, Math.max(0.7, camera.position.distanceTo(H0) / 110))
-    if (Math.abs(nk - k) > k * 0.04) { k = nk; paint() } else if (!drag) { paintSock(); paintTherm() } // the sock flutters; the tube turns to the camera
+    if (Math.abs(nk - k) > k * 0.04) { k = nk; ks = Math.min(k, 1.5); paint() }
+    else { const now = performance.now(); if (!drag && now - sockAt > 80 && sty.sk !== 2) paintSock(now); paintTherm() } // the sock flutters at a dozen frames a second; the gauge only when it must
     sg.scale.setScalar(k * 1.6)
     if (drag) showTag(tagFor(drag.k), handleAt(drag.k))
   })
@@ -138,10 +235,10 @@ export function initControls25(api, o = {}) {
       paintSling()
     } else if (drag.k === 'temp') { // up the tube is warmer
       const b = thBase(), n = camera.position.clone().sub(b).setY(0).normalize(), p = onPlane(n, b); if (!p) return
-      ch.temp = clamp(Math.round(40 + ((p.y - b.y - T0 * k) / ((T1 - T0) * k)) * 60), 40, 100)
+      ch.temp = clamp(Math.round(40 + ((p.y - b.y - T0 * ks) / ((T1 - T0) * ks)) * 60), 40, 100)
     } else {
       const top = poleTop(), p = onPlane(up, top); if (!p) return
-      const fx = p.x - top.x, fy = -(p.z - top.z), len = Math.hypot(fx, fy), mph = clamp(Math.round((Math.max(0, len / (RW * k) - 0.25) / 0.75) * 25), 0, 25)
+      const fx = p.x - top.x, fy = -(p.z - top.z), len = Math.hypot(fx, fy), mph = clamp(Math.round((Math.max(0, len / (RW * ks) - 0.25) / 0.75) * 25), 0, 25)
       ch.wind = mph ? clamp(Math.round((mph * fy) / len), -20, 20) : 0; ch.xwind = mph ? clamp(Math.round((mph * fx) / len), -20, 20) : 0
     }
     const diff = Object.keys(ch).some((kk) => ch[kk] !== st[kk])
@@ -186,6 +283,8 @@ export function initControls25(api, o = {}) {
     // the numbers from the state (after a typed number, a slider, a new ball)
     sync(s) { const n = { ev: Math.round(s.ev), la: Math.round(s.la), dir: Math.round(s.dir), wind: s.wind ?? 0, xwind: s.xwind ?? 0, temp: Math.round(s.temp ?? 70) }; if (Object.keys(n).every((kk) => n[kk] === st[kk])) return; st = n; paint() },
     // for the tests: where each handle is on screen, and a drag from one to a point
+    // the looks (THE LAB: SL, SK, TH)
+    setStyles(x) { sty = { ...sty, ...x }; paint() }, styles: () => ({ ...sty }),
     handles: () => Object.fromEntries(['ev', 'la', 'wind', 'temp'].map((kk) => [kk, screen(handleAt(kk)).slice(0, 2)])),
     dragging: () => drag?.k ?? null,
   }

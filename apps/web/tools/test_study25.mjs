@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the dock with every choice; no RIDE IT', dk.open && dk.chips === 26 && !dk.ride, JSON.stringify(dk))
+    check('? opens the side menu with the open choices and THE LAB; no RIDE IT', dk.open && dk.chips === 14 && !dk.ride, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -239,7 +239,7 @@ for (const [w, h] of SIZES) {
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // PLAY IT in the replay: the pitch flies into the zone, then the flight
     const c0 = await page.evaluate(() => window.__mix25.fx.count())
-    await page.click('#c25go')
+    await page.click('#c25nk')
     let anim = false, fired = false
     void c0
     for (let k = 0; k < 120 && !(anim && fired); k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => ({ a: document.querySelector('#c25zg').classList.contains('anim'), f: /TRACKING/.test(window.__mix25.life.text()) || !!window.__cp.anim() })); anim ||= r.a; fired ||= r.f }
@@ -344,7 +344,7 @@ if (!process.env.PHONE_ONLY && on('B')) {
     await page.evaluate(() => window.__mix25.set('L2P5A2T16I2R1S1Z1')); await page.waitForTimeout(400)
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'ST' && b.hx > 12)); await page.waitForTimeout(800)
     const c0 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
-    await page.click('#c25go')
+    await page.click('#c25nk')
     let drew = false, moved = 0
     for (let k = 0; k < 60 && !drew; k++) { await page.waitForTimeout(150); const r = await page.evaluate(() => { const c = window.__cp.NN.camera.position.toArray(); return { busy: window.__mix25.pitchCam().busy(), n: window.__mix25.pitchCam().shown(), c } }); moved = Math.max(moved, Math.hypot(r.c[0] - c0[0], r.c[1] - c0[1], r.c[2] - c0[2])); if (r.busy && r.n > 0) drew = true }
     let flew = false
@@ -359,14 +359,14 @@ if (!process.env.PHONE_ONLY && on('B')) {
   {
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'SI')); await page.waitForTimeout(800)
     const f0 = await page.evaluate(() => window.__mix25.fires())
-    await page.evaluate(() => { const b = document.querySelector('#c25go'); b.click(); b.click(); b.click() }) // three presses inside one task: the guard, not the click latency, is what is tested
+    await page.evaluate(() => { const b = document.querySelector('#c25nk'); b.click(); b.click(); b.click() }) // three presses inside one task: the guard, not the click latency, is what is tested
     for (let k = 0; k < 60 && (await page.evaluate((n) => window.__mix25.fires() === n, f0)); k++) await page.waitForTimeout(200)
     await page.waitForTimeout(3500)
     const f1 = await page.evaluate(() => window.__mix25.fires())
     check('pressing PLAY IT three times fires the ball once', f1 - f0 === 1, JSON.stringify({ f0, f1 }))
     for (let k = 0; k < 60 && (await page.evaluate(() => !!window.__cp.anim() && !window.__cp.anim().exploded)); k++) await page.waitForTimeout(300)
     const f2 = await page.evaluate(() => window.__mix25.fires())
-    await page.click('#c25go'); await page.waitForTimeout(300); await page.keyboard.press(']'); await page.waitForTimeout(4000)
+    await page.click('#c25nk'); await page.waitForTimeout(300); await page.keyboard.press(']'); await page.waitForTimeout(4000)
     const f3 = await page.evaluate(() => ({ f: window.__mix25.fires(), busy: window.__mix25.pitchCam().busy() }))
     check('a new ball during the pitch calls the pitch off (nothing fires)', f3.f === f2 && !f3.busy, JSON.stringify({ f2, f3 }))
     await page.evaluate(() => { localStorage.setItem('nn-snd', '1'); window.__mix25.jukebox.play('saints') }); await page.waitForTimeout(300)
@@ -471,7 +471,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   // a Giants home run against the Dodgers in the replay plays a gag
   const vsLA = await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD'))); await page.waitForTimeout(800)
   if (vsLA >= 0) {
-    await page.click('#c25go')
+    await page.click('#c25nk')
     let gq = []
     for (let k = 0; k < 60 && !gq.some((n) => n); k++) { await page.waitForTimeout(500); gq = await page.evaluate(() => { const L = window.__mix25.life, g = L.gags(); return [L.anim(), ...L.queued()].filter((n) => n && g.includes(n)) }) }
     check('a Giants home run against the Dodgers plays a Dodger gag on the board', gq.length > 0 && (await onlyGags()).length === 0, JSON.stringify({ gq, other: await onlyGags() }))
@@ -564,7 +564,7 @@ if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
   check('only the open choices sit in the header, STANDS (V) and DOJO CONTROLS (J, open again 31 Oct); the locked ones are gone from it, TYPE too', hdr === 'VJ' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 W1 Q2 C1 O2 G2, V (STANDS) open at V1 (30 Oct, later) and J (DOJO CONTROLS) open at J2', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 V1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B12 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 W1 Q2 C1 O2 G2, V (STANDS) open at V5 LOWER BOWL (31 Oct) and J (DOJO CONTROLS) open at J8 (BIG ARCS)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B12 V5 Z2 H1 U2 D1 M1 X2 E1 N1 J8 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
   const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
@@ -580,7 +580,7 @@ if (!process.env.PHONE_ONLY && on('E')) {
   const hm = (ck.tm ?? '').split(':').map(Number)
   check('the clock over the board shows when this home run was hit', !ck.c.live && ck.c.hm === ck.tm && ck.c.h === (hm[0] % 12 || 12) && ck.c.m === hm[1], JSON.stringify(ck))
   // a flight: the arc in voxels (U3 by default), a zenith post and a clearance post that rise as the ball passes, a distance tag where it lands
-  await page.click('#c25go')
+  await page.click('#c25nk')
   for (let k = 0; k < 80 && (await page.evaluate(() => !(window.__cp.anim() && window.__cp.anim().exploded))); k++) await page.waitForTimeout(400)
   await page.waitForTimeout(600)
   const fl = await page.evaluate(() => { const t = window.__mix25.flight().last(); const rv = t.userData.reveal; let cubes = 0; t.traverse((o) => { if (o.isInstancedMesh) cubes += o.count }); return { posts: rv.length, shown: rv.filter(([, o]) => o.visible).length, cubes, ballVox: !!window.__cp.ballMesh().userData.vox?.isObject3D, sphereHidden: window.__cp.ballMesh().material.visible === false } })
@@ -620,7 +620,7 @@ if (!process.env.PHONE_ONLY && on('E')) {
   check('LANDING PARTY numbers are voxels (no flat number sprites)', lp.vox >= 16 && lp.sprites === 0 && lp.rows >= 4, JSON.stringify(lp))
   await page.keyboard.press('l'); await page.waitForTimeout(2000)
   // a second swing keeps the voxel ball (the engine strips the ball's children on every swing)
-  await page.click('#c25go')
+  await page.click('#c25nk')
   for (let k = 0; k < 80 && (await page.evaluate(() => !(window.__cp.anim() && window.__cp.anim().exploded))); k++) await page.waitForTimeout(400)
   check('the voxel ball is still there on the second swing', await page.evaluate(() => { const bm = window.__cp.ballMesh(), v = bm.userData.vox; return !!v?.isObject3D && v.parent === bm && bm.material.visible === false }))
   await page.keyboard.press('h'); await page.waitForTimeout(300) // the old hand key: must not throw now the strip has no hand
@@ -657,7 +657,8 @@ if (!process.env.PHONE_ONLY && on('E')) {
   check('a stand-in wears the Giants cream at home and road greys away, at his own height from the MLB Stats API', kit.away?.jersey === '#a3a6ab' && kit.home.jersey === '#f1e6cf' && kit.h === kit.hb?.h && kit.h >= 64 && kit.kind === 'human', JSON.stringify(kit))
   await page.keyboard.press('m'); await page.waitForTimeout(1200)
   const who = await page.evaluate(() => ({ btn: !!document.querySelector('#c25who'), you: window.__mix25.you(), name: document.querySelector('#c25i b').textContent }))
-  check('no nicknames: no WHO\'S UP button, and you are up as yourself', !who.btn && who.you === 'you' && /YOUR SWING|YOU/.test(who.name), JSON.stringify(who))
+  const batHid = await page.evaluate(() => getComputedStyle(document.querySelector('.c25>.batter')).display === 'none')
+  check('no nicknames: no WHO\'S UP button, and you are up as yourself (31 Oct: in the dojo the batter card is gone altogether)', !who.btn && who.you === 'you' && (batHid || /YOUR SWING|YOU/.test(who.name)), JSON.stringify({ ...who, batHid }))
   await page.close()
 }
 // 29 Oct, later: a headshot for every batter, the real sign in voxels with the pennants, gull faces, the voxel Coke corner, the dojo's icons and typed numbers, one mound
@@ -679,7 +680,7 @@ if (!process.env.PHONE_ONLY && on('H')) {
   for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('bagcheck', {}, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
   check('G1 to G4: the voxel board (cubes, relief, flip dots) or the old bulbs, the lit LEDs counted on the voxel ones', bd.every((x, i) => x.g === [2, 1, 3, 4, 2][i]) && bd.filter((x) => x.g !== 4).every((x) => x.vox && !x.bulbs && x.out > 20) && bd[3].bulbs && !bd[3].vox, JSON.stringify(bd))
   const an = await page.evaluate(() => { const L = window.__mix25.life; L.boardStyle = 4; const r = L.gags().map((n) => [n, L.peek(n, L.dur(n) * 0.55, {}).lit]); L.boardStyle = 2; return r })
-  check('the gags draw on the old bulbs too (G4)', an.length === 33 && an.every(([, n]) => n > 10), JSON.stringify(an))
+  check('the gags draw on the old bulbs too (G4)', an.length === 37 && an.every(([, n]) => n > 10), JSON.stringify(an))
   await page.evaluate(() => window.__mix25.life.signFx('hr')); await page.waitForTimeout(400)
   check('a home run still lights the sign', await page.evaluate(() => window.__mix25.life.signState() === 'hr'))
   // the model's own sign and its own mound and boxes are out of the wire; ours are in
@@ -704,7 +705,7 @@ if (!process.env.PHONE_ONLY && on('H')) {
   const kb1 = await page.evaluate(() => ({ ev: window.__cp.state.ev, chip: document.querySelector('#c25ch').textContent }))
   check('in DEJA-VU the up arrow and + leave the real ball alone', kb1.ev === kb0 && !/EDITED/.test(kb1.chip), JSON.stringify({ kb0, kb1 }))
   // the dojo: icons, not numbers; type the speed, the angle and the aim
-  await page.evaluate(() => window.__mix25.setMode('whatif')); await page.waitForTimeout(1200)
+  await page.evaluate(() => { window.__mix25.setMode('whatif'); window.__mix25.set('J2') }); await page.waitForTimeout(1200) // (the slider layout: BIG ARCS, the default since 31 Oct, labels in words)
   const lab = await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-i]:not(.hot) .ps')].map((x) => ({ t: x.textContent, svg: !!x.querySelector('svg') })))
   check('the dojo controls have an icon each and no numbers', lab.length === 5 && lab.every((x) => x.svg && !/\d/.test(x.t)), JSON.stringify(lab))
   // every box has its icon for a title, the dojo's YOUR SWING too
@@ -788,7 +789,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
   // PLAY IT flies the three most common ways, one after another
   for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.look()?.moving)); k++) await page.waitForTimeout(300)
   const l0 = await page.evaluate(() => window.__mix25.lands())
-  await page.click('#c25go')
+  await page.click('#c25nk')
   for (let k = 0; k < 150 && (await page.evaluate((n) => window.__mix25.lands() < n + 3, l0)); k++) await page.waitForTimeout(500)
   for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.shotPlaying())); k++) await page.waitForTimeout(400)
   const pl = await page.evaluate((n) => ({ lands: window.__mix25.lands() - n, playing: window.__mix25.shotPlaying(), sel: window.__mix25.shot().sel }), l0)

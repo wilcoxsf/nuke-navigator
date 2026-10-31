@@ -24,14 +24,20 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast
 function prepare(NN) {
   if (meshes?.length) return meshes // an empty list (model not loaded yet) is not cached
   meshes = []
+  // 31 Oct, later: every ray at the park goes to an uncut copy of each piece (its own geometry, its own tree), so the STANDS cuts (main.js maskStadium) change what
+  // is drawn, never where a ball comes down or which seat a click finds; the piece itself hands its rays to the copy
   NN.stadium?.traverse((o) => {
     if (!o.isMesh) return
-    const g = o.geometry, pos = g.attributes.position
+    const g = o.geometry, pos0 = g.attributes.position, full = (a) => window.__nn?.fullArray?.(a) ?? null
+    const pos = !g.index && full(pos0) ? new THREE.BufferAttribute(full(pos0), pos0.itemSize, pos0.normalized) : pos0
     const f = new Float32Array(pos.count * 3)
     for (let i = 0; i < pos.count; i++) { f[i * 3] = pos.getX(i); f[i * 3 + 1] = pos.getY(i); f[i * 3 + 2] = pos.getZ(i) }
-    g.setAttribute('position', new THREE.BufferAttribute(f, 3))
-    g.boundsTree = new MeshBVH(g)
-    meshes.push(o)
+    const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(f, 3))
+    if (g.index) rg.setIndex(new THREE.BufferAttribute((full(g.index) ?? g.index.array).slice(), 1))
+    rg.boundsTree = new MeshBVH(rg)
+    const proxy = new THREE.Mesh(rg, o.material); proxy.matrixAutoUpdate = false; proxy.matrixWorld = o.matrixWorld
+    o.raycast = (rc, hits) => { const n = hits.length; proxy.raycast(rc, hits); for (let i = n; i < hits.length; i++) hits[i].object = o }
+    meshes.push(proxy)
   })
   return meshes
 }

@@ -4,7 +4,7 @@
 //   (or, off the wall, the gap down from the top to where it hit)
 // and a dot in the line at both (29 Oct, Andrew: a dot where the zenith is and where it cleared the wall, a different color; the X option picks it, colors().mk)
 // The cubes are flat Lambert, so the park's lights shade them and the post shader inks their outline, like the kayaks.
-import { voxText, keepReadable } from './vox25.js'
+import { stag } from './stag25.js'
 const FT = 0.3048
 export const ARCS = [
   { c: 1, name: 'BEADS', desc: 'a voxel bead every 8 ft along the flight, big enough to read from the broadcast seat' },
@@ -29,14 +29,8 @@ export function initFlight25(api, colors) {
   const column = (x, z, y0, y1, step) => { const out = []; for (let y = y0; y <= y1; y += step) out.push(new THREE.Vector3(x, y, z)); return out }
   // two lines of voxel letters (a small caption over a big number), on a pole top, facing the camera
   // side: -1 sets the tag off to the camera's left of its post, 1 to the right, so the zenith and the clearance tags never sit on each other; kept readable (vox25.js)
-  function tag(small, bigTxt, at, color, side = 0, prio = 1) {
-    const g = new THREE.Group(), inner = new THREE.Group(), a = voxText(THREE, small, { px: 0.36, color: colors().tx, back: '#141414' }), b = voxText(THREE, bigTxt, { px: 0.72, color, back: '#141414' })
-    a.position.y = 6.4; inner.add(a, b)
-    const w = Math.max(a.userData.width, b.userData.width)
-    inner.position.x = side * (w / 2 + 1.5)
-    g.add(inner); g.position.copy(at)
-    return keepReadable(api, g, 230, 0.35, 1.7, { prio }) // (30 Oct: a lower one steps out of a higher one's way; it grew too big before at 2.4)
-  }
+  // 31 Oct: the words are on the screen now, crisp at any zoom and never on each other (stag25.js); the post and the dot stay in the park
+  function tag(small, bigTxt, at, color, side = 0, prio = 1) { const g = stag(api, [small, bigTxt], color, { side, prio }); g.position.copy(at); return g }
   // the track: pts are world points along the flight; res the engine's result; color the verdict color; preview the ghost before a swing
   function track(pts, res, color, preview) {
     const g = new THREE.Group(), geo = box(), c = colors(), main = lam(preview ? c.dim : color), dim = lam(c.dim)

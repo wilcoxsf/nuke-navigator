@@ -88,9 +88,12 @@ function fly(s, opt = {}) {
     if (!verdict) {
       const rOld = Math.hypot(p[0], p[1]) / FT, rNew = Math.hypot(np[0], np[1]) / FT
       const bNew = bearingOf(np)
-      const [W, H] = wallAt(bNew)
-      if (rOld < W && rNew >= W && np[2] > 0) {
-        const f = (W - rOld) / (rNew - rOld), zc = (p[2] + f * (np[2] - p[2])) / FT
+      const [W, H] = wallAt(bNew), W0 = wallAt(bearingOf(p))[0]
+      // (31 Oct: by the gap to the wall before and after the step, each at its own bearing; a ball curving across in a crosswind into a stretch where the wall is
+      // nearer jumped past the line without crossing it, and a 490 ft home run read as in play)
+      const dOld = rOld - W0, dNew = rNew - W
+      if (dOld < 0 && dNew >= 0 && np[2] > 0) {
+        const f = -dOld / (dNew - dOld), zc = (p[2] + f * (np[2] - p[2])) / FT
         if (Math.abs(bNew) > 45.5) verdict = { kind: 'FOUL', text: 'FOUL BALL', wallFt: W, wallH: H, cross: zc, ft: rNew }
         else if (zc > H) verdict = { kind: 'GONE', text: 'GONE', wallFt: W, wallH: H, cross: zc, ft: rNew, clearBy: zc - H }
         else verdict = { kind: 'WALL', text: 'OFF THE WALL', wallFt: W, wallH: H, cross: zc, ft: rNew, short: H - zc }
