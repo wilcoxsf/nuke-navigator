@@ -2,7 +2,7 @@
 // (x to the right, y toward center field, metres): the seal, the serpent, the escapee and the whale out on the water beyond the right-field arcade; the mole on the outfield
 // grass inside the wall; the fan with the fries in the lower bowl; the jets high up; and (30 Oct) no streets or buildings round the park, just the water. Then the
 // scheduler: one at a time, never
-// while a ball is up, the mole clear of the last landing; the SPLASH HITS sign follows the count; under reduced motion nothing drives.
+// while a ball is up, the mole clear of the last landing; no SPLASH HITS sign; under reduced motion nothing drives.
 // Usage: node tools/test_study25_happen.mjs [base url]
 import { chromium } from 'playwright-core'
 
@@ -18,7 +18,7 @@ async function open(ctxOpts = {}) {
   page.on('console', (m) => { if (m.type() === 'warning' && /^happening/.test(m.text())) errs.push(m.text()) })
   await page.route('**/api.open-meteo.com/**', (r) => r.abort())
   await page.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7&menu=0&ir=0`)
-  await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25?.happen?.()?.splashSign?.(), null, { timeout: 180000 })
+  await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25?.happen?.() && window.__nn?.stadium, null, { timeout: 180000 })
   await page.waitForTimeout(1500)
   page._ctx = ctx
   return page
@@ -36,10 +36,10 @@ const geo = await page.evaluate(() => {
   const h = window.__mix25.happen(), H = window.__cp.toWorld([0, 0, 0]), v = new window.__cp.NN.THREE.Vector3(), st = window.__nn.stadium
   const pl = (o) => { o.getWorldPosition(v); return { x: v.x - H.x, y: H.z - v.z, z: v.y - H.y } }
   const bb = new window.__cp.NN.THREE.Box3().setFromObject(st)
-  return { sign: pl(h.splashSign()), wall36: window.__cp.wallAt(36).map((v) => v * 0.3048), signTop: (() => { const b = new window.__cp.NN.THREE.Box3().setFromObject(h.splashSign()); return b.max.y - H.y })(), minX: bb.min.x - H.x, names: h.names }
+  return { sign: h.splashSign(), minX: bb.min.x - H.x, names: h.names }
 })
 check('seven happenings, none of them on a street', geo.names.length === 7 && !['startup', 'ipo', 'evict', 'robocar', 'cablecar'].some((n) => geo.names.includes(n)), geo.names.join())
-check('the SPLASH HITS sign is on the face of the right-field wall, below its top', Math.abs(Math.hypot(geo.sign.x, geo.sign.y) - geo.wall36[0]) < 1.5 && geo.signTop < geo.wall36[1] && geo.signTop > 3, JSON.stringify({ sign: geo.sign, wall: geo.wall36, top: geo.signTop }))
+check('no SPLASH HITS sign (30 Oct, later: killed)', geo.sign == null)
 // nothing built round the park: no quay, street or block in the happenings' own layer outside the water
 const city = await page.evaluate(() => { const h = window.__mix25.happen(), H = window.__cp.toWorld([0, 0, 0]), m4 = new window.__cp.NN.THREE.Matrix4(), v = new window.__cp.NN.THREE.Vector3(); let n = 0
   for (const m of h.root.children) if (m.isInstancedMesh && m.visible) for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, m4); v.setFromMatrixPosition(m4); if (v.y - H.y > -1 && Math.hypot(v.x - H.x, H.z - v.z) > 140 && m.count > 1) n++ }
@@ -92,9 +92,6 @@ for (let k = 0; k < 4; k++) {
   if (r != null) far.push(Math.round(r))
 }
 check('mole: comes up well away from where the last ball came down', far.length > 0 && far.every((d) => d >= 28), JSON.stringify(far))
-// the SPLASH HITS sign flips to the count
-await page.evaluate(() => { const h = window.__mix25.happen(); h.setSplash(7); h.bump(8) })
-check('splash sign: flips to the new count', await poll(page, () => window.__mix25.happen().splash() === 8, null, 6000))
 check('no page errors', errs.length === 0, errs.slice(0, 4).join(' || '))
 await page._ctx.close()
 

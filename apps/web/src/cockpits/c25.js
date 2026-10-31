@@ -178,6 +178,12 @@ export const AXES = {
     { c: 5, name: 'RIPPLE RINGS', desc: 'the first version water: soft two-tone patches with rings inside them that grow and shrink as the swell moves (30 Oct, his ask)' },
     { c: 0, name: 'STILL', desc: 'no motion on the water' },
   ] },
+  V: { name: 'STANDS', opts: [
+    { c: 1, name: 'ALL', desc: 'the whole park' },
+    { c: 2, name: 'NO UPPER DECKS', desc: 'everything over 13 m up in the stands taken away (the board, the sign and center field stay)' },
+    { c: 3, name: 'NO FOUL GROUND', desc: 'everything outside the foul lines taken away, the stands behind the plate too; the field stays' },
+    { c: 4, name: 'FAIR AND LOW', desc: 'both: just the field and the lower stands from line to line' },
+  ] },
   Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put (Z key)' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake (Z key; on by default since 28 Oct)' }] },
   H: { name: 'PITCH ARC', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT draws the pitch on the park on its real path and break, in the pitch color, then the hit flies' }, { c: 0, name: 'OFF', desc: 'PLAY IT goes straight to the hit' }] },
   U: { name: 'BALL ARC', opts: ARCS }, // U, not V: V and Y look alike in the pixel type
@@ -241,7 +247,7 @@ export const AXES = {
     { c: 4, name: 'RED', desc: 'red stitches, as it was', col: '#e4002b' },
   ] },
 }
-const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C', 'O', 'G']
+const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'V', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C', 'O', 'G']
 // locked 28 Oct, night (Andrew): these are set and leave the mixer; a code can still load another value (the tests do), but the dock and the header show only what is open.
 // 29 Oct: U2 PIXEL LINE, D1 PIXEL SLUGGER, M1 STACKED too
 // 29 Oct, later: X2 (the arc dots in the pitch color) and E1 (the stitches in the pitch color) as well
@@ -252,7 +258,7 @@ const OPEN = ORDER.filter((k) => !(k in LOCKED))
 const HDR_AX = OPEN // what is still open sits in the header
 // 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
 const DOCK = [...OPEN, ...ORDER.filter((k) => k in LOCKED)]
-const DEF = { ...LOCKED }
+const DEF = { ...Object.fromEntries(OPEN.map((k) => [k, AXES[k].opts[0].c])), ...LOCKED } // an open choice starts at its first option
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
@@ -275,8 +281,11 @@ const LAYOUT_CSS = `
 #cp .c25.ns .tly{display:none}
 ` + Object.entries(LAY).map(([n, L]) => {
   const w = L.areas[0].split(' ').length, strip = Array(w).fill('strip').join(' '), q = (a) => a.map((x) => `"${x}"`).join(' ')
-  return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}`
-}).join('\n')
+  // the dojo has no batter card (30 Oct, later, Andrew: "in dinger dojo you don't need the top right at all anymore. You can kill the your swing / the slugger"): its
+  // cell goes to the panel under it (or over it)
+  const noBat = L.areas.map((row, r) => row.split(' ').map((a, c) => (a === 'batter' ? L.areas[r + 1]?.split(' ')[c] ?? L.areas[r - 1]?.split(' ')[c] ?? a : a)).join(' '))
+  return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}}`
+}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi:not(.ns) .pnl.batter{display:none}}' // (desktop only: the phone keeps its card tabs)
 const FRAME_CSS = `
 #cp .c25 .pnl{overflow:visible}
 #cp .c25.P1 .pnl>.t{top:-6px}
@@ -847,12 +856,22 @@ export async function build(root, api, U) {
 
   // ---- the mixer ----
   const themeKey = () => { if (atOracle) return 'orange'; const k = 'team' + here.abbr; THEMES[k] ??= { ...THEMES.orange, name: here.abbr, acc: TEAM_ACC[here.abbr] ?? THEMES.orange.acc }; return k }
+  // STANDS (V, 30 Oct, later: "They're getting in the way right now"): the upper decks, foul ground, or both, taken out of the model and the wire rebuilt
+  let standsNow = 1
+  function setStands(v) {
+    standsNow = v
+    const h0 = api.toWorld([0, 0, 0]), upper = v === 2 || v === 4, foul = v === 3 || v === 4
+    const test = v === 1 ? null : (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz), b = Math.abs(Math.atan2(dx, -dz)); return (upper && y > 13 && d > 35 && !(b < 0.45 && d > 105)) || (foul && b > 0.8 && y > 0.8 && d > 18) }
+    window.__nn.maskStadium(test)
+    if (showWire.built) showWire()
+  }
   function applyMix(changed) {
     for (const k of ['L', 'P', 'F', 'I', 'S']) for (const o of AXES[k].opts) grid.classList.toggle(k + o.c, mix[k] === o.c)
     fx?.setStyle(optOf('F', mix.F).style); if (life) { life.gullsOn = mix.F !== 3; life.gullFace = mix.W; life.signStyle = mix.Q; life.boardStyle = mix.G }
     if (coke) coke.style = mix.C
     if (fx?.karlOn() && fx.karlLevel() !== mix.K) fx.karl(true, mix.K)
     if (water && water.mode() !== mix.B) water.setMode(mix.B)
+    if (atOracle && window.__nn?.maskStadium && window.__nn.cutTest && standsNow !== mix.V) setStands(mix.V) // (after the model's own cuts)
     if (mix.R) lastR = mix.R // the R key brings back whichever arrow was last on
     if (flight && flight.style() !== mix.U) { flight.setStyle(mix.U); if (!api.anim?.()) api.update() }
     grid.style.setProperty('--pc', optOf('Y', mix.Y).col ?? 'var(--tx)')
@@ -959,7 +978,7 @@ export async function build(root, api, U) {
   // the grid for the mode: ns (no number strip along the bottom: the replay, Shot Caller, and the dojo, whose controls sit top left in the pitch's place, dj); the title
   function syncMode() {
     const dj = mode === 'whatif' && !stepped && mix.L === 2 // the dojo's controls top left (on L2; the other layouts keep the strip along the bottom)
-    grid.classList.toggle('ns', mode !== 'whatif' || dj); grid.classList.toggle('dj', dj); grid.classList.toggle('shot', mode === 'shot')
+    grid.classList.toggle('ns', mode !== 'whatif' || dj); grid.classList.toggle('dj', dj); grid.classList.toggle('wi', mode === 'whatif'); grid.classList.toggle('shot', mode === 'shot')
     E('#c25sc').classList.toggle('on', mode === 'shot')
     E('#c25ti').textContent = 'NUKE NAVIGATOR // ' + (mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo)
     paintTitles()
@@ -1579,7 +1598,7 @@ export async function build(root, api, U) {
   }
   // GAG REEL in the shared panel (30 Oct, Andrew: "Can I see the gags in like another view so I can press play on all of them?"): the camera faces the scoreboard,
   // every gag and show has its own PLAY, and PLAY ALL runs them one after another; leaving it (or another feature) stops the run. Also ?show=reel in the address
-  const REEL_TITLES = { dynamite: 'KA-BOOM', bonk: 'BONK', runover: 'DING! (CABLE CAR)', sealsnack: 'GULP (SEA LION)', leaves3rd: 'LEAVES IN THE 3RD', bipped: 'BIPPED', catapult: 'CATAPULT', chipper: 'WOOD CHIPPER', alcatraz: 'ALCATRAZ', tshirt: 'T-SHIRT CANNON (LOU SEAL)', steamroller: 'STEAMROLLER', birds: 'THE BIRDS', quake: 'EARTHQUAKE', balloon: 'BALLOON', bp: 'PITCHING MACHINE', driverless: 'DRIVERLESS', crabsnip: 'CRAB SNIP', hotdog: 'DODGER DOG', waterboard: 'WATERBOARD', ironmaiden: 'IRON MAIDEN', rack: 'THE RACK', wifeleaves: 'SHE LEFT HIM', bridgejump: 'THE BRIDGE' }
+  const REEL_TITLES = { muniwait: 'MUNI WAIT', foghorn: 'FOGHORN', thirdrail: 'THIRD RAIL', ipa: '$19 IPA', covedive: 'COVE DIVE', bagcheck: 'SECURITY CHECK', noreentry: 'NO REENTRY', captcha: 'CAPTCHA', rentctrl: 'RENT CTRL', meter: 'PARKING METER', merch: 'NO TP', garlic: 'GARLIC PRESS', lombard: 'LOMBARD', coit: 'COIT SCOPE', seat: 'STUBHUB', humanbat: 'HUMAN BAT', crabpot: 'CRAB POT', bartdoors: 'BART DOORS', boardfry: 'DIAMOND VISION FRY', mowedin: 'GROUNDSKEEPER', gatecable: 'GATE CABLE', dynamite: 'KA-BOOM', bonk: 'BONK', runover: 'DING! (CABLE CAR)', sealsnack: 'GULP (SEA LION)', leaves3rd: 'LEAVES IN THE 3RD', bipped: 'BIPPED', catapult: 'CATAPULT', chipper: 'WOOD CHIPPER', alcatraz: 'ALCATRAZ', tshirt: 'T-SHIRT CANNON (LOU SEAL)', steamroller: 'STEAMROLLER', birds: 'THE BIRDS', quake: 'EARTHQUAKE', balloon: 'BALLOON', bp: 'PITCHING MACHINE', driverless: 'DRIVERLESS', crabsnip: 'CRAB SNIP', hotdog: 'DODGER DOG', waterboard: 'WATERBOARD', ironmaiden: 'IRON MAIDEN', rack: 'THE RACK', wifeleaves: 'SHE LEFT HIM', bridgejump: 'THE BRIDGE' }
   let reelAll = null, reelLooked = false
   const reelList = () => (life ? life.gags() : [])
   const reelBusy = () => !!life?.anim() || (life?.queued().length ?? 0) > 0
@@ -1949,7 +1968,7 @@ export async function build(root, api, U) {
   // The sign: 35.4 to 49.5 m up, 144 to 154 m out, within 8.5 degrees of center (the light towers stand at 9 to 11)
   if (atOracle) {
     const h0 = api.toWorld([0, 0, 0]), sign = (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz); const b = Math.abs(Math.atan2(dx, -dz)); return (y > 35.4 && y < 49.5 && d > 144 && d < 154 && b < 0.148) || (y > 12.4 && y <= 35.4 && d > 146 && d < 153 && b < 0.159) } // the sign, then the board (to 9.1 degrees)
-    const cut = () => { cutN = window.__nn.cutStadium?.((x, y, z) => sign(x, y, z) || !!coke?.under(x, y, z) || !!diamond?.under(x, y, z)) ?? 0 } // and the model's infield (30 Oct, IF2: all voxel, diamond25.js)
+    const cut = () => { cutN = window.__nn.cutStadium?.((x, y, z) => sign(x, y, z) || !!coke?.under(x, y, z) || !!diamond?.under(x, y, z)) ?? 0; if (mix.V > 1) setStands(mix.V) } // and the model's infield (30 Oct, IF2: all voxel, diamond25.js)
     if (window.__nn.stadium) cut(); else addEventListener('nn-stadium', cut, { once: true })
   }
   water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
@@ -2169,7 +2188,7 @@ export async function build(root, api, U) {
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, reel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },

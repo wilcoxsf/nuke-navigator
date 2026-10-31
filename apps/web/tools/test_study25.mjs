@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the dock with every choice; no RIDE IT', dk.open && dk.chips === 25 && !dk.ride, JSON.stringify(dk))
+    check('? opens the dock with every choice; no RIDE IT', dk.open && dk.chips === 26 && !dk.ride, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -428,8 +428,8 @@ if (!process.env.PHONE_ONLY && on('C')) {
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
   const dead = pk.filter((x) => x.r.some((v) => v < 12)).map((x) => x.n)
   check(`all ${pk.length} board animations draw something all the way through`, pk.length >= 18 && dead.length === 0, JSON.stringify(dead))
-  await page.evaluate(() => window.__mix25.life.play('bonk')); let done = false
-  for (let k = 0; k < 120 && !done; k++) { await page.waitForTimeout(500); done = await page.evaluate(() => window.__mix25.life.played().includes('bonk') && !window.__mix25.life.anim()) } // the board runs on frame time, slow under the software renderer
+  await page.evaluate(() => window.__mix25.life.play('bagcheck')); let done = false
+  for (let k = 0; k < 120 && !done; k++) { await page.waitForTimeout(500); done = await page.evaluate(() => window.__mix25.life.played().includes('bagcheck') && !window.__mix25.life.anim()) } // the board runs on frame time, slow under the software renderer
   const after = await page.evaluate(() => ({ lit: window.__mix25.life.litCount(), t: window.__mix25.life.text() }))
   check('an animation plays through and the board goes back to its text', done && after.lit > 20, JSON.stringify(after))
   // real flights: a seats home run, a splash, a scraper, a wall ball (found with the engine's own probe)
@@ -563,8 +563,8 @@ for (const [w, h] of on('D') ? [[390, 844], [360, 740]] : []) {
 if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
-  check('nothing open sits in the header; the locked ones are gone from it, TYPE too', hdr === '' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 J2 W1 Q2 C1 O2 G2, nothing open (30 Oct: V went with RIDE IT)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('only STANDS (V, the one open choice) sits in the header; the locked ones are gone from it, TYPE too', hdr === 'V' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 J2 W1 Q2 C1 O2 G2, and V (STANDS) open at V1 (30 Oct, later)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 V1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
   const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
@@ -676,10 +676,10 @@ if (!process.env.PHONE_ONLY && on('H')) {
   check('Q1 is the bulbs (no voxel letters), Q3 the voxel sign at night, Q2 back', sgs[0][0] === 1 && sgs[0][1] && sgs[0][2] === 0 && sgs[1][0] === 3 && !sgs[1][1] && sgs[1][2] > 1000 && sgs[2][0] === 2, JSON.stringify(sgs))
   // the scoreboard: G2 RELIEF by default (lit LEDs stand out of it), the four looks switch, the new animations draw
   const bd = []
-  for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('bonk', {}, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
+  for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('bagcheck', {}, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
   check('G1 to G4: the voxel board (cubes, relief, flip dots) or the old bulbs, the lit LEDs counted on the voxel ones', bd.every((x, i) => x.g === [2, 1, 3, 4, 2][i]) && bd.filter((x) => x.g !== 4).every((x) => x.vox && !x.bulbs && x.out > 20) && bd[3].bulbs && !bd[3].vox, JSON.stringify(bd))
   const an = await page.evaluate(() => { const L = window.__mix25.life; L.boardStyle = 4; const r = L.gags().map((n) => [n, L.peek(n, L.dur(n) * 0.55, {}).lit]); L.boardStyle = 2; return r })
-  check('the gags draw on the old bulbs too (G4)', an.length === 23 && an.every(([, n]) => n > 10), JSON.stringify(an))
+  check('the gags draw on the old bulbs too (G4)', an.length === 33 && an.every(([, n]) => n > 10), JSON.stringify(an))
   await page.evaluate(() => window.__mix25.life.signFx('hr')); await page.waitForTimeout(400)
   check('a home run still lights the sign', await page.evaluate(() => window.__mix25.life.signState() === 'hr'))
   // the model's own sign and its own mound and boxes are out of the wire; ours are in
@@ -695,7 +695,7 @@ if (!process.env.PHONE_ONLY && on('H')) {
   const ck = []
   for (const C of [1, 2, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'C' + C); await page.waitForTimeout(400); ck.push(await page.evaluate(() => { const c = window.__mix25.coke(); return { s: c.styleNow(), shown: c.shown(), n: c.count() } })) }
   check('the Coke corner in voxels on the model wireframe: the bottle neck up with its mouth open (no cap), the painted Coca-Cola label, a slide, three kids, the mitt; C2 paints it red', ck[0].shown && ck[0].n.bottle > 5000 && ck[0].n.cap === 0 && ck[0].n.label === 1 && ck[0].n.slide > 100 && ck[0].n.kids === 3 && ck[0].n.glove > 800 && ck[1].s === 2 && ck[2].s === 1, JSON.stringify(ck))
-  const kid = await page.evaluate(async () => { const c = window.__mix25.coke(), a = [0, 1, 2].map((i) => c.kidAt(i)); await new Promise((r) => setTimeout(r, 3000)); return { moved: Math.max(...a.map((p, i) => p.distanceTo(c.kidAt(i)))), cut: window.__mix25.cut() } }) // (30 Oct: the slower ladder climb; all three, over 3 s)
+  const kid = await page.evaluate(async () => { const c = window.__mix25.coke(), a = [0, 1, 2].map((i) => c.kidAt(i)), mv = () => Math.max(...a.map((p, i) => p.distanceTo(c.kidAt(i)))); for (let k = 0; k < 40 && mv() <= 0.2; k++) await new Promise((r) => setTimeout(r, 500)); return { moved: mv(), cut: window.__mix25.cut() } }) // (30 Oct: the slower ladder climb; all three, over 3 s)
   check('the kids keep moving (up the inside, down the slide), and the model\'s own sign, board, bottle and glove are cut out of it', kid.moved > 0.2 && kid.cut > 5000, JSON.stringify(kid))
   // red team, 29 Oct: in DEJA-VU the arrows and + no longer edit the real ball behind your back
   await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(800)
@@ -785,7 +785,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
     await page.mouse.click(xy.x, xy.y); await page.waitForTimeout(500)
     let s2 = null; for (let k = 0; k < 60; k++) { await page.waitForTimeout(500); s2 = await page.evaluate(() => window.__mix25.shot()?.seat); if (s2 && s2.line !== 'SEC 140 ROW 12 SEAT 8') break }
     check('clicking a seat in the park calls that seat', s2?.what === 'seat' && /^14[4-6]$/.test(s2.sec), JSON.stringify(s2))
-  } else check('the arcade seat is on screen to click', false, JSON.stringify(xy))
+  } else check('the arcade seat is on screen to click', false, JSON.stringify({ ...xy, cam: await page.evaluate(() => [window.__cp.NN.camera.position.toArray().map(Math.round), window.__cp.NN.controls.target.toArray().map(Math.round), window.__mix25.look(), window.__mix25.mode()]) }))
   // C goes back to the replay, and the shared panel is the histograms again
   await page.keyboard.press('c'); await page.waitForTimeout(1500)
   const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), t: document.querySelector('#c25hi>.t').textContent.replace(/\s+/g, ''), pt: document.querySelector('.c25>.pitch>.t').textContent.replace(/\s+/g, ''), form: !!document.querySelector('.sfm') }))

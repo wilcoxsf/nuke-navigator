@@ -3,7 +3,9 @@
 // 29 Oct, night (Andrew: "The coke bottle not there yet ... The coca cola text needs to be in voxel"; before that the wireframe-edge voxels read as noise and the
 // painted label floated off the bottle): both are baked from the park model's own TRIANGLES (science/bake_coke_vox.py, public/coke_vox.json, git-ignored).
 //   the bottle: the model's skeleton of rings and tubes, its envelope revolved into a closed shell of 0.25 m cubes, glass green; it stands on its base by the
-//     concourse with its neck up and its mouth open, a lip ring round it (30 Oct, Andrew: "The coke bottle is backwards and not hollow lol"). Round its body the red label in cubes, and "Coca-Cola" in a chunky script (strokes
+//     concourse with its neck up by the glove (30 Oct, Andrew: "The coke bottle is backwards and not hollow lol"). Later on 30 Oct ("run literally right over
+//     the old wireframe ... look at pictures online"): like the real one it is an open frame, the model's own rings and staves in green cubes (turned end for
+//     end), the slides showing inside, and one solid red label band with "Coca-" over "Cola" round it. Round its body the red label in cubes, and "Coca-Cola" in a chunky script (strokes
 //     two cubes or more) running along it in white cubes of 0.2 m raised off the label, facing home plate, upright and reading left to right from there.
 //   the glove: the model's glove voxelized and filled solid (no hole through it), two tans with darker laces.
 //   a white slide from high in the body down the inside and out of a door in the neck's side (the side facing the field) onto the concourse, and three kids who climb up and slide down, over and over.
@@ -88,7 +90,7 @@ export async function initCoke25(api, o = {}) {
     const red = n === 2
     const GL = red ? ['#c81e26', '#d8323a', '#ef6b70', '#e8545a'] : ['#3f8a5e', '#4f9a6c', '#bfeccc', '#5fb07c']
     shell.forEach((x, i) => bottle.setColorAt(i, col.set(
-      x.c === 0 ? GL[(x.h & 7) === 0 ? 1 : 0] : x.c === 1 ? GL[2] : x.c === 2 ? ((x.h & 15) === 0 ? '#c91a24' : '#e3202a') : x.c === 3 ? '#f4f2ea' : x.c === 4 ? ((x.h & 7) === 0 ? '#b81d24' : '#d8262c') : GL[3])))
+      x.c === 0 ? GL[(x.h & 7) === 0 ? 1 : 0] : x.c === 1 ? GL[2] : x.c === 2 ? ((x.h & 15) === 0 ? '#c91a24' : '#e3202a') : x.c === 3 ? '#f4f2ea' : x.c === 4 ? ((x.h & 7) === 0 ? '#b81d24' : '#d8262c') : x.c === 6 ? '#d9dcdf' : GL[3])))
     letters.forEach((_, i) => word.setColorAt(i, col.set('#ffffff')))
     const TAN = [['#e2ab6c', '#d69a5a'], ['#c98d50', '#bd8246'], ['#a8713c', '#9c6834'], ['#6e4524', '#5a361b']]
     glove.forEach((x, i) => gloveM.setColorAt(i, col.set((x.h & 31) === 0 ? '#4e2f17' : TAN[x.c][(x.h >> 3) & 1]))) // a dark lace stitch here and there
@@ -101,7 +103,7 @@ export async function initCoke25(api, o = {}) {
   const under = (x, y, z) => {
     if (y <= 7.6) return false
     w.set(x, y, z).sub(c0); const s = w.dot(u), t = ((s - s0) / L) * 100
-    if (t > -3 && t < 103) { w.addScaledVector(u, -s); if (w.length() <= R(Math.min(100, Math.max(0, t))) + 0.7) return true }
+    if (t > -3 && t < 103) { w.addScaledVector(u, -s); const k = Math.min(100, Math.max(0, t)); if (w.length() <= Math.max(R(k), R(100 - k)) / 0.86 + 0.9) return true } // the model's own bottle runs the other way, and is fatter than ours (slimmed 30 Oct): cut both outlines at its size
     return gSet.has(`${Math.floor(x / 0.5)},${Math.floor(y / 0.5)},${Math.floor(z / 0.5)}`)
   }
   return {

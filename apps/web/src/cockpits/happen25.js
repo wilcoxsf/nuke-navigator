@@ -1,6 +1,6 @@
 // Study 25 happenings around the park (29 Oct, later, Andrew: "more fun voxel happenings too"; 29 Oct, night: "Can we get more of those zany happenings?"): things going
-// on while nobody is swinging, all in cubes. Always there: a Giants blimp circling high over the park, a ferry crossing the bay beyond right field, and the SPLASH
-// HITS counter on the right-field wall. Now and then (one at a time, every 20 to 40 s, never while a ball is up):
+// on while nobody is swinging, all in cubes. Always there: a Giants blimp circling high over the park, and a ferry crossing the bay beyond right field (the SPLASH
+// HITS counter on the right-field wall went on 30 Oct). Now and then (one at a time, every 20 to 40 s, never while a ball is up):
 //   SEAL         a seal bobs up in McCovey Cove, sometimes balancing a ball on its nose        MOLE      a mole in a hard hat pops out of the outfield grass and looks around
 //   SERPENT      a sea serpent's three humps loop through the bay, then its head comes up     JETS      Fleet Week: five jets over the park with smoke trails
 //   ESCAPEE      an Alcatraz escapee paddles a raft across the bay, ball and chain aboard      FRIES     a gull steals a fan's garlic fries in the stands
@@ -341,7 +341,7 @@ export function initHappen25(api, o = {}) {
       else if (splashN !== nextN) { splashN = nextN; setDigits(splashN); digits.scale.y = 0.001; sound('splash-flip', splashG.position) }
       else { digits.scale.y = Math.min(1, (flipT - 0.14) / 0.14); if (flipT > 0.28) { flipT = -1; digits.scale.y = 1 } }
     }
-    if (!splashG && window.__nn?.stadium) { placeSplash(); if (o.splashes) { splashN = nextN = Number(o.splashes()) || 0; setDigits(splashN) } }
+    // (30 Oct, later, Andrew: "The splash hit counter is in the wrong spot it looks awful - let's just kill it entirely"): the SPLASH HITS sign is never put up
     if (o.splashes && splashG && flipT < 0) { const n = Number(o.splashes()) || 0; if (n !== splashN) bump(n) }
     if (active) {
       let alive = false

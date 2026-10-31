@@ -10,7 +10,7 @@ const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/
 let fails = 0
 const check = (name, ok, extra = '') => { if (!ok) fails++; console.log(ok ? 'PASS' : 'FAIL', name, ok ? '' : extra) }
 const errs = []
-const NEW = ['dynamite', 'bonk', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'catapult', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'balloon', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'rack', 'wifeleaves', 'bridgejump']
+const NEW = ['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump']
 const BITS = []
 
 async function open(ctxOpts = {}) {
@@ -29,8 +29,8 @@ const page = await open()
 // 0. the board plays the gags and nothing else, a little slower than drawn; the players wear SF and LA (the letters' LEDs, read off a frame of BONK before the swing)
 const only = await page.evaluate(() => { const L = window.__mix25.life; return { names: L.names().sort().join(), gags: L.gags().sort().join(), pace: L.pace } })
 check('the board has the Dodger gags and no other show, run at 0.8 speed', only.names === only.gags && only.pace === 0.8, JSON.stringify(only))
-const kit = await page.evaluate(() => { const L = window.__mix25.life, was = L.boardNow(); L.boardStyle = 4; L.peek('bonk', 0.5, {}); L.boardStyle = was; return L.litCount() })
-check('BONK before the swing lights both players and the bat', kit > 200, String(kit))
+const kit = await page.evaluate(() => { const L = window.__mix25.life, was = L.boardNow(); L.boardStyle = 4; L.peek('bagcheck', 0.5, {}); L.boardStyle = was; return L.litCount() })
+check('SECURITY CHECK at the start lights both players', kit > 200, String(kit))
 // 1. every frame draws: at 15, 50 and 85 percent of its length at least 12 LEDs are lit, and the frames differ from each other
 const pk = await page.evaluate((names) => { const L = window.__mix25.life; return names.map((n) => { const d = L.dur(n); const r = [0.15, 0.5, 0.85].map((f) => { const p = L.peek(n, d * f, {}); return [p.lit, L.sig()] }); return { n, d, lit: r.map((x) => x[0]), sigs: new Set(r.map((x) => x[1])).size } }) }, [...NEW, ...BITS])
 const dead = pk.filter((x) => !x.d || x.lit.some((v) => v < 12)).map((x) => x.n + ':' + x.lit.join('/'))
@@ -41,7 +41,7 @@ check('and every one of them changes as it goes (three different frames)', flat.
 const bag = await page.evaluate(() => { const L = window.__mix25.life; const d = [], n = L.gags().length; for (let i = 0; i < n * 2; i++) d.push(L.nextGag()); return { d, all: L.gags() } })
 const twice = bag.d.filter((g, i) => i && g === bag.d[i - 1])
 const counts = bag.all.map((g) => bag.d.filter((x) => x === g).length)
-check(`the gag bag deals all ${bag.all.length} gags before any repeats, never twice running`, bag.all.length === 23 && NEW.every((n) => bag.all.includes(n)) && twice.length === 0 && counts.every((c) => c === 2), JSON.stringify({ twice, counts }))
+check(`the gag bag deals all ${bag.all.length} gags before any repeats, never twice running`, bag.all.length === 33 && NEW.every((n) => bag.all.includes(n)) && twice.length === 0 && counts.every((c) => c === 2), JSON.stringify({ twice, counts }))
 // 3. each new animation plays to the end on the board's clock (run three times as fast: the software renderer gives the page a frame every second or two, and the
 // board takes at most half a second a frame), the LEDs change while it plays, and it sends its sound cues
 await page.evaluate(() => { window.__mix25.life.rate = 3 })

@@ -97,9 +97,11 @@ for k in range(NB):
 prof = np.array(prof)
 prof = ndi.median_filter(prof, size=5, mode="nearest")
 prof = ndi.uniform_filter1d(prof, size=3, mode="nearest")
+prof = prof * 0.86  # 30 Oct, night (Andrew: "a little too fat and overlapping with the glove"): slimmer
 print("length", round(L, 2), "radius profile", np.round(prof, 2).tolist())
-# 30 Oct (Andrew: "The coke bottle is backwards and not hollow lol"): the real one stands on its base with its neck up, so the outline is turned end for end
-# along the same axis: the wide base where the model's neck was (low, by the concourse), the neck at the high end
+# 30 Oct (Andrew: "The coke bottle is backwards"): the model has the bottle the wrong way round along its own axis (its wide base up by the glove, its neck down on
+# the concourse; in the photos the neck is up by the glove and the base sits on the concourse). The outline is turned end for end along the same axis, and t runs
+# with it: t 0 is the low end, the base
 u, s0, s1 = -u, -s1, -s0
 
 
@@ -132,7 +134,22 @@ rc = np.linalg.norm(d - sc[..., None] * u, axis=-1)
 tc = (sc - s0) / L * 100
 solid = (tc >= 0) & (tc <= 100) & (rc <= Rshell(np.clip(tc, 0, 100)))
 shell = solid & ~ndi.binary_erosion(solid, structure=ndi.generate_binary_structure(3, 1))
-shell &= ~((tc > 97.5) & (rc < Rshell(np.clip(tc, 0, 100)) - 1.5 * V))  # the mouth open, no cap: it reads hollow
+# 30 Oct, later (Andrew: "how hard is it to have it run literally right over the old wireframe? It's still not hollow, look at pictures online"; the photos show an
+# open frame of green rings and staves, slides inside, and one solid red label band): the bottle is a frame on the revolved outline, hollow
+LB = (40.0, 68.0)  # the label band, on the shoulder side of the middle as in the photos
+toH_ = HOME - c0
+e1_ = toH_ - (toH_ @ u) * u
+e1_ /= np.linalg.norm(e1_)
+e2_ = np.cross(u, e1_)
+# the frame as in the photos: rings round the bottle every 2.5 m and sixteen staves along it, each two cubes wide, open between; the lip ring at the mouth
+# and a ring at the base; the label band solid
+along_m = (tc / 100) * L
+angc = np.arctan2(d @ e2_, d @ e1_)
+ring = (np.mod(along_m, 2.5) < 2 * V) | (tc < 1.6) | ((tc >= LIP[0]) & (tc < LIP[1]))
+ring &= ~(((tc < 1.6) | (tc > 97.5)) & (rc < Rshell(np.clip(tc, 0, 100)) - 2 * V))  # both ends open: a rim, no disc
+stave = np.mod(angc * rc, 2 * np.pi * np.maximum(rc, 0.1) / 16) < 2 * V
+endIn = ((tc < 1.6) | (tc > 97.5)) & (rc < Rshell(np.clip(tc, 0, 100)) - 2 * V)  # the two end discs, open
+shell &= (ring | stave | ((tc >= LB[0] - 0.6) & (tc <= LB[1] + 0.6))) & ~endIn
 ijk = np.argwhere(shell)
 tt = tc[shell]
 
@@ -145,14 +162,12 @@ e2 = np.cross(u, e1)
 up = np.array([0.0, 1.0, 0.0])
 aC = 0.35 * np.arctan2(up @ e2, up @ e1)
 ang = np.arctan2(d[shell] @ e2, d[shell] @ e1)
-LB = (12.0, 68.0)  # the label band along the bottle: the body, base side of the waist and shoulder
-code = np.zeros(len(ijk), int)  # 0 glass, 1 glass highlight, 2 label red, 3 label rim, 4 cap, 5 lip
+code = np.zeros(len(ijk), int)  # 0 frame green, 1 its highlight, 2 label red, 3 label rim, 5 lip, 6 the slides inside
 h = (ijk[:, 0] * 73856093) ^ (ijk[:, 1] * 19349663) ^ (ijk[:, 2] * 83492791)
 code[(np.abs(((ang - aC - 0.9) + np.pi) % (2 * np.pi) - np.pi) < 0.12) & (tt > 6) & (tt < 90)] = 1  # a glint running up the glass
 code[(tt >= LB[0]) & (tt <= LB[1])] = 2
 code[((np.abs(tt - LB[0]) < 0.6) | (np.abs(tt - LB[1]) < 0.6))] = 3
 code[(tt >= LIP[0]) & (tt < LIP[1])] = 5
-code[tt >= CAP] = 5  # the rim of the open mouth, like the lip
 print("shell cubes", len(ijk), {k: int((code == k).sum()) for k in range(6)})
 
 # ---- the word: "Coca-Cola" in a bold script along the bottle, as white cubes of 0.2 m raised off the label ----
@@ -164,17 +179,17 @@ dirS = 1.0 if u @ right > 0 else -1.0  # +1: the word runs base to neck
 # the word's "up" round the bottle: increasing angle runs along e2 at the centre; the top of the letters must point skyward
 upA = 1.0 if (np.cos(aC) * e2 - np.sin(aC) * e1) @ up > 0 else -1.0
 FONT = "C:/Windows/Fonts/SCRIPTBL.TTF"
-WORD = "Coca-Cola"
-CAPH = 2.1  # metres from the baseline to the top of the capitals
+WORD = "Coca-" + chr(10) + "Cola"  # two lines round the band, as on the real one
 fnt = ImageFont.truetype(FONT, 400)
-bb = ImageDraw.Draw(Image.new("L", (10, 10))).textbbox((0, 0), WORD, font=fnt)
+bb = ImageDraw.Draw(Image.new("L", (10, 10))).multiline_textbbox((0, 0), WORD, font=fnt, spacing=-60)
 img = Image.new("L", (bb[2] - bb[0] + 40, bb[3] - bb[1] + 40), 0)
-ImageDraw.Draw(img).text((20 - bb[0], 20 - bb[1]), WORD, font=fnt, fill=255)
+ImageDraw.Draw(img).multiline_text((20 - bb[0], 20 - bb[1]), WORD, font=fnt, fill=255, spacing=-60)
 glyph = np.array(img) > 127
 ys, xs = np.nonzero(glyph)
 glyph = glyph[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
 gh, gw = glyph.shape
-mpp = CAPH * 1.25 / gh  # metres per glyph pixel (the whole glyph box, ascenders to descenders, is a bit taller than the capitals)
+CAPH = (LB[1] - LB[0]) / 100 * L * 0.8 / 2.5  # the two lines fill most of the band
+mpp = (LB[1] - LB[0]) / 100 * L * 0.82 / gh  # metres per glyph pixel
 wordLen = gw * mpp
 tMid = (LB[0] + LB[1]) / 2
 print("word", round(wordLen, 2), "m long,", round(gh * mpp, 2), "m tall; band", round((LB[1] - LB[0]) / 100 * L, 2), "m")
@@ -202,10 +217,14 @@ band = (tq > LB[0] + 1) & (tq < LB[1] - 1)
 Rq = Rshell(np.clip(tq, 0, 100))
 shellR = Rq + V * 0.5  # the outer face of the shell
 near = band & (rq > shellR - 0.02) & (rq <= shellR + VF * 1.05)
-# glyph coordinates: x along the bottle, y round it (arc length from the word's centre line)
-gx = (dirS * (sq - (s0 + L * tMid / 100))) / mpp + gw / 2
+# glyph coordinates (30 Oct, later): x round the bottle (arc length from the word's centre line, left to right as seen from home), y along it (the top line
+# toward whichever end is higher)
+tang = -np.sin(aC) * e1 + np.cos(aC) * e2
+xA = 1.0 if tang @ right > 0 else -1.0
+yA = 1.0 if u @ up > 0 else -1.0
 arc = (((aq - aC) + np.pi) % (2 * np.pi) - np.pi) * Rq
-gy = gh / 2 - upA * arc / mpp
+gx = gw / 2 + xA * arc / mpp
+gy = gh / 2 - yA * (sq - (s0 + L * tMid / 100)) / mpp
 inG = near & (gx >= 0) & (gx < gw) & (gy >= 0) & (gy < gh)
 gxi, gyi = np.clip(gx.astype(int), 0, gw - 1), np.clip(gy.astype(int), 0, gh - 1)
 letter = inG & glyph[gyi, gxi]
@@ -234,6 +253,12 @@ qs = np.percentile(occ, [30, 65, 88])
 gshade = np.digitize(occ, qs)  # 0 open (lit) .. 3 deep in a crease
 print("glove solid", int(Gs.sum()), "shell", len(gk), "size m", np.round((gk.max(0) - gk.min(0) + 1) * V, 2).tolist())
 
+# and nothing of the bottle within 0.6 m of the glove
+from scipy.spatial import cKDTree
+_d, _ = cKDTree(og + (gk + 0.5) * V).query(o + (ijk + 0.5) * V)
+_keep = _d > 0.6
+print("bottle cubes off the glove", int((~_keep).sum()))
+ijk, code = ijk[_keep], code[_keep]
 out = {
     "v": V, "o": [round(float(x), 4) for x in o], "bottle": np.column_stack([ijk, code]).astype(int).ravel().tolist(),
     "vf": VF, "of": [round(float(x), 4) for x in of], "letters": lt.astype(int).ravel().tolist(),
