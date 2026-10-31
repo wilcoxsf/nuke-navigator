@@ -118,6 +118,8 @@ await page.close()
   const S = () => p.evaluate(() => { const s = window.__cp.state; return { ev: s.ev, la: s.la, dir: s.dir, wind: s.wind, xwind: s.xwind } })
   const drag = async (k, dx, dy) => { const h = (await p.evaluate(() => window.__mix25.controls().handles()))[k]; await p.mouse.move(h[0], h[1]); await p.mouse.down(); for (let i = 1; i <= 6; i++) { await p.mouse.move(h[0] + (dx * i) / 6, h[1] + (dy * i) / 6); await p.waitForTimeout(50) } const held = await p.evaluate(() => window.__mix25.controls().dragging()); await p.mouse.up(); await p.waitForTimeout(300); return held }
   check('controls: shown in the dojo', await p.evaluate(() => window.__mix25.controls().visible))
+  const d1 = await p.evaluate(() => window.__mix25.dare()); await p.evaluate(() => window.__mix25.newDare()); const d2 = await p.evaluate(() => window.__mix25.dare())
+  check('a dojo dare is up under the distance, and a click deals another', !!d1 && !!d2 && d1.k !== d2.k && (await p.evaluate(() => /^DARE: /.test(document.querySelector('#c25rd .dare')?.textContent ?? ''))), JSON.stringify([d1, d2]))
   const s0 = await S(), cam0 = await p.evaluate(() => window.__cp.NN.camera.position.toArray().join())
   // (30 Oct, later: the slingshot does it all; the spray fan and the protractor are gone)
   check('controls: three grips, the slingshot ball, the top of its fork and the wind arrow', (await p.evaluate(() => Object.keys(window.__mix25.controls().handles()).join())) === 'ev,la,wind')

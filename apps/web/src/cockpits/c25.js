@@ -403,6 +403,8 @@ export async function build(root, api, U) {
 #cp .c25 .rd .lbl{display:block;color:var(--dim);font-size:16px;margin-top:2px}
 #cp .c25 .rd .sub{display:block;color:var(--dim);font-size:18px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
+#cp .c25 .rd .dare{display:block;color:var(--acc);font-size:13px;margin-top:4px;pointer-events:auto;cursor:pointer;width:fit-content;background:color-mix(in srgb,var(--k) 86%,transparent)}
+#cp .c25 .rd .dare:empty{display:none}
 #cp .c25 .rd .fun{color:var(--tx);font-size:16px;margin-top:4px;max-width:620px;line-height:1.2}
 #cp .c25 .rd .fun span{display:block}
 @media (max-width:900px){#cp .c25 .rd .fun{font-size:12px}}
@@ -1140,7 +1142,7 @@ export async function build(root, api, U) {
         ['THE SLINGSHOT', 'PULL BACK FOR SPEED, OFF TO THE SIDE TO AIM; WHILE HOLDING IT, THE WHEEL OR UP AND DOWN SET THE ANGLE (SHIFT: FIVE AT A TIME)'],
         ['THE WINDSOCK', 'ON THE MOUND IN THE DOJO: DRAG THE END OF THE SOCK; DOUBLE-CLICK IT FOR CALM'], ['STANDS', 'IN OPTIONS (V): TAKE AWAY THE UPPER DECKS, FOUL GROUND, OR BOTH'],
         ['BAY WATER B5', 'IN OPTIONS: THE RIPPLE RINGS FROM THE FIRST VERSION'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
-        ['DODGERS DOWN', 'THE BOARD KEEPS COUNT ON THIS DEVICE'], ['↑↑↓↓←→←→ B A', 'TRY IT']]
+        ['DODGERS DOWN', 'THE BOARD KEEPS COUNT ON THIS DEVICE'], ['DOJO DARES', 'IN THE DOJO, A DARE UNDER THE DISTANCE: LAND IT FOR THE BANNER AND THE COUNT; CLICK IT FOR ANOTHER'], ['↑↑↓↓←→←→ B A', 'TRY IT']]
       body.innerHTML = `<div class="lpl">${L.map(([a, b]) => `<div class="lpr"><b>&middot;</b><span class="nm">${a}</span><span></span><span></span><span class="wh">${b}</span></div>`).join('')}</div>`
       return
     }
@@ -1926,6 +1928,28 @@ export async function build(root, api, U) {
     if (!el) return
     el.innerHTML = fun.list.map((x) => `<span>${x}</span>`).join(''); el.classList.remove('typed'); void el.offsetWidth; el.classList.add('typed')
   }
+  // DOJO DARES (30 Oct, night): in the dojo there is always a dare under the distance; land it and the banner says so, the count goes up (the best is kept on the
+  // device), and a new dare comes; a click on the line deals another
+  const DARES = [
+    { k: 'splash', name: 'SPLASH IT', ok: (ev) => ev.key === 'SPLASH' },
+    { k: 'deep', name: '450 FEET', ok: (ev, hr, ft) => hr && ft >= 450 },
+    { k: 'left', name: 'PULL IT TO LEFT', ok: (ev, hr) => hr && api.state.dir <= -22 },
+    { k: 'center', name: 'DEAD CENTER', ok: (ev, hr) => hr && Math.abs(api.state.dir) <= 6 },
+    { k: 'scraper', name: 'WALL SCRAPER', ok: (ev) => ev.key === 'SCRAPER' },
+    { k: 'moon', name: 'MOONSHOT (36° UP)', ok: (ev, hr) => hr && api.state.la >= 36 },
+    { k: 'liner', name: 'LINE DRIVE (UNDER 22°)', ok: (ev, hr) => hr && api.state.la <= 22 },
+    { k: 'coke', name: 'OFF THE COKE BOTTLE', ok: (ev) => !!coke && !!ev.at && ev.at.distanceTo(coke.focus()) < 20 },
+    { k: 'pole', name: 'PING THE POLE', ok: (ev) => ev.key === 'POLE' },
+  ]
+  let dare = null, dares = 0, dareBest = (() => { try { return Number(localStorage.getItem('nn-dare-best')) || 0 } catch { return 0 } })()
+  const newDare = () => { const l = DARES.filter((d) => d.k !== dare?.k); dare = l[Math.floor(Math.random() * l.length)]; if (last) paintHead(last) }
+  function checkDare(ev, hr, ft) {
+    if (!dare) newDare()
+    if (!dare.ok(ev, hr, ft)) return
+    dares++; if (dares > dareBest) { dareBest = dares; try { localStorage.setItem('nn-dare-best', String(dareBest)) } catch {} }
+    setTimeout(() => banner('DARE DONE', `${dare.name} · ${dares} IN`), 1400)
+    setTimeout(newDare, 2600)
+  }
   function goneReady() { if (last) paintHead(last); if (modal === 'parks') paintModal() } // the 30-park band is in: repaint its line, never the whole engine (that cancelled a swing in the air)
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing
   function paintHead(res) {
@@ -1934,6 +1958,9 @@ export async function build(root, api, U) {
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
     set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api), goneReady)} PARKS` : '')
+    if (!rd.querySelector('.dare')) { rd.insertAdjacentHTML('beforeend', '<span class="dare" role="button" tabindex="0" title="another dare"></span>'); rd.querySelector('.dare').addEventListener('click', () => { sound.play('move'); newDare() }) }
+    if (mode === 'whatif' && !dare) dare = DARES[Math.floor(Math.random() * DARES.length)]
+    set('.dare', mode === 'whatif' && dare ? `DARE: ${dare.name}${dares ? ` &nbsp; ${dares} DONE` : ''}${dareBest ? ` &nbsp; BEST ${dareBest}` : ''}` : '')
     set('.op', pct(o.p))
     { const k = [d, Math.round(api.state.ev), Math.round(api.state.la), lib ? 1 : 0].join(); if (k !== fun.key) { fun = { key: k, list: funList(res) }; showFun() } }
     set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
@@ -2170,6 +2197,7 @@ export async function build(root, api, U) {
     if (hr && mix.F !== 3) life?.scatter()
     lastMoment = mix.F === 1 && show !== 'se' ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
     if (life) boardFor(ev, hr, ft)
+    if (mode === 'whatif') checkDare(ev, hr, ft)
     camPush(ev.at)
     if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
     if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
@@ -2215,7 +2243,7 @@ export async function build(root, api, U) {
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, selMenu: () => menu, dare: () => (dare ? { k: dare.k, done: dares, best: dareBest } : null), newDare, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },
