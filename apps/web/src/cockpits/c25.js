@@ -782,12 +782,24 @@ export async function build(root, api, U) {
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
+  // (30 Oct, night) the Konami code: DODGER APOCALYPSE, five gags back to back
+  const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']
+  let kon = 0
+  addEventListener('keydown', (e) => {
+    kon = e.key === KONAMI[kon] || e.key.toLowerCase() === KONAMI[kon] ? kon + 1 : e.key === KONAMI[0] ? 1 : 0
+    if (kon < KONAMI.length || !life) return
+    kon = 0; banner('DODGER APOCALYPSE', 'FIVE IN A ROW'); sound.play('banner')
+    let n = 0; const go = () => { if (n++ >= 5) return; const g = life.nextGag(); life.play(g, {}, 0, true); setTimeout(go, ((life.dur(g) ?? 8) / (life.pace ?? 1)) * 1000 + 600) }; go()
+  })
   // a click on the park (not a drag) calls the shot in SHOT CALLER
+  const bRay = new api.NN.THREE.Raycaster(), bNdc = new api.NN.THREE.Vector2()
+  const boardHit = (e) => { const c = api.NN.renderer?.domElement; if (!c) return false; const r = c.getBoundingClientRect(); bNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); bRay.setFromCamera(bNdc, api.NN.camera); return [life.board, life.vboard].some((b) => b && b.visible !== false && bRay.intersectObject(b, true).length > 0) }
   let down = null
   const onPark = (e) => e.target === (api.NN.renderer?.domElement ?? null) || (!api.NN.renderer && e.target?.tagName === 'CANVAS' && !e.target.closest?.('.pnl.p, .sm, .mod')) // (red team: the face canvas and the menu's animation are canvases too)
   addEventListener('pointerdown', (e) => { down = onPark(e) ? [e.clientX, e.clientY] : null })
   addEventListener('pointerup', (e) => {
     if (!down || !onPark(e) || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return
+    if (life && boardHit(e)) { sound.play('pick'); life.play(life.nextGag(), {}, 0, true); return } // (30 Oct, night) click the scoreboard: the next gag
     if (mode !== 'shot' && show === 'my' && (myEdit || !mySaved())) { const p = sc.pick(e.clientX, e.clientY), x = p && seatOf(p); if (x?.what === 'seat') mySave(x); return } // MY SEAT: the click is your seat
     if (mode !== 'shot') return
     const spot = sc.pick(e.clientX, e.clientY)
@@ -1121,6 +1133,17 @@ export async function build(root, api, U) {
     if (modal === 'type') { paintTypes(body); return }
     if (modal === 'moon') { paintMoon(body); return }
     if (modal === 'jukebox') { paintJukebox(body); return }
+    if (modal === 'news') { // (30 Oct, night) what is new, and the things you would not find by looking
+      E('#c25mt').textContent = "/ W H A T ' S   N E W /"
+      const L = [['CLICK THE SCOREBOARD', 'IN THE PARK: IT PLAYS THE NEXT DODGER GAG'], ['GAG REEL', 'IN THE MENU: ALL THE GAGS, EACH WITH A PLAY BUTTON; THE NEW ONES MARKED'],
+        ['THE DOJO', 'EVERY HOME RUN YOU HIT GETS A GAG; SO DOES A DODGER HOME RUN AGAINST THE GIANTS IN THE REPLAY'],
+        ['THE SLINGSHOT', 'PULL BACK FOR SPEED, OFF TO THE SIDE TO AIM; WHILE HOLDING IT, THE WHEEL OR UP AND DOWN SET THE ANGLE (SHIFT: FIVE AT A TIME)'],
+        ['THE WINDSOCK', 'ON THE MOUND IN THE DOJO: DRAG THE END OF THE SOCK; DOUBLE-CLICK IT FOR CALM'], ['STANDS', 'IN OPTIONS (V): TAKE AWAY THE UPPER DECKS, FOUL GROUND, OR BOTH'],
+        ['BAY WATER B5', 'IN OPTIONS: THE RIPPLE RINGS FROM THE FIRST VERSION'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
+        ['DODGERS DOWN', 'THE BOARD KEEPS COUNT ON THIS DEVICE'], ['↑↑↓↓←→←→ B A', 'TRY IT']]
+      body.innerHTML = `<div class="lpl">${L.map(([a, b]) => `<div class="lpr"><b>&middot;</b><span class="nm">${a}</span><span></span><span></span><span class="wh">${b}</span></div>`).join('')}</div>`
+      return
+    }
     if (modal === 'bay') { paintBay(body); return }
     if (modal === 'bulletin' || modal === 'dinger') { paintDaily(body); return }
     if (modal === 'witness') { if (!body.querySelector('.wgrid') || !paintModal.keepW) paintWitness(body); paintModal.keepW = true; return }
@@ -1333,6 +1356,7 @@ export async function build(root, api, U) {
     { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS, THEN SEE EVERY HOME RUN FROM THE NIGHT", run: () => openMod('dinger') },
     { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
     { k: 'options', name: 'OPTIONS', blurb: 'EVERY CHOICE IN A SMALL PANEL OVER THE PARK, THE LOCKED ONES TOO: A LOCKED ONE CHANGED LASTS UNTIL YOU RELOAD (?)', run: () => toggleDock(true) },
+    { k: 'news', name: "WHAT'S NEW", blurb: 'THE LATEST ADDITIONS, AND THE THINGS YOU WOULD NOT FIND BY LOOKING', run: () => openMod('news') },
     { k: 'reel', name: 'GAG REEL', blurb: 'EVERY DODGER GAG ON THE SCOREBOARD, EACH WITH ITS OWN PLAY BUTTON, AND PLAY ALL', run: () => { if (mode === 'shot') setMode('replay'); if (show !== 'reel') setShow('reel') } },
   ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
@@ -1598,6 +1622,7 @@ export async function build(root, api, U) {
   }
   // GAG REEL in the shared panel (30 Oct, Andrew: "Can I see the gags in like another view so I can press play on all of them?"): the camera faces the scoreboard,
   // every gag and show has its own PLAY, and PLAY ALL runs them one after another; leaving it (or another feature) stops the run. Also ?show=reel in the address
+  const REEL_NEW = new Set(['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'alcatraz']) // made or redone on 30 Oct, night
   const REEL_TITLES = { muniwait: 'MUNI WAIT', foghorn: 'FOGHORN', thirdrail: 'THIRD RAIL', ipa: '$19 IPA', covedive: 'COVE DIVE', bagcheck: 'SECURITY CHECK', noreentry: 'NO REENTRY', captcha: 'CAPTCHA', rentctrl: 'RENT CTRL', meter: 'PARKING METER', merch: 'NO TP', garlic: 'GARLIC PRESS', lombard: 'LOMBARD', coit: 'COIT SCOPE', seat: 'STUBHUB', humanbat: 'HUMAN BAT', crabpot: 'CRAB POT', bartdoors: 'BART DOORS', boardfry: 'DIAMOND VISION FRY', mowedin: 'GROUNDSKEEPER', gatecable: 'GATE CABLE', dynamite: 'KA-BOOM', bonk: 'BONK', runover: 'DING! (CABLE CAR)', sealsnack: 'GULP (SEA LION)', leaves3rd: 'LEAVES IN THE 3RD', bipped: 'BIPPED', catapult: 'CATAPULT', chipper: 'WOOD CHIPPER', alcatraz: 'ALCATRAZ', tshirt: 'T-SHIRT CANNON (LOU SEAL)', steamroller: 'STEAMROLLER', birds: 'THE BIRDS', quake: 'EARTHQUAKE', balloon: 'BALLOON', bp: 'PITCHING MACHINE', driverless: 'DRIVERLESS', crabsnip: 'CRAB SNIP', hotdog: 'DODGER DOG', waterboard: 'WATERBOARD', ironmaiden: 'IRON MAIDEN', rack: 'THE RACK', wifeleaves: 'SHE LEFT HIM', bridgejump: 'THE BRIDGE' }
   let reelAll = null, reelLooked = false
   const reelList = () => (life ? life.gags() : [])
@@ -1618,7 +1643,7 @@ export async function build(root, api, U) {
     wordTitle(el, '/ G A G &nbsp; R E E L /', 'shot')
     if (!life) { hb.innerHTML = '<div class="lph">THE GAG REEL LIVES ON THE ORACLE SCOREBOARD.</div>'; return }
     if (!reelLooked) { reelLooked = true; lookThere('B') } // the camera faces the board (once per visit to the reel)
-    const gags = reelList(), now = life.anim(), row = (n) => `<div class="lpr${now === n ? ' on' : ''}" data-rl="${n}" role="button" tabindex="0" style="cursor:pointer;pointer-events:auto"><b>${now === n ? '&#9654;' : '&middot;'}</b><span class="nm">${REEL_TITLES[n] ?? n.toUpperCase()}</span><span></span><span></span><span class="wh">PLAY</span></div>`
+    const gags = reelList(), now = life.anim(), row = (n) => `<div class="lpr${now === n ? ' on' : ''}" data-rl="${n}" role="button" tabindex="0" style="cursor:pointer;pointer-events:auto"><b>${now === n ? '&#9654;' : '&middot;'}</b><span class="nm">${REEL_TITLES[n] ?? n.toUpperCase()}</span><span></span><span class="wh">${REEL_NEW.has(n) ? 'NEW' : ''}</span><span class="wh">PLAY</span></div>`
     hb.innerHTML = `<div class="lpl" style="overflow:auto;pointer-events:auto"><div class="lph">THE DODGER GAGS (${gags.length}). CLICK ONE TO PLAY IT ON THE BOARD.</div>
       <span class="bt hot" id="c25ra" role="button" tabindex="0">${reelAll ? 'STOP' : 'PLAY ALL'}</span>` + gags.map(row).join('') + '</div>'
     hb.querySelectorAll('[data-rl]').forEach((r) => r.addEventListener('click', () => { stopReelAll(); sound.play('pick'); reelPlay(r.dataset.rl) }))
@@ -2166,6 +2191,8 @@ export async function build(root, api, U) {
     // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board, and that is all the board plays
     // (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it")
     if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag
+    else if (hr && b && (b.tb === 'Top' ? b.at === 'LAD' && b.ht === 'SF' : b.ht === 'LAD' && b.at === 'SF')) life.play(life.nextGag(), {}, D) // (30 Oct, night) and a Dodger home run against the Giants: the board takes it out on him
+    else if (hr && mode === 'whatif') life.play(life.nextGag(), {}, D) // (30 Oct, night) in the dojo you are the Giant: every home run you hit gets one too
   }
   // Karl: on by the forecast at Oracle when it says low cloud or poor visibility (one Open-Meteo request per visit, shared with BAY BAROMETER), and by hand with K
   const toggleKarl = (on) => { const v = on ?? !fx.karlOn(); fx.karl(v, mix.K); if (life) life.fog = v; E('#c25kl').classList.toggle('on', v); E('#c25kl').textContent = v ? 'KARL: IN' : 'KARL' }

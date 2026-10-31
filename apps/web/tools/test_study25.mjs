@@ -500,7 +500,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with seven lines (29 Oct: Shot Caller its own mode; 30 Oct: OPTIONS with every choice, GAG REEL)', m0.open && m0.n === 7 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with eight lines (29 Oct: Shot Caller its own mode; 30 Oct: OPTIONS with every choice, GAG REEL, WHATS NEW)', m0.open && m0.n === 8 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -780,7 +780,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
   check('PLAY IT flies the three most common ways, then sets the first up again', pl.lands === 3 && !pl.playing && pl.sel === 0, JSON.stringify(pl))
   // a click on a seat in the park calls it too
   await page.keyboard.press('b'); await page.waitForTimeout(800) // bird's eye: the whole park, the arcade too
-  const xy = await page.evaluate(() => { const r = window.__mix25.seatPoint('145', '3', '6'), v = r.at.clone().project(window.__cp.NN.camera), c = document.querySelector('canvas').getBoundingClientRect(); return { x: c.left + ((v.x + 1) / 2) * c.width, y: c.top + ((1 - v.y) / 2) * c.height, on: v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1 } })
+  const xy = await page.evaluate(() => { const r = window.__mix25.seatPoint('145', '3', '6'), v = (window.__cp.NN.camera.updateMatrixWorld(), r.at.clone().project(window.__cp.NN.camera)), c = document.querySelector('canvas').getBoundingClientRect(); return { x: c.left + ((v.x + 1) / 2) * c.width, y: c.top + ((1 - v.y) / 2) * c.height, on: v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1, at: r.at.toArray().map(Math.round), vz: v.z } })
   if (xy.on) {
     await page.mouse.click(xy.x, xy.y); await page.waitForTimeout(500)
     let s2 = null; for (let k = 0; k < 60; k++) { await page.waitForTimeout(500); s2 = await page.evaluate(() => window.__mix25.shot()?.seat); if (s2 && s2.line !== 'SEC 140 ROW 12 SEAT 8') break }
@@ -796,7 +796,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone (seven lines)', sm.open && sm.n === 7 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone (eight lines)', sm.open && sm.n === 8 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()

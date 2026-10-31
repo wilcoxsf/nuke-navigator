@@ -1189,7 +1189,7 @@ export function initPark25(api, col, o = {}) {
       const A = ANIM[cur.name], tt = o.still && A.still != null ? A.still : cur.t // reduced motion: a gag holds its one still frame for its length
       animT = tt; hush = false; gagOn = true
       A.draw(tt, cur.a); gagOn = false
-      if (cur.t >= A.dur) { played.push(cur.name); cur = null; if (!queue.length) idle(idleText) }
+      if (cur.t >= A.dur) { played.push(cur.name); downs++; try { localStorage.setItem('nn-dodgers-down', String(downs)) } catch {} cur = null; if (!queue.length) idle(idleText) }
     } else if (queue.length && (wait -= dt) <= 0) {
       const n = queue.shift(); cur = { name: n.name, a: n.a, t: 0 }; idleT = 0; wait = 0
       const A = ANIM[cur.name], tt = o.still && A.still != null ? A.still : 0
@@ -1219,7 +1219,9 @@ export function initPark25(api, col, o = {}) {
   // a status line (TRACKING, the distance, HOME RUN) cuts short an idle animation but waits behind an event one
   const show = (a, b = '', c = null, fl = 0) => { lines = [a, b]; color = c; flash = fl; marquee = false; scroll = 0; if (cur && (PRIORITY[cur.name] ?? 1) <= 1) cur = null; if (!cur) frame(0) }
   let idleText = 'NUKE NAVIGATOR  ·  ORACLE PARK'
-  function idle(txt) { idleText = txt ?? idleText; lines = [idleText, '']; color = null; flash = 0; marquee = true; scroll = 0 }
+  // (30 Oct, night) the tally: the idle marquee ends with how many Dodgers the board has done in on this device
+  let downs = (() => { try { return Number(localStorage.getItem('nn-dodgers-down')) || 0 } catch { return 0 } })()
+  function idle(txt) { idleText = txt ?? idleText; lines = [downs ? `${idleText}   ·   DODGERS DOWN: ${downs}` : idleText, '']; color = null; flash = 0; marquee = true; scroll = 0 }
 
   // ---- seagulls: voxel gulls (28 Oct, night: everything in the park is voxels), a body and two three-cube wings that flap, circling the outfield; a home run scatters them ----
   // 29 Oct, later (Andrew: "can we give there flapping seagulls faces?"): a head out front with a face, in one of three looks (W in the mixer):
@@ -1303,7 +1305,7 @@ export function initPark25(api, col, o = {}) {
     board, names: () => Object.keys(ANIM), anim: () => cur?.name ?? null, queued: () => queue.map((q) => q.name), played: () => [...played],
     // for the tests: how many LEDs are lit right now, and the board's size in LEDs
     litCount: () => buf.reduce((s, k) => s + (k ? 1 : 0), 0), size: [GW, GH],
-    dur: (n) => ANIM[n]?.dur, pace: PACE,
+    dur: (n) => ANIM[n]?.dur, pace: PACE, downs: () => downs,
     // draw one frame of an animation at time t right now (the next tick redraws); returns how many LEDs it lit, and the board as a picture when asked
     peek(n, tt, a = {}, pic = false) { buf.fill(0); tbuf.fill(0); animT = tt; hush = false; gagOn = true; ANIM[n].draw(tt, a); gagOn = false; paint(); return { lit: buf.reduce((s, k) => s + (k ? 1 : 0), 0), url: pic ? out.toDataURL() : null } },
     // the rivalry: the next gag from the bag (c25 plays it after a Giants home run against the Dodgers), the whole list, and for the tests a hash of the board

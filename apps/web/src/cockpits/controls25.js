@@ -55,7 +55,8 @@ export function initControls25(api, o = {}) {
     for (let y = 0; y <= 6; y += 0.5) pts.push([C2.x, C2.y + y * k, C2.z, 0.35 * k])
     fill(pole, pts)
     const top = poleTop(), tip = windTip(), o1 = [], o2 = []
-    for (let f = 0; f <= 1; f += 0.05) { const x = top.x + (tip.x - top.x) * f, y = top.y + (tip.y - top.y) * f, z = top.z + (tip.z - top.z) * f, w = (1.3 - f * 0.7) * k; (Math.floor(f * 5) % 2 ? o2 : o1).push([x, y, z, w]) } // orange and white bands, narrowing
+    const m = Math.hypot(st.wind, st.xwind), ft = performance.now() / 1000 * (2 + m * 0.3)
+    for (let f = 0; f <= 1; f += 0.05) { const wob = Math.sin(ft * 3 - f * 6) * f * f * 0.5 * k, x = top.x + (tip.x - top.x) * f + wob, y = top.y + (tip.y - top.y) * f + wob * 0.6, z = top.z + (tip.z - top.z) * f - wob, w = (1.3 - f * 0.7) * k; (Math.floor(f * 5) % 2 ? o2 : o1).push([x, y, z, w]) } // orange and white bands, narrowing
     fill(sock, o1); fill(sockW, o2)
     fill(windEnd, [[tip.x, tip.y, tip.z, 1.1 * k]])
   }
@@ -73,7 +74,7 @@ export function initControls25(api, o = {}) {
   api.NN.frames.push(() => {
     if (!g.visible) return
     const nk = Math.min(3, Math.max(0.7, camera.position.distanceTo(H0) / 110))
-    if (Math.abs(nk - k) > k * 0.04) { k = nk; paint() }
+    if (Math.abs(nk - k) > k * 0.04) { k = nk; paint() } else if (!drag) paintSock() // the sock flutters
     sg.scale.setScalar(k * 1.6)
     if (drag) showTag(tagFor(drag.k), handleAt(drag.k))
   })

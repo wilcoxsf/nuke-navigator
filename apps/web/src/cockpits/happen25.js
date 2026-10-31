@@ -4,7 +4,7 @@
 //   SEAL         a seal bobs up in McCovey Cove, sometimes balancing a ball on its nose        MOLE      a mole in a hard hat pops out of the outfield grass and looks around
 //   SERPENT      a sea serpent's three humps loop through the bay, then its head comes up     JETS      Fleet Week: five jets over the park with smoke trails
 //   ESCAPEE      an Alcatraz escapee paddles a raft across the bay, ball and chain aboard      FRIES     a gull steals a fan's garlic fries in the stands
-//   WHALE        a whale breaches beyond the Cove
+//   WHALE        a whale breaches beyond the Cove                                             FLOCKED   gulls carry a Dodger fan out of the stands into the Cove
 // The park stands in the sea like an island (water25.js), and nothing else: 30 Oct, Andrew: "kill the entire road, buildings, etc in the background it's just the
 // ballpark and the ocean" (King Street, Second Street, Mission Rock and its buildings went, and with them the startup, the IPO, the eviction, the driverless car and
 // the cable car). Plate frame as everywhere: x to the right, y toward center field, z up, metres.
@@ -13,7 +13,7 @@
 import { WATER_Z } from './water25.js'
 import { FONT } from './vox25.js'
 const GLYPH = { ...FONT, $: ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'], '!': ['#', '#', '#', '#', '#', '.', '#'] }
-export const HAPPENINGS = ['seal', 'mole', 'serpent', 'jets', 'escapee', 'fries', 'whale']
+export const HAPPENINGS = ['seal', 'mole', 'serpent', 'jets', 'escapee', 'fries', 'flocked', 'whale']
 export function initHappen25(api, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld, cube = new THREE.BoxGeometry(1, 1, 1), still = !!o.still
@@ -280,7 +280,36 @@ export function initHappen25(api, o = {}) {
       end() { done(fan); done(gw) },
     }
   }
-  // CABLECAR: one rolls the length of King Street on the rails, riders hanging off both sides, bell going
+  // FLOCKED (30 Oct, night): a Dodger fan stands up in the lower bowl on the right-field side; five gulls come round him, take hold, and carry him up and out over
+  // the arcade, and let go over McCovey Cove; a splash, and his cap floats
+  H.flocked = () => {
+    if (!fanSpots) findFans()
+    const spots = (fanSpots ?? []).filter((w) => w.x - home.x > 0 && clearOf(w, 24)) // the first-base side, the Cove behind it
+    if (!spots.length) return null
+    const at = pick(spots), S = 0.55, me = [], gull = [], cap = []
+    box(me, 0, 1, 0, 5, -1, 0, '#8a8f99'); box(me, 0, 1, 6, 10, -1, 0, '#2f5bd3'); box(me, 0, 1, 11, 12, -1, 0, '#e0b48a'); box(me, -1, 2, 13, 13, -2, 1, '#2f5bd3'); box(me, 0, 0, 10, 13, -3, -3, '#e0b48a'); box(me, 0, 0, 10, 13, 2, 2, '#e0b48a') // blue shirt and cap, arms up
+    box(gull, -1, 1, 0, 1, -3, 3, '#f2f0ea'); box(gull, -1, 1, 1, 2, 3, 4, '#f2f0ea'); gull.push([0, 1, 5, '#f2c230'], [0, 1, 6, '#f2c230'], [-1, 2, 4, '#111'], [1, 2, 4, '#111'])
+    for (const s of [-1, 1]) for (let k = 2; k <= 8; k++) for (let z = -1; z <= 1; z++) gull.push([s * k, 1, z, k > 6 ? '#3a3f47' : '#9aa0a8'])
+    box(cap, -1, 2, 0, 0, -2, 1, '#2f5bd3')
+    const fan = fly(new THREE.Group()); root.add(fan); fan.position.copy(at); facing(fan, at, P(0, 60, 0)); build(me, S, fan)
+    const G = [0, 1, 2, 3, 4].map((i) => ({ g: fly(build(gull, 0.65)), a: (i / 5) * Math.PI * 2, from: at.clone().add(V(Math.cos(i) * 40, 30 + i * 3, Math.sin(i) * 40)) }))
+    const cove = P(108, 122, WATER_Z), capG = fly(build(cap, 0.5)); capG.visible = false
+    let splashed = false
+    return {
+      step(dt, t) {
+        const lift = t < 2.4 ? 0 : Math.min(1, (t - 2.4) / 3.2), arc = Math.sin(lift * Math.PI) * 26, drop = t > 5.6
+        const carry = at.clone().lerp(cove, lift).add(V(0, arc + (lift > 0 ? 3 : 0), 0))
+        if (!drop) fan.position.copy(carry); else { const u = t - 5.6; fan.position.copy(cove).add(V(0, Math.max(0, 26 * Math.sin(Math.PI * 0.98) + 3 - u * u * 30), 0)); fan.rotation.z = u * 4 } // let go of: down he goes
+        fan.rotation.y += lift > 0 && !drop ? dt * 2 : 0
+        G.forEach((q, i) => { const above = fan.position.clone().add(V(Math.cos(q.a + t * 3) * 2.4, 5.4 + (i % 2) * 0.6, Math.sin(q.a + t * 3) * 2.4)); if (t < 2.0) q.g.position.lerpVectors(q.from, above, ease(Math.min(1, t / 2))); else if (!drop) q.g.position.copy(above); else q.g.position.add(V(Math.cos(q.a) * dt * 14, dt * 9, Math.sin(q.a) * dt * 14)); q.g.rotation.z = Math.sin(t * 16 + i) * 0.35; q.g.rotation.y = q.a + t }) // circling, holding on, scattering
+        if (drop && !splashed && fan.position.y <= cove.y + 0.5) { splashed = true; fan.visible = false; capG.visible = true; capG.position.copy(cove).add(V(0, 0.4, 0)); sound('whale-slap', cove) }
+        if (capG.visible) capG.rotation.y += dt
+        if (t > 0.6 && t - dt <= 0.6) sound('fries-caw', at)
+        return t < 9.0
+      },
+      end() { done(fan); for (const q of G) done(q.g); done(capG) },
+    }
+  }
   // WHALE (29 Oct, later): up, a twist, a slap
   const Wc = []
   for (let x = -6; x <= 6; x++) for (let y = -2; y <= 2; y++) for (let z = -2; z <= 2; z++) { if ((x / 6.5) ** 2 + (y / 2.5) ** 2 + (z / 2.5) ** 2 > 1) continue; Wc.push([x, y, z, y <= -1 && x > -4 ? '#e9e6dc' : '#3a4250']) }

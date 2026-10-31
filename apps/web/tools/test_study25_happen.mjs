@@ -38,7 +38,7 @@ const geo = await page.evaluate(() => {
   const bb = new window.__cp.NN.THREE.Box3().setFromObject(st)
   return { sign: h.splashSign(), minX: bb.min.x - H.x, names: h.names }
 })
-check('seven happenings, none of them on a street', geo.names.length === 7 && !['startup', 'ipo', 'evict', 'robocar', 'cablecar'].some((n) => geo.names.includes(n)), geo.names.join())
+check('eight happenings, none of them on a street', geo.names.length === 8 && !['startup', 'ipo', 'evict', 'robocar', 'cablecar'].some((n) => geo.names.includes(n)), geo.names.join())
 check('no SPLASH HITS sign (30 Oct, later: killed)', geo.sign == null)
 // nothing built round the park: no quay, street or block in the happenings' own layer outside the water
 const city = await page.evaluate(() => { const h = window.__mix25.happen(), H = window.__cp.toWorld([0, 0, 0]), m4 = new window.__cp.NN.THREE.Matrix4(), v = new window.__cp.NN.THREE.Vector3(); let n = 0
@@ -54,6 +54,7 @@ const RULE = {
   jets: [2, (ps) => ps.filter((p) => p.n > 1).every((p) => p.z > 80), 'high over the park'],
   escapee: [3, (ps) => ps.every((p) => p.x > 120), 'out in the bay'],
   whale: [1, () => true, ''],
+  flocked: [3, (ps) => ps.length >= 2 && ps.some((p) => p.z > 3), 'a Dodger fan carried up out of the stands by the gulls'],
 }
 for (const name of geo.names) {
   const ok = await page.evaluate((n) => window.__mix25.happen().force(n), name)
