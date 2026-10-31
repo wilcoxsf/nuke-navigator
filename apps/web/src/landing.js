@@ -26,15 +26,18 @@ function numberSprite(n, color) {
   return s
 }
 
+// 31 Oct (Andrew: "Landing party is unreadable right now"; his screengrab: eight big numbers and eight grey flights piled up in one corner): in the voxel
+// look the numbers are smaller, each yields to the ones ranked above it (it steps up or hides rather than overlap), and no flight is drawn until a row in the
+// list is pointed at (focus(n)): then that one ball's flight, and only its number stays lit
 export function landingParty(api, balls, o = {}) {
   const K = o.k ?? 8
-  let group = null
+  let group = null, items = [], flightG = null
   const oracle = balls.filter((b) => b.park === 'SF' && b.hr)
   function clear() {
     if (!group) return
     api.NN.scene.remove(group)
     group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose(); x.material?.map?.dispose(); x.material?.dispose?.() })
-    group = null
+    group = null; items = []; flightG = null
   }
   // x: { ev, la, bear, self } (self: the replay ball itself, left out of its own party)
   function nearest(x) {
@@ -56,10 +59,10 @@ export function landingParty(api, balls, o = {}) {
       const pts = res.path.filter((_, k) => k % 5 === 0).map((q) => api.toWorld(q.p))
       if (o.vox) {
         // Study 25 (28 Oct, night): a voxel number on a voxel stake where it came down, the flight as a few faint cubes
-        const n = voxText(THREE, String(i + 1), { px: 0.8, color, back: '#141414' }), top = new THREE.Vector3(p.x, p.y + 6, p.z)
-        n.position.copy(top); keepReadable(api, n, 140, 0.5, 1.8, { prio: 2 })
-        group.add(n, voxPost(THREE, p, top, { px: 0.45, gap: 1.2, color }))
-        group.add(voxDots(THREE, res.path.filter((_, k) => k % 9 === 4).map((q) => api.toWorld(q.p)), { px: 0.35, color: o.dim ?? color }))
+        const n = voxText(THREE, String(i + 1), { px: 0.55, color, back: '#141414' }), top = new THREE.Vector3(p.x, p.y + 4, p.z), post = voxPost(THREE, p, top, { px: 0.35, gap: 1.2, color })
+        n.position.copy(top); keepReadable(api, n, 140, 0.45, 1.1, { prio: 2 + (K - i) / 100 })
+        group.add(n, post)
+        items[i] = { n, post, pts: res.path.filter((_, k) => k % 4 === 2).map((q) => api.toWorld(q.p)) }
       } else {
         const m = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), dot)
         m.position.copy(p)
@@ -75,5 +78,13 @@ export function landingParty(api, balls, o = {}) {
     api.NN.scene.add(group)
     return out
   }
-  return { show, clear, count: () => oracle.length }
+  // point at one (1-based; null for all): its flight in cubes, the others' numbers dimmed away
+  function focus(k) {
+    if (!group) return
+    if (flightG) { group.remove(flightG); flightG = null }
+    items.forEach((it, i) => { if (it) { it.n.visible = k == null || i === k - 1; it.post.visible = it.n.visible } })
+    const it = items[(k ?? 0) - 1]
+    if (k != null && it) { flightG = voxDots(THREE, it.pts, { px: 0.45, color: o.flight ?? '#f0802a' }); group.add(flightG) }
+  }
+  return { show, clear, focus, count: () => oracle.length }
 }

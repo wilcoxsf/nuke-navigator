@@ -6,6 +6,9 @@
 //   B5 RIPPLE RINGS (30 Oct, Andrew: "I actually sort of like the way water is handled in this view - can we re-institute these circles that grow and shrink"):
 //      the first version's sea (main.js): four crossing swells summed, a lighter tone where they stack up and a line round each patch and round its peak, so
 //      the rings swell, split and shrink as the swells move through each other
+//   31 Oct (Andrew: "Can we try really really subtle ripple rings for the water lines? Give me a few new options, way less white space"): the same swells, lines
+//   only, no lighter patches, faint:   B6 FAINT RINGS: both rings, thin and dim   B7 PEAKS ONLY: just the small rings at the tops of the swell, mostly black
+//   B8 BROKEN RINGS: the rings in drifting pieces   B9 WIDE AND SLOW: half the speed, twice the size, one ring per swell; B10 to B12 the same, dimmer and dimmer
 // Still under prefers-reduced-motion. The water level is exported for the kayaks, the sea lion and the splash.
 // the sea's level in the plate frame (m below the field; Oracle's field is about at sea level); the kayaks, the sea lion and a splash use it too
 export const WATER_Z = -1.6
@@ -33,6 +36,10 @@ export function initWater25(api, o = {}) {
         float patchy = smoothstep(0.66, 0.84, noise(vec2(along, k * 0.37 + t * 0.03)));
         return lineAt(f) * patchy;
       }
+      // the first version's swell: four crossing waves summed (sc: the size, 1 as it was; bigger numbers, smaller rings)
+      float swellH(vec2 p, float t, float sc){ p *= sc; return sin(p.x * 0.115 + t * 0.8) + sin(p.y * 0.150 - t * 0.6) + sin((p.x + p.y) * 0.074 + t * 0.45) + 0.5 * sin((p.x - p.y) * 0.250 - t * 1.1); }
+      // a ring where the swell crosses the level, about a pixel wide
+      float ringAt(float h, float lvl){ float w = max(fwidth(h), 1e-4); return 1. - smoothstep(0.5, 1.3, abs(h - lvl) / w); }
       void main(){
         vec2 p = vW.xz;
         float d = distance(vW, cameraPosition);
@@ -50,11 +57,20 @@ export function initWater25(api, o = {}) {
           // shore lines: broken rings around the park rolling in toward it
           float r = distance(p, center), f = (r + time * 6.) / 30., k = floor(f + 0.5), a = atan(p.y - center.y, p.x - center.x);
           v = lineAt(f) * smoothstep(0.5, 0.75, noise(vec2(a * 9., k * 0.5))) * 0.42 * smoothstep(150., 220., r);
-        } else if (mode > 4.5) {
+        } else if (mode > 4.5 && mode < 5.5) {
           // ripple rings: the first version's sea, in ink on black
-          float h = sin(p.x * 0.115 + time * 0.8) + sin(p.y * 0.150 - time * 0.6) + sin((p.x + p.y) * 0.074 + time * 0.45) + 0.5 * sin((p.x - p.y) * 0.250 - time * 1.1);
+          float h = swellH(p, time, 1.);
           float w = max(fwidth(h), 1e-4), e1 = 1. - smoothstep(0.8, 1.8, abs(h - 0.35) / w), e2 = 1. - smoothstep(0.8, 1.8, abs(h - 1.9) / w);
           v = step(0.35, h) * 0.07 + max(e1 * 0.2, e2 * 0.34);
+        } else if (mode > 5.5 && mode < 6.5) {
+          float h = swellH(p, time, 1.); v = max(ringAt(h, 0.35) * 0.08, ringAt(h, 1.9) * 0.14); // faint rings
+        } else if (mode > 6.5 && mode < 7.5) {
+          float h = swellH(p, time * 0.7, 1.); v = ringAt(h, 2.25) * 0.16; // peaks only
+        } else if (mode > 7.5 && mode < 8.5) {
+          float h = swellH(p, time, 1.); v = max(ringAt(h, 0.35) * 0.12, ringAt(h, 1.9) * 0.16) * smoothstep(0.45, 0.68, noise(p * 0.035 + vec2(time * 0.03, -time * 0.02))); // broken rings
+        } else if (mode > 8.5) {
+          // wide and slow (B9), and dimmer (31 Oct, Andrew: "It's not so much the motion but the contrast that's bugging me"): B10 to B12 the same rings, fainter
+          float h = swellH(p, time * 0.5, 0.55); v = ringAt(h, 1.6) * (mode < 9.5 ? 0.12 : mode < 10.5 ? 0.075 : mode < 11.5 ? 0.05 : 0.032);
         } else {
           // wakes: still crests, and a V-wake behind a boat circling the park
           v = caps(p, normalize(vec2(0.12, 0.99)), 24., 0., 0., 0.) * 0.22;

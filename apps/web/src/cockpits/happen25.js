@@ -34,6 +34,10 @@ export function initHappen25(api, o = {}) {
   const textW = (s) => [...String(s).toUpperCase()].reduce((w, ch) => w + (GLYPH[ch] ?? GLYPH[' '])[0].length + 1, -1)
   const along = (g, dx, dz) => { g.rotation.y = Math.atan2(-dz, dx) } // the model's +x along a world direction
   const facing = (g, at, to) => { g.rotation.y = Math.atan2(to.x - at.x, to.z - at.z) } // the model's +z toward a world point
+  // 31 Oct (Andrew: "The seagulls in the gag need to be the same as the other seagulls in the park"): FRIES and FLOCKED fly the park's own voxel gull (park25.js,
+  // with the face chosen under GULL FACES), flapping, at a size that reads from the broadcast seat
+  const parkGull = (s) => { const m = o.gull(); m.scale.setScalar(s); root.add(m); return m }
+  const flapG = (m, t, f = 9) => { const w = m.userData.wings; if (!w) return; const a = still ? 0.2 : Math.sin(t * f) * 0.5; w[0].rotation.z = -a; w[1].rotation.z = a }
   const kill = (g) => { g.parent?.remove(g); g.traverse((m) => m.isInstancedMesh && m.dispose()) }
   const sea = toWorld([0, 0, WATER_Z]).y, H0 = P(0, 0, 0), home = H0.clone()
   const plateZ = (w) => w.y - H0.y
@@ -263,7 +267,7 @@ export function initHappen25(api, o = {}) {
     const fan = fly(new THREE.Group()); root.add(fan); fan.position.copy(at); facing(fan, at, P(0, 60, 0))
     const gs = build(sit, S, fan), gu = build(up, S, fan); gu.visible = false
     const tr = build(tray, S * 0.9, fan); tr.position.set(0.5 * S, 6 * S, 3.6 * S)
-    const gw = fly(build(gull, 0.42)), side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion)
+    const gw = fly(o.gull ? parkGull(1.4) : build(gull, 0.42)), side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion)
     const from = at.clone().addScaledVector(side, 45).add(V(0, 26, 0)), away = at.clone().addScaledVector(side, -70).add(V(0, 40, 0))
     let got = false
     return {
@@ -271,7 +275,7 @@ export function initHappen25(api, o = {}) {
         const grab = fan.localToWorld(tr.position.clone())
         if (t < 2) { gw.position.lerpVectors(from, grab, ease(Math.min(1, t / 2))); gw.position.y += Math.sin(Math.min(1, t / 2) * Math.PI) * 4 }
         else gw.position.lerpVectors(grab, away, Math.min(1, (t - 2) / 3.4))
-        const dd = (t < 2 ? grab.clone().sub(from) : away.clone().sub(grab)); gw.rotation.y = Math.atan2(dd.x, dd.z); gw.rotation.z = Math.sin(t * 14) * 0.3
+        const dd = (t < 2 ? grab.clone().sub(from) : away.clone().sub(grab)); gw.rotation.y = Math.atan2(dd.x, dd.z); gw.rotation.z = Math.sin(t * 14) * 0.15; flapG(gw, t, t < 2 ? 8 : 14)
         if (t > 1.1 && t - dt <= 1.1) sound('fries-caw', gw.position)
         if (!got && t >= 2) { got = true; fan.remove(tr); gw.add(tr); tr.position.set(0, -0.6, 2.3); sound('fries-grab', grab) }
         if (t > 2.3) { gs.visible = false; gu.visible = true; gu.rotation.y = Math.sin(t * 9) * 0.15; if (t - dt <= 2.3) sound('fries-hey', at) }
@@ -292,7 +296,7 @@ export function initHappen25(api, o = {}) {
     for (const s of [-1, 1]) for (let k = 2; k <= 8; k++) for (let z = -1; z <= 1; z++) gull.push([s * k, 1, z, k > 6 ? '#3a3f47' : '#9aa0a8'])
     box(cap, -1, 2, 0, 0, -2, 1, '#2f5bd3')
     const fan = fly(new THREE.Group()); root.add(fan); fan.position.copy(at); facing(fan, at, P(0, 60, 0)); build(me, S, fan)
-    const G = [0, 1, 2, 3, 4].map((i) => ({ g: fly(build(gull, 0.65)), a: (i / 5) * Math.PI * 2, from: at.clone().add(V(Math.cos(i) * 40, 30 + i * 3, Math.sin(i) * 40)) }))
+    const G = [0, 1, 2, 3, 4].map((i) => ({ g: fly(o.gull ? parkGull(1.7) : build(gull, 0.65)), a: (i / 5) * Math.PI * 2, from: at.clone().add(V(Math.cos(i) * 40, 30 + i * 3, Math.sin(i) * 40)) }))
     const cove = P(108, 122, WATER_Z), capG = fly(build(cap, 0.5)); capG.visible = false
     let splashed = false
     return {
@@ -301,7 +305,7 @@ export function initHappen25(api, o = {}) {
         const carry = at.clone().lerp(cove, lift).add(V(0, arc + (lift > 0 ? 3 : 0), 0))
         if (!drop) fan.position.copy(carry); else { const u = t - 5.6; fan.position.copy(cove).add(V(0, Math.max(0, 26 * Math.sin(Math.PI * 0.98) + 3 - u * u * 30), 0)); fan.rotation.z = u * 4 } // let go of: down he goes
         fan.rotation.y += lift > 0 && !drop ? dt * 2 : 0
-        G.forEach((q, i) => { const above = fan.position.clone().add(V(Math.cos(q.a + t * 3) * 2.4, 5.4 + (i % 2) * 0.6, Math.sin(q.a + t * 3) * 2.4)); if (t < 2.0) q.g.position.lerpVectors(q.from, above, ease(Math.min(1, t / 2))); else if (!drop) q.g.position.copy(above); else q.g.position.add(V(Math.cos(q.a) * dt * 14, dt * 9, Math.sin(q.a) * dt * 14)); q.g.rotation.z = Math.sin(t * 16 + i) * 0.35; q.g.rotation.y = q.a + t }) // circling, holding on, scattering
+        G.forEach((q, i) => { const above = fan.position.clone().add(V(Math.cos(q.a + t * 3) * 2.4, 5.4 + (i % 2) * 0.6, Math.sin(q.a + t * 3) * 2.4)); if (t < 2.0) q.g.position.lerpVectors(q.from, above, ease(Math.min(1, t / 2))); else if (!drop) q.g.position.copy(above); else q.g.position.add(V(Math.cos(q.a) * dt * 14, dt * 9, Math.sin(q.a) * dt * 14)); q.g.rotation.z = Math.sin(t * 16 + i) * 0.12; q.g.rotation.y = q.a + t; flapG(q.g, t + i, drop ? 16 : 12) }) // circling, holding on, scattering
         if (drop && !splashed && fan.position.y <= cove.y + 0.5) { splashed = true; fan.visible = false; capG.visible = true; capG.position.copy(cove).add(V(0, 0.4, 0)); sound('whale-slap', cove) }
         if (capG.visible) capG.rotation.y += dt
         if (t > 0.6 && t - dt <= 0.6) sound('fries-caw', at)

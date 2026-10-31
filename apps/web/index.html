@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <script>
-      // one canonical version (30 Oct, Andrew: "we only need like one canonical version that actually shows up"): an address without mode= opens Study 25, keeping
-      // whatever else it carries (the friends' ?t= token, show=reel); the first version's page stays reachable with ?real=, ?look= or ?legacy=1
-      ;(() => { const q = new URLSearchParams(location.search); if (q.has('mode') || ['real', 'look', 'legacy'].some((k) => q.has(k))) return; q.set('mode', 'dojo'); if (!q.has('ui')) q.set('ui', 'K'); if (!q.has('cp')) q.set('cp', '25'); location.replace(location.pathname + '?' + q + location.hash) })()
+      // one canonical version (30 Oct, Andrew: "we only need like one canonical version that actually shows up"; 31 Oct: "You can kill literally every old version"):
+      // every address opens Study 25, keeping whatever else it carries (the friends' ?t= token, show=reel)
+      ;(() => { const q = new URLSearchParams(location.search); if (q.get('mode') === 'dojo' && q.get('cp') === '25') return; q.set('mode', 'dojo'); if (!q.has('ui')) q.set('ui', 'K'); q.set('cp', '25'); for (const k of ['real', 'look', 'legacy']) q.delete(k); location.replace(location.pathname + '?' + q + location.hash) })()
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,33 +14,9 @@
     <style>
       html, body { margin: 0; height: 100%; background: #ffe2a6; overflow: hidden; }
       canvas { display: block; width: 100vw; height: 100vh; }
-      #strip { position: fixed; left: 12px; right: 12px; bottom: 10px; font-family: Arial, Helvetica, sans-serif; color: #1d2a6d; }
-      #cmp {
-        background: #fff; border: 2px solid #1d2a6d; box-shadow: 4px 4px 0 #ff5a3c; padding: 6px 10px; margin-bottom: 8px;
-        cursor: pointer; transform: rotate(-0.6deg);
-      }
-      #cmp .line { display: flex; gap: 10px; align-items: baseline; font-weight: 700; font-size: 15px; line-height: 1.35; }
-      #cmp b { background: #1d2a6d; color: #fff; padding: 1px 6px; font-size: 10px; letter-spacing: .06em; flex: none; }
-      #cmp .src { margin-left: auto; text-decoration: none; color: #1d2a6d; font-size: 13px; flex: none; }
-      #cmp .hint { font-size: 10px; font-weight: 700; letter-spacing: .06em; opacity: .55; text-align: right; }
-      #spec {
-        display: flex; font: 700 11px/1.2 Arial, Helvetica, sans-serif; letter-spacing: .04em; text-transform: uppercase;
-        background: #ffd23f; border: 2px solid #1d2a6d; padding: 5px 8px; gap: 14px; flex-wrap: wrap;
-      }
-      #spec span b { background: #1d2a6d; color: #fff; padding: 1px 5px; margin-right: 5px; }
-      #look { position: fixed; top: 10px; left: 12px; font: 700 12px Arial, sans-serif; color: #1d2a6d; }
     </style>
   </head>
   <body>
-    <div id="look">LOOK 1 / 2 / 3 / 4</div>
-    <div id="strip">
-      <div id="cmp" title="Tap for new comparisons">
-        <div class="line"><b>SPEED</b><span id="cmp-speed">loading the library of absurdity...</span></div>
-        <div class="line"><b>DISTANCE</b><span id="cmp-dist"></span></div>
-        <div class="line"><b>SAME SWING</b><span id="cmp-swing"></span></div>
-      </div>
-      <div id="spec"></div>
-    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

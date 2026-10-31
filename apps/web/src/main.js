@@ -5,8 +5,6 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import { buildMarks, smoothWallFn } from './wiremarks.js'
-import { loadLibrary, mulberry32, pick } from './comparisons.js'
-import { pickScenarios } from './scenarios.js'
 
 // ---------- looks (A = riso print, B = A + Bell captions, C = Druillet sunset) ----------
 const LOOKS = {
@@ -342,7 +340,6 @@ function applyLook() {
   post.uniforms.ink.value.set(look.ink)
   ribbonMat.color.set(look.ribbon)
   burstMat.color.set(look.burst)
-  document.getElementById('strip').style.display = CAPS ? 'none' : 'block' // ?caps=1 hides the strip for clean stills
   document.body.style.background = look.bg
   ocean.visible = !!look.ocean
   if (look.ocean) {
@@ -353,7 +350,6 @@ function applyLook() {
   }
 }
 applyLook()
-addEventListener('keydown', (e) => { if (!REAL && LOOKS[e.key]) { look = LOOKS[e.key]; applyLook() } })
 function applyVibe(n) {
   vibeN = n
   const v = VIBES[n]
@@ -420,38 +416,8 @@ renderer.setAnimationLoop((t) => {
 })
 window.__ready = () => mats.length > 0 && window.__cmpReady === true
 
-// ---------- stat strip: a speed and a distance comparison drawn at random from the library ----------
-const STAT = { mph: 105, la: 28, ft: 392 }
-function renderSpec() {
-  document.getElementById('spec').innerHTML =
-    `<span><b>EXIT SPEED</b>${STAT.mph} mph</span><span><b>LAUNCH</b>${STAT.la}&deg;</span>` +
-    `<span><b>DISTANCE</b>${STAT.ft} ft</span><span><b>BADGE</b>PREDICTED</span><span><b>PARK</b>Oracle 2025</span>`
-}
-renderSpec()
 const qs = new URLSearchParams(location.search)
-const rand = qs.get('seed') ? mulberry32(Number(qs.get('seed'))) : Math.random
-const recent = []
-const recentBodies = []
-let library = null
-function roll() {
-  if (!library) return
-  const rows = [
-    ['speed', STAT.mph * 0.44704, 'cmp-speed', 'src-speed', `${STAT.mph} mph`],
-    ['length', STAT.ft * 0.3048, 'cmp-dist', 'src-dist', `${STAT.ft} ft`],
-  ]
-  for (const [kind, amount, textId, , label] of rows) {
-    const p = pick(library, kind, amount, rand, recent)
-    if (!p) continue
-    recent.push(p.rec.cat, p.rec.name)
-    while (recent.length > 16) recent.shift()
-    document.getElementById(textId).textContent = `${label} = ${p.phrase}`
-  }
-  const sc = pickScenarios(STAT.mph, STAT.la, rand, 2, recentBodies)
-  recentBodies.length = 0
-  recentBodies.push(...sc.map((s) => s.body.id))
-  document.getElementById('cmp-swing').textContent = sc.map((s) => s.text).join('. ')
-}
-loadLibrary().then((l) => { library = l; roll(); window.__cmpReady = true })
+window.__cmpReady = true // (the first page's comparison strip is gone, 31 Oct; Study 25 loads its own comparisons)
 // Wireframe park: the stadium's hard edges (angle between faces over `angle` degrees) as thin lines. hidden = true draws the faces black so only the near lines show;
 // hidden = false leaves it see-through. Edges are built the first time it is switched on (a second or two), then toggling is free.
 let wireGroup = null
@@ -781,12 +747,9 @@ function setWire(on, o = {}) {
 // hooks for the interactive modes (Dinger Dojo): drive the stat strip and reach the scene
 window.__nn = {
   setWire, setPaused: (b) => { renderPaused = !!b }, setFpsCap: (n) => { fpsCap = n || 0 },
-  THREE, scene, camera, controls, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
+  THREE, scene, camera, controls, renderer, VIBES, frames: [], hideForNormal: [], setWindow: (i) => { winInsets = i; resize() }, setShake: (x, y) => post.uniforms.shake.value.set(x, y), setVibe: applyVibe, vibe: () => vibeN, real: REAL,
   setPix: (o = {}) => { pixCss = o.pix ?? 0; post.uniforms.pixSize.value = pixCss * renderer.getPixelRatio(); post.uniforms.mode.value = o.mode ?? 0; post.uniforms.levels.value = o.levels ?? 3; if (o.a) post.uniforms.duoA.value.set(o.a); if (o.b) post.uniforms.duoB.value.set(o.b) },
   setDuo: (d) => { if (d) { post.uniforms.duoA.value.set(d[0]); post.uniforms.duoB.value.set(d[1]); post.uniforms.duoAmt.value = d[2] } else post.uniforms.duoAmt.value = 0 },
   setSat: (v) => { vibeU.sat.value = v }, setBg: (c) => { bgOverride = c; look = { ...look, bg: c }; applyLook() },
-  setStat(mph, la, ft) { STAT.mph = Math.round(mph); STAT.la = Math.round(la); STAT.ft = Math.round(ft); renderSpec(); roll() },
-  strip: (show) => { document.getElementById('strip').style.display = show ? '' : 'none' },
 }
 if (qs.get('mode') === 'dojo') import('./dojo.js')
-document.getElementById('cmp').addEventListener('click', (e) => { if (e.target.tagName !== 'A') roll() })

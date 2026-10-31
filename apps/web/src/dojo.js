@@ -476,7 +476,6 @@ function render(res) {
   document.getElementById('dj-svg').innerHTML = schematic(res)
   spread()
   document.getElementById('dj-note').textContent = 'Prediction. Spin is a typical-ball estimate; wall from the park model (right-center height assumed); wind is what-if only.'
-  NN.setStat(state.ev, state.la, res.landFt)
   window.__cpRender?.(res)
 }
 function applyLookK(n) {

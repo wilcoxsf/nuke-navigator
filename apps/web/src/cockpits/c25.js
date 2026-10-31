@@ -34,6 +34,7 @@ import { TYPES, TYPE_FONTS, typeVars } from './type25.js'
 import { hist25 } from './hist25.js'
 import { sliceSVG, sliceCaption, ballSVG } from './slice25.js'
 import { MENU_CSS, selectMenu } from './menu25.js'
+import { PIXCTL, PIXCTL_CSS, initPixCtl } from './pixctl25.js'
 import { sound } from './sfx25.js'
 import { initFx25 } from './fx25.js'
 import { initPark25 } from './park25.js'
@@ -176,6 +177,13 @@ export const AXES = {
     { c: 3, name: 'SHORE LINES', desc: 'faint lines roll in toward the seawall like small waves' },
     { c: 4, name: 'WAKES', desc: 'still water; now and then a faint V-wake crosses the Cove' },
     { c: 5, name: 'RIPPLE RINGS', desc: 'the first version water: soft two-tone patches with rings inside them that grow and shrink as the swell moves (30 Oct, his ask)' },
+    { c: 6, name: 'FAINT RINGS', desc: 'the ripple rings as thin dim lines only, no lighter patches (31 Oct)' },
+    { c: 7, name: 'PEAKS ONLY', desc: 'only the small rings at the tops of the swell, opening and closing; mostly black water' },
+    { c: 8, name: 'BROKEN RINGS', desc: 'faint ripple rings in drifting pieces' },
+    { c: 9, name: 'WIDE AND SLOW', desc: 'one faint ring per swell, twice the size, half the speed' },
+    { c: 10, name: 'WIDE AND SLOW, DIM', desc: 'the same rings at about two thirds the brightness (31 Oct: less contrast)' },
+    { c: 11, name: 'WIDE AND SLOW, DIMMER', desc: 'the same rings at under half the brightness' },
+    { c: 12, name: 'WIDE AND SLOW, BARELY', desc: 'the same rings at a quarter of the brightness: you see them only if you look' },
     { c: 0, name: 'STILL', desc: 'no motion on the water' },
   ] },
   V: { name: 'STANDS', opts: [
@@ -183,6 +191,13 @@ export const AXES = {
     { c: 2, name: 'NO UPPER DECKS', desc: 'everything over 13 m up in the stands taken away (the board, the sign and center field stay)' },
     { c: 3, name: 'NO FOUL GROUND', desc: 'everything outside the foul lines taken away, the stands behind the plate too; the field stays' },
     { c: 4, name: 'FAIR AND LOW', desc: 'both: just the field and the lower stands from line to line' },
+    // 31 Oct (Andrew: "a few mediums between no upper decks and no foul ground - maybe cut off at varying levels of low / close?"): the stands cut lower, or the
+    // foul-ground stands kept only near the lines (the outfield wall and the arcade always stay)
+    { c: 5, name: 'LOWER BOWL', desc: 'the stands cut 9 m up: the decks and the clubs go, the lower bowl stays all the way round' },
+    { c: 6, name: 'FIELD LEVEL', desc: 'the stands cut 5 m up: a few rows round the field, the wall and the arcade' },
+    { c: 7, name: 'FOUL: CLOSE', desc: 'past the foul lines only the stands within 14 m of the line stay, all the way up' },
+    { c: 8, name: 'FOUL: FRONT ROWS', desc: 'past the foul lines only the first 6 m of seats stay' },
+    { c: 9, name: 'LOW AND CLOSE', desc: 'the stands cut 7 m up, and past the foul lines only the first 10 m of seats' },
   ] },
   Z: { name: 'CAMERA', opts: [{ c: 1, name: 'STILL', desc: 'the camera stays put (Z key)' }, { c: 2, name: 'PUSH', desc: 'a slow push toward where the ball lands, then back; no shake (Z key; on by default since 28 Oct)' }] },
   H: { name: 'PITCH ARC', opts: [{ c: 1, name: 'ON', desc: 'PLAY IT draws the pitch on the park on its real path and break, in the pitch color, then the hit flies' }, { c: 0, name: 'OFF', desc: 'PLAY IT goes straight to the hit' }] },
@@ -228,10 +243,17 @@ export const AXES = {
     { c: 2, name: 'CARTOON', desc: 'a big head, googly eyes, a cross brow and an orange bill: the fry thieves' },
     { c: 3, name: 'SHADES', desc: 'the western gull in black sunglasses' },
   ] },
-  // the dojo controls' labels (29 Oct, later): no numbers, an icon each
-  J: { name: 'DOJO LABELS', opts: [
-    { c: 1, name: 'ICONS', desc: 'a pixel icon for each control: a ball with whoosh lines, a launch ramp, the field with an arrow, a thermometer, a windsock' },
-    { c: 2, name: 'ICONS + WORDS', desc: 'the same icons with the word beside them (SPEED, ANGLE, AIM, AIR, WIND)' },
+  // the dojo controls' labels (29 Oct, later): no numbers, an icon each; 31 Oct (Andrew: "pixel controls for the wind, temp, on the LHS - let's make it a sock and
+  // thermometer ... a semi-diagetic pixel control of an angle / arc ... a ton of options for all of the LHS dojo controls"): open again, with the pixel instruments
+  // (pixctl25.js) in five looks and a big-arcs layout in two; J2 (the sliders) first, as it was
+  J: { name: 'DOJO CONTROLS', opts: [
+    { c: 2, name: 'SLIDERS', desc: 'the icons with the word beside them (SPEED, ANGLE, AIM, AIR, WIND), the number and a slider (as it was)' },
+    { c: 1, name: 'SLIDERS, ICONS ONLY', desc: 'a pixel icon for each control, no words: a ball with whoosh lines, a launch ramp, the field with an arrow, a thermometer, a windsock' },
+    { c: 3, name: 'PIXEL INSTRUMENTS', desc: 'a little drawing for each you drag: a speed dial, a launch ray on a quarter arc, the field from above with the aim line, a thermometer, a windsock from above (drag its end: out, in and across)' },
+    { c: 5, name: 'GAME BOY', desc: 'the same drawings in four greens on a green screen' },
+    { c: 6, name: 'CHALKBOARD', desc: 'the same drawings in dusty chalk on a dugout chalkboard, the values in yellow chalk' },
+    { c: 7, name: 'BLUEPRINT', desc: 'the same drawings as white lines on blueprint blue' },
+    { c: 8, name: 'BIG ARCS', desc: 'the angle and the aim side by side and big, the thermometer (standing up) and the windsock side by side under them, the speed dial under those' },
   ] },
   // the Shot Caller frontier's look (29 Oct, later)
   N: { name: 'FRONTIER', opts: [
@@ -253,7 +275,7 @@ const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'V', 'Z', 
 // 29 Oct, later: X2 (the arc dots in the pitch color) and E1 (the stitches in the pitch color) as well
 // 29 Oct, evening: Y3 ICE, N1, J2, W1, Q2 (with a voxel clock), C1 GLASS
 // 29 Oct, later still: G2 RELIEF and O2 BOX SCORE / FRONT OFFICE / NO LIFE
-const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, J: 2, W: 1, Q: 2, C: 1, G: 2, O: 2 }
+const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 1, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 const HDR_AX = OPEN // what is still open sits in the header
 // 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
@@ -284,8 +306,8 @@ const LAYOUT_CSS = `
   // the dojo has no batter card (30 Oct, later, Andrew: "in dinger dojo you don't need the top right at all anymore. You can kill the your swing / the slugger"): its
   // cell goes to the panel under it (or over it)
   const noBat = L.areas.map((row, r) => row.split(' ').map((a, c) => (a === 'batter' ? L.areas[r + 1]?.split(' ')[c] ?? L.areas[r - 1]?.split(' ')[c] ?? a : a)).join(' '))
-  return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}}`
-}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi:not(.ns) .pnl.batter{display:none}}' // (desktop only: the phone keeps its card tabs)
+  return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}#cp .c25.L${n}.wi.ns{grid-template-areas:${q(noBat)}}}`
+}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi .pnl.batter{display:none}}' // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
 const FRAME_CSS = `
 #cp .c25 .pnl{overflow:visible}
 #cp .c25.P1 .pnl>.t{top:-6px}
@@ -402,9 +424,10 @@ export async function build(root, api, U) {
 #cp .c25 .rd .big i{font-style:normal;font-size:26px;color:var(--dim)}
 #cp .c25 .rd .lbl{display:block;color:var(--dim);font-size:16px;margin-top:2px}
 #cp .c25 .rd .sub{display:block;color:var(--dim);font-size:18px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cp .c25 .lpr[data-n]{cursor:pointer}
+#cp .c25 .lpr[data-n]:hover b,#cp .c25 .lpr[data-n]:focus b{color:var(--acc)}
+#cp .c25 .lpr[data-n]:hover .nm,#cp .c25 .lpr[data-n]:focus .nm{text-decoration:underline}
 #cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
-#cp .c25 .rd .dare{display:block;color:var(--acc);font-size:13px;margin-top:4px;pointer-events:auto;cursor:pointer;width:fit-content;background:color-mix(in srgb,var(--k) 86%,transparent)}
-#cp .c25 .rd .dare:empty{display:none}
 #cp .c25 .rd .fun{color:var(--tx);font-size:16px;margin-top:4px;max-width:620px;line-height:1.2}
 #cp .c25 .rd .fun span{display:block}
 @media (max-width:900px){#cp .c25 .rd .fun{font-size:12px}}
@@ -718,7 +741,7 @@ export async function build(root, api, U) {
 `
   // every px font size in this study scales with the type set (T); labels in the label face keep their own size
   const scaled = (s) => s.replace(/font-size:(\d+(?:\.\d+)?)px/g, 'font-size:calc($1px * var(--ts))')
-  css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PHONE_CSS)
+  css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PIXCTL_CSS + PHONE_CSS)
   root.classList.add('skel')
   window.__cpBead = 3.4
   window.__cpHold = 110 // the hit-stop: the ball waits at the plate for 110 ms before it leaves
@@ -726,6 +749,7 @@ export async function build(root, api, U) {
   const ctl = makeControls(api, U, { hand: false }), ses = makeSession(api), NS = ctl.SLOTS.length
   const q = new URLSearchParams(location.search)
   const mix = q.get('mix') != null ? parseMix(q.get('mix')) : { ...parseMix(store('nn-mix25') ?? ''), ...LOCKED } // a stored mix keeps its open choices; the locks win over it
+  let pix = null, pixStyle = null // the pixel instruments on the left (J3 to J9), made once the strip is
   let life = null, fx = null, menu = null, pitchIn = 0, lastJingle = null, lastR = mix.R || 1, lastMoment = null, water = null, pitchCam = null, flight = null, push = null, look = null, playT = [], playing = false, songT = null, autoSong = false, uiReady = false, slotLabels = null, coke = null, cutN = 0, ghost = null, ctl3d = null, windFx = null, windKey = '', tonightWind = () => {}
   const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches // no camera push, no attract flights, the pitch drawn at once
   const cs0 = () => getComputedStyle(root)
@@ -874,8 +898,9 @@ export async function build(root, api, U) {
   let standsNow = 1
   function setStands(v) {
     standsNow = v
-    const h0 = api.toWorld([0, 0, 0]), upper = v === 2 || v === 4, foul = v === 3 || v === 4
-    const test = v === 1 ? null : (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz), b = Math.abs(Math.atan2(dx, -dz)); return (upper && y > 13 && d > 35 && !(b < 0.45 && d > 105)) || (foul && b > 0.8 && y > 0.8 && d > 18) }
+    // h: the height the stands are cut at (fair ground never under 8.5 m, so the arcade and the wall stay); fl: past the foul lines, how far from the line the stands stay
+    const h0 = api.toWorld([0, 0, 0]), cut = { 1: [Infinity, Infinity], 2: [13, Infinity], 3: [Infinity, 0], 4: [13, 0], 5: [9, Infinity], 6: [5, Infinity], 7: [Infinity, 14], 8: [Infinity, 6], 9: [7, 10] }[v] ?? [Infinity, Infinity], [h, fl] = cut
+    const test = v === 1 ? null : (x, y, z) => { const dx = x - h0.x, dz = z - h0.z, d = Math.hypot(dx, dz), b = Math.abs(Math.atan2(dx, -dz)); return (y > (b < Math.PI / 4 ? Math.max(h, 8.5) : h) && d > 35 && !(b < 0.45 && d > 105)) || (b > 0.8 && y > 0.8 && d > 18 && d * Math.sin(b - Math.PI / 4) > fl) }
     window.__nn.maskStadium(test)
     if (showWire.built) showWire()
   }
@@ -892,7 +917,7 @@ export async function build(root, api, U) {
     grid.style.setProperty('--mk', optOf('X', mix.X).col ?? 'var(--pc)'); grid.style.setProperty('--sc', optOf('E', mix.E).col ?? 'var(--pc)')
     if (changed) paintSeams()
     if (['X', 'Y'].includes(changed) && !api.anim?.()) api.update() // the arc's dots take the new color
-    paintTitles(); slotLabels?.()
+    paintTitles(); slotLabels?.(); pixStyle?.()
     menu?.setLogo(mix.M)
     for (const [k, v] of Object.entries(typeVars(optOf('T', mix.T).T))) grid.style.setProperty('--' + k, v)
     if (!changed) { applyTheme(root, api, themeKey(), { park: true }); showWire() }
@@ -1009,6 +1034,12 @@ export async function build(root, api, U) {
     { const r0 = api.fly({ ...api.state }, {}), src = r0.visPath ?? r0.path; flight?.setGhost(src.filter((_, k) => k % 4 === 0).map((q) => api.toWorld(q.p))) }
     api.update(); from.ft = Math.round(api.fly({ ...api.state }, {}).landFt); paintChooser()
   }
+  // any real ball into TWEAK THE TATER (from a LANDING PARTY row): the replay goes to it first, so BACK TO THE REPLAY lands on it
+  function tweakBall(b) {
+    if (mode !== 'replay') setMode('replay')
+    filter = 'all'; balls = filtered(); const i = balls.indexOf(b); if (i < 0) return
+    idx = i; applyBall(b); paintChooser(); lpKey = ''; tweak()
+  }
   function backToReplay() { const s = stepped; filter = s.filter; idx = s.idx; setMode('replay'); sound.play('back') }
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser(); sound.play('move') }
   function paintChooser() {
@@ -1038,7 +1069,7 @@ export async function build(root, api, U) {
   const UNIT = { ev: ' MPH', la: '°', temp: '°', wind: ' MPH' }
   function slotText(k) {
     const v = api.state[k], r = mode !== 'replay' && stepped?.real ? stepped.real[k] : null, d = r == null ? 0 : Math.round(v - r)
-    const main = k === 'dir' ? FIELD(v) : k === 'wind' ? (v === 0 ? 'CALM' : `${Math.abs(v)} ${v > 0 ? 'OUT' : 'IN'}`) : `${v}${UNIT[k] ?? ''}`
+    const xw = api.state.xwind ?? 0, main = k === 'dir' ? FIELD(v) : k === 'wind' ? (v === 0 && !xw ? 'CALM' : `${v ? `${Math.abs(v)} ${v > 0 ? 'OUT' : 'IN'}` : ''}${v && xw ? ' ' : ''}${xw ? `${Math.abs(xw)}${xw > 0 ? 'R' : 'L'}` : ''}`) : `${v}${UNIT[k] ?? ''}`
     return main + (d ? ` <i class="dv">${d > 0 ? '+' : ''}${d}</i>` : '')
   }
   function tweakLine() {
@@ -1060,13 +1091,21 @@ export async function build(root, api, U) {
   const fire = () => { if (mode === 'replay') { play(); return } pressEl(slots[NS]); ses.fire() }
   // (29 Oct red team: the arrows and +/- silently edited the real ball in DEJA-VU and Shot Caller, and Space swung behind an open modal)
   ctl.bind(fire, 'h', (kind) => !modal && (kind === 'fire' ? mode !== 'shot' : mode === 'whatif'))
-  const paintSlots = () => slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { const bb = el.querySelector('b'); if (!bb.querySelector('input')) bb.innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } })
+  const paintSlots = () => { pix?.paint(); slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { const bb = el.querySelector('b'); if (!bb.querySelector('input')) bb.innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } }) }
   // sliders (28 Oct, Andrew: TWEAK THE TATER should have sliders): drag a slot's slider to set it; its keys stay with the slider, not the strip's arrow keys
   slots.forEach((el, i) => { const sl = el.querySelector('.sld'); if (!sl) return; sl.addEventListener('input', () => { ctl.arm(i); ctl.setFrac(i, Number(sl.value) / 1000); ctl.onChange() }); sl.addEventListener('keydown', (e) => { if (e.key !== 'Escape' && e.key !== 'Enter') e.stopPropagation() }); sl.addEventListener('wheel', (e) => e.stopPropagation()); sl.addEventListener('change', () => sl.blur()) }) // (red team: a dragged slider kept the focus and swallowed Enter, Esc and the shortcuts)
   // the labels: an icon each (J1), or the icon and the word (J2); the word stays in the title and for screen readers
   const SLOT_WORD = { ev: 'EXIT VELOCITY', la: 'LAUNCH ANGLE', dir: 'LAUNCH DIRECTION', temp: 'AIR TEMPERATURE', wind: 'WIND' } // his words, 29 Oct, evening
-  const paintSlotLabels = () => slots.forEach((el, i) => { if (i >= NS) return; const k = ctl.SLOTS[i].k, w = SLOT_WORD[k] ?? ctl.SLOTS[i].label, ps = el.querySelector('.ps'), h = (SLOT_ICONS[k] ? iconSVG(SLOT_ICONS[k], 3, w) : '') + (mix.J === 2 || !SLOT_ICONS[k] ? `<em>${w}</em>` : ''); if (ps.dataset.h !== h) { ps.innerHTML = h; ps.dataset.h = h; el.title = w } })
+  const SLOT_SHORT = { ev: 'SPEED', la: 'ANGLE', dir: 'AIM', temp: 'AIR', wind: 'WIND' } // (31 Oct: with the pixel instruments the drawing is the icon; a short word beside it)
+  const paintSlotLabels = () => slots.forEach((el, i) => { if (i >= NS) return; const k = ctl.SLOTS[i].k, w = SLOT_WORD[k] ?? ctl.SLOTS[i].label, ps = el.querySelector('.ps'), h = PIXCTL[mix.J] ? `<em>${SLOT_SHORT[k] ?? w}</em>` : (SLOT_ICONS[k] ? iconSVG(SLOT_ICONS[k], 3, w) : '') + (mix.J !== 1 || !SLOT_ICONS[k] ? `<em>${w}</em>` : ''); if (ps.dataset.h !== h) { ps.innerHTML = h; ps.dataset.h = h; el.title = w } })
   slotLabels = paintSlotLabels; paintSlotLabels()
+  // the pixel instruments (J3 to J9): a drag sets the same numbers as the sliders
+  pix = initPixCtl(slots.slice(0, NS).map((el, i) => ({ el, k: ctl.SLOTS[i].k })), {
+    get: () => api.state, arm: (i) => ctl.arm(i), sound: (k) => sound.play(k),
+    colors: () => { const cs = getComputedStyle(root); return { tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), acc: cs.getPropertyValue('--acc').trim() } },
+    set: (k, v) => { if (k === 'wind') { if (v.wind === api.state.wind && v.xwind === (api.state.xwind ?? 0)) return; Object.assign(api.state, v); api.update() } else U.setP(api, k, v); ctl.onChange() },
+  })
+  pixStyle = () => { const st = PIXCTL[mix.J] ? mix.J : 0, sl = E('#c25sl'); sl.classList.toggle('px', !!st); sl.classList.toggle('big', !!PIXCTL[st]?.big); pix.setStyle(st) }
   // typing a number (29 Oct, later, Andrew: "allow people to type in speed angle direction too"): click the speed, the angle or the aim and type it; Enter or leaving
   // the box sets it, Esc puts it back. The aim takes 20L, L20, 20 L, -20 (left), 15R or 15 (right), C or CF (dead center)
   // plain numbers only (no 1e2 or 0x6E); the aim takes L or R (or LF, RF, LEFT, RIGHT) on either side, never both, never with a minus; out of range is refused
@@ -1137,12 +1176,16 @@ export async function build(root, api, U) {
     if (modal === 'jukebox') { paintJukebox(body); return }
     if (modal === 'news') { // (30 Oct, night) what is new, and the things you would not find by looking
       E('#c25mt').textContent = "/ W H A T ' S   N E W /"
-      const L = [['CLICK THE SCOREBOARD', 'IN THE PARK: IT PLAYS THE NEXT DODGER GAG'], ['GAG REEL', 'IN THE MENU: ALL THE GAGS, EACH WITH A PLAY BUTTON; THE NEW ONES MARKED'],
+      const L = [['DOJO CONTROLS', 'IN OPTIONS (J, IN THE HEADER): PIXEL INSTRUMENTS ON THE LEFT IN FIVE LOOKS, AND BIG ARCS; DRAG THE DRAWINGS'],
+        ['THE WINDSOCK', 'ON FIRST BASE IN THE DOJO, A THERMOMETER BESIDE IT: DRAG THE END OF THE SOCK, OR THE TOP OF THE RED; DOUBLE-CLICK THE SOCK FOR CALM'],
+        ['LANDING PARTY', 'POINT AT A HOME RUN IN THE LIST FOR ITS FLIGHT; CLICK IT TO TWEAK IT'],
+        ['CLICK THE SCOREBOARD', 'IN THE PARK: IT PLAYS THE NEXT DODGER GAG'], ['GAG REEL', 'IN THE MENU: ALL THE GAGS, EACH WITH A PLAY BUTTON; THE NEW ONES MARKED'],
+        ['MENU ART', 'IN THE MENU: LEFT AND RIGHT (OR A CLICK ON THE ART) FOR THE NEXT ONE; A PLAYS THEM ALL'],
         ['THE DOJO', 'EVERY HOME RUN YOU HIT GETS A GAG; SO DOES A DODGER HOME RUN AGAINST THE GIANTS IN THE REPLAY'],
         ['THE SLINGSHOT', 'PULL BACK FOR SPEED, OFF TO THE SIDE TO AIM; WHILE HOLDING IT, THE WHEEL OR UP AND DOWN SET THE ANGLE (SHIFT: FIVE AT A TIME)'],
-        ['THE WINDSOCK', 'ON THE MOUND IN THE DOJO: DRAG THE END OF THE SOCK; DOUBLE-CLICK IT FOR CALM'], ['STANDS', 'IN OPTIONS (V): TAKE AWAY THE UPPER DECKS, FOUL GROUND, OR BOTH'],
-        ['BAY WATER B5', 'IN OPTIONS: THE RIPPLE RINGS FROM THE FIRST VERSION'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
-        ['DODGERS DOWN', 'THE BOARD KEEPS COUNT ON THIS DEVICE'], ['DOJO DARES', 'IN THE DOJO, A DARE UNDER THE DISTANCE: LAND IT FOR THE BANNER AND THE COUNT; CLICK IT FOR ANOTHER'], ['↑↑↓↓←→←→ B A', 'TRY IT']]
+        ['STANDS', 'IN OPTIONS (V): NO UPPER DECKS, LOWER BOWL, FIELD LEVEL, FOUL GROUND CLOSE OR FRONT ROWS, NONE, OR BOTH'],
+        ['BAY WATER', 'IN OPTIONS (B): THE RIPPLE RINGS, AND FOUR FAINTER KINDS OF THEM (B6 TO B9)'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
+        ['↑↑↓↓←→←→ B A', 'TRY IT']]
       body.innerHTML = `<div class="lpl">${L.map(([a, b]) => `<div class="lpr"><b>&middot;</b><span class="nm">${a}</span><span></span><span></span><span class="wh">${b}</span></div>`).join('')}</div>`
       return
     }
@@ -1533,9 +1576,12 @@ export async function build(root, api, U) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb'), bear = res.landB ?? s.dir
     wordTitle(el, '/ L A N D I N G &nbsp; P A R T Y /', 'landing')
     const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(bear * 2), cur ? cur.d + cur.b : 'w'].join()
-    if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur }, getComputedStyle(root).getPropertyValue('--acc').trim()); lookAt(lpList.map((x) => x.at).filter(Boolean), 18) }
-    hb.innerHTML = `<div class="lpl"><div class="lph">THE ${lpList.length} ORACLE HOME RUNS MOST LIKE THIS ONE (OF ${lp.count()} SINCE JULY 2023)</div>` + lpList.map((x) => { const n = pname(x.b.b); return `<div class="lpr"><b>${x.n}</b><span class="nm">${(n ? n[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d}</span><span>${x.b.ft} FT</span><span class="wh">${x.where}</span></div>` }).join('') + '</div>'
+    if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur ?? stepped?.b }, getComputedStyle(root).getPropertyValue('--acc').trim()); lookAt(lpList.map((x) => x.at).filter(Boolean), 18) }
+    // 31 Oct (Andrew: "we should be able to click into any landing party HR and then see it as a tweak the tater"): point at a row for its flight in the park, click
+    // it to carry that home run into TWEAK THE TATER
+    hb.innerHTML = `<div class="lpl"><div class="lph">THE ${lpList.length} ORACLE HOME RUNS MOST LIKE THIS ONE (OF ${lp.count()} SINCE JULY 2023). POINT AT ONE FOR ITS FLIGHT, CLICK TO TWEAK IT</div>` + lpList.map((x) => { const n = pname(x.b.b); return `<div class="lpr" data-n="${x.n}" role="button" tabindex="0" title="tweak this one"><b>${x.n}</b><span class="nm">${(n ? n[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d}</span><span>${x.b.ft} FT</span><span class="wh">${x.where}</span></div>` }).join('') + '</div>'
     const rs = [...hb.querySelectorAll('.lpr')]
+    rs.forEach((r) => { const k = Number(r.dataset.n), x = lpList[k - 1]; r.addEventListener('pointerenter', () => lp.focus(k)); r.addEventListener('focus', () => lp.focus(k)); r.addEventListener('pointerleave', () => lp.focus(null)); r.addEventListener('blur', () => lp.focus(null)); r.addEventListener('click', () => { pressEl(r); tweakBall(x.b) }); r.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); tweakBall(x.b) } }) })
     for (let n = rs.length; n > 1 && hb.scrollHeight > hb.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
   }
   // SEAT SEANCE in the shared panel: where 300 ghosts of this ball come down, by outcome and by zone
@@ -1928,28 +1974,6 @@ export async function build(root, api, U) {
     if (!el) return
     el.innerHTML = fun.list.map((x) => `<span>${x}</span>`).join(''); el.classList.remove('typed'); void el.offsetWidth; el.classList.add('typed')
   }
-  // DOJO DARES (30 Oct, night): in the dojo there is always a dare under the distance; land it and the banner says so, the count goes up (the best is kept on the
-  // device), and a new dare comes; a click on the line deals another
-  const DARES = [
-    { k: 'splash', name: 'SPLASH IT', ok: (ev) => ev.key === 'SPLASH' },
-    { k: 'deep', name: '450 FEET', ok: (ev, hr, ft) => hr && ft >= 450 },
-    { k: 'left', name: 'PULL IT TO LEFT', ok: (ev, hr) => hr && api.state.dir <= -22 },
-    { k: 'center', name: 'DEAD CENTER', ok: (ev, hr) => hr && Math.abs(api.state.dir) <= 6 },
-    { k: 'scraper', name: 'WALL SCRAPER', ok: (ev) => ev.key === 'SCRAPER' },
-    { k: 'moon', name: 'MOONSHOT (36° UP)', ok: (ev, hr) => hr && api.state.la >= 36 },
-    { k: 'liner', name: 'LINE DRIVE (UNDER 22°)', ok: (ev, hr) => hr && api.state.la <= 22 },
-    { k: 'coke', name: 'OFF THE COKE BOTTLE', ok: (ev) => !!coke && !!ev.at && ev.at.distanceTo(coke.focus()) < 20 },
-    { k: 'pole', name: 'PING THE POLE', ok: (ev) => ev.key === 'POLE' },
-  ]
-  let dare = null, dares = 0, dareBest = (() => { try { return Number(localStorage.getItem('nn-dare-best')) || 0 } catch { return 0 } })()
-  const newDare = () => { const l = DARES.filter((d) => d.k !== dare?.k); dare = l[Math.floor(Math.random() * l.length)]; if (last) paintHead(last) }
-  function checkDare(ev, hr, ft) {
-    if (!dare) newDare()
-    if (!dare.ok(ev, hr, ft)) return
-    dares++; if (dares > dareBest) { dareBest = dares; try { localStorage.setItem('nn-dare-best', String(dareBest)) } catch {} }
-    setTimeout(() => banner('DARE DONE', `${dare.name} · ${dares} IN`), 1400)
-    setTimeout(newDare, 2600)
-  }
   function goneReady() { if (last) paintHead(last); if (modal === 'parks') paintModal() } // the 30-park band is in: repaint its line, never the whole engine (that cancelled a swing in the air)
   // the headline: distance big, the twenty-step odds meter under it (V3, his pick); the distance can roll up during a swing
   function paintHead(res) {
@@ -1958,9 +1982,6 @@ export async function build(root, api, U) {
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
     set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api), goneReady)} PARKS` : '')
-    if (!rd.querySelector('.dare')) { rd.insertAdjacentHTML('beforeend', '<span class="dare" role="button" tabindex="0" title="another dare"></span>'); rd.querySelector('.dare').addEventListener('click', () => { sound.play('move'); newDare() }) }
-    if (mode === 'whatif' && !dare) dare = DARES[Math.floor(Math.random() * DARES.length)]
-    set('.dare', mode === 'whatif' && dare ? `DARE: ${dare.name}${dares ? ` &nbsp; ${dares} DONE` : ''}${dareBest ? ` &nbsp; BEST ${dareBest}` : ''}` : '')
     set('.op', pct(o.p))
     { const k = [d, Math.round(api.state.ev), Math.round(api.state.la), lib ? 1 : 0].join(); if (k !== fun.key) { fun = { key: k, list: funList(res) }; showFun() } }
     set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
@@ -2034,7 +2055,7 @@ export async function build(root, api, U) {
   windFx = atOracle ? initWind25(api, { still: reduced, onChange: (w) => { if (life) life.wind = w && { ...w, cfDeg: window.__cp.ORACLE_AZ ?? 85 } } }) : null
   tonightWind = () => { if (windFx) Promise.resolve(getBay()).then((j) => { const H = j?.hourly; if (!H || mode === 'whatif') return; const now = new Date().toLocaleString('sv-SE', { timeZone: 'America/Los_Angeles' }).slice(0, 13).replace(' ', 'T'); const i = Math.max(0, H.time.findIndex((t) => t.startsWith(now))); windFx.set({ mph: H.wind_speed_10m[i], fromDeg: H.wind_direction_10m[i] }) }) }
   tonightWind()
-  const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, }) : null // the blimp, the ferry, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count
+  const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, gull: life ? () => life.makeGull() : null }) : null // the blimp, the ferry, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count
   if (happen?.splashSign?.()) keepReadable(api, happen.splashSign(), 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the tags keep off the Splash Hits sign too
   window.__cpTrack = (pts, res, color, prev) => flight.track(pts, res, color, prev); window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
@@ -2197,7 +2218,6 @@ export async function build(root, api, U) {
     if (hr && mix.F !== 3) life?.scatter()
     lastMoment = mix.F === 1 && show !== 'se' ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
     if (life) boardFor(ev, hr, ft)
-    if (mode === 'whatif') checkDare(ev, hr, ft)
     camPush(ev.at)
     if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
     if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
@@ -2243,7 +2263,7 @@ export async function build(root, api, U) {
   window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
-    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, mySeat: () => mySeat, selMenu: () => menu, dare: () => (dare ? { k: dare.k, done: dares, best: dareBest } : null), newDare, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
+    ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => readable() }
   return {
     render,
     beat: (b) => { ses.onBeat(b); paintVerdict(!!b.last); paintTally(); if (b.last && last) { const el = E('#c25d'); if (el) rollTo(el, Math.round(last.landFt), { steps: 8 }) } if (last) render(last) },

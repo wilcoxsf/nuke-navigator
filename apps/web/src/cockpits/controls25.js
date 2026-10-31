@@ -10,6 +10,9 @@
 // does it all. Pull the ball back for speed and off to one side to aim; grab the top of the fork and lean it back for a higher launch, forward for a lower one.
 // The spray fan and the protractor are gone. Later still (his pick, option 1: "you can't really operate on all 3 dimensions at once well"): while the ball is
 // held back, the scroll wheel or the up and down arrows set the launch angle (the fork leans with it), and the flight on the field updates as it changes.
+// 31 Oct (Andrew: "move the diagetic wind sock to on first base and make it a hair taller ... put a diagetic thermo to the direct left of the weather sock"): the
+// sock stands on first base, a seventh taller, and a thermometer stands just to its left as you look out from home: a glass tube on a bulb, the red up to the
+// air temperature; drag the top of the red up or down.
 // The typed boxes and the slider stay; these set the same numbers through o.set. A grab takes the pointer from the camera until it lets go. Sizes grow with the
 // camera's distance so the handles stay grabbable from the broadcast seat.
 import { voxText } from './vox25.js'
@@ -23,7 +26,7 @@ export function initControls25(api, o = {}) {
   const H0 = toWorld([0, 0, 0]), F = (x, y, z) => toWorld([x, y, z])
   const pool = (n, color, parent = g) => { const m = new THREE.InstancedMesh(cube, mat(color), n); m.count = 0; m.frustumCulled = false; parent.add(m); return m }
   const fill = (m, pts) => { m.count = Math.min(pts.length, m.instanceMatrix.count); for (let i = 0; i < m.count; i++) { const p = pts[i]; d.position.set(p[0], p[1], p[2]); d.scale.setScalar(p[3]); d.updateMatrix(); m.setMatrixAt(i, d.matrix) } m.instanceMatrix.needsUpdate = true }
-  let k = 1, st = { ev: 103, la: 28, dir: 0, wind: 0, xwind: 0 }, drag = null, pull = null
+  let k = 1, st = { ev: 103, la: 28, dir: 0, wind: 0, xwind: 0, temp: 70 }, drag = null, pull = null
   const along = (b, r, z = 0.25) => F(Math.sin(b * RAD) * r, Math.cos(b * RAD) * r, z)
   // ---- the slingshot: a fork of two posts behind the plate, two bands to the ball; its own group, scaled with the camera like the protractor ----
   const sg = new THREE.Group(); sg.position.copy(F(0, -5, 0)); g.add(sg)
@@ -46,19 +49,36 @@ export function initControls25(api, o = {}) {
     fill(band, bl)
     fill(ballH, [[b.x, b.y, b.z, 0.8]])
   }
-  // ---- the windsock on the mound: a pole, and the sock off its top, along the wind, its length the wind's strength ----
-  const C2 = F(0, 59 * FT, 0), RW = 10, pole = pool(40, C.tx), sock = pool(120, '#f0802a'), sockW = pool(60, '#f4f2ea'), windEnd = pool(1, '#f0802a')
-  const poleTop = () => C2.clone().setY(C2.y + 6 * k)
+  // ---- the windsock on first base: a pole, and the sock off its top, along the wind, its length the wind's strength ----
+  const B1 = 90 * FT * Math.SQRT1_2, C2 = F(B1, B1, 0), PH = 7, RW = 10, pole = pool(40, C.tx), sock = pool(120, '#f0802a'), sockW = pool(60, '#f4f2ea'), windEnd = pool(1, '#f0802a')
+  const poleTop = () => C2.clone().setY(C2.y + PH * k)
   const windTip = () => { const m = Math.hypot(st.wind, st.xwind), top = poleTop(), r = (0.25 + (Math.min(25, m) / 25) * 0.75) * RW * k; if (!m) return top.clone().add(new THREE.Vector3(0.6 * k, -r * 0.8, 0)); return new THREE.Vector3(top.x + (st.xwind / m) * r, top.y - (1 - Math.min(25, m) / 25) * r * 0.6, top.z - (st.wind / m) * r) }
   function paintSock() {
     const pts = []
-    for (let y = 0; y <= 6; y += 0.5) pts.push([C2.x, C2.y + y * k, C2.z, 0.35 * k])
+    for (let y = 0; y <= PH; y += 0.5) pts.push([C2.x, C2.y + y * k, C2.z, 0.35 * k])
     fill(pole, pts)
     const top = poleTop(), tip = windTip(), o1 = [], o2 = []
     const m = Math.hypot(st.wind, st.xwind), ft = performance.now() / 1000 * (2 + m * 0.3)
     for (let f = 0; f <= 1; f += 0.05) { const wob = Math.sin(ft * 3 - f * 6) * f * f * 0.5 * k, x = top.x + (tip.x - top.x) * f + wob, y = top.y + (tip.y - top.y) * f + wob * 0.6, z = top.z + (tip.z - top.z) * f - wob, w = (1.3 - f * 0.7) * k; (Math.floor(f * 5) % 2 ? o2 : o1).push([x, y, z, w]) } // orange and white bands, narrowing
     fill(sock, o1); fill(sockW, o2)
     fill(windEnd, [[tip.x, tip.y, tip.z, 1.1 * k]])
+  }
+  // ---- the thermometer, just left of the sock as seen from home: a white glass tube on a bulb, red up to the temperature (40 to 100 F) ----
+  const glass = pool(80, C.tx), merc = pool(60, '#e0403a'), tick = pool(12, C.dim), tempEnd = pool(1, '#e0403a')
+  const thBase = () => F(B1 - 3.4 * k, B1, 0), T0 = 1.6, T1 = 6.2 // the tube's bottom and top, in k above the ground
+  const thSide = () => new THREE.Vector3(camera.position.z - C2.z, 0, -(camera.position.x - C2.x)).normalize() // across the line of sight
+  const tempTip = () => { const b = thBase(); return b.setY(b.y + (T0 + ((st.temp - 40) / 60) * (T1 - T0)) * k) }
+  function paintTherm() {
+    const b = thBase(), sd = thSide(), gl = [], me = [], tk = [], at = (y, a) => [b.x + sd.x * a * k, b.y + y * k, b.z + sd.z * a * k]
+    for (let y = T0; y <= T1 + 0.01; y += 0.4) for (const a of [-0.5, 0.5]) gl.push([...at(y, a), 0.3 * k])
+    gl.push([...at(T1 + 0.3, 0), 0.3 * k])
+    for (const [y, a] of [[0.3, 0], [0.7, -0.45], [0.7, 0.45], [1.1, -0.5], [1.1, 0.5]]) gl.push([...at(y, a), 0.34 * k])
+    const top = T0 + ((st.temp - 40) / 60) * (T1 - T0)
+    for (const [y, a] of [[0.7, 0], [1.1, 0], [0.8, -0.2], [0.8, 0.2]]) me.push([...at(y, a), 0.5 * k])
+    for (let y = 1.3; y <= top; y += 0.25) me.push([...at(y, 0), 0.34 * k])
+    for (let n = 0; n <= 6; n++) tk.push([...at(T0 + (n / 6) * (T1 - T0), -0.95), (n % 3 ? 0.14 : 0.24) * k]) // a tick every 10 degrees, longer at 40, 70, 100
+    fill(glass, gl); fill(merc, me); fill(tick, tk)
+    const tp = tempTip(); fill(tempEnd, [[tp.x, tp.y, tp.z, 0.75 * k]])
   }
   // the value while a handle is held, over the handle
   const tagG = new THREE.Group(); g.add(tagG)
@@ -69,12 +89,12 @@ export function initControls25(api, o = {}) {
     tagG.position.copy(at).add(new THREE.Vector3(0, 3.2 * k, 0)); tagG.scale.setScalar(k)
     tagG.rotation.y = Math.atan2(camera.position.x - tagG.position.x, camera.position.z - tagG.position.z)
   }
-  const paint = () => { paintSling(); paintSock() }
+  const paint = () => { paintSling(); paintSock(); paintTherm() }
   paint()
   api.NN.frames.push(() => {
     if (!g.visible) return
     const nk = Math.min(3, Math.max(0.7, camera.position.distanceTo(H0) / 110))
-    if (Math.abs(nk - k) > k * 0.04) { k = nk; paint() } else if (!drag) paintSock() // the sock flutters
+    if (Math.abs(nk - k) > k * 0.04) { k = nk; paint() } else if (!drag) { paintSock(); paintTherm() } // the sock flutters; the tube turns to the camera
     sg.scale.setScalar(k * 1.6)
     if (drag) showTag(tagFor(drag.k), handleAt(drag.k))
   })
@@ -84,11 +104,11 @@ export function initControls25(api, o = {}) {
   const aim = (e) => { const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera) }
   const onPlane = (n, p) => ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(n, p), new THREE.Vector3())
   const screen = (p) => { v.copy(p).project(camera); const r = canvas.getBoundingClientRect(); return [((v.x + 1) / 2) * r.width + r.left, ((1 - v.y) / 2) * r.height + r.top, v.z] }
-  const handleAt = (kk) => (kk === 'la' ? forkTop() : kk === 'ev' ? ballAt() : windTip())
+  const handleAt = (kk) => (kk === 'la' ? forkTop() : kk === 'ev' ? ballAt() : kk === 'temp' ? tempTip() : windTip())
   function grabAt(e) {
     if (!g.visible || (o.enabled && !o.enabled())) return null
     let best = null, bd = 30
-    for (const kk of ['ev', 'la', 'wind']) { const [x, y, z] = screen(handleAt(kk)); if (z > 1) continue; const dd = Math.hypot(x - e.clientX, y - e.clientY); if (dd < bd) { bd = dd; best = kk } }
+    for (const kk of ['ev', 'la', 'wind', 'temp']) { const [x, y, z] = screen(handleAt(kk)); if (z > 1) continue; const dd = Math.hypot(x - e.clientX, y - e.clientY); if (dd < bd) { bd = dd; best = kk } }
     return best
   }
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x))
@@ -96,6 +116,7 @@ export function initControls25(api, o = {}) {
   function tagFor(kk) {
     if (kk === 'dir') return words.dir ? words.dir(st.dir) : `${st.dir}°`
     if (kk === 'la') return `${st.la}°`
+    if (kk === 'temp') return `${st.temp}°F`
     if (kk === 'ev') return `${st.ev} MPH ${st.la}° ${st.dir > 0 ? 'R' : st.dir < 0 ? 'L' : ''}${st.dir ? Math.abs(st.dir) : ''}`.trim()
     const m = Math.round(Math.hypot(st.wind, st.xwind))
     return m ? `${m} MPH ${st.wind >= 0 ? 'OUT' : 'IN'}${Math.abs(st.xwind) >= 1 ? (st.xwind > 0 ? ' TO RIGHT' : ' TO LEFT') : ''}` : 'CALM'
@@ -115,6 +136,9 @@ export function initControls25(api, o = {}) {
       ch.ev = Math.round(60 + (back / 6) * 65)
       if (back > 0.5) ch.dir = clamp(Math.round(Math.atan2(-fx, back) / RAD), -50, 50)
       paintSling()
+    } else if (drag.k === 'temp') { // up the tube is warmer
+      const b = thBase(), n = camera.position.clone().sub(b).setY(0).normalize(), p = onPlane(n, b); if (!p) return
+      ch.temp = clamp(Math.round(40 + ((p.y - b.y - T0 * k) / ((T1 - T0) * k)) * 60), 40, 100)
     } else {
       const top = poleTop(), p = onPlane(up, top); if (!p) return
       const fx = p.x - top.x, fy = -(p.z - top.z), len = Math.hypot(fx, fy), mph = clamp(Math.round((Math.max(0, len / (RW * k) - 0.25) / 0.75) * 25), 0, 25)
@@ -160,9 +184,9 @@ export function initControls25(api, o = {}) {
     set visible(v) { g.visible = v; if (!v && drag) { drag = null; pull = null; if (api.NN.controls) api.NN.controls.enabled = true; showTag('', null) } },
     get visible() { return g.visible },
     // the numbers from the state (after a typed number, a slider, a new ball)
-    sync(s) { const n = { ev: Math.round(s.ev), la: Math.round(s.la), dir: Math.round(s.dir), wind: s.wind ?? 0, xwind: s.xwind ?? 0 }; if (Object.keys(n).every((kk) => n[kk] === st[kk])) return; st = n; paint() },
+    sync(s) { const n = { ev: Math.round(s.ev), la: Math.round(s.la), dir: Math.round(s.dir), wind: s.wind ?? 0, xwind: s.xwind ?? 0, temp: Math.round(s.temp ?? 70) }; if (Object.keys(n).every((kk) => n[kk] === st[kk])) return; st = n; paint() },
     // for the tests: where each handle is on screen, and a drag from one to a point
-    handles: () => Object.fromEntries(['ev', 'la', 'wind'].map((kk) => [kk, screen(handleAt(kk)).slice(0, 2)])),
+    handles: () => Object.fromEntries(['ev', 'la', 'wind', 'temp'].map((kk) => [kk, screen(handleAt(kk)).slice(0, 2)])),
     dragging: () => drag?.k ?? null,
   }
 }

@@ -563,8 +563,8 @@ for (const [w, h] of on('D') ? [[390, 844], [360, 740]] : []) {
 if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
-  check('only STANDS (V, the one open choice) sits in the header; the locked ones are gone from it, TYPE too', hdr === 'V' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 J2 W1 Q2 C1 O2 G2, and V (STANDS) open at V1 (30 Oct, later)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 V1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('only the open choices sit in the header, STANDS (V) and DOJO CONTROLS (J, open again 31 Oct); the locked ones are gone from it, TYPE too', hdr === 'VJ' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B1 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 W1 Q2 C1 O2 G2, V (STANDS) open at V1 (30 Oct, later) and J (DOJO CONTROLS) open at J2', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B1 V1 Z2 H1 U2 D1 M1 X2 E1 N1 J2 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
   const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))
@@ -724,9 +724,24 @@ if (!process.env.PHONE_ONLY && on('H')) {
   }
   check('typing is strict: 1e2 and 200 refused, LEFT 20 and 15 RF taken, L20R refused, -5 degrees taken', typed2[0][0] === 111 && typed2[1][0] === 111 && typed2[2][2] === -20 && typed2[3][2] === 15 && typed2[4][2] === 15 && typed2[5][1] === -5, JSON.stringify(typed2))
   await page.evaluate(() => window.__mix25.set('J2')); await page.waitForTimeout(300)
-  check('J2 (locked) puts his words beside each icon', await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-i]:not(.hot) .ps em')].map((x) => x.textContent).join() === 'EXIT VELOCITY,LAUNCH ANGLE,LAUNCH DIRECTION,AIR TEMPERATURE,WIND'))
+  check('J2 (the first choice) puts his words beside each icon', await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-i]:not(.hot) .ps em')].map((x) => x.textContent).join() === 'EXIT VELOCITY,LAUNCH ANGLE,LAUNCH DIRECTION,AIR TEMPERATURE,WIND'))
   await page.evaluate(() => window.__mix25.set('J1'))
   let X = await layout(page); check('the dojo fits with the icons', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
+  // 31 Oct: the pixel instruments (J3 to J9): a drawing in every control, inside its box; dragging them sets the numbers
+  for (const j of [3, 5, 6, 7, 8]) {
+    await page.evaluate((j) => window.__mix25.set('J' + j), j); await page.waitForTimeout(350)
+    const bx = await page.evaluate(() => { const out = []; for (const el of document.querySelectorAll('.c25 .strip .bt[data-k]')) { const c = el.querySelector('.pxc'), a = el.getBoundingClientRect(), b = c?.getBoundingClientRect(); out.push(!!b && b.width > 30 && b.height > 18 && b.left >= a.left - 1 && b.right <= a.right + 1 && b.top >= a.top - 1 && b.bottom <= a.bottom + 1) } return out })
+    const sl = await page.evaluate(() => [...document.querySelectorAll('.c25 .strip .bt[data-k] .sld')].filter((x) => x.offsetParent).length)
+    X = await layout(page)
+    check(`J${j}: a drawing in each of the five controls, inside its box, the sliders hidden, nothing overlapping`, bx.length === 5 && bx.every(Boolean) && sl === 0 && X.overlaps.concat(X.fits, X.titles).length === 0, JSON.stringify(bx) + ' ' + sl + ' ' + X.overlaps.concat(X.fits, X.titles).join('; '))
+    if (j === 3 || j === 8) {
+      const grab = async (k, v) => { const pt = await page.evaluate(([k, v]) => window.__mix25.pix().pointFor(k, v), [k, v]); await page.mouse.move(pt[0], pt[1]); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(250) }
+      await grab('la', 40); await grab('dir', -30); await grab('temp', 85); await grab('wind', { wind: 12, xwind: 8 })
+      const st = await page.evaluate(() => { const s = window.__cp.state; return [s.la, s.dir, s.temp, s.wind, s.xwind] })
+      check(`J${j}: clicking the drawings sets the angle (40), the aim (30 left), the air (85) and the wind out and across`, Math.abs(st[0] - 40) <= 3 && Math.abs(st[1] + 30) <= 3 && Math.abs(st[2] - 85) <= 3 && st[3] > 6 && st[4] > 3, JSON.stringify(st))
+    }
+  }
+  await page.evaluate(() => window.__mix25.set('J1'))
   await page.close()
 }
 // 29 Oct: SHOT CALLER as its own mode: type a seat or click one; the ways to get there, most common first; PLAY IT flies three
