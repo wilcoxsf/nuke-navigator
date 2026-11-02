@@ -545,6 +545,7 @@ export async function build(root, api, U) {
 #cp .c25 .hdr .tab.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .hdr .tab.on kbd{color:var(--k)}
 #cp .c25 .bsel .bt.ball{border-color:var(--acc)}
+#cp .c25.shot:not(.called) #c25rd,#cp .c25.shot:not(.called) #c25v{visibility:hidden}
 @media (max-width:700px){#cp .c25 .bsel select,#cp .c25 .bsel .bt.ball{display:none}#cp .c25 .bsel .r1:not(:has(> :not(.ball))){display:none}}
 #cp .c25 .bsel select{font:inherit;font-size:.92em;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:1px 4px;margin:0 6px;pointer-events:auto;cursor:pointer;max-width:12em}
 #cp .c25 .hdr .rt{display:flex;gap:14px;align-items:center}
@@ -566,7 +567,8 @@ export async function build(root, api, U) {
 #cp .c25 .hdr kbd{font-family:inherit;font-size:.8em;line-height:1;border:1px solid var(--k);padding:1px 3px}
 #cp .c25 .hdr .lt{display:flex;align-items:center;gap:12px;min-width:0;position:relative}
 #cp .c25 .hdr #c25ti{cursor:pointer;pointer-events:auto;overflow:hidden;text-overflow:ellipsis}
-#cp .c25 .hdr .mhint{position:absolute;left:0;top:26px;z-index:5;background:var(--acc);color:var(--k);font-family:PS2P,monospace;font-size:9px;padding:5px 7px;white-space:nowrap;display:none;pointer-events:none;box-shadow:3px 3px 0 var(--tx)}
+#cp .c25 .hdr .lt{position:relative}
+#cp .c25 .hdr .mhint{position:absolute;left:calc(100% + 14px);top:-1px;z-index:5;background:var(--acc);color:var(--k);font-family:PS2P,monospace;font-size:9px;padding:5px 7px;white-space:nowrap;display:none;pointer-events:none;box-shadow:3px 3px 0 var(--tx)}
 #cp .c25 .hdr .mhint.go{display:block;animation:c25mh 4s steps(4) 1 forwards}
 @keyframes c25mh{0%,80%{opacity:1}100%{opacity:0}}
 #cp .c25 .mx.ch{border-color:var(--acc);color:var(--acc)}
@@ -765,6 +767,9 @@ export async function build(root, api, U) {
 #cp .c25 .wd u{text-decoration:none;font-size:.6em;color:var(--dim);margin-left:1px}
 #cp .c25 .wd.ask{outline:2px solid var(--acc);outline-offset:2px}
 #cp .c25 .ww .wtabs{display:flex;gap:8px;margin-bottom:12px}
+#cp .c25 .mod.wwm .box{width:min(1180px,94vw);height:min(820px,90vh)}
+#cp .c25 .ww .wkey{color:var(--dim);font-size:12px;margin:4px 0 8px}
+#cp .c25 .ww #c25wold{margin-top:10px;display:inline-block}
 #cp .c25 .ww .wme{display:flex;gap:14px;align-items:center;margin:8px 0;font-size:13px;color:var(--dim)}
 #cp .c25 .ww .wme i{font-style:normal}
 #cp .c25 .ww input{font:inherit;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:2px 6px;text-transform:uppercase;pointer-events:auto}
@@ -1218,7 +1223,9 @@ export async function build(root, api, U) {
   }
   // a blank swing (29 Oct, Andrew: TWEAK THE TATER only changes a real home run; DINGER DOJO starts from scratch)
   const DOJO0 = { ev: 103, la: 28, dir: 0, temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }
+  let dojoKeep = null
   function setMode(m) {
+    if (mode === 'whatif' && m !== 'whatif' && !stepped) dojoKeep = { ...snap(), hand: api.state.hand } // (1 Nov, night: your own swing waits for you; a tweak of a real ball does not)
     if (m === 'shot' && !atOracle) m = 'replay' // Shot Caller knows Oracle's seats only
     if (uiReady && m !== mode) sound.play('mode-' + m) // a stinger for each mode
     cancelPlay(); flight?.setGhost(null); stepped = null // tweak() sets it again after this
@@ -1227,7 +1234,7 @@ export async function build(root, api, U) {
     if (mode === 'shot' && m !== 'shot') { sc.clear(); scRes = null; unlook() }
     if (m === 'shot' && show !== 'hist') setShow(show) // Shot Caller has the shared panel to itself
     mode = m
-    if (m === 'replay' && R.balls.length) { stepped = null; balls = filtered(); if (!balls.length) { filter = 'giants'; balls = filtered() } idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; Object.assign(api.state, DOJO0, { hand: youHand() }); life?.setClock({ live: true }); api.setPreview(true); api.update() }
+    if (m === 'replay' && R.balls.length) { stepped = null; balls = filtered(); if (!balls.length) { filter = 'giants'; balls = filtered() } idx = Math.min(idx, balls.length - 1); applyBall(balls[idx]) } else { if (m === 'replay') mode = 'whatif'; cur = null; Object.assign(api.state, DOJO0, { hand: youHand() }, mode === 'whatif' && dojoKeep ? dojoKeep : {}); life?.setClock({ live: true }); api.setPreview(true); api.update() }
     syncMode()
     relayout()
     paintChooser()
@@ -1264,11 +1271,12 @@ export async function build(root, api, U) {
   function backToReplay() { const s = stepped; filter = s.filter; idx = s.idx; setMode('replay'); sound.play('back') }
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser(); sound.play('move') }
   // the ball's buttons (1 Nov, night: "landing party and seat seance are buttons on specific balls - both in deja vu and dojo")
-  const ballBtns = () => atOracle ? [['lp', 'LANDING PARTY', 'L'], ['se', 'SEAT SEANCE', 'G'], ['my', 'MY SEAT', '']].map(([k, l, key]) => `<span class="bt ball${show === k ? ' on' : ''}" data-show="${k}" title="${l}${key ? ` (${key})` : ''}">${l}</span>`).join('') : ''
+  const ballBtns = () => atOracle ? [['lp', 'LANDING PARTY', 'L'], ['se', 'SEAT SEANCE', 'G'], ...(mode === 'replay' ? [] : [['my', 'MY SEAT', '']])].map(([k, l, key]) => `<span class="bt ball${show === k ? ' on' : ''}" data-show="${k}" title="${l}${key ? ` (${key})` : ''}">${l}</span>`).join('') : ''
   const wireBall = (el) => el.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => { if (!uiReady) return; pressEl(b); sound.play('move'); setShow(b.dataset.show); paintChooser() }))
   const nightName = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
   function paintChooser() {
     const el = E('#c25ch')
+    grid.classList.toggle('called', !!scRes) // (1 Nov, night; playtest: before a seat is picked, Shot Caller showed the dojo's leftover numbers)
     if (mode === 'shot') { paintShotBar(el); return }
     if (mode !== 'replay') {
       const sb = stepped ? pname(stepped.b.b) : null
@@ -1279,8 +1287,9 @@ export async function build(root, api, U) {
       return
     }
     const bn = pname(cur?.b), pn = pname(cur?.p)
-    const nights = [...new Set(balls.map((b) => b.d))]
-    el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="newer ball" title="newer ([)">&lt;</span><span class="bt" data-st="1" aria-label="older ball" title="older (])">&gt;</span> BALL ${idx + 1} OF ${balls.length} <select id="c25nt" aria-label="go back to a night">${nights.map((d) => `<option value="${d}"${d === cur?.d ? ' selected' : ''}>${nightName(d)}</option>`).join('')}</select>
+    const nights = [...new Set(balls.map((b) => b.d))], perNight = new Map()
+    for (const b of balls) perNight.set(b.d, (perNight.get(b.d) ?? 0) + 1)
+    el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="newer ball" title="newer ([)">&lt;</span><span class="bt" data-st="1" aria-label="older ball" title="older (])">&gt;</span> BALL ${idx + 1} OF ${balls.length} <select id="c25nt" aria-label="go back to a night">${nights.map((d) => `<option value="${d}"${d === cur?.d ? ' selected' : ''}>${nightName(d)} · ${perNight.get(d)} HR</option>`).join('')}</select>
       ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span>${ballBtns()}</div>
       <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ? nightName(cur.d) : ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}${cur?.temp != null ? `  ${Math.round(cur.temp)}°F` : ''}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
@@ -1304,7 +1313,7 @@ export async function build(root, api, U) {
     if (!stepped?.real) return 'SPEED, ANGLE AND AIM ARE THE SWING; AIR AND WIND ARE THE NIGHT. SPACE TO NUKE IT.'
     const sb = pname(stepped.b.b), who = (sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase(), s = api.state, R0 = stepped.real
     const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = s[k] - R0[k], t = Math.abs(d) < 1 ? d.toFixed(1) : String(Math.round(d)); return Math.abs(d) >= 0.05 ? `${d > 0 ? '+' : ''}${t}${u}` : null }).filter(Boolean)
-    if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND NUKE IT.`
+    if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER AND NUKE IT.`
     const fl = window.__dojo ?? api.fly({ ...api.state }, {}), now = Math.round(fl.landFt), dd = now - stepped.ft, gone = fl.verdict?.kind === 'GONE' // (the engine's own last flight, 31 Oct)
     return `${who}, ${stepped.b.d}, WITH ${ch.join(', ')}: <b>${now} FT</b> (${dd >= 0 ? '+' : ''}${dd}), ${gone ? 'STILL GONE' : 'NOT GONE'}${stepped.b.hr && !gone ? '. YOU TOOK AWAY A HOME RUN' : !stepped.b.hr && gone ? '. YOU MADE IT A HOME RUN' : ''}`
   }
@@ -1316,7 +1325,9 @@ export async function build(root, api, U) {
     el.addEventListener('click', (e) => { const d = e.target.closest('i[data-d]'); if (i === NS) { fire(); return } ctl.arm(i); if (d) ctl.change(i, Number(d.dataset.d)) })
     el.addEventListener('wheel', (e) => { if (i === NS) return; e.preventDefault(); ctl.arm(i); ctl.change(i, e.deltaY < 0 ? 1 : -1) }, { passive: false })
   })
-  const fire = () => { const nk = E('#c25nk'); nk?.classList.add('go'); setTimeout(() => nk?.classList.remove('go'), 140); if (mode === 'replay') { play(); return } if (mode === 'shot') { if (scRes?.ways?.length) playShot(); else banner('PICK A SEAT', 'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT'); return } ses.fire() }
+  // the hit-stop follows the contact (1 Nov, night, the feel pass): 80 ms on a soft one, up to 190 ms on a 115 mph rocket, so the big ones land harder
+  const holdFor = (ev) => Math.round(80 + 110 * Math.min(1, Math.max(0, (ev - 95) / 20)))
+  const fire = () => { window.__cpHold = holdFor(api.state.ev); const nk = E('#c25nk'); nk?.classList.add('go'); setTimeout(() => nk?.classList.remove('go'), 140); if (mode === 'replay') { play(); return } if (mode === 'shot') { if (scRes?.ways?.length) playShot(); else banner('PICK A SEAT', 'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT'); return } ses.fire() }
   // (29 Oct red team: the arrows and +/- silently edited the real ball in DEJA-VU and Shot Caller, and Space swung behind an open modal)
   ctl.bind(fire, 'h', (kind) => !modal && (kind === 'fire' ? true : mode === 'whatif'))
   E('#c25nk').addEventListener('click', () => { if (!uiReady) return; fire() })
@@ -1388,8 +1399,8 @@ export async function build(root, api, U) {
   let iniCancel = null
   // (1 Nov, later; an audit) the focus goes into an open window and back where it was when it closes, so Tab and Enter never reach a button behind it
   let modFrom = null
-  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) { sound.play('modal-open'); modFrom = document.activeElement } modal = k; E('#c25m').classList.add('open'); paintModal(); E('#c25cl')?.focus?.({ preventScroll: true }); if (k === 'moon') life?.play('moon', {}, 0, true); if (uiReady) paintTabs() }
-  const closeMod = () => { if (modal) sound.play('modal-close'); modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null; if (modFrom?.isConnected) modFrom.focus?.({ preventScroll: true }); modFrom = null; if (uiReady) paintTabs() }
+  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) { sound.play('modal-open'); modFrom = document.activeElement } modal = k; E('#c25m').classList.add('open'); E('#c25m').classList.toggle('wwm', k === 'witness'); paintModal(); E('#c25cl')?.focus?.({ preventScroll: true }); if (k === 'moon') life?.play('moon', {}, 0, true); if (uiReady) paintTabs() }
+  const closeMod = () => { if (modal) sound.play('modal-close'); modal = null; E('#c25m').classList.remove('open', 'wwm'); iniCancel?.(); iniCancel = null; if (modFrom?.isConnected) modFrom.focus?.({ preventScroll: true }); modFrom = null; if (uiReady) paintTabs() }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
   function paintModal() {
@@ -1446,7 +1457,7 @@ export async function build(root, api, U) {
     if (modal === 'parks') {
       E('#c25mt').textContent = '/ T H I R T Y   P A R K S /'
       const pr = evalParks(parks, api)
-      body.innerHTML = `<div style="font-size:20px;margin-bottom:10px;color:var(--acc)">GONE IN ${U.goneWord(parks, api, pr, goneReady)} PARKS</div><div class="pk">${tileHTML(pr)}</div><div class="baya">CLICK A PARK TO FLY THIS BALL THERE.</div>`
+      body.innerHTML = `<div style="font-size:20px;margin-bottom:10px;color:var(--acc)">${goneLine(U.goneWord(parks, api, pr, goneReady))}</div><div class="pk">${tileHTML(pr)}</div><div class="baya">FEET OVER EACH WALL (+) OR SHORT OF IT (-); IN = IN PLAY. CLICK A PARK TO FLY THIS BALL THERE.</div>`
       body.querySelectorAll('.pk .tile').forEach((t, i) => { t.style.cursor = 'pointer'; t.style.pointerEvents = 'auto'; t.addEventListener('click', () => goPark(pr[i].p.abbr)) })
     } else {
       E('#c25mt').textContent = '/ E V E R Y   S T A T /'
@@ -1472,7 +1483,7 @@ export async function build(root, api, U) {
     const thru = row.thru ? `EVERY GAME THROUGH ${row.thru}` : 'NO GAMES YET THIS SEASON'
     const today = row.today ? `, AND HIS ${row.today} EARLIER BALL${row.today === 1 ? '' : 'S'} IN PLAY TODAY` : ''
     body.innerHTML = `<div class="bfh"><b>${(nm ? nm[0] : 'BATTER ' + b.b).toUpperCase()}</b><span>${b.d.slice(0, 4)} SEASON, RIGHT BEFORE THIS SWING ON ${b.d}${b.in ? ', ' + (b.tb === 'Top' ? 'TOP' : 'BOTTOM') + ' ' + b.in : ''}</span></div><div class="allst bfa">` +
-      sec(O.names[0], 'WHAT THE BACK OF HIS CARD SAID: ' + thru.toUpperCase(), before.cols.n, row.n) + sec(O.names[1], 'WHAT A SMART FAN WATCHES. THE GAME LOGS THROUGH THE DAY BEFORE, THE STATCAST TO THE AT-BAT BEFORE' + today.toUpperCase(), before.cols.x, row.x) + sec(O.names[2], 'BALL-KNOWER STUFF: HOW SQUARE, HOW HARD, WHICH WAY, HOW UNLUCKY', before.cols.m, row.m) + '</div>'
+      sec(O.names[0], 'THE BACK OF HIS CARD: ' + thru.toUpperCase(), before.cols.n, row.n) + sec(O.names[1], 'GAME LOGS THROUGH THE DAY BEFORE, STATCAST THROUGH THE AT-BAT BEFORE' + today.toUpperCase(), before.cols.x, row.x) + sec(O.names[2], 'HOW SQUARE, HOW HARD, WHICH WAY, HOW UNLUCKY', before.cols.m, row.m) + '</div>'
   }
   // MOONSHOT: the same swing somewhere else. Oracle and Coors are flown by the engine; with no air the flight is the textbook parabola from a 3 ft contact
   // height (the Moon, Mars with its thin air left out, Jupiter's pull); under the Cove the engine flies it through water (air density times 830)
@@ -1498,7 +1509,7 @@ export async function build(root, api, U) {
   function paintJukebox(body) {
     E('#c25mt').textContent = '/ J U K E B O X /'
     const on = jukebox.playing(), mmss = (x) => `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, '0')}`
-    body.innerHTML = `<div class="bul"><div class="bulh">BALLPARK CLASSICS AS CHIPTUNE, PLAYED BY THE BROWSER${sound.on() ? '' : ' · SOUND IS OFF: PRESS S'}</div><div class="btab">${jukebox.songs.map((x) => `<div class="r mo jk"><span>${x.name}${x.note ? ` <i>(${x.note.toUpperCase()})</i>` : ''}</span><b>${mmss(jukebox.length(x.id))}</b><span><span class="bt" data-song="${x.id}">${on === x.id ? 'STOP' : 'PLAY'}</span></span></div>`).join('')}</div><div class="baya">A WALK-OFF PLAYS SAN FRANCISCO; A GRAND SLAM PLAYS CHARGE!. TAKE ME OUT (1908), THE SAINTS, CHARGE! AND THE HAT DANCE ARE PUBLIC DOMAIN; SAN FRANCISCO IS NOT, SO IT STAYS ON THIS PRIVATE SITE.</div>${sound.mixerHTML()}</div>`
+    body.innerHTML = `<div class="bul"><div class="bulh">BALLPARK CLASSICS AS CHIPTUNE${sound.on() ? '' : ' · SOUND IS OFF: PRESS S'}</div><div class="btab">${jukebox.songs.map((x) => `<div class="r mo jk"><span>${x.name}${x.note ? ` <i>(${x.note.toUpperCase()})</i>` : ''}</span><b>${mmss(jukebox.length(x.id))}</b><span><span class="bt" data-song="${x.id}">${on === x.id ? 'STOP' : 'PLAY'}</span></span></div>`).join('')}</div><div class="baya">A WALK-OFF PLAYS SAN FRANCISCO. A GRAND SLAM PLAYS CHARGE!</div>${sound.mixerHTML()}</div>`
     sound.bindMixer(body) // the sound mixer: master, music, effects, crowd and bay
     body.querySelectorAll('[data-song]').forEach((b) => b.addEventListener('click', () => { pressEl(b); autoSong = false; if (jukebox.playing() === b.dataset.song) jukebox.stop(); else { if (!sound.on()) sound.set(true); jukebox.play(b.dataset.song, { onEnd: () => { if (modal === 'jukebox') paintJukebox(E('#c25mb')) } }) } paintJukebox(body) }))
   }
@@ -1604,7 +1615,7 @@ export async function build(root, api, U) {
   let lib = null
   loadLibrary().then((l) => { lib = l }).catch(() => {})
   const wstore = witnessStore()
-  let wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = ''
+  let wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
   const G = (gamesJ?.games ?? [])
   const wNow = () => (q.get('now') ? Date.parse(q.get('now')) : Date.now())
   const wOpen = (k) => windowOpen(k, G, wNow())
@@ -1627,25 +1638,33 @@ export async function build(root, api, U) {
     body.innerHTML = `<div class="bul ww">${tabs}${wTab === 'stand' ? standHTML(me) : mineHTML(me)}</div>`
     body.querySelectorAll('[data-wt]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wTab = x.dataset.wt; wMsg = ''; paintWitness(body) }))
     if (wTab === 'stand') { body.querySelectorAll('[data-bd]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wBoard = x.dataset.bd; paintWitness(body) })); return }
-    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); const r = await wstore.save(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'COULD NOT SAVE THAT. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
+    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); const r = await wstore.save(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'NOT SAVED. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
     body.querySelectorAll('.wd').forEach((x) => x.addEventListener('click', () => {
       const k = x.dataset.d
-      if (me.days.includes(k)) { pressEl(x); sound.play('back'); const seats = { ...me.seats }; delete seats[k]; wAsk = null; save({ ...me, days: me.days.filter((y) => y !== k), seats }, 'TAKEN OFF') ; return }
+      if (me.days.includes(k)) { pressEl(x); if (wOff !== k) { wOff = k; sound.play('move'); wMsg = `${shortDate(k)} IS LOGGED. CLICK IT AGAIN TO TAKE IT OFF`; paintWitness(body); return } wOff = null; sound.play('back'); const seats = { ...me.seats }; delete seats[k]; wAsk = null; save({ ...me, days: me.days.filter((y) => y !== k), seats }, 'TAKEN OFF'); return }
+      wOff = null
       if (!wOpen(k)) { pressEl(x); sound.play('thud'); wMsg = 'THAT ONE CLOSED 72 HOURS AFTER FIRST PITCH'; paintWitness(body); return }
       pressEl(x); sound.play('pick'); wAsk = k; wMsg = ''; paintWitness(body); body.querySelector('#c25wsec')?.focus()
     }))
     const nm = body.querySelector('#c25wnm')
     nm?.addEventListener('change', () => { const name = nm.value.toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').slice(0, 20).trim(); save({ ...me, name }, name ? 'ON THE STAND AS ' + name : 'NAME CLEARED') })
-    body.querySelector('#c25wno')?.addEventListener('click', () => { wAsk = null; sound.play('back'); paintWitness(body) })
+    body.querySelector('#c25wno')?.addEventListener('click', () => { wAsk = null; wMsg = ''; sound.play('back'); paintWitness(body) })
     const go = () => {
       const sec = body.querySelector('#c25wsec').value.trim(), row = body.querySelector('#c25wrow').value.trim().toUpperCase(), seat = body.querySelector('#c25wst').value.trim()
-      const r = se.seatPoint(sec, row, Number(seat))
-      if (r.err) { wMsg = r.err; sound.play('thud'); paintWitness(body); return }
+      // (1 Nov, night; playtest: only outfield seats could be logged, and most friends sit elsewhere) any section at Oracle goes in; the outfield ones are
+      // checked against the seat map so the golf game's closest works, the others are kept as typed
+      if (!/^\d{3}$/.test(sec) || Number(sec) < 101 || Number(sec) > 399) { wMsg = 'A SECTION IS THREE DIGITS: 101 TO 152 DOWNSTAIRS, 200S AND 300S UP TOP'; sound.play('thud'); paintWitness(body); return }
+      if (!row || !seat) { wMsg = 'ROW AND SEAT TOO'; sound.play('thud'); paintWitness(body); return }
+      const r = se.seatPoint(sec, row, Number(seat)), inMap = se.SECTIONS?.some((x) => x[2] === sec)
+      if (inMap && r.err) { wMsg = r.err; sound.play('thud'); paintWitness(body); return }
+      const st = inMap ? { sec: r.sec, row: r.row, seat: r.seat } : { sec, row, seat: Number(seat) || seat }
       const k = wAsk; wAsk = null; sound.play('pick')
-      save({ ...me, days: [...me.days, k], seats: { ...me.seats, [k]: { sec: r.sec, row: r.row, seat: r.seat } } }, `LOGGED: SEC ${r.sec} ROW ${r.row} SEAT ${r.seat}`)
+      save({ ...me, days: [...me.days, k], seats: { ...me.seats, [k]: st } }, `LOGGED: SEC ${st.sec} ROW ${st.row} SEAT ${st.seat}`)
     }
     body.querySelector('#c25wgo')?.addEventListener('click', go)
-    body.querySelectorAll('.wask input').forEach((x) => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } if (e.key === 'Escape') { wAsk = null; paintWitness(body) } }))
+    body.querySelector('#c25wold')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); wAll = !wAll; paintWitness(body) })
+    body.querySelectorAll('.wask input').forEach((x) => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } if (e.key === 'Escape') { wAsk = null; wMsg = ''; paintWitness(body) } }))
+    nm?.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); nm.blur(); closeMod() } })
   }
   // YOUR GAMES: what you saw, then every home game since July 2023 by month; the open ones (inside their 72 hours) outlined, a click logs one and asks for the seat
   function mineHTML(me) {
@@ -1656,7 +1675,7 @@ export async function build(root, api, U) {
       ${row('GAMES', s.games, `${s.wins} W · ${s.losses} L`)}
       ${row('THE JINX', wPct(s.winPct), `THE GIANTS AT HOME: ${wPct(s.theirPct)}${s.jinx != null ? ` · ${s.jinx >= 0 ? '+' : ''}${Math.round(s.jinx * 100)} POINTS WITH YOU THERE` : ''}`)}
       ${row('MARGIN', `+${s.winRuns} / -${s.lossRuns}`, 'RUNS WON BY, RUNS LOST BY')}
-      ${row('GIANTS WALLOPS', s.giantsHR, `${s.allHR} HOME RUNS IN ALL`)}
+      ${row('GIANTS WALLOPS', s.giantsHR, `${s.allHR} HOME RUN${s.allHR === 1 ? '' : 'S'} IN ALL`)}
       ${row('FOOT-I-TUDE', wFmt(s.footitude) + ' FT', `${wFmt(s.giantsFeet)} FT OF IT GIANTS`)}
       ${s.altitude ? row('ALTITUDE', `${s.altitude.coit.toFixed(1)} COIT TOWERS`, `${s.altitude.twinPeaks.toFixed(2)} TWIN PEAKS, STACKED`) : ''}
       ${s.longest ? row('LONGEST', s.longest.ft + ' FT', nameOf(s.longest)) : ''}
@@ -1668,24 +1687,25 @@ export async function build(root, api, U) {
       ${s.topEv ? row('TOP EXIT SPEED', s.topEv.mph + ' MPH', nameOf(s.topEv)) : ''}</div>` : '<div class="dds">NOTHING LOGGED YET.</div>'
     const ask = wAsk ? `<div class="wask"><b>${shortDate(wAsk)}: WHERE WERE YOU SITTING?</b> <label>SEC <input id="c25wsec" inputmode="numeric" maxlength="4" size="4"></label> <label>ROW <input id="c25wrow" maxlength="3" size="3"></label> <label>SEAT <input id="c25wst" inputmode="numeric" maxlength="3" size="3"></label> <span class="bt" id="c25wgo">LOG IT</span><span class="bt" id="c25wno">NOT THIS ONE</span></div>` : ''
     const byMonth = {}
-    for (const g of [...G].sort((a, b) => b.d.localeCompare(a.d) || b.dh - a.dh)) (byMonth[g.d.slice(0, 7)] ??= []).push(g)
+    const season = wSeason(), keep = (g) => wAll || g.d.startsWith(season) || me.days.some((k) => k.startsWith(g.d.slice(0, 4)))
+    for (const g of [...G].filter(keep).sort((a, b) => b.d.localeCompare(a.d) || b.dh - a.dh)) (byMonth[g.d.slice(0, 7)] ??= []).push(g)
     const cal = Object.entries(byMonth).map(([m, gs]) => `<div class="wm"><span>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</span><div>${gs.map((g) => { const k = gameKey(g), n = hrsAt.get(String(g.pk)) ?? 0, on = me.days.includes(k) || me.days.includes(g.d), op = wOpen(k); return `<span class="bt wd${on ? ' on' : ''}${op ? ' open' : ' shut'}${wAsk === k ? ' ask' : ''}" data-d="${k}" title="${g.win ? 'W' : 'L'} ${g.sf}-${g.opp_r} V ${g.opp}${g.dh ? ' (GAME ' + g.dh + ')' : ''}${n ? ` · ${n} HOME RUN${n === 1 ? '' : 'S'}` : ''}${op ? ' · OPEN NOW' : ''}">${Number(g.d.slice(8))}${g.dh ? '<u>' + g.dh + '</u>' : ''}${n ? `<sup>${n}</sup>` : ''}</span>` }).join('')}</div></div>`).join('')
-    return `<div class="bulh">LOG A GAME WITHIN 72 HOURS OF FIRST PITCH. ${openNow.length ? `OPEN NOW: ${openNow.map(shortDate).join(', ')}.` : 'NOTHING IS OPEN RIGHT NOW: THE NEXT HOME GAME OPENS AT FIRST PITCH.'}</div>
+    return `<div class="bulh">LOG A GAME WITHIN 72 HOURS OF FIRST PITCH. ${openNow.length ? `OPEN NOW: ${openNow.map(shortDate).join(', ')}.` : 'NOTHING IS OPEN. THE NEXT HOME GAME OPENS AT FIRST PITCH.'}</div>
       <div class="wme"><label>YOUR NAME ON THE STAND <input id="c25wnm" maxlength="20" value="${(me.name ?? '').replace(/"/g, '')}" placeholder="NAME"></label>${wData.shared ? '' : '<i>KEPT IN THIS BROWSER FOR NOW</i>'}</div>
-      ${ask}${wMsg ? `<div class="wmsg">${wMsg}</div>` : ''}${stats}<div class="wgrid">${cal}</div>`
+      ${ask}${wMsg ? `<div class="wmsg">${wMsg}</div>` : ''}${stats}<div class="wkey">EVERY HOME GAME. THE SMALL NUMBER IS ITS HOME RUNS. OUTLINED: OPEN NOW.</div><div class="wgrid">${cal}</div><span class="bt" id="c25wold">${wAll ? 'THIS SEASON ONLY' : 'SHOW OLDER SEASONS'}</span>`
   }
   // THE WITNESS STAND: one board at a time, everyone on it; the season's titles across the top (who holds each right now; Andrew hands them out at the end)
   function standHTML(me) {
     const season = wSeason()
     const people = (wData.all?.length ? wData.all : [{ ...me, name: me.name || 'YOU' }]).map((p) => ({ name: (p.name || 'NO NAME').toUpperCase(), entry: p }))
     const all = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, wOpts) })), now = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, { ...wOpts, season }) }))
-    const titles = TROPHIES.map((t) => { const b = BOARDS.find((x) => x.key === t.board), top = rankBoard(b, now)[0]; return `<div class="wtt"><b>${t.names[0]}</b><span>${top ? `${top.name} · ${wFmt(top.value)}${b.unit ? ' ' + b.unit : ''}` : 'UP FOR GRABS'}</span></div>` }).join('')
+    const titles = TROPHIES.map((t) => { const b = BOARDS.find((x) => x.key === t.board), top = rankBoard(b, now).find((r) => r.value > 0); return `<div class="wtt"><b>${t.names[0]}</b><span>${top ? `${top.name} · ${wFmt(top.value)}${b.unit ? ' ' + b.unit : ''}` : 'UP FOR GRABS'}</span></div>` }).join('')
     const board = BOARDS.find((b) => b.key === wBoard) ?? BOARDS[0], ranked = rankBoard(board, all)
     const val = (v) => (board.pct ? `${v >= 0 ? '+' : ''}${Math.round(v * 100)}` : board.key === 'altitude' ? v.toFixed(1) : wFmt(v)) + (board.unit ? ' ' + board.unit : board.pct ? ' POINTS' : '')
     return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts">${titles}</div>
       <div class="wbds">${BOARDS.filter((b) => b.key !== 'hours' || all.some((p) => p.stats.hours != null)).map((b) => `<span class="bt${b.key === board.key ? ' on' : ''}" data-bd="${b.key}">${b.title}</span>`).join('')}</div>
       <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b>${r.name}</b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
-      ${wData.shared ? '' : '<div class="dds">THE STAND FILLS UP ONCE IT IS SHARED; FOR NOW IT IS ONLY YOU.</div>'}`
+      ${wData.shared ? '' : '<div class="dds">ONLY YOU UP THERE UNTIL THE STAND GOES LIVE.</div>'}`
   }
   function statCols(res) {
     const s = api.state, b = cur, v = res.verdict, bn = b ? pname(b.b) : null, pn = b ? pname(b.p) : null, o = odds()
@@ -1717,10 +1737,10 @@ export async function build(root, api, U) {
   // 1 Nov, evening (Andrew: "kill daily dinger ... no more options, no more gag reel, it's just dinger deja vu, dinger dojo, shot caller, wallop witness"): the four, and
   // WHAT'S NEW; the gags still play in the park and on a scoreboard click
   menu = selectMenu(grid, [
-    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'WATCH A REAL GIANTS HOME RUN FLY AGAIN', run: () => setMode('replay') },
+    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'REAL GIANTS HOME RUNS FLY AGAIN, NEWEST FIRST, BACK TO ANY NIGHT', run: () => setMode('replay') },
     { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT ONE YOURSELF: PICK THE SPEED, THE ANGLE AND THE AIM, THEN NUKE IT', run: () => setMode('whatif') },
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, CLICKED OR TYPED: EVERY SWING THAT PUTS A BALL THERE', run: () => setMode('shot'), off: () => !atOracle },
-    { k: 'witness', name: NAMES.witness, blurb: 'LOG THE GAMES YOU WERE AT, SEE WHAT YOU SAW, AND THE WITNESS STAND', run: () => goTab('witness') },
+    { k: 'witness', name: NAMES.witness, blurb: 'LOG THE GAMES YOU WERE AT, THEN SEE WHERE YOU RANK ON THE WITNESS STAND', run: () => goTab('witness') },
   ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { unAttract(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const menuKey = () => (modal === 'witness' ? 'witness' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
@@ -1731,9 +1751,11 @@ export async function build(root, api, U) {
   E('#c25ti').addEventListener('click', () => openMenu(null))
 
   addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && uiReady && e.target?.closest?.('input,select,textarea')) { e.target.blur(); if (modal) closeMod(); return } // (1 Nov, night; playtest: Esc did nothing inside a box)
     if (e.ctrlKey || e.metaKey || e.altKey || !uiReady || e.target?.closest?.('input,select,textarea')) return // typing a seat is not a shortcut
     if (e.repeat && !'[],.'.includes(e.key)) return // (1 Nov, later) a held key is one press, except stepping through the balls
-    if (!atOracle && 'lgcnwkLGCNWK3'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
+    if (!atOracle && e.key === '3') { banner('SHOT CALLER IS ORACLE ONLY', 'IT KNOWS THE SEATS THERE'); return }
+    if (!atOracle && 'lgcnwkLGCNWK'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
     if (/^[1-4]$/.test(e.key) && modal && !e.repeat) { goTab(TABS[Number(e.key) - 1][0]); return }
     if (e.key === 'Escape') { if (modal) closeMod(); else if (grid.classList.contains('dk')) toggleDock(false); else { sound.play('back'); menu.show(menuKey()) } } // (the side menu closes before the menu opens)
     else if (modal) return
@@ -2079,7 +2101,7 @@ export async function build(root, api, U) {
   function paintShotBar(el) {
     const r = scRes, w = r?.ways?.[scSel]
     el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}</div><div class="r2"><b>${shotName(r)}</b>: ${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
-      : `<div class="r2">${r ? `NO SWING GETS A BALL TO ${shotName(r)}` : 'CLICK A SEAT IN THE PARK, OR TYPE ONE TOP LEFT'}</div>`
+      : `<div class="r2">${r ? (r.seat?.what === 'field' ? 'THAT SPOT IS IN PLAY: PICK A SEAT' : `NO SWING GETS A BALL TO ${shotName(r)}`) : 'CLICK A SEAT IN THE PARK, OR TYPE ONE TOP LEFT'}</div>`
     el.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); stopShot(); pickWay(scSel + Number(b.dataset.sw)) }))
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
@@ -2181,7 +2203,7 @@ export async function build(root, api, U) {
   function paintShot() {
     const el = E('#c25hi'), hb = E('#c25hb')
     wordTitle(el, '/ S H O T &nbsp; C A L L E R /', 'shot')
-    if (!scRes) { hb._sc = null; hb.innerHTML = '<div class="sel"><div class="lph">PICK A SEAT: CLICK ONE IN THE PARK, OR TYPE ONE TOP LEFT.</div><div class="lph">SHOT CALLER FINDS EVERY SWING THAT PUTS A BALL THERE, MOST COMMON FIRST, AND THE REAL HOME RUNS THAT CAME DOWN CLOSEST. PLAY IT FLIES THE THREE MOST COMMON.</div></div>'; return }
+    if (!scRes) { hb._sc = null; hb.innerHTML = '<div class="sel"><div class="lph">PICK A SEAT: CLICK ONE IN THE PARK, OR TYPE ONE TOP LEFT.</div><div class="lph">SHOT CALLER FINDS EVERY SWING THAT PUTS A BALL THERE, MOST COMMON FIRST, AND THE REAL HOME RUNS THAT CAME DOWN CLOSEST. NUKE IT FLIES THE THREE MOST COMMON.</div></div>'; return }
     const r = scRes
     if (hb._sc === r && hb._n === mix.N && frontierPick()) return
     const sel = r.ways[scSel], one = (n) => (n ? `1 IN ${bigN(POOL_N / n)}` : 'ALMOST NEVER')
@@ -2253,7 +2275,7 @@ export async function build(root, api, U) {
     const H = [['ev', 'EXIT SPEED', s.ev, `${Math.round(s.ev)} MPH`, ['FASTER', 'SLOWER'], ' MPH', (x) => String(Math.round(x))], ['la', 'LAUNCH ANGLE', s.la, `${Math.round(s.la)}°`, ['HIGHER', 'LOWER'], '°', (x) => String(Math.round(x))], [fly ? 'dist_fb' : 'dist', fly ? 'FLY BALL DISTANCE' : 'DISTANCE', res.landFt, `${Math.round(res.landFt)} FT`, ['FARTHER', 'SHORTER'], ' FT', (x) => String(Math.round(x))]]
     const n = (DD.n ?? 0).toLocaleString()
     const like = mode !== 'replay' || !cur ? (() => { const l = ballsLike(pool, s.ev, s.la, s.dir); return l.n ? `<div class="like">${l.n} REAL BALLS LIKE THIS: <b>${Math.round(l.hr * 100)}%</b> WERE HOME RUNS, ${l.lo} TO ${l.hi} FT, MEDIAN ${l.med}</div>` : '' })() : ''
-    const key = `<div class="key"><i class="kb"></i>BALLS <i class="kl"></i>SHARE OF THEM THAT WENT OUT <i class="kd"></i>AVERAGE <i class="ka"></i>THIS BALL</div><div class="key">${n} BALLS IN PLAY ${oracle ? 'AT ORACLE' : 'IN ALL 30 PARKS'}, 2023-25. HOVER A BAR FOR ITS NUMBERS.</div>`
+    const key = `<div class="key"><i class="kb"></i>BALLS <i class="kl"></i>SHARE OF THEM THAT WENT OUT <i class="kd"></i>AVERAGE <i class="ka"></i>THIS BALL</div><div class="key">${n} BALLS IN PLAY ${oracle ? 'AT ORACLE' : 'IN ALL 30 PARKS'}, 2023-25.</div>`
     const draw = (hh) => `<div class="hg" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">` + H.map(([k, l, v, txt, words, unit, fmt]) => {
       const h = hist25(DD, k, v, { w, h: hh, minN: oracle ? 20 : 40, unit, fmt })
       const rank = h.pct != null ? (h.pct >= 50 ? `TOP ${Math.max(1, 100 - h.pct)}%` : `BOTTOM ${Math.max(1, h.pct)}%`) : ''
@@ -2318,17 +2340,19 @@ export async function build(root, api, U) {
     if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn" role="button" title="every park"></div><div class="fun"></div><span class="sub sit"></span>`; rd.querySelector('.gn').addEventListener('click', () => { pressEl(rd.querySelector('.gn')); openMod('parks') }) }
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
-    if (!moving() || !rd.querySelector('.gn')?.textContent) set('.gn', parks.parks.length ? `GONE IN ${U.goneWord(parks, api, evalParks(parks, api), goneReady)} PARKS` : '') // (30 parks: when the numbers stop)
+    if (!moving() || !rd.querySelector('.gn')?.textContent) set('.gn', parks.parks.length ? goneLine(U.goneWord(parks, api, evalParks(parks, api), goneReady)) : '') // (30 parks: when the numbers stop)
     set('.op', pct(o.p))
     { const k = [d, Math.round(api.state.ev), Math.round(api.state.la), lib ? 1 : 0].join(); if (k !== fun.key) { fun = { key: k, list: funList(res) }; showFun() } }
     set('.sit', mix.S === 2 && mode === 'replay' && cur && !edited ? situation(cur)?.line ?? '' : '')
-    set('.osrc', o.p != null ? `HOW RARE: ${pct(o.p)}% OF BALLS HIT LIKE THIS GO OUT · ${o.src}` : 'HOW RARE · ' + o.src)
+    set('.osrc', o.p != null ? `HIT LIKE THIS: ${pct(o.p)}% GO OUT · ${o.src}` : 'HIT LIKE THIS · ' + o.src)
     rd.querySelectorAll('.meter s').forEach((s, i) => s.classList.toggle('on', o.p != null && o.p * 20 > i + 0.5))
     const dEl = E('#c25d')
     if (window.__cpFire || pv || !ses.beat) dEl.textContent = d
     dEl.dataset.v = d
     return o
   }
+  // GONE IN N PARKS, said plainly when the spread is the whole league (1 Nov, night; playtest: "GONE IN 0 TO 30" says nothing)
+  const goneLine = (w) => { const m = /^(\d+) TO (\d+) OF (\d+)$/.exec(w); if (m && Number(m[2]) - Number(m[1]) >= Number(m[3]) * 0.6) return "A COIN FLIP IN MOST PARKS"; return `GONE IN ${w} PARKS` }
   function render(res) {
     if (!burst) settled = snap()
     last = res
@@ -2354,7 +2378,7 @@ export async function build(root, api, U) {
     const committed = b && !b.preview
     chip.classList.toggle('hr', committed ? isHR(b) : v?.kind === 'GONE')
     const live = v ? (v.kind === 'GONE' ? 'HOME RUN' : v.kind === 'WALL' ? 'OFF THE WALL' : v.kind === 'FOUL' ? 'FOUL BALL' : 'IN PLAY') : ''
-    const realSub = mode === 'replay' && cur ? (edited ? 'EDITED: NOT THE REAL BALL' : cur.hr ? 'THE REAL BALL: HOME RUN' : 'THE REAL BALL: ' + (cur.ev_ ?? '').replace(/_/g, ' ').toUpperCase()) : 'PREVIEW: THE FLIGHT ENGINE'
+    const realSub = mode === 'replay' && cur ? (edited ? 'EDITED: NOT THE REAL BALL' : cur.hr ? 'THE REAL BALL: HOME RUN' : 'THE REAL BALL: ' + (cur.ev_ ?? '').replace(/_/g, ' ').toUpperCase()) : 'A PREVIEW: NUKE IT TO FLY IT'
     chip.querySelector('.hd').textContent = committed ? b.text : live
     chip.querySelector('.sb').textContent = committed ? (b.sub ?? '') : realSub
     const stp = mode === 'replay' && cur && !edited ? situation(cur)?.stamp : null, se = chip.querySelector('.st')

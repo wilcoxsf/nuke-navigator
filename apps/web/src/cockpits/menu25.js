@@ -7,6 +7,8 @@ export const MENU_CSS = `
 #cp .c25 .sm{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k) 90%,transparent);pointer-events:auto}
 #cp .c25 .sm.open{display:flex}
 #cp .c25 .sm .smb{display:grid;gap:16px;justify-items:center;max-width:min(920px,94vw);max-height:94vh;overflow:auto;padding:10px 12px}
+#cp .c25 .sm .smx{position:fixed;top:14px;right:18px;display:inline-flex;gap:8px;align-items:center;pointer-events:auto;cursor:pointer}
+#cp .c25 .sm .smx kbd{font:inherit;font-size:.8em;border:1px solid currentColor;padding:0 4px}
 #cp .c25 .sm .smt{font-family:PS2P,monospace;font-size:clamp(22px,4.2vw,46px);color:var(--acc);letter-spacing:.04em;text-align:center;line-height:1.15;text-shadow:4px 4px 0 var(--ln)}
 #cp .c25 .sm .sms{font-family:PS2P,monospace;font-size:10px;color:var(--dim);letter-spacing:.2em}
 #cp .c25 .sm .sml{display:grid;gap:3px;width:min(780px,90vw)}
@@ -37,8 +39,11 @@ export function selectMenu(host, items, o = {}) {
   const el = document.createElement('div')
   el.className = 'sm'
   el.innerHTML = `<div class="smb"><div class="lgo"></div><div class="sms">SELECT MODE</div><div class="sml"></div><div class="artbox"><canvas class="ins2" width="780" height="144" role="img" aria-label="a little pixel scene"></canvas></div><div class="art" role="button"></div>
-    <div class="smf">UP / DOWN OR 1 TO 4 TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE</div></div>`
+    <div class="smf">UP / DOWN OR 1 TO 4 TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE</div><span class="bt smx" role="button" tabindex="0">CLOSE<kbd>ESC</kbd></span></div>`
   host.appendChild(el)
+  // (1 Nov, night; playtest: a mouse user could not leave the menu) a CLOSE in the corner, and a click outside the box
+  el.querySelector('.smx').addEventListener('click', () => { sound.play('back'); close() })
+  el.addEventListener('click', (e) => { if (e.target === el) { sound.play('back'); close() } })
   let i = 0, open = false, idle = null, logo = o.logo ?? 1
   // the title, three ways (the M option): stacked letters, a pixel home-run arc over the name, or a marquee of chasing bulbs
   const LOGO = {

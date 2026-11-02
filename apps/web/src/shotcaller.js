@@ -37,12 +37,13 @@ export function shotCaller(api, balls, o = {}) {
   }
   function call(spot, state, color = '#f0802a', opt = {}) {
     clear()
-    const tb = bearingOf(spot), hand = state.hand ?? 1, temp = state.temp ?? 62, found = []
+    const tb = bearingOf(spot), hand = state.hand ?? 1, temp = state.temp ?? 62, found = [], pastWall = distFt(spot) > (api.wallAt?.(tb) ?? [0])[0] + 1
     for (let la = GRID.la[0]; la <= GRID.la[1]; la += GRID.la[2]) for (let ev = GRID.ev[0]; ev <= GRID.ev[1]; ev += GRID.ev[2]) {
-      const st = { ...api.state, ev, la, hand, temp, wind: 0, dws: 0, carry: 1, tab: true }
+      const st = { ...api.state, ev, la, hand, temp, wind: 0, xwind: 0, dws: 0, carry: 1, tab: true, carryOverride: null } // (1 Nov, night; playtest: a crosswind left over from the dojo went into the search but not into the flight)
       let dir = tb, L = null
       for (let it = 0; it < 3; it++) { L = land({ ...st, dir }); const lb = bearingOf(L.at); if (Math.abs(lb - tb) < 0.4) break; dir += tb - lb }
       const miss = L.at.distanceTo(spot)
+      if (pastWall && L.kind !== 'GONE') continue // a seat needs a home run: a ball on the track under the front row is close but not there (playtest)
       if (miss <= R_OK) found.push({ ev, la, dir: Math.round(dir * 10) / 10, miss, L })
     }
     // ranked by how common (Study 25), or the softest, a typical and the hardest (Study 24, no weight)

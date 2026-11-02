@@ -65,7 +65,7 @@ export function witnessStats(games, hrs, entry, o = {}) {
   if (o.peakFt && oracle.length) { const ft = oracle.reduce((s, b) => s + (o.peakFt(b) ?? 0), 0); alt = { ft: Math.round(ft), coit: ft / COIT_FT, twinPeaks: ft / TWIN_PEAKS_FT } }
   // YOUR GUY: the batter with the most home runs in front of you, the feet breaking a tie
   const tally = new Map()
-  for (const b of oracle) { const t = tally.get(b.b) ?? { b: b.b, n: 0, ft: 0 }; t.n++; t.ft += b.ft; tally.set(b.b, t) }
+  for (const b of giants) { const t = tally.get(b.b) ?? { b: b.b, n: 0, ft: 0 }; t.n++; t.ft += b.ft; tally.set(b.b, t) } // a Giant (1 Nov, night: a visitor came up as YOUR GUY in the playtest)
   const guy = [...tally.values()].sort((a, b) => b.n - a.n || b.ft - a.ft)[0]
   const topEv = [...oracle].sort((a, b) => (b.ev ?? 0) - (a.ev ?? 0))[0]
   const mins = mine.map((g) => g.mins)

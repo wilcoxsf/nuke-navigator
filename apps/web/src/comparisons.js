@@ -85,6 +85,7 @@ export function pick(lib, kind, amountSI, rand = Math.random, recent = []) {
     if (r.kind !== kind) continue
     if (kind === 'length' && /Oracle Park/.test(r.name)) continue // never compare a ball to the park it was hit in
     const q = amountSI / r.v
+    if (kind === 'speed' && q < 1.15) continue // (1 Nov, night: speeds only ever as "N times as fast as X", Andrew's rule; no "half as fast", no "1/635 as fast")
     let err = null
     if (q >= 0.1 && q <= 55) {
       if (Math.abs(q - 1) <= 0.15) continue // no near-ties

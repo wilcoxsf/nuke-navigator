@@ -86,7 +86,7 @@ export function initFlight25(api, colors) {
         const cl = new THREE.Group()
         cl.add(cubes(geo, lam(c.mk || c.pc || c.acc), column(b.x, b.z, lo, hi, 0.8), 0.5))
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
-        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : '-'}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, c.mk || c.pc || c.acc))
+        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : ''}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, c.mk || c.pc || c.acc))
         cl.add(cubes(geo, lam(c.mk ?? c.tx), [ball], 1.4)) // the dot where it crossed the wall
         g.add(cl); g.userData.reveal.push([ci / Math.max(1, src.length - 1), cl])
       }
