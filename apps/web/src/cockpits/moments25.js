@@ -8,6 +8,7 @@
 // and turned to face the camera; nothing glows and nothing shakes the screen.
 import { loadModels, cloneModel } from './models25.js'
 import { WATER_Z } from './water25.js'
+import { ORANGE } from './orange25.js'
 export function initMoments25(api, col, fx, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
@@ -200,7 +201,7 @@ export function initMoments25(api, col, fx, o = {}) {
     log.push('mushroom'); o.banner?.(big ? 'NUKED' : 'MUSHROOM CLOUD', big ? 'FALLOUT AS FAR AS OAKLAND' : 'THE SECTION HAS BEEN EVACUATED')
     hideBall(true)
     const S = big ? 1.9 : 1.45, H = 30 * S, list = [] // (sized to read from the broadcast seat: the glove is 11 m, this is 40 m and more)
-    const FIRE = ['#fff3c4', '#ffd23f', '#fd5a1e', '#c8371a'], SMOKE = ['#8a8f99', '#6b7079', '#b9bcc2', '#4b4f57']
+    const FIRE = ['#fff3c4', '#ffd23f', ORANGE.o, ORANGE.dark], SMOKE = ['#8a8f99', '#6b7079', '#b9bcc2', '#4b4f57']
     for (let i = 0; i < 22; i++) list.push({ at: at.clone().add(V(rnd(-1, 1), 0.5, rnd(-1, 1))), v: V(rnd(-3, 3), rnd(2, 6), rnd(-3, 3)), s: rnd(1.6, 2.6) * S, life: 0.5, c: '#fffbe8' }) // the flash
     for (let i = 0; i < 90; i++) { const y = rnd(0.1, 1), d = i * 0.012; list.push({ at: at.clone().add(V(rnd(-1.8, 1.8) * S, 0, rnd(-1.8, 1.8) * S)), v: V(rnd(-0.4, 0.4), (H * y) / 1.1, rnd(-0.4, 0.4)), s: rnd(1.1, 1.9) * S, life: 1.1 + rnd(1.2, 2.2), delay: d, grow: 0.4, c: y > 0.6 ? FIRE[Math.floor(rnd(0, 3))] : SMOKE[Math.floor(rnd(0, 4))] }) } // the stem
     for (let i = 0; i < 150; i++) { // the cap: rises with the stem, then rolls out
@@ -221,7 +222,7 @@ export function initMoments25(api, col, fx, o = {}) {
     cubes(list, { g: 14 })
     const C = []
     for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; C.push([Math.round(Math.cos(a) * 6), 0, Math.round(Math.sin(a) * 6), i % 2 ? '#5a3a1e' : '#3a3f47'], [Math.round(Math.cos(a) * 5), 1, Math.round(Math.sin(a) * 5), '#5a3a1e']) }
-    box(C, 0, 0, 0, 7, 0, 0, '#e8e1c9'); box(C, 1, 3, 5, 7, 0, 0, '#fd5a1e'); C.push([0, 0, 0, '#f4f2ea'])
+    box(C, 0, 0, 0, 7, 0, 0, '#e8e1c9'); box(C, 1, 3, 5, 7, 0, 0, ORANGE.o); C.push([0, 0, 0, '#f4f2ea'])
     const g = vox(C, 1.2, at.clone())
     g.scale.setScalar(0.01)
     run((t) => { const k = Math.min(1, Math.max(0, (t - 0.9) / 0.35)); g.scale.setScalar(Math.max(0.01, k)); if (t > 4) { kill(g); return false } return true })
@@ -232,7 +233,7 @@ export function initMoments25(api, col, fx, o = {}) {
     log.push('ufo'); o.banner?.('ABDUCTED', 'THE BALL HAS LEFT THE PLANET')
     const C = []
     for (let x = -6; x <= 6; x++) for (let z = -6; z <= 6; z++) { const r = Math.hypot(x, z); if (r <= 6.2) C.push([x, 0, z, r > 5 ? '#f4f2ea' : '#8a8f99']); if (r <= 3.4) C.push([x, 1, z, '#b9bcc2']); if (r <= 2.2) C.push([x, 2, z, '#9dff00']) }
-    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; C.push([Math.round(Math.cos(a) * 5), -1, Math.round(Math.sin(a) * 5), i % 2 ? '#fd5a1e' : '#ffd23f']) }
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; C.push([Math.round(Math.cos(a) * 5), -1, Math.round(Math.sin(a) * 5), i % 2 ? ORANGE.o : '#ffd23f']) }
     const top = at.clone().add(V(0, 30, 0)), from = top.clone().add(V(-80, 40, 0)), g = vox(C, 1.3, from)
     const beam = []
     const b = piece('ball', ['ball'], at.clone().add(V(0, 1, 0)))
@@ -273,7 +274,7 @@ export function initMoments25(api, col, fx, o = {}) {
   function fries(at) {
     log.push('fries'); o.banner?.('GARLIC FRIES', 'NOBODY IS EATING THOSE NOW')
     const C = []
-    box(C, -3, 3, 0, 0, -2, 2, '#f4f2ea'); for (const z of [-2, 2]) box(C, -3, 3, 1, 2, z, z, '#f4f2ea'); for (const x of [-3, 3]) box(C, x, x, 1, 2, -2, 2, '#f4f2ea'); box(C, -3, 3, 2, 2, -2, -2, '#fd5a1e')
+    box(C, -3, 3, 0, 0, -2, 2, '#f4f2ea'); for (const z of [-2, 2]) box(C, -3, 3, 1, 2, z, z, '#f4f2ea'); for (const x of [-3, 3]) box(C, x, x, 1, 2, -2, 2, '#f4f2ea'); box(C, -3, 3, 2, 2, -2, -2, ORANGE.o)
     const g = vox(C, 1.3, at.clone().add(V(0, -6, 0)))
     let burst = false
     run((t) => {

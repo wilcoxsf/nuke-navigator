@@ -6,6 +6,7 @@
 // 29 Oct (Andrew locked D1, "but you gotta get the skin color, team jersey, height, and handedness right"): the slugger wears his team's kit (home whites or road greys, the
 // helmet and trim in team colors), stands as tall as he is against a lineup height chart, takes a skin tone when one is known, bats from his side. The panda and the
 // giraffe are still drawn here, but no player gets one (29 Oct, later, Andrew: "no nicknames for now on anything"); MASCOTS is empty until he says otherwise.
+import { ORANGE } from './orange25.js'
 export const STANDIN_STYLES = [
   { c: 1, name: 'PIXEL SLUGGER', desc: 'a hand-made pixel batter in his stance, number on the chest' },
   { c: 2, name: 'JERSEY BACK', desc: 'the back of his jersey, framed, name across the shoulders' },
@@ -19,7 +20,7 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
 const W1 = 1, O2 = 2, D3 = 3, K4 = 4, S5 = 5 // cell colors: ink, accent, dim, ground, skin
 const H6 = 6, SH7 = 7, B8 = 8, G9 = 9, F10 = 10, F11 = 11, SP12 = 12, CH13 = 13, MK14 = 14 // the helmet, its shine, the bat, batting gloves; fur dark and light, spots; the height chart and his mark on it
 // team kits: helmet and trim (lettering, socks, gloves); home teams wear white (the Giants their cream), visitors grey
-const KITS = { SF: ['#1b1b1b', '#fd5a1e'], LAD: ['#005a9c', '#005a9c'], SD: ['#2f241d', '#ffc425'], AZ: ['#a71930', '#a71930'], ARI: ['#a71930', '#a71930'], COL: ['#33006f', '#33006f'],
+const KITS = { get SF() { return ['#1b1b1b', ORANGE.o] }, LAD: ['#005a9c', '#005a9c'], SD: ['#2f241d', '#ffc425'], AZ: ['#a71930', '#a71930'], ARI: ['#a71930', '#a71930'], COL: ['#33006f', '#33006f'],
   NYY: ['#0c2340', '#0c2340'], NYM: ['#002d72', '#ff5910'], PHI: ['#e81828', '#e81828'], ATL: ['#13274f', '#ce1141'], MIA: ['#1b1b1b', '#00a3e0'], WSH: ['#ab0003', '#ab0003'],
   CHC: ['#0e3386', '#0e3386'], STL: ['#c41e3a', '#c41e3a'], MIL: ['#12284b', '#ffc52f'], CIN: ['#c6011f', '#c6011f'], PIT: ['#1b1b1b', '#fdb827'], HOU: ['#002d62', '#eb6e1f'],
   TEX: ['#003278', '#c0111f'], SEA: ['#0c2c56', '#005c5c'], LAA: ['#ba0021', '#ba0021'], ATH: ['#003831', '#efb21e'], OAK: ['#003831', '#efb21e'], TOR: ['#134a8e', '#134a8e'],
@@ -336,8 +337,8 @@ export function drawStandIn(cv, c, W, H, o = {}) {
   const w = Math.round(W * d), h = Math.round(H * d)
   cv.width = w; cv.height = h; if (cv.style) { cv.style.width = W + 'px'; cv.style.height = H + 'px' }
   const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.clearRect(0, 0, w, h)
-  const P = { [W1]: o.ink || '#e8e1c9', [O2]: o.acc || '#f0802a', [D3]: o.dim || '#6d6a60', [K4]: o.k || '#0b0c0b', [S5]: o.skin || SKIN, [H6]: o.acc || '#f0802a', [SH7]: o.acc || '#f0802a', [B8]: o.ink || '#e8e1c9', [G9]: o.dim || '#6d6a60',
-    [F10]: '#3d3d3d', [F11]: '#e3b04b', [SP12]: '#f3f1ea', [CH13]: '#2a2a2a', [MK14]: o.acc || '#f0802a' }
+  const P = { [W1]: o.ink || '#e8e1c9', [O2]: o.acc || ORANGE.o, [D3]: o.dim || '#6d6a60', [K4]: o.k || '#0b0c0b', [S5]: o.skin || SKIN, [H6]: o.acc || ORANGE.o, [SH7]: o.acc || ORANGE.o, [B8]: o.ink || '#e8e1c9', [G9]: o.dim || '#6d6a60',
+    [F10]: '#3d3d3d', [F11]: '#e3b04b', [SP12]: '#f3f1ea', [CH13]: '#2a2a2a', [MK14]: o.acc || ORANGE.o }
   // the slugger in his kit (the other styles keep the panel's colors): jersey, trim, a helmet lifted off the dark ground if it is near black, a wood bat
   if (c === 1 && o.kit) {
     const hm = lum(o.kit.helmet) < 0.1 ? '#2b2b2b' : o.kit.helmet

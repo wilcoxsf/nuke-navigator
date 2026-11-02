@@ -5,6 +5,7 @@
 // Positions come from the engine's own toWorld (meters, home plate at the origin, y up).
 import { loadModels, cloneModel } from './models25.js'
 import { WATER_Z } from './water25.js'
+import { ORANGE } from './orange25.js'
 export function initFx25(api, col, o = {}) {
   const { THREE, scene, camera } = api.NN
   const toWorld = window.__cp.toWorld
@@ -60,10 +61,10 @@ export function initFx25(api, col, o = {}) {
   // the kayaks already there we can't spawn in new kayaks. One of them should be someone jumping in the water to get it"): a splash sets off one of five acts (ACTS
   // below), never the same one twice running, played by these six. Props come and go (the ball, a swimmer, dizzy stars); kayaks never do.
   const kayaks = []
-  const HULLS = ['#e4002b', '#f2bc40', '#2f6fd6', '#1fa37a', '#f26b21', '#efe9dc']
+  const HULLS = ['#e4002b', '#f2bc40', '#2f6fd6', '#1fa37a', ORANGE.o, '#efe9dc']
   // the paddler's and the paddle's materials in kayak.glb (build_kayak.py: skin, vest, jersey and arms, cap and blades, shaft); the hull is '#e4002b'. The model is
   // one mesh per color, so the paddler twists and leans as these meshes turning about the seat
-  const PADDLER = new Set(['#e0b48a', '#f2bc40', '#f26b21', '#111111', '#9aa0aa'])
+  const PADDLER = new Set(['#e0b48a', '#f2bc40', ORANGE.o, '#111111', '#9aa0aa'])
   const SEAT = [0.35, 0.52] // the seat in the model (x forward, y up, before the 1.6 scale)
   let M = null, level = 0, ct = 0
   const H0 = () => toWorld([0, 0, 0]) // the plate
@@ -166,11 +167,11 @@ export function initFx25(api, col, o = {}) {
     const g = new THREE.Group()
     const box = (c, w, h, d, x, y, z, parent = g) => { const m = new THREE.Mesh(bit, lam(c)); m.scale.set(w, h, d); m.position.set(x, y, z); parent.add(m); return m }
     box('#1d1d1f', 0.18, 0.5, 0.16, 0, 0.25, -0.12); box('#1d1d1f', 0.18, 0.5, 0.16, 0, 0.25, 0.12) // legs
-    box('#f26b21', 0.36, 0.52, 0.42, 0, 0.76, 0) // the jersey
+    box(ORANGE.o, 0.36, 0.52, 0.42, 0, 0.76, 0) // the jersey
     box('#f2bc40', 0.44, 0.34, 0.5, 0, 0.84, 0) // the life vest
     box('#e0b48a', 0.32, 0.32, 0.32, 0, 1.2, 0) // head
-    box('#111111', 0.36, 0.14, 0.36, -0.02, 1.4, 0); box('#f26b21', 0.2, 0.05, 0.3, 0.22, 1.36, 0) // the cap, its orange brim forward (+x)
-    g.userData.arms = [-1, 1].map((s) => { const a = new THREE.Group(); a.position.set(0, 1.0, s * 0.3); box('#f26b21', 0.14, 0.5, 0.14, 0, -0.22, 0, a); g.add(a); return a })
+    box('#111111', 0.36, 0.14, 0.36, -0.02, 1.4, 0); box(ORANGE.o, 0.2, 0.05, 0.3, 0.22, 1.36, 0) // the cap, its orange brim forward (+x)
+    g.userData.arms = [-1, 1].map((s) => { const a = new THREE.Group(); a.position.set(0, 1.0, s * 0.3); box(ORANGE.o, 0.14, 0.5, 0.14, 0, -0.22, 0, a); g.add(a); return a })
     g.scale.setScalar(1.6); g.visible = false; scene.add(g); swimP = g
     return g
   }

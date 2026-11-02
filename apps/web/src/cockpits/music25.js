@@ -2,7 +2,7 @@
 // chiptune in the browser, no sound files. The melody is a square wave, the bass a triangle on each bar's chord (I, IV or V, whichever holds most of the bar's melody
 // notes), and a noise hi-hat keeps the beat. Melodies are written in ABC notation (the plain-text tune format), parsed here.
 // Sources: TAKE ME OUT TO THE BALL GAME (Norworth and von Tilzer, 1908, public domain) is the chorus from the Digital Tradition transcription on abcnotation.com;
-// the Mexican Hat Dance opening is from The Session's transcription there (traditional); WHEN THE SAINTS and the CHARGE! bugle call are traditional, written out here.
+// WHEN THE SAINTS and the CHARGE! bugle call are traditional, written out here. (2 Nov: the Mexican Hat Dance is out, Andrew: "I don't like the mexican hat dance")
 // I LEFT MY HEART IN SAN FRANCISCO (Cory and Cross, 1954) is still under copyright: it is transcribed from the lead sheet Andrew supplied and lives in
 // public/songs_private.json (git-ignored, loaded by loadPrivateSongs), so it never reaches the repo; it is only for the private
 // friends' site, and should not go anywhere public without a license.
@@ -19,10 +19,17 @@ G,C E G3 E G-| G4 z4|` },
 L:1/4
 K:C
 z C E F| G4| z C E F| G4| z C E F| G2 E2| C2 E2| D4| z E E D| C3 C| E2 G2| G2 F2| z E F G| E2 C2| D2 D2| C4|` },
-  { id: 'hatdance', name: 'MEXICAN HAT DANCE', bpm: 150, abc: `M:6/8
-L:1/8
-K:G
-z4 d^c| d=B_B =BGF| GD2 zB,C| DEF GAB| cA2 zcB| c=A_A =AFE| FD2 zDE| FGA Bcd| g3 z3|` },
+  // 2 Nov, later (Andrew: "give me the national anthem for sure, hava nagila"): both public domain (Smith's tune, 1773; the traditional Hasidic nigun), taken from
+  // flutetunes.com's MIDI of each (the melody track, notes as written; the anthem an octave down), the bass roots per half bar picked from each tune's own chords
+  // (the anthem's B flat, E flat, F, C minor and G minor; Hava Nagila's D, G minor and C minor), since the I, IV, V guess doesn't fit Hava Nagila's mode
+  { id: 'anthem', name: 'THE STAR-SPANGLED BANNER', bpm: 96, roots: [10,10,10,10,10,10,10,10,10,10,10,10,5,5,10,10,10,10,10,10,10,10,10,10,10,10,10,10,5,5,10,10,10,10,10,10,10,10,5,3,3,3,10,10,5,5,10,10,10,10,10,10,3,3,0,10,10,5,10,0,10,10,10,0,10,10], abc: `M:3/4
+L:1/16
+K:C
+z8 F3 D| ^A,4 D4 F4| ^A8 d3 c| ^A4 D4 E4| F8 F2 F2| d6 c2 ^A4| A8 G2 A2| ^A4 ^A4 F4| D4 ^A,4 F3 D| ^A,4 D4 F4| ^A8 d3 c| ^A4 D4 E4| F8 F2 F2| d6 c2 ^A4| A8 G2 A2| ^A4 ^A4 F4| D4 ^A,4 d2 d2| d4 ^d4 f4| f8 ^d2 =d2| c4 d4 ^d4| ^d8 ^d2 ^d2| d6 c2 ^A4| A4 A4 G2 A2| ^A4 D4 E4| F8 F2 F2| ^A4 ^A4 ^A2 =A2| G4 G4 G4| c4 ^d2 =d2 c2 ^A2| ^A4 =A4 F2 F2| ^A6 c2 d2 ^d2| f8 ^A2 c2| d6 ^d2 c4| ^A8 z4|` },
+  { id: 'hava', name: 'HAVA NAGILA', bpm: 144, roots: [2,2,2,2,7,7,2,2,2,2,2,2,7,7,2,2,2,2,0,0,0,0,2,2,2,2,0,0,0,0,2,2,7,7,7,7,7,7,7,7,2,2,2,2,2,2,2,2,2,2,7,7], abc: `M:4/4
+L:1/16
+K:C
+d4 d4 z2 ^f2 ^d2 =d2| ^f4 ^f4 z2 a2 g2 ^f2| g4 g4 z2 ^a2 =a2 g2| ^f4 ^d4 =d8| d4 d4 z2 ^f2 ^d2 =d2| ^f4 ^f4 z2 a2 g2 ^f2| g4 g4 z2 ^a2 =a2 g2| ^f4 ^d4 =d8| ^f2 ^f4 ^d2 =d2 =d2 =d4| ^d2 ^d4 =d2 c2 c2 c4| c4 ^d3 =d c4 g4| ^f4 ^d4 =d8| ^f2 ^f4 ^d2 =d2 =d2 =d4| ^d2 ^d4 =d2 c2 c2 c4| c4 ^d3 =d c4 g4| ^f4 ^d4 =d8| g8 g8| g4 g4 g4 g4| g2 g2 ^a3 =a g2 ^a2 =a2 g2| g2 g2 ^a3 =a g2 ^a2 =a2 g2| a2 a2 c'3 ^a =a2 c'2 ^a2 =a2| a2 a2 c'3 ^a =a2 c'2 ^a2 =a2| a2 a2 d'12| a2 a2 d'12| d4 d4 ^a2 =a2 g2 ^f2| g16|` },
   // 29 Oct, later (Andrew: "let's wire in more songs"): four more out of copyright, written out here from the well-known melodies: Beethoven's Ode to Joy (1824),
   // Offenbach's Can-Can galop (1858), the William Tell overture's finale gallop (Rossini, 1829) and Joplin's The Entertainer (1902)
   { id: 'ode', name: 'ODE TO JOY', bpm: 150, abc: `M:4/4

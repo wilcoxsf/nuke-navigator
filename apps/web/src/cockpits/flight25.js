@@ -35,8 +35,16 @@ export function initFlight25(api, colors) {
   function tag(small, bigTxt, at, color, side = 0, prio = 1, tie) { const g = stag(api, [small, bigTxt], color, { side, prio, tie }); g.position.copy(at); g.userData.isTag = true; return g }
   // PARK TAGS: WHEN (1 Nov, later; GPT red team II, B6 "ONE TAG AT A TIME"): 1 ALL STAY, every tag up once its moment has passed; 2 ONE AT A TIME, only the newest
   // (ZENITH at the top, the wall as it crosses, LANDED when it comes down), the posts and dots staying for the others
-  let flow = 1, landLook = 1
-  function showTags(g, f) { if (!g) return; g.userData.f = f; const R = [...g.userData.reveal].sort((a, b) => a[0] - b[0]); let k = -1; R.forEach(([at], i) => { if (f >= at) k = i }); R.forEach(([, o], i) => { const t = o.children.find((c) => c.userData.isTag); if (t) t.visible = flow === 1 || i === k }) }
+  let flow = 1, landLook = 2, landCol = 1
+  // 3 ON HOVER (2 Nov, later): a tag shows only while the pointer is on its cube (the dot at the top of the flight, the dot where it crossed the wall)
+  let hov = null
+  function showTags(g, f) { if (!g) return; g.userData.f = f; const R = [...g.userData.reveal].sort((a, b) => a[0] - b[0]); let k = -1; R.forEach(([at], i) => { if (f >= at) k = i }); R.forEach(([, o], i) => { const t = o.children.find((c) => c.userData.isTag); if (t && !t.userData.landNumber) t.visible = flow === 3 ? o === hov : flow === 1 || i === k }) }
+  // the hovered cube: the nearest dot on screen within 22 px of the pointer, among the posts already up
+  const ptr = { x: -1e4, y: -1e4 }, pv = new THREE.Vector3()
+  const dotsOnScreen = () => { const cv = api.NN.renderer?.domElement; if (!last || !cv) return []; const r = cv.getBoundingClientRect(); return last.userData.reveal.filter(([, o]) => o.userData.dot && o.visible).map(([, o]) => { pv.copy(o.userData.dot).project(camera); return { o, x: r.left + ((pv.x + 1) / 2) * r.width, y: r.top + ((1 - pv.y) / 2) * r.height, front: pv.z < 1 } }) }
+  function hover() { let best = null, bd = 22; for (const d of dotsOnScreen()) { const e = Math.hypot(d.x - ptr.x, d.y - ptr.y); if (d.front && e < bd) { bd = e; best = d.o } } if (best !== hov) { hov = best; if (flow === 3) showTags(last, last?.userData.f ?? 1) } }
+  addEventListener('pointermove', (e) => { ptr.x = e.clientX; ptr.y = e.clientY; hover() }, true) // (capture: the park's own handlers stop some moves on the way up)
+  api.NN.frames.push(() => { if (last && flow === 3) hover() }) // the camera or the ball moved under a still pointer // (2 Nov, later: the count-up is never stood down for a newer tag; ONE AT A TIME hid it from the zenith on)
   // the track: pts are world points along the flight; res the engine's result; color the verdict color; preview the ghost before a swing
   function track(pts, res, color, preview) {
     const g = new THREE.Group(), geo = box(), c = colors(), main = lam(preview ? c.dim : color), dim = lam(c.dim)
@@ -76,6 +84,7 @@ export function initFlight25(api, colors) {
     zen.add(cubes(geo, lam(c.mk || c.pc || c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5), 0.45))
     zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1, 1, c.mk || c.pc || c.tx))
     zen.add(cubes(geo, lam(c.mk ?? c.tx), [top], 1.4)) // the dot at the top of the flight
+    zen.userData.dot = top.clone()
     g.add(zen); g.userData.reveal.push([ai / Math.max(1, src.length - 1), zen])
     // the clearance post: from the top of the wall to the ball as it crossed (GONE), or from the top down to where it hit (WALL)
     const v = res.verdict
@@ -84,19 +93,25 @@ export function initFlight25(api, colors) {
       if (ci > 0) {
         const q = src[ci].p, b = toWorld([q[0], q[1], v.wallH * FT]), ball = toWorld([q[0], q[1], v.cross * FT]), lo = Math.min(b.y, ball.y), hi = Math.max(b.y, ball.y)
         const cl = new THREE.Group()
-        cl.add(cubes(geo, lam(c.mk || c.pc || c.acc), column(b.x, b.z, lo, hi, 0.8), 0.5))
+        const gc = c.nk || c.mk || c.pc || c.acc // (2 Nov, later: "the cleared the wall cube / line let's also make it geiger")
+        cl.add(cubes(geo, lam(gc), column(b.x, b.z, lo, hi, 0.8), 0.5))
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
-        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : ''}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, c.mk || c.pc || c.acc))
-        cl.add(cubes(geo, lam(c.mk ?? c.tx), [ball], 1.4)) // the dot where it crossed the wall
+        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : ''}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, gc))
+        cl.add(cubes(geo, lam(gc), [ball], 1.4)) // the dot where it crossed the wall
+        cl.userData.dot = ball.clone()
         g.add(cl); g.userData.reveal.push([ci / Math.max(1, src.length - 1), cl])
       }
     }
-    // where it came down: the feet alone, a chunky voxel number over the spot (1 Nov, Andrew: no LANDED, "just say the ft as a hover number"; five looks, landnum25.js)
-    // (a committed swing only; the preview has the readout)
+    // the feet: a chunky voxel number riding over the ball from the crack, counting up, then settled over the spot (1 Nov, Andrew: no LANDED, "just say the ft as a
+    // hover number"; 2 Nov: "counting up the whole time", grey until it clears the wall, then orange; landnum25.js). A committed swing only; the preview has the readout
     if (!preview) {
       const end = toWorld(src[src.length - 1].p), lp = res.landing?.point ?? end, base = lp.clone(); base.y = Math.max(base.y, ground)
-      const ld = landNumber(api, { at: base, ft: res.landFt, from: v.wallFt ?? res.landFt - 60, color, look: landLook })
-      g.add(ld); g.userData.reveal.push([0.985, ld])
+      const gone = v.kind === 'GONE', over = gone && v.wallFt ? src.findIndex((s) => Math.hypot(s.p[0], s.p[1]) / FT >= v.wallFt) : -1
+      // 2 Nov, later (Andrew: "pitch color until it's gone, after which I want to see both orange and the nuke color"): COUNT-UP COLOR, 1 ORANGE or 2 GEIGER
+      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: c.pc || c.tx, hot: landCol === 2 ? c.nk || c.acc : c.acc, up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3 })
+      ld.userData.src = src; ld.userData.over = over < 0 ? Infinity : over
+      g.add(ld); g.userData.reveal.push([0, ld]); g.userData.ld = ld
+      if (window.__fixedTime !== undefined) ld.userData.settle()
     }
     // the ghost: while you tweak a real home run, the real flight stays up as faint cubes, so your change reads against it
     if (ghost && ghost.length > 2) { const gc = new THREE.CatmullRomCurve3(ghost), gl = gc.getLength(); g.add(cubes(geo, lam(c.dim), gc.getSpacedPoints(Math.max(2, Math.round(gl / 2.2))), 0.32)) }
@@ -106,8 +121,10 @@ export function initFlight25(api, colors) {
     return g
   }
   // as the ball flies (fraction f of the flight): posts appear when the ball passes them; the comet head follows the ball
-  function reveal(f) {
+  function reveal(f, pos) {
     if (!last) return
+    const ld = last.userData.ld
+    if (ld) { const S = ld.userData.src, i = Math.min(S.length - 1, Math.max(0, Math.round(f * (S.length - 1)))), p = S[i].p; ld.userData.ride(Math.hypot(p[0], p[1]) / FT, pos ?? toWorld(p), i >= ld.userData.over, p[2] / FT) }
     for (const [at, o] of last.userData.reveal) if (f >= at) o.visible = true
     if (flow === 2) showTags(last, f)
     const h = last.userData.comet
@@ -117,6 +134,6 @@ export function initFlight25(api, colors) {
       h.instanceMatrix.needsUpdate = true
     }
   }
-  function done() { if (last) { for (const [, o] of last.userData.reveal) o.visible = true; showTags(last, 1) } }
-  return { track, reveal, done, setLand(n) { landLook = n }, land: () => landLook, setFlow(n) { flow = n; showTags(last, last?.userData.f ?? 1) }, setStyle(c) { style = c }, style: () => style, last: () => last, setGhost(p) { ghost = p }, ghost: () => ghost }
+  function done() { if (last) { for (const [, o] of last.userData.reveal) o.visible = true; showTags(last, 1); last.userData.ld?.userData.settle() } }
+  return { track, reveal, done, dots: () => dotsOnScreen().map((d) => ({ x: Math.round(d.x), y: Math.round(d.y), kind: d.o.children.find((c) => c.userData.isTag)?.visible ? "on" : "off", near: Math.round(Math.hypot(d.x - ptr.x, d.y - ptr.y)) })), setLand(n) { landLook = n }, land: () => landLook, setLandCol(n) { landCol = n }, setFlow(n) { flow = n; showTags(last, last?.userData.f ?? 1) }, setStyle(c) { style = c }, style: () => style, last: () => last, setGhost(p) { ghost = p }, ghost: () => ghost }
 }

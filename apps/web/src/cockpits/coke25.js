@@ -10,6 +10,7 @@
 //   the glove: the model's glove voxelized and filled solid (no hole through it), two tans with darker laces.
 //   a white slide from high in the body down the inside and out of a door in the neck's side (the side facing the field) onto the concourse, and three kids who climb up and slide down, over and over.
 // C picks the paint: 1 GLASS (green, his pick), 2 COKE RED (the glass in red).
+import { ORANGE } from './orange25.js'
 export async function initCoke25(api, o = {}) {
   const { THREE, scene } = api.NN
   let d = null
@@ -49,7 +50,7 @@ export async function initCoke25(api, o = {}) {
   // the kids climb a ladder from the door up the inside to the slide's top, slide down and walk back round
   const foot = along(DOOR, 1.25), top = slide(0), door = along(DOOR, 0.9); foot.y = ground + 0.1
   const climb = (f) => (f < 0.25 ? foot.clone().lerp(door, f / 0.25) : door.clone().lerp(top, (f - 0.25) / 0.75)) // up a ladder to the door, then up inside
-  const SHIRT = ['#fd5a1e', '#1b1b1b', '#f4f2ea'], SKIN = ['#c68a64', '#8d5a3b', '#e9b99a'], PANTS = ['#3b5b8c', '#2a2a2a', '#6d6a60']
+  const SHIRT = [ORANGE.o, '#1b1b1b', '#f4f2ea'], SKIN = ['#c68a64', '#8d5a3b', '#e9b99a'], PANTS = ['#3b5b8c', '#2a2a2a', '#6d6a60']
   const kids = SHIRT.map((sh, k) => {
     const m = new THREE.Group(), part = (c, sx, sy, sz, x, y, z) => { const b = new THREE.Mesh(cube, new THREE.MeshLambertMaterial({ color: c, flatShading: true })); b.scale.set(sx, sy, sz); b.position.set(x, y, z); m.add(b); return b }
     part(SKIN[k], 0.32, 0.32, 0.32, 0, 1.05, 0); part(sh, 0.42, 0.45, 0.28, 0, 0.66, 0)
@@ -116,7 +117,7 @@ export async function initCoke25(api, o = {}) {
     const v = 38 + ((i * 29) % 7) * 4, up = 3 + ((i * 23) % 9) * 0.45, hPop = 3 + ((i * 41) % 13)
     return { d: 2.4 * (i / NB) ** 1.5 + ((i * 37) % 11) * 0.02, a: (i * 2.39996) % (Math.PI * 2), r: 0.15 + ((i * 53) % 10) * 0.05, v, s: 0.75 + ((i * 17) % 4) * 0.12, up, popS: hPop / up, wob: 0.5 + ((i * 7) % 5) * 0.15, fan: 0.25 + ((i * 11) % 6) * 0.08 }
   })
-  bubs.forEach((_, i) => { const c = i % 3 ? '#fd5a1e' : '#f4f2ea'; bubM.setColorAt(i, col.set(c)); for (let k = 0; k < NPOP; k++) popM.setColorAt(i * NPOP + k, col.set(c)) }); bubM.instanceColor.needsUpdate = popM.instanceColor.needsUpdate = true
+  bubs.forEach((_, i) => { const c = i % 3 ? ORANGE.o : '#f4f2ea'; bubM.setColorAt(i, col.set(c)); for (let k = 0; k < NPOP; k++) popM.setColorAt(i * NPOP + k, col.set(c)) }); bubM.instanceColor.needsUpdate = popM.instanceColor.needsUpdate = true
   const hide = () => { dummy.scale.setScalar(0); dummy.updateMatrix(); for (let i = 0; i < NB; i++) bubM.setMatrixAt(i, dummy.matrix); for (let i = 0; i < NB * NPOP; i++) popM.setMatrixAt(i, dummy.matrix); bubM.instanceMatrix.needsUpdate = popM.instanceMatrix.needsUpdate = true }
   hide()
   let look = 1, bub = null, lit = false, flick = 0

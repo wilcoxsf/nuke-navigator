@@ -12,6 +12,7 @@
 // there). Oracle only. Under reduced motion nothing moves and nothing is scheduled. Sounds go out as window.__nnSound('happen-<name>-<beat>', { at }).
 import { WATER_Z } from './water25.js'
 import { FONT } from './vox25.js'
+import { ORANGE } from './orange25.js'
 const GLYPH = { ...FONT, $: ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'], '!': ['#', '#', '#', '#', '#', '.', '#'] }
 export const HAPPENINGS = ['seal', 'mole', 'serpent', 'jets', 'escapee', 'fries', 'flocked', 'whale', 'crabs', 'heron']
 export const ON_LANDING = ['hats'] // (1 Nov) this one only comes with a landing: onLand(ev). (1 Nov, later: the KAYAK TRAFFIC JAM went; a splash is the Cove's own kayakers now, fx25.js)
@@ -49,21 +50,21 @@ export function initHappen25(api, o = {}) {
     const e = (x / 11) ** 2 + (y / 5) ** 2 + (z / 5) ** 2
     if (e > 1 || e < 0.6) continue
     const band = Math.abs(y) <= 1, sf = band && Math.abs(z) >= 4 && ((x >= -3 && x <= -1) || (x >= 1 && x <= 3)) && (y === 0 || x === -3 || x === 1)
-    B.push([x, y, z, sf ? '#141414' : band ? '#fd5a1e' : '#d9dbe0'])
+    B.push([x, y, z, sf ? '#141414' : band ? ORANGE.o : '#d9dbe0'])
   }
-  for (const [y, z] of [[0, 4], [0, -4], [4, 0], [-4, 0]]) for (let x = -13; x <= -10; x++) B.push([x, y + Math.sign(y) * (x + 13 > 1 ? 0 : 1), z + Math.sign(z) * (x + 13 > 1 ? 0 : 1), '#fd5a1e'])
+  for (const [y, z] of [[0, 4], [0, -4], [4, 0], [-4, 0]]) for (let x = -13; x <= -10; x++) B.push([x, y + Math.sign(y) * (x + 13 > 1 ? 0 : 1), z + Math.sign(z) * (x + 13 > 1 ? 0 : 1), ORANGE.o])
   for (let x = -2; x <= 2; x++) for (let z = -1; z <= 1; z++) B.push([x, -6, z, '#2b2e33'])
   const blimp = build(B, 1.4)
   const mid = P(0, 90, 0)
   const F = []
   for (let x = -9; x <= 9; x++) for (let z = -3; z <= 3; z++) { const taper = Math.abs(x) > 7 ? Math.abs(x) - 7 : 0; if (Math.abs(z) > 3 - taper) continue; F.push([x, 0, z, '#f4f2ea'], [x, 1, z, Math.abs(z) === 3 - taper ? '#2f5bd3' : '#f4f2ea']) }
   for (let x = -6; x <= 5; x++) for (let z = -2; z <= 2; z++) for (let y = 2; y <= 3; y++) F.push([x, y, z, Math.abs(z) === 2 && x % 2 ? '#1f2a3a' : '#e9e6dc'])
-  for (let y = 4; y <= 6; y++) F.push([1, y, 0, y === 6 ? '#fd5a1e' : '#141414'])
+  for (let y = 4; y <= 6; y++) F.push([1, y, 0, y === 6 ? ORANGE.o : '#141414'])
   const ferry = build(F, 1.2)
 
   // ---------------- the SPLASH HITS counter on the right-field wall (placed once the park model is in) ----------------
   let splashG = null, digits = null, splashN = 0, flipT = -1, nextN = 0
-  const digitCells = (n) => { const c = []; text(c, String(n).padStart(3, '0'), '#fd5a1e', 0, 0, 0); return c }
+  const digitCells = (n) => { const c = []; text(c, String(n).padStart(3, '0'), ORANGE.o, 0, 0, 0); return c }
   // on the face of the right-field wall toward the pole, below its top like the real outfield signs, so it never rises into the clearance tags over the wall
   let SPL = 0.3
   function placeSplash() {
@@ -71,7 +72,7 @@ export function initHappen25(api, o = {}) {
     SPL = Math.min(0.45, Math.max(0.18, (wl[1] * 0.3048 - 1.2) / 21))
     const g = new THREE.Group(), at = P(px, py, 0.6); g.position.copy(at); facing(g, at, home); root.add(g)
     const cells = [], w = textW('SPLASH HITS')
-    box(cells, -2, w + 1, -2, 18, -1, -1, (x, y) => (x === -2 || x === w + 1 || y === -2 || y === 18 ? '#fd5a1e' : '#0d1f3a'))
+    box(cells, -2, w + 1, -2, 18, -1, -1, (x, y) => (x === -2 || x === w + 1 || y === -2 || y === 18 ? ORANGE.o : '#0d1f3a'))
     text(cells, 'SPLASH HITS', '#f4f2ea', 0, 9, 0)
     const panel = build(cells, SPL, g); panel.position.set(-(w / 2) * SPL, 2 * SPL, 0)
     splashG = g; setDigits(splashN)
@@ -260,8 +261,8 @@ export function initHappen25(api, o = {}) {
     const spots = (fanSpots ?? []).filter((w) => clearOf(w, 24))
     if (!spots.length) return null
     const at = pick(spots), S = 0.36, sit = [], up = [], tray = [], gull = []
-    box(sit, 0, 1, 0, 1, 0, 3, '#2b2e33'); box(sit, 0, 1, 2, 6, -1, 0, '#fd5a1e'); box(sit, 0, 1, 7, 8, -1, 0, '#e0b48a'); box(sit, -1, 2, 9, 9, -2, 1, '#141414'); box(sit, 0, 1, 5, 5, 1, 3, '#fd5a1e')
-    box(up, 0, 1, 0, 5, -1, 0, '#2b2e33'); box(up, 0, 1, 6, 10, -1, 0, '#fd5a1e'); box(up, 0, 1, 11, 12, -1, 0, '#e0b48a'); box(up, -1, 2, 13, 13, -2, 1, '#141414'); box(up, 0, 0, 10, 13, -3, -3, '#e0b48a'); box(up, 0, 0, 10, 13, 2, 2, '#e0b48a')
+    box(sit, 0, 1, 0, 1, 0, 3, '#2b2e33'); box(sit, 0, 1, 2, 6, -1, 0, ORANGE.o); box(sit, 0, 1, 7, 8, -1, 0, '#e0b48a'); box(sit, -1, 2, 9, 9, -2, 1, '#141414'); box(sit, 0, 1, 5, 5, 1, 3, ORANGE.o)
+    box(up, 0, 1, 0, 5, -1, 0, '#2b2e33'); box(up, 0, 1, 6, 10, -1, 0, ORANGE.o); box(up, 0, 1, 11, 12, -1, 0, '#e0b48a'); box(up, -1, 2, 13, 13, -2, 1, '#141414'); box(up, 0, 0, 10, 13, -3, -3, '#e0b48a'); box(up, 0, 0, 10, 13, 2, 2, '#e0b48a')
     box(tray, -1, 1, 0, 0, -1, 1, (x, y, z) => ((x + z) % 2 ? '#d8262c' : '#f4f2ea')); box(tray, -1, 1, 1, 2, -1, 1, (x, y, z) => ((x * 3 + z + y) % 2 ? '#f2c94c' : '#e3b13e'))
     box(gull, -1, 1, 0, 1, -3, 3, '#f2f0ea'); box(gull, -1, 1, 1, 2, 3, 4, '#f2f0ea'); gull.push([0, 1, 5, '#f2c230'], [0, 1, 6, '#f2c230'], [-1, 2, 4, '#111'], [1, 2, 4, '#111'])
     for (const s of [-1, 1]) for (let k = 2; k <= 8; k++) for (let z = -1; z <= 1; z++) gull.push([s * k, 1, z, k > 6 ? '#3a3f47' : '#9aa0a8'])
@@ -351,7 +352,7 @@ export function initHappen25(api, o = {}) {
   const spray = (g, u) => { g.visible = u > 0 && u < 1; if (g.visible) { g.scale.set(1 + u * 1.5, Math.max(0.05, 4 * u * (1 - u) * 2.2), 1 + u * 1.5) } }
   // HATS: a row of fans in the right-field arcade; the one nearest the landing loses his cap, then the next, and the next, down the row; the last cap sails out
   // into the Cove. Nobody gets up.
-  const SHIRTS = ['#fd5a1e', '#141414', '#f4f2ea', '#fd5a1e', '#8a8f99', '#141414', '#fd5a1e', '#f4f2ea', '#141414']
+  const SHIRTS = [ORANGE.o, '#141414', '#f4f2ea', ORANGE.o, '#8a8f99', '#141414', ORANGE.o, '#f4f2ea', '#141414']
   H.hats = (arg) => {
     let b0 = 34
     if (arg) { const H2 = P(0, 0, 0), x = arg.x - H2.x, y = H2.z - arg.z; b0 = Math.min(43, Math.max(25, (Math.atan2(x, y) * 180) / Math.PI)) }
@@ -359,7 +360,7 @@ export function initHappen25(api, o = {}) {
     const fans = SHIRTS.slice(0, N).map((shirt, i) => {
       const at = rf(bs + sgn * i * STEP, 3.2, ARC_Z), body = [], cap = []
       box(body, 0, 1, 0, 1, 0, 3, '#2b2e33'); box(body, 0, 1, 2, 6, -1, 0, shirt); box(body, 0, 1, 7, 8, -1, 0, '#e0b48a')
-      box(cap, -1, 2, 0, 0, -2, 1, i % 2 ? '#141414' : '#fd5a1e'); box(cap, 3, 4, 0, 0, -1, 0, i % 2 ? '#141414' : '#fd5a1e'); cap.push([0, 1, -1, i % 2 ? '#fd5a1e' : '#141414'], [1, 1, 0, i % 2 ? '#fd5a1e' : '#141414']) // a cap and its brim
+      box(cap, -1, 2, 0, 0, -2, 1, i % 2 ? '#141414' : ORANGE.o); box(cap, 3, 4, 0, 0, -1, 0, i % 2 ? '#141414' : ORANGE.o); cap.push([0, 1, -1, i % 2 ? ORANGE.o : '#141414'], [1, 1, 0, i % 2 ? ORANGE.o : '#141414']) // a cap and its brim
       const g = fly(new THREE.Group()); root.add(g); g.position.copy(at); facing(g, at, home); build(body, S, g)
       const cg = build(cap, S, g); cg.position.set(0, 9 * S, 0)
       return { g, cg, t0: 0.8 + i * 0.45, last: i === N - 1 }
@@ -392,10 +393,10 @@ export function initHappen25(api, o = {}) {
   // pile-up goes down the line; it flips on its back, legs going; the signal changes back, it rights itself, and they all march off the edge into the Cove
   const crabCells = (legPh) => {
     const C = []
-    ell(C, 0, 1, 0, 2.6, 1.1, 1.7, (x, y) => (y >= 2 ? '#ff7a3c' : '#e2531f'))
-    C.push([-1, 3, 1, '#141414'], [1, 3, 1, '#141414'], [-1, 2, 1, '#e2531f'], [1, 2, 1, '#e2531f']) // eyes on stalks, toward the field
-    for (const s of [-1, 1]) { box(C, s * 3, s * 3, 1, 1, 2, 3, '#e2531f'); box(C, s * 3 - 1, s * 3 + 1, 1, 2, 4, 4, '#ff7a3c'); C.push([s * 3 + s, 2, 5, '#ff7a3c'], [s * 3 - s, 1, 5, '#ff7a3c']) } // the claws, open
-    for (const s of [-1, 1]) for (const z of [-1, 0, 1]) C.push([s * 3, (z + legPh) % 2 ? 0 : 1, z - 1, '#c9441a'], [s * 4, 0, z - 1, '#c9441a']) // the legs, in two steps
+    ell(C, 0, 1, 0, 2.6, 1.1, 1.7, (x, y) => (y >= 2 ? ORANGE.light : ORANGE.o))
+    C.push([-1, 3, 1, '#141414'], [1, 3, 1, '#141414'], [-1, 2, 1, ORANGE.o], [1, 2, 1, ORANGE.o]) // eyes on stalks, toward the field
+    for (const s of [-1, 1]) { box(C, s * 3, s * 3, 1, 1, 2, 3, ORANGE.o); box(C, s * 3 - 1, s * 3 + 1, 1, 2, 4, 4, ORANGE.light); C.push([s * 3 + s, 2, 5, ORANGE.light], [s * 3 - s, 1, 5, ORANGE.light]) } // the claws, open
+    for (const s of [-1, 1]) for (const z of [-1, 0, 1]) C.push([s * 3, (z + legPh) % 2 ? 0 : 1, z - 1, ORANGE.dark], [s * 4, 0, z - 1, ORANGE.dark]) // the legs, in two steps
     return C
   }
   const SIG = [], SIG_W = [], SIG_R = []
@@ -460,7 +461,7 @@ export function initHappen25(api, o = {}) {
     if (!clearOf(tip, 18)) return null
     const L = POLE[2] - 9, side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize(), out = P(140, 150, 30)
     // the pole: accent cubes from the top of the wall up, bent by d metres at the top (a quarter circle near enough)
-    const n = 26, pole = new THREE.InstancedMesh(cube, lam('#f0802a'), n), m4 = new THREE.Matrix4(), q = new THREE.Vector3()
+    const n = 26, pole = new THREE.InstancedMesh(cube, lam(ORANGE.o), n), m4 = new THREE.Matrix4(), q = new THREE.Vector3()
     pole.frustumCulled = false; fly(pole); root.add(pole)
     const at = (f, d) => q.copy(base).addScaledVector(side, d * f * f).add(V(0, L * f - (d * d * f) / (3 * L), 0))
     const drawPole = (d) => { for (let i = 0; i < n; i++) { at(i / (n - 1), d); m4.makeScale(0.75, (L / n) * 1.15, 0.75).setPosition(q); pole.setMatrixAt(i, m4) } pole.instanceMatrix.needsUpdate = true }

@@ -4,6 +4,7 @@
 import * as THREE from 'three'
 import { voxPost, voxDots, voxText, voxCells, VOX_FONT } from './cockpits/vox25.js'
 import { stag, stagAvoid } from './cockpits/stag25.js'
+import { ORANGE } from './cockpits/orange25.js'
 
 // the instance buffers of voxel meshes (their cube and materials are shared, so only those go)
 const freeVox = (g) => g.traverse((o) => { if (o.isInstancedMesh) o.dispose() })
@@ -53,15 +54,15 @@ export function landingParty(api, balls, o = {}) {
       if (style === 1) g.add(voxDots(THREE, [p, p.clone().setY(p.y + 0.9)], { size: (j) => (j ? 0.7 : 1.5), color: MARK })) // DOTS
       else if (style === 2) { // NUMBERED PINS (1 Nov, later, his pick: "I like numbered pins for landing party the most but still think this interface needs help"): bigger,
         // the number on a dark plate turned to the camera, the one in focus orange and taller
-        const on = i === lit - 1, top = p.clone().setY(p.y + (on ? 6 : 4.4)); g.add(voxPost(THREE, p, top, { px: on ? 0.45 : 0.35, gap: 0.7, color: on ? '#f0802a' : MARKD }))
-        const n = voxText(THREE, String(i + 1), { px: on ? 0.8 : 0.6, color: on ? '#f0802a' : MARK, back: '#141414' }), fl = new THREE.Group(); fl.add(n); fl.position.copy(top).add(new THREE.Vector3(0, 0.3, 0)); g.add(fl); flags.push(fl)
+        const on = i === lit - 1, top = p.clone().setY(p.y + (on ? 6 : 4.4)); g.add(voxPost(THREE, p, top, { px: on ? 0.45 : 0.35, gap: 0.7, color: on ? ORANGE.o : MARKD }))
+        const n = voxText(THREE, String(i + 1), { px: on ? 0.8 : 0.6, color: on ? ORANGE.o : MARK, back: '#141414' }), fl = new THREE.Group(); fl.add(n); fl.position.copy(top).add(new THREE.Vector3(0, 0.3, 0)); g.add(fl); flags.push(fl)
       }
-      else if (style === 3) { const top = p.clone().setY(p.y + 4); g.add(voxPost(THREE, p, top, { px: 0.3, gap: 0.9, color: MARKD })); const f = []; for (let a = 0; a < 4; a++) for (let b = 0; b < 3; b++) f.push(top.clone().add(new THREE.Vector3(0.45 + a * 0.45, -b * 0.45, 0))); g.add(voxDots(THREE, f.filter((_, j) => j % 2 === 0), { px: 0.45, color: '#f0802a' }), voxDots(THREE, f.filter((_, j) => j % 2 === 1), { px: 0.45, color: '#f4f2ea' })) } // FLAGS
+      else if (style === 3) { const top = p.clone().setY(p.y + 4); g.add(voxPost(THREE, p, top, { px: 0.3, gap: 0.9, color: MARKD })); const f = []; for (let a = 0; a < 4; a++) for (let b = 0; b < 3; b++) f.push(top.clone().add(new THREE.Vector3(0.45 + a * 0.45, -b * 0.45, 0))); g.add(voxDots(THREE, f.filter((_, j) => j % 2 === 0), { px: 0.45, color: ORANGE.o }), voxDots(THREE, f.filter((_, j) => j % 2 === 1), { px: 0.45, color: '#f4f2ea' })) } // FLAGS
       else if (style === 6) { // NUMBERED FLAGS (1 Nov, Andrew: "let's make it numbered flags and have the flag we're currently highlighting orange"): a stake, a flag
         // off its top with the number on it; bone flags with dark numbers, the one in focus orange; each turns to face the camera
-        const on = i === lit - 1, cs = on ? 0.6 : 0.45, top = p.clone().setY(p.y + (on ? 9 : 7)); g.add(voxPost(THREE, p, top, { px: on ? 0.55 : 0.4, gap: 0.7, color: on ? '#f0802a' : MARKD }))
+        const on = i === lit - 1, cs = on ? 0.6 : 0.45, top = p.clone().setY(p.y + (on ? 9 : 7)); g.add(voxPost(THREE, p, top, { px: on ? 0.55 : 0.4, gap: 0.7, color: on ? ORANGE.o : MARKD }))
         const cells = [], rows = VOX_FONT[String(i + 1)]
-        for (let x = 0; x <= 8; x++) for (let y = 0; y <= 8; y++) cells.push([x, y, -1, on ? '#f0802a' : MARK])
+        for (let x = 0; x <= 8; x++) for (let y = 0; y <= 8; y++) cells.push([x, y, -1, on ? ORANGE.o : MARK])
         rows.forEach((r, j) => [...r].forEach((ch, x) => { if (ch === '#') cells.push([x + 2, 7 - j, 0, '#141414']) }))
         const fl = new THREE.Group(), f = voxCells(THREE, cells, cs); f.position.set(4.6 * cs, -9 * cs, 0); fl.add(f); fl.position.copy(top); g.add(fl); flags.push(fl)
       } else if (style === 4) g.add(voxDots(THREE, it.pts.filter((_, j) => j % 3 === 0), { px: 0.22, color: MARKD }), voxDots(THREE, [p], { px: 1.2, color: MARK })) // TRAILS
@@ -91,7 +92,7 @@ export function landingParty(api, balls, o = {}) {
     for (const b of oracle) lbOf(b)
     return oracle.filter((b) => b !== x.self).map((b) => ({ b, d: ((b.ev - x.ev) / 3) ** 2 + ((b.la - x.la) / 3) ** 2 + ((b._lb - x.bear) / 6) ** 2 })).sort((p, q) => p.d - q.d).slice(0, K)
   }
-  function show(x, color = '#f0802a') {
+  function show(x, color = ORANGE.o) {
     clear()
     const list = nearest(x), out = []
     group = new THREE.Group()
@@ -136,7 +137,7 @@ export function landingParty(api, balls, o = {}) {
     items.forEach((it, i) => { if (it) it.n.visible = i === k - 1 })
     if ((style === 6 || style === 2) && k !== lit) { lit = k; marks() } else lit = k
     const it = items[k - 1]
-    if (it) { flightG = voxDots(THREE, it.pts, { px: 0.45, color: o.flight ?? '#f0802a' }); group.add(flightG) }
+    if (it) { flightG = voxDots(THREE, it.pts, { px: 0.45, color: o.flight ?? ORANGE.o }); group.add(flightG) }
   }
   // the flags turn to the camera (about their stakes)
   api.NN.frames?.push(() => { if (!flags.length || !group) return; const cp = api.NN.camera.position; for (const f of flags) f.rotation.y = Math.atan2(cp.x - f.position.x, cp.z - f.position.z) })

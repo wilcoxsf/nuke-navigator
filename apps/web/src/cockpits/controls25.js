@@ -16,11 +16,12 @@
 // The typed boxes and the slider stay; these set the same numbers through o.set. A grab takes the pointer from the camera until it lets go. Sizes grow with the
 // camera's distance so the handles stay grabbable from the broadcast seat.
 import { voxText, VOX_FONT } from './vox25.js'
+import { ORANGE as OR25 } from './orange25.js'
 const FT = 0.3048, RAD = Math.PI / 180
 export function initControls25(api, o = {}) {
   const { THREE, scene, camera } = api.NN
   const toWorld = window.__cp.toWorld, cube = new THREE.BoxGeometry(1, 1, 1), d = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0)
-  const C = { acc: o.acc ?? '#f0802a', tx: o.tx ?? '#e8e1c9', dim: o.dim ?? '#8a8f99' }
+  const C = { acc: o.acc ?? OR25.o, tx: o.tx ?? '#e8e1c9', dim: o.dim ?? '#8a8f99' }
   const mats = {}, mat = (c) => (mats[c] ??= new THREE.MeshBasicMaterial({ color: c, fog: false }))
   const g = new THREE.Group(); g.visible = false; scene.add(g)
   const F = (x, y, z) => toWorld([x, y, z])
@@ -37,7 +38,7 @@ export function initControls25(api, o = {}) {
   let sty = { sl: 1, sk: 5, th: 5 }, ks = 1.5
   const pools = new Map(), poolOf = (piece, color, n, parent) => { const key = piece + color; if (!pools.has(key)) pools.set(key, { piece, m: pool(n, color, parent) }); return pools.get(key).m }
   const paintPiece = (piece, parent, parts) => { for (const [key, p] of pools) if (p.piece === piece && !(key.slice(piece.length) in parts)) fill(p.m, []); for (const [c, pts] of Object.entries(parts)) fill(poolOf(piece, c, 640, parent), pts) }
-  const WOOD = '#a8703f', STEEL = '#8a8f99', WHITE = '#f4f2ea', RED = '#e0403a', GREEN = '#3b8a52', ORANGE = '#f0802a'
+  const WOOD = '#a8703f', STEEL = '#8a8f99', WHITE = '#f4f2ea', RED = '#e0403a', GREEN = '#3b8a52'
   // ---- the slingshot behind the plate: its own group, scaled with the camera; the ball is the grip for speed and aim, the lit handle on top for the angle ----
   const sg = new THREE.Group(); sg.position.copy(F(0, -5, 0)); g.add(sg)
   const L = (x, y, z) => new THREE.Vector3(x, z, -y) // the plate frame inside the group: x right, y toward center field, z up
@@ -76,17 +77,17 @@ export function initControls25(api, o = {}) {
       if (o.twig) { line(o.arm(2, -1), tilt(-0.7, 0, 1.9), tilt(-1.5, 0.2, 2.6), 0.2); put('#5f8f3a', tilt(-1.55, 0.2, 2.72), 0.3) }
     }
     if (sty.sl === 1) { // CHUNKY Y-FORK, with its notched angle arc
-      fork({ stem: () => WOOD, arm: () => WOOD, tip: WOOD, armW: 0.4, spread: 0.75, band: ORANGE, bandW: 0.24 })
+      fork({ stem: () => WOOD, arm: () => WOOD, tip: WOOD, armW: 0.4, spread: 0.75, band: OR25.o, bandW: 0.24 })
       for (let a = -10; a <= 60; a += 5) { const r = 1.6, v = L(1.95, Math.cos(a * RAD) * r - 0.6, 0.25 + Math.sin(a * RAD) * r); put(a % 30 ? STEEL : WHITE, v, a % 30 ? 0.16 : 0.26) }
-      for (let t = 0.3; t <= 1.6; t += 0.32) put(ORANGE, L(1.95, Math.cos(st.la * RAD) * t - 0.6, 0.25 + Math.sin(st.la * RAD) * t), 0.22)
+      for (let t = 0.3; t <= 1.6; t += 0.32) put(OR25.o, L(1.95, Math.cos(st.la * RAD) * t - 0.6, 0.25 + Math.sin(st.la * RAD) * t), 0.22)
     } else if (sty.sl === 5) fork({ stem: () => STEEL, arm: () => STEEL, tip: '#2a2d33', armW: 0.26, spread: 0.7, band: '#222326', bandW: 0.2, pouch: '#7a4a2a', brace: true, thin: true }) // WRIST ROCKET
     else if (sty.sl === 6) fork({ stem: (z) => (Math.floor(z * 5) % 3 ? '#6b4a2b' : '#8b6a43'), arm: (z) => (Math.floor(z * 6) % 3 ? '#6b4a2b' : '#8b6a43'), tip: '#6b4a2b', armW: 0.36, spread: 0.8, band: '#d8c08a', bandW: 0.2, pouch: '#7a4a2a', wob: true, twig: true }) // TREE BRANCH
-    else if (sty.sl === 7) fork({ stem: (z) => (Math.floor(z * 4) % 2 ? '#141414' : ORANGE), arm: () => '#1a1a1a', tip: ORANGE, armW: 0.38, spread: 0.75, band: ORANGE, bandW: 0.24 }) // GIANTS FORK
-    else if (sty.sl === 8) fork({ stem: () => WOOD, arm: () => WOOD, tip: STEEL, armW: 0.44, spread: 1.05, band: ORANGE, bandW: 0.18, bands: 2, pouch: '#7a4a2a' }) // DOUBLE BANDS
+    else if (sty.sl === 7) fork({ stem: (z) => (Math.floor(z * 4) % 2 ? '#141414' : OR25.o), arm: () => '#1a1a1a', tip: OR25.o, armW: 0.38, spread: 0.75, band: OR25.o, bandW: 0.24 }) // GIANTS FORK
+    else if (sty.sl === 8) fork({ stem: () => WOOD, arm: () => WOOD, tip: STEEL, armW: 0.44, spread: 1.05, band: OR25.o, bandW: 0.18, bands: 2, pouch: '#7a4a2a' }) // DOUBLE BANDS
     else if (sty.sl === 2) { // PINBALL PLUNGER
       for (let x = -0.6; x <= 0.61; x += 0.3) for (let y = -0.45; y <= 0.46; y += 0.3) for (let z = 0; z <= 0.9; z += 0.3) q(STEEL, x, y, z, 0.32)
       for (let z = 1.0; z <= 3.0; z += 0.25) for (const [x, y] of [[0.38, 0], [-0.38, 0], [0, 0.38], [0, -0.38]]) qt(STEEL, x, y, z, 0.24)
-      const base = tilt(0, 0, 0.95); for (let i = 0; i <= 10; i++) { const t = i / 10, p = base.clone().lerp(b, t); p.x += (i % 2 ? 0.25 : -0.25); put(ORANGE, p, 0.16) }
+      const base = tilt(0, 0, 0.95); for (let i = 0; i <= 10; i++) { const t = i / 10, p = base.clone().lerp(b, t); p.x += (i % 2 ? 0.25 : -0.25); put(OR25.o, p, 0.16) }
     } else if (sty.sl === 3) { // BAT CATAPULT
       for (let x = -0.7; x <= 0.71; x += 0.35) for (let y = -0.35; y <= 0.36; y += 0.35) q(STEEL, x, y, 0.1, 0.38)
       line(WOOD, tilt(0, 0, 0.35), b, (t) => 0.22 + t * 0.4, 0.15)
@@ -94,10 +95,10 @@ export function initControls25(api, o = {}) {
     } else { // BALLISTA
       for (let z = 0.4; z <= 2.9; z += 0.2) qt(WOOD, 0, 0.2, z, 0.34)
       for (let x = -1.9; x <= 1.91; x += 0.19) qt(STEEL, x, 0.2 - 0.55 * (x / 1.9) ** 2, 2.3, 0.26)
-      for (const s of [-1, 1]) line(ORANGE, tilt(s * 1.9, -0.35, 2.3), b, 0.14)
+      for (const s of [-1, 1]) line(OR25.o, tilt(s * 1.9, -0.35, 2.3), b, 0.14)
       for (const s of [-1, 1]) line(WOOD, L(s * 0.9, -0.3, 0), tilt(0, 0.2, 1.2), 0.24, 0.2)
     }
-    put(ORANGE, tilt(...(GRIP[sty.sl] ?? GRIP[1])), 0.45) // the lit grip for the angle
+    put(OR25.o, tilt(...(GRIP[sty.sl] ?? GRIP[1])), 0.45) // the lit grip for the angle
     // the ball (1 Nov, Andrew: "let's have the thing we're pulling back clearly be the ball"): a round shell of small cubes, white, with red seams
     const seam = o.seam?.() ?? RED // (1 Nov, later: "the ball seam color should be the pitch color we already agreed on")
     for (const [x, y, z, c] of BALL) put(c === RED ? seam : c, new THREE.Vector3(b.x + x, b.y + y, b.z + z), 0.15)
@@ -124,16 +125,16 @@ export function initControls25(api, o = {}) {
       for (let i = -1; i < SEG; i++) {
         const f = Math.max(0, (i + 0.5) / SEG), r = (0.95 - 0.55 * f) * ks, fl = Math.sin(ft * 3 + i * 0.8) * (0.04 + 0.012 * m) * f * ks * 3
         const c = top.clone().addScaledVector(ax, (i + 0.5) * (SOCKL / SEG) * ks).addScaledVector(sideV, fl).addScaledVector(upv, fl * 0.3)
-        for (let k2 = 0; k2 < AR; k2++) { const th = (k2 / AR) * Math.PI * 2, pnt = c.clone().addScaledVector(u, Math.cos(th) * r).addScaledVector(w, Math.sin(th) * r); put(i < 0 ? STEEL : Math.floor(i / (fine ? 3 : 2)) % 2 ? WHITE : ORANGE, pnt.x, pnt.y, pnt.z, cube) }
+        for (let k2 = 0; k2 < AR; k2++) { const th = (k2 / AR) * Math.PI * 2, pnt = c.clone().addScaledVector(u, Math.cos(th) * r).addScaledVector(w, Math.sin(th) * r); put(i < 0 ? STEEL : Math.floor(i / (fine ? 3 : 2)) % 2 ? WHITE : OR25.o, pnt.x, pnt.y, pnt.z, cube) }
       }
     } else if (sty.sk === 1) { // AIRPORT SOCK: a steel cuff, five bands orange and white, still but for a flutter at the tail
       for (const [dx, dz] of [[0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6]]) put(STEEL, top.x + dx * ks, top.y, top.z + dz * ks, 0.35 * ks)
-      for (let f = 0; f <= 1; f += 0.04) { const wob = f > 0.7 ? Math.sin(ft * 3 - f * 6) * (f - 0.7) * 0.8 * ks : 0; put(Math.floor(f * 5) % 2 ? WHITE : ORANGE, ...at(f, wob), (1.5 - f * 0.8) * ks) }
+      for (let f = 0; f <= 1; f += 0.04) { const wob = f > 0.7 ? Math.sin(ft * 3 - f * 6) * (f - 0.7) * 0.8 * ks : 0; put(Math.floor(f * 5) % 2 ? WHITE : OR25.o, ...at(f, wob), (1.5 - f * 0.8) * ks) }
     } else if (sty.sk === 2) { // WEATHER VANE: an arrow along the wind, its head downwind, a white fin at the back; longer the stronger
       const back = [top.x - (tip.x - top.x) * 0.35, top.y, top.z - (tip.z - top.z) * 0.35]
       for (let f = 0; f <= 1; f += 0.05) put(C.tx, back[0] + (tip.x - back[0]) * f, top.y, back[2] + (tip.z - back[2]) * f, 0.3 * ks)
       const dx = tip.x - top.x, dz = tip.z - top.z, L2 = Math.hypot(dx, dz) || 1, ux = dx / L2, uz = dz / L2
-      for (let i = 0; i <= 4; i++) for (const s of [-1, 1]) put(ORANGE, tip.x - ux * i * 0.35 * ks + -uz * s * i * 0.3 * ks, top.y, tip.z - uz * i * 0.35 * ks + ux * s * i * 0.3 * ks, 0.38 * ks)
+      for (let i = 0; i <= 4; i++) for (const s of [-1, 1]) put(OR25.o, tip.x - ux * i * 0.35 * ks + -uz * s * i * 0.3 * ks, top.y, tip.z - uz * i * 0.35 * ks + ux * s * i * 0.3 * ks, 0.38 * ks)
       for (let i = 0; i <= 3; i++) for (let j = -1; j <= 1; j++) put(WHITE, back[0] - ux * i * 0.3 * ks, top.y + j * 0.3 * ks, back[2] - uz * i * 0.3 * ks, 0.3 * ks)
       for (const [cx, cz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put(STEEL, top.x + cx * 0.9 * ks, top.y - 0.9 * ks, top.z + cz * 0.9 * ks, 0.22 * ks) // the compass pegs
     } else if (sty.sk === 4) { // GIANTS PENNANT (1 Nov, Andrew: "I like the giants pennant but would like it to actually say giants on it"): orange felt edged in white, GIANTS in black
@@ -142,7 +143,7 @@ export function initControls25(api, o = {}) {
       const ax = penAxis(), dn = new THREE.Vector3(0, -1, 0), nrm = new THREE.Vector3().crossVectors(ax, dn).normalize(), PL = penLen()
       const H = 2.6, hAt = (sd) => { const f = sd / PL; return f < 0.8 ? H * (1 - 0.75 * f) : H * 2 * (1 - f) }
       const pt = (sd, j, off = 0) => { const f = sd / PL, wob = Math.sin(ft * 2.5 - f * 5) * f * 0.3; return top.clone().addScaledVector(ax, sd * ks).addScaledVector(dn, j * ks).addScaledVector(nrm, (wob + off) * ks) }
-      for (let sd = 0.15; sd <= PL; sd += 0.28) { const h = hAt(sd); for (let j = 0; j <= h; j += 0.28) { const q = pt(sd, j); put(j > h - 0.3 ? WHITE : ORANGE, q.x, q.y, q.z, 0.34 * ks) } }
+      for (let sd = 0.15; sd <= PL; sd += 0.28) { const h = hAt(sd); for (let j = 0; j <= h; j += 0.28) { const q = pt(sd, j); put(j > h - 0.3 ? WHITE : OR25.o, q.x, q.y, q.z, 0.34 * ks) } }
       const word = 'GIANTS', cs = 0.12, cols = []
       for (const ch of word) { const rows = VOX_FONT[ch] ?? VOX_FONT[' ']; for (let i = 0; i < rows[0].length; i++) cols.push(rows.map((r) => r[i] === '#')); cols.push(null) }
       cols.pop()
@@ -151,10 +152,10 @@ export function initControls25(api, o = {}) {
     } else { // 3 STAIR-STEP PENNANT: four rectangles, smaller and smaller, rising to the horizontal as it blows
       for (let f = 0; f <= 1; f += 0.03) {
         const wob = Math.sin(ft * 2.5 - f * 5) * f * 0.3 * ks, wd = 1.6 - Math.floor(f * 4) * 0.32, p = at(f, wob)
-        for (let j = 0; j <= wd; j += 0.3) put(Math.floor(f * 4) % 2 ? WHITE : ORANGE, p[0], p[1] - j * ks, p[2], 0.34 * ks)
+        for (let j = 0; j <= wd; j += 0.3) put(Math.floor(f * 4) % 2 ? WHITE : OR25.o, p[0], p[1] - j * ks, p[2], 0.34 * ks)
       }
     }
-    put(ORANGE, tip.x, tip.y, tip.z, 0.9 * ks) // the grip
+    put(OR25.o, tip.x, tip.y, tip.z, 0.9 * ks) // the grip
     paintPiece('sk', g, P)
   }
   // ---- the thermometer, just left of the sock as seen from home ----
@@ -187,7 +188,7 @@ export function initControls25(api, o = {}) {
       for (let y = 0.0; y <= T1 + 0.75; y += 0.3) for (let a = -1.05; a <= 1.66; a += 0.3) put((Math.floor(y * 3.3) + Math.floor(a * 3.3)) % 5 ? '#8b5a2b' : '#7a4c22', y, a, 0.32, 0.3)
       tube('#e9eef2', true, '#3a2a1a'); ticks('#2a1a0e', '#2a1a0e')
     } else if (sty.th === 7) { // ENAMEL SIGN: an orange board, a white rim, black ticks, F at the top
-      for (let y = 0.0; y <= T1 + 1.2; y += 0.3) for (let a = -1.05; a <= 1.66; a += 0.3) { const rim = y < 0.15 || y > T1 + 1.05 || a < -0.95 || a > 1.55; put(rim ? WHITE : ORANGE, y, a, 0.32, 0.3) }
+      for (let y = 0.0; y <= T1 + 1.2; y += 0.3) for (let a = -1.05; a <= 1.66; a += 0.3) { const rim = y < 0.15 || y > T1 + 1.05 || a < -0.95 || a > 1.55; put(rim ? WHITE : OR25.o, y, a, 0.32, 0.3) }
       tube(WHITE, false, '#141414'); ticks('#141414', '#141414'); digits('F', T1 + 0.45, 0.62, 0.075, '#141414')
     } else if (sty.th === 8) { // CHROME CASE: steel rails and caps round the tube, a dark window, bolts
       for (let y = 0.1; y <= T1 + 0.6; y += 0.22) for (const a of [-0.72, 0.72]) put('#b8bec8', y, a, 0.26)

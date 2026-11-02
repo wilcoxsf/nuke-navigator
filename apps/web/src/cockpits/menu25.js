@@ -2,6 +2,7 @@
 // S switches the sound). While it sits idle the park behind it replays the longest home runs (attract mode, run by the study through onIdle).
 import { sound } from './sfx25.js'
 import { jukebox } from './music25.js'
+import { ORANGE } from './orange25.js'
 
 export const MENU_CSS = `
 #cp .c25 .sm{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k) 90%,transparent);pointer-events:auto}
@@ -149,7 +150,7 @@ export function selectMenu(host, items, o = {}) {
   const inning = (() => {
     const GH = 48, SX = 1.9, X = (x) => 130 + (x - 130) * SX, H = [130, 44], D = 16 / Math.SQRT2, BASES = [H, [X(130 + D), 44 - D], [130, 44 - 2 * D], [X(130 - D), 44 - D], H], MOUND = [130, 33.5] // (the field stretched SX across, to fill the strip)
     const POS = [MOUND, [130, 46.5], [X(139), 30], [X(135), 24], [X(124), 24], [X(121), 30], [X(111), 13], [130, 7], [X(149), 13]] // P C 1B 2B SS 3B LF CF RF
-    const COL = { SF: '#f0802a', LA: '#3d7bff' }
+    const COL = { SF: ORANGE.o, LA: '#3d7bff' }
     const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k], cl = (x) => Math.max(0, Math.min(1, x))
     const path = (s) => { s = Math.max(0, Math.min(4, s)); const k = Math.min(3, Math.floor(s)); return lerp(BASES[k], BASES[k + 1], s - k) }
     // the field, drawn once

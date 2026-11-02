@@ -4,6 +4,7 @@
 // 30 Oct (Andrew: "it needs to be higher or interfere less with the current tooling... way way way too busy"; GH1): it rises 22 m clear of the seats on a wisp of ectoplasm
 // down to its seat and holds the call on a placard, so the ghost, the post and the sign are one thing; it keeps readable and holds its place (vox25.js)
 import { voxText, keepReadable } from './vox25.js'
+import { ORANGE } from './orange25.js'
 export function initGhost25(api, o = {}) {
   const { THREE, scene } = api.NN
   const V = o.V ?? 0.4, W = 11, Hh = 13, cube = new THREE.BoxGeometry(1, 1, 1), d = new THREE.Object3D()
@@ -44,7 +45,7 @@ export function initGhost25(api, o = {}) {
     p.position.set(0, -1.2 - y, (3.4 + 1.2) * V)
     return p
   }
-  function show(p, call = null, color = '#f0802a') {
+  function show(p, call = null, color = ORANGE.o) {
     at = p.clone(); t = 0; g.visible = true
     g.position.copy(at)
     if (sign) { holder.remove(sign); sign = null }

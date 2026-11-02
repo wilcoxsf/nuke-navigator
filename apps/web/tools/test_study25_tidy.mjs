@@ -38,7 +38,7 @@ const page = await open(1827, 992)
 {
   await page.keyboard.press('?'); await page.waitForTimeout(500)
   const d = await page.evaluate(() => ({ chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, lk: document.querySelectorAll('#c25dk .dx .lk').length }))
-  check('? opens the side menu with only what is still open: SLINGSHOT, LANDING NUMBER, FOUL POLES (1 Nov, evening: the rest locked)', d.chips === 3 && d.lk === 0, JSON.stringify(d))
+  check('? opens the side menu with only what is still open: SLINGSHOT (2 Nov, later: the rest locked)', d.chips === 1 && d.lk === 0, JSON.stringify(d))
   // (31 Oct, later: the side menu holds THE LAB as well; a lab choice is kept on the device)
   await page.click('#c25dk .dx [data-ax="SL"]'); await page.waitForTimeout(300)
   await page.click('#c25dk .do[data-c="1"]'); await page.waitForTimeout(400)

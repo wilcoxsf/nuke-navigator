@@ -60,6 +60,7 @@ import { STANDIN_STYLES, drawStandIn, kitFor, MASCOTS } from './standin25.js'
 import { loadModels, cloneModel } from './models25.js'
 import { jukebox, loadPrivateSongs } from './music25.js'
 import { constellation, posterPNG } from './show25.js'
+import { ORANGE, ANCHORS, orangeLook, setOrange, recolor } from './orange25.js'
 
 const LSA = { 1: 'WEAK', 2: 'TOPPED', 3: 'UNDER', 4: 'FLARE OR BURNER', 5: 'SOLID CONTACT', 6: 'BARREL' }
 const PITCH = { FF: 'FOUR-SEAM', SI: 'SINKER', FC: 'CUTTER', SL: 'SLIDER', ST: 'SWEEPER', CU: 'CURVEBALL', KC: 'KNUCKLE-CURVE', CH: 'CHANGEUP', FS: 'SPLITTER', SV: 'SLURVE', KN: 'KNUCKLEBALL', EP: 'EEPHUS', CS: 'SLOW CURVE', FO: 'FORKBALL' }
@@ -364,6 +365,7 @@ export const LAB = {
   TF: { name: 'PARK TAGS: WHEN', opts: [
     { c: 1, name: 'ALL STAY', desc: 'each tag comes up as the ball passes its point and stays' },
     { c: 2, name: 'ONE AT A TIME', desc: 'only the newest: ZENITH at the top, the wall as it crosses, LANDED when it comes down; the posts stay for the rest' },
+    { c: 3, name: 'ON HOVER', desc: 'ZENITH and CLEARED THE WALL only while the pointer is on their cube; the landing distance has the park to itself' },
   ] },
   // the Coke bottle (coke25.js; 1 Nov, later, from GPT red team II B1 and B2, Andrew on the leftovers: "if you want to institute any as options be my guest")
   CB: { name: 'COKE BOTTLE', opts: [
@@ -393,7 +395,11 @@ export const LAB = {
     { c: 5, name: 'HALO', desc: 'a faint ring round where all six came down, and a dot for each' },
   ] },
   // 1 Nov, evening (Andrew: no LANDED, the feet alone as a chunky voxel number over the spot, "give me like 5 options"): landnum25.js
-  LN: { name: 'LANDING NUMBER', opts: LAND_LOOKS },
+  LN: { name: 'LANDING NUMBER', opts: LAND_LOOKS }, // 2 Nov (Andrew: "I want count up"; later: "count up directly over the ball and count up where it lands")
+  // 2 Nov, later (Andrew: "pitch color until it's gone, after which I want to see both orange and the nuke color (geiger yeah?)"): the pitch color before the wall, always
+  LC: { name: 'COUNT-UP COLOR', opts: [{ c: 1, name: 'ORANGE', desc: 'the pitch color (ICE) until the ball clears the wall, orange from there' }, { c: 2, name: 'GEIGER', desc: 'the pitch color (ICE) until the ball clears the wall, then the green of NUKE IT' }] },
+  // 2 Nov (Andrew: "make sure we're using the same orange or families of orange everywhere"; later: "Give me 5 oranges"): which orange is THE orange (orange25.js), live
+  OR: { name: 'THE ORANGE', opts: ANCHORS.map((a) => ({ c: a.c, name: a.name, desc: a.hex + ': ' + a.desc, hex: a.hex })) },
   // 1 Nov, evening (Andrew: "The foul poles are basically unseeable right now - could we make them white and/or orange and/or yellow?"): poles25.js
   FP: { name: 'FOUL POLES', def: 1, opts: POLE_LOOKS.map((l) => ({ c: l.c, name: l.name, desc: l.c === 4 ? 'an orange pole with a white screen down its fair side' : 'the pole and its screen in ' + l.name.toLowerCase() })) },
   // the dojo's drawings on the left (pixctl25.js), five each, his picks first (31 Oct, later: RUNNING, GROUND RAY, DIAMOND, UPRIGHT, WIND PAD)
@@ -401,7 +407,7 @@ export const LAB = {
 }
 // an icon as one path per color, px a 16th of its width (the 16 grid ones and the 24 grid ones come out the same size); ink and its shadow can be CSS colors
 const nukeSVG = (n, px = 3, ink = '#0b0b0b', shade) => {
-  const rows = (NUKE_ICONS[n] ?? NUKE_ICONS[3]).rows, N = rows[0].length, C = { '#': ink, d: shade ?? `color-mix(in srgb,${ink} 52%,#000)`, k: '#0b0b0b', g: '#5a5f68', w: '#f4f2ea', r: '#e4002b', R: '#8c0a1e', y: '#ffd23f', o: '#fd5a1e', O: '#a8360c' }, P = {}
+  const rows = (NUKE_ICONS[n] ?? NUKE_ICONS[3]).rows, N = rows[0].length, C = { '#': ink, d: shade ?? `color-mix(in srgb,${ink} 52%,#000)`, k: '#0b0b0b', g: '#5a5f68', w: '#f4f2ea', r: '#e4002b', R: '#8c0a1e', y: '#ffd23f', o: ORANGE.o, O: ORANGE.dark }, P = {}
   rows.forEach((row, j) => [...row].forEach((ch, i) => { if (C[ch]) P[ch] = (P[ch] ?? '') + `M${i} ${j}h1v1h-1z` }))
   return `<svg class="nki" width="${16 * px}" height="${16 * px}" viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges" aria-hidden="true">${Object.entries(P).map(([ch, d]) => `<path style="fill:${C[ch]}" d="${d}"/>`).join('')}</svg>`
 }
@@ -415,7 +421,8 @@ const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'V', 'Z', 
 const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2, V: 5, J: 8 }
 // and the lab's settled ones (1 Nov, evening: "falling atom bomb fucking spectacular", GEIGER, OUTLINE FILLS ON HOVER, STRAIGHT DOWN, ONE AT A TIME, LIVING BOTTLE,
 // COLOR ONLY, NUMBERED PINS, MERCURY TOWER, GIANTS PENNANT, QUIET BOARD, his dojo drawings): they win over a stored lab; a ?lab= code still loads another (the tests)
-const LAB_LOCK = { BI: 3, BC: 2, BS: 2, SH: 1, TF: 2, CB: 2, TT: 2, LP: 2, TH: 1, SK: 4, TG: 5, CS: 4, CA: 1, CD: 2, CT: 4, CW: 1 }
+// 2 Nov: FP4, ORANGE AND WHITE foul poles ("Orange and white foul poles")
+const LAB_LOCK = { OR: 3 /* 2 Nov: SAFETY ORANGE ("giants orange is reading as too red") */, LN: 2 /* OVER THE BALL ("that shit is sick") */, LC: 2 /* GEIGER */, FP: 4, BI: 3, BC: 2, BS: 2, SH: 1, TF: 3 /* 2 Nov, later: "zenith and cleared the wall show up when you hover over that cube and that's it" */, CB: 2, TT: 2, LP: 2, TH: 1, SK: 4, TG: 5, CS: 4, CA: 1, CD: 2, CT: 4, CW: 1 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 // 1 Nov, night (Andrew: "dinger deja vu, dinger dojo, shot caller, wallop witness. I think those are the 4 marquee modes and everything else slots within those"; "keys 1-4
 // more modes and esc still pulls the menu up"): the four, in order, as tabs across the header; Wallop Witness is a panel over the park, the other three are modes
@@ -781,6 +788,8 @@ export async function build(root, api, U) {
 #cp .c25 .ww .wst span{color:var(--dim);font-size:12px}
 #cp .c25 .ww .wst b{font-weight:400;font-size:18px;color:var(--tx)}
 #cp .c25 .ww .wst i{grid-column:1/-1;font-style:normal;font-size:11px;color:var(--dim)}
+#cp .c25 .ww .wst.wgo{cursor:pointer;pointer-events:auto}
+#cp .c25 .ww .wst.wgo:hover b{color:var(--acc)}
 #cp .c25 .ww .wts{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin:8px 0 16px}
 #cp .c25 .ww .wtt{border:1px solid var(--acc);padding:8px 10px}
 #cp .c25 .ww .wtt b{display:block;color:var(--acc);font-weight:400}
@@ -975,7 +984,7 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
+    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><span class="bt" id="c25lg" aria-label="options (?)" title="options (?)">?</span></span></span></div>
     <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
     <span class="old" hidden><span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span><span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span><span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
@@ -1004,7 +1013,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req) lookAt(req.pts, req.rad) } // a look under way starts again from the new seat
+  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); E('#c25b').textContent = k === 'top' ? "BIRD'S EYE: ON" : "BIRD'S EYE"; if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req) lookAt(req.pts, req.rad) } // a look under way starts again from the new seat
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -1290,8 +1299,8 @@ export async function build(root, api, U) {
     const nights = [...new Set(balls.map((b) => b.d))], perNight = new Map()
     for (const b of balls) perNight.set(b.d, (perNight.get(b.d) ?? 0) + 1)
     el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="newer ball" title="newer ([)">&lt;</span><span class="bt" data-st="1" aria-label="older ball" title="older (])">&gt;</span> BALL ${idx + 1} OF ${balls.length} <select id="c25nt" aria-label="go back to a night">${nights.map((d) => `<option value="${d}"${d === cur?.d ? ' selected' : ''}>${nightName(d)} · ${perNight.get(d)} HR</option>`).join('')}</select>
-      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span>${ballBtns()}</div>
-      <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ? nightName(cur.d) : ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}${cur?.temp != null ? `  ${Math.round(cur.temp)}°F` : ''}</div>`
+      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt${reel ? ' on' : ''}" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">${reel ? 'REEL: ON' : 'REEL'}</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span>${ballBtns()}</div>
+      <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ? nightName(cur.d) : ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : `AT ${cur?.park ?? ''}, FLOWN HERE AT ORACLE`}${cur?.temp != null ? `  ${Math.round(cur.temp)}°F` : ''}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); filter = b.dataset.f; balls = filtered(); idx = 0; applyBall(balls[0]); paintChooser() }))
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
@@ -1436,7 +1445,7 @@ export async function build(root, api, U) {
         ['UNDO', 'BACKSPACE STEPS BACK THROUGH YOUR DOJO CHANGES; 0 PUTS THE BLANK SWING BACK; A DOUBLE-CLICK ON A 3D HANDLE PUTS THAT ONE BACK'],
         ['FINE TUNING', 'HOLD ALT WHILE DRAGGING THE SLINGSHOT, THE SOCK OR THE THERMOMETER FOR A TENTH AS MUCH; A WHEEL NOTCH OVER ONE IS ONE MPH OR ONE DEGREE (SHIFT: FIVE)'],
         ['IN THE PARK', 'THE SLINGSHOT, SOCK AND THERMOMETER KEEP ONE SIZE AT ANY ZOOM; A REAL BALL IN THE BANDS; GIANTS ON THE PENNANT, STRAIGHT OUT; LANDING PARTY AS NUMBERED PINS'],
-        ['THE SIDE MENU (?)', 'THE LAST THREE PICKS: THE SLINGSHOT, THE LANDING NUMBER, THE FOUL POLES'],
+        ['THE SIDE MENU (?)', 'THE LAST OPEN PICK: THE SLINGSHOT'],
         ['DOJO CONTROLS', 'BIG ARCS ON THE LEFT: DRAG THE DRAWINGS; THE SPEED IS A ROADRUNNER ON A RAIL (J IN THE HEADER FOR THE OTHER LAYOUTS)'],
         ['THE PARK\'S TAGS', 'VOXEL AGAIN, ON A LITTLE BOARD, ONE SIZE ON THE SCREEN AT ANY ZOOM, NEVER ON EACH OTHER (FOUR LOOKS IN THE SIDE MENU)'],
         ['A HOME RUN IN A CROSSWIND', 'A BALL CURVING ACROSS INTO A NEARER STRETCH OF WALL NOW COUNTS AS GONE (IT USED TO READ AS IN PLAY)'],
@@ -1662,6 +1671,8 @@ export async function build(root, api, U) {
       save({ ...me, days: [...me.days, k], seats: { ...me.seats, [k]: st } }, `LOGGED: SEC ${st.sec} ROW ${st.row} SEAT ${st.seat}`)
     }
     body.querySelector('#c25wgo')?.addEventListener('click', go)
+    // a home run in your stats plays in DEJA-VU (1 Nov, night; playtest: 'stats can't be clicked to replay that home run')
+    body.querySelectorAll('.wgo').forEach((x) => x.addEventListener('click', () => { const [d, b, ft] = x.dataset.ball.split('|'); pressEl(x); sound.play('pick'); closeMod(); if (mode !== 'replay') setMode('replay'); filter = 'oracle'; balls = filtered(); const i = balls.findIndex((y) => y.d === d && String(y.b) === b && String(y.ft) === ft); idx = Math.max(0, i); applyBall(balls[idx]); paintChooser(); paintTabs(); setTimeout(() => fire(), 600) }))
     body.querySelector('#c25wold')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); wAll = !wAll; paintWitness(body) })
     body.querySelectorAll('.wask input').forEach((x) => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } if (e.key === 'Escape') { wAsk = null; wMsg = ''; paintWitness(body) } }))
     nm?.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); nm.blur(); closeMod() } })
@@ -1669,7 +1680,7 @@ export async function build(root, api, U) {
   // YOUR GAMES: what you saw, then every home game since July 2023 by month; the open ones (inside their 72 hours) outlined, a click logs one and asks for the seat
   function mineHTML(me) {
     const s = witnessStats(G, R.balls, me, wOpts), openNow = openKeys(G, wNow())
-    const row = (l, v, sub = '') => `<div class="wst"><span>${l}</span><b>${v}</b>${sub ? `<i>${sub}</i>` : ''}</div>`
+    const row = (l, v, sub = '', ball = null) => `<div class="wst${ball ? ' wgo' : ''}"${ball ? ` data-ball="${ball.d}|${ball.b}|${ball.ft}" title="PLAY IT"` : ''}><span>${l}</span><b>${v}</b>${sub ? `<i>${sub}${ball ? ' · PLAY IT' : ''}</i>` : ''}</div>`
     const nameOf = (x) => (x?.name ?? (x ? 'BATTER ' + x.b : '')).toUpperCase()
     const stats = s.games ? `<div class="wsg">
       ${row('GAMES', s.games, `${s.wins} W · ${s.losses} L`)}
@@ -1678,13 +1689,13 @@ export async function build(root, api, U) {
       ${row('GIANTS WALLOPS', s.giantsHR, `${s.allHR} HOME RUN${s.allHR === 1 ? '' : 'S'} IN ALL`)}
       ${row('FOOT-I-TUDE', wFmt(s.footitude) + ' FT', `${wFmt(s.giantsFeet)} FT OF IT GIANTS`)}
       ${s.altitude ? row('ALTITUDE', `${s.altitude.coit.toFixed(1)} COIT TOWERS`, `${s.altitude.twinPeaks.toFixed(2)} TWIN PEAKS, STACKED`) : ''}
-      ${s.longest ? row('LONGEST', s.longest.ft + ' FT', nameOf(s.longest)) : ''}
-      ${s.shortest ? row('SHORTEST', s.shortest.ft + ' FT', nameOf(s.shortest)) : ''}
-      ${s.closest ? row('CLOSEST TO YOUR SEAT', s.closest.away + ' FT', nameOf(s.closest)) : ''}
+      ${s.longest ? row('LONGEST', s.longest.ft + ' FT', nameOf(s.longest), s.longest) : ''}
+      ${s.shortest ? row('SHORTEST', s.shortest.ft + ' FT', nameOf(s.shortest), s.shortest) : ''}
+      ${s.closest ? row('CLOSEST TO YOUR SEAT', s.closest.away + ' FT', nameOf(s.closest), s.closest) : ''}
       ${s.hours != null ? row('HOURS AT ORACLE', s.hours.toFixed(1)) : ''}
       ${row('EXTRA INNINGS', s.extra)}${row('WALK-OFFS', s.walkoffs)}
       ${s.yourGuy ? row('YOUR GUY', nameOf(s.yourGuy), `${s.yourGuy.n} HOME RUN${s.yourGuy.n === 1 ? '' : 'S'} IN FRONT OF YOU`) : ''}
-      ${s.topEv ? row('TOP EXIT SPEED', s.topEv.mph + ' MPH', nameOf(s.topEv)) : ''}</div>` : '<div class="dds">NOTHING LOGGED YET.</div>'
+      ${s.topEv ? row('TOP EXIT SPEED', s.topEv.mph + ' MPH', nameOf(s.topEv), s.topEv) : ''}</div>` : '<div class="dds">NOTHING LOGGED YET.</div>'
     const ask = wAsk ? `<div class="wask"><b>${shortDate(wAsk)}: WHERE WERE YOU SITTING?</b> <label>SEC <input id="c25wsec" inputmode="numeric" maxlength="4" size="4"></label> <label>ROW <input id="c25wrow" maxlength="3" size="3"></label> <label>SEAT <input id="c25wst" inputmode="numeric" maxlength="3" size="3"></label> <span class="bt" id="c25wgo">LOG IT</span><span class="bt" id="c25wno">NOT THIS ONE</span></div>` : ''
     const byMonth = {}
     const season = wSeason(), keep = (g) => wAll || g.d.startsWith(season) || me.days.some((k) => k.startsWith(g.d.slice(0, 4)))
@@ -2093,14 +2104,14 @@ export async function build(root, api, U) {
     const w = p.list[p.i]; scSel = scRes.ways.indexOf(w)
     Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true })
     api.setPreview(true); api.update(); paintChooser()
-    banner(p.i === 0 ? 'MOST COMMON' : `WAY ${p.i + 1} OF ${p.list.length}`, `${w.ev} MPH AT ${w.la}°`)
+    banner(p.i === 0 ? 'THE MOST COMMON WAY' : p.i === 1 ? 'THE SECOND MOST COMMON' : 'THE THIRD MOST COMMON', `${w.ev} MPH AT ${w.la}°`)
     p.t.push(setTimeout(() => { if (shotPlayS === p) { p.wait = true; ses.fire() } }, 700))
   }
   function stopShot() { if (shotPlayS) for (const t of shotPlayS.t) clearTimeout(t); shotPlayS = null }
   const shotName = (r) => (r.seat?.what === 'seat' ? r.seat.line : r.seat?.line ?? 'THAT SPOT')
   function paintShotBar(el) {
     const r = scRes, w = r?.ways?.[scSel]
-    el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}</div><div class="r2"><b>${shotName(r)}</b>: ${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
+    el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}, MOST COMMON FIRST</div><div class="r2"><b>${shotName(r)}</b>: ${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
       : `<div class="r2">${r ? (r.seat?.what === 'field' ? 'THAT SPOT IS IN PLAY: PICK A SEAT' : `NO SWING GETS A BALL TO ${shotName(r)}`) : 'CLICK A SEAT IN THE PARK, OR TYPE ONE TOP LEFT'}</div>`
     el.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); stopShot(); pickWay(scSel + Number(b.dataset.sw)) }))
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
@@ -2390,11 +2401,11 @@ export async function build(root, api, U) {
   // ---- effects and sound: hit-stop, contact spark and flash, trail, fireworks on a home run, the Cove splash and its kayaks, Karl's fog ----
   // (1 Nov, later; an audit) the board and the effects ask for these a dozen times a second; two style reads each time, so they keep for a quarter second
   let colC = null, colAt = 0
-  const colors = () => { const now = performance.now(); if (colC && now - colAt < 250) return colC; colAt = now; const cs = getComputedStyle(root), gs = getComputedStyle(grid); return colC = { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), pc: gs.getPropertyValue('--pc').trim(), mk: gs.getPropertyValue('--mk').trim(), sc: gs.getPropertyValue('--sc').trim() } }
+  const colors = () => { const now = performance.now(); if (colC && now - colAt < 250) return colC; colAt = now; const cs = getComputedStyle(root), gs = getComputedStyle(grid); return colC = { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), pc: gs.getPropertyValue('--pc').trim(), mk: gs.getPropertyValue('--mk').trim(), sc: gs.getPropertyValue('--sc').trim(), nk: gs.getPropertyValue('--nk').trim() } }
   let splashes = Number(store('nn-splash25') ?? 0) || 0
   let bannerT = 0
   const banner = (big, small) => { sound.play('banner'); const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('go'), 2600) } // the class comes off on a timer too: reduced motion drops the fade that used to hide it
-  fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { if (pendingSplash) { banner('SPLASH HIT', `#${splashes} · A KAYAK GOT IT`); pendingSplash = false } } })
+  fx = initFx25(api, colors, { sound: (k, a) => sound.play(k, a), cove: atOracle, onCatch: () => { pendingSplash = false } })
   let pendingSplash = false
   life = atOracle ? initPark25(api, colors, { still: reduced, gullFace: mix.W, signStyle: mix.Q, boardStyle: mix.G }) : null
   if (life) for (const b of [life.board, life.vboard, life.vsign]) if (b) keepReadable(api, b, 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the 3D tags keep off the scoreboard and the sign (30 Oct)
@@ -2443,7 +2454,8 @@ export async function build(root, api, U) {
   window.__cpTrack = (pts, res, color, prev) => { if (prev && flying) { flying = false; shadow.hide(); sound.cancel(); if (/TRACKING/.test(life?.text?.() ?? '')) { if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } else life?.idle('DINGER DOJO') } } return flight.track(pts, res, color, prev) }; window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
-  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0 })
+  // (2 Nov, later: no words when the ball lands, "we don't need that set dressing"; the moments still play)
+  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner: null, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0 })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
@@ -2569,7 +2581,7 @@ export async function build(root, api, U) {
     banner(st ?? 'HOME RUN', `${(n ? n[0] : 'BATTER ' + balls[idx].b).toUpperCase()} · ${balls[idx].d}`)
     reel.t.push(setTimeout(() => { if (reel) { reel.mine = true; api.fire() } }, 900))
   }
-  function stopReel() { if (reel) for (const t of reel.t) clearTimeout(t); reel = null }
+  function stopReel() { if (reel) for (const t of reel.t) clearTimeout(t); reel = null; paintChooser() }
   addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') { stopReel(); e.stopPropagation() } }, true) // (one Esc, one thing: it used to stop the reel and open the menu)
   addEventListener('pointerdown', (e) => { if (reel && onPark(e)) stopReel() })
   let fires = 0
@@ -2589,7 +2601,7 @@ export async function build(root, api, U) {
     if (mode === 'replay' && !edited) sound.play('crack', { ev: api.state.ev }); else sound.nuke(api.state.ev) // a real ball has its real crack; your own come off the launch deck (1 Nov, night)
     sound.swing(api.state.ev) // the whoosh follows the ball; the crowd leans in
   }
-  window.__cpOnFly = (pos, fr) => { if (!flying) return; flight.reveal(fr); if (fr < 0.995) shadow.at(pos); else shadow.hide(); sound.fly(pos); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
+  window.__cpOnFly = (pos, fr) => { if (!flying) return; flight.reveal(fr, pos); if (fr < 0.995) shadow.at(pos); else shadow.hide(); sound.fly(pos); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
   let lands = 0
   window.__cpOnLand = (ev) => {
     flying = false; flight.done(); shadow.hide()
@@ -2608,8 +2620,8 @@ export async function build(root, api, U) {
     lastMoment = mix.F === 1 && show !== 'se' && !hap ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
     if (life) boardFor(ev, hr, ft)
     camPush(ev.at)
-    if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
-    if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash'); banner('SPLASH HIT', `#${splashes} IN THIS BROWSER`) }
+    if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); sound.play('thud') }
+    if (ev.key === 'SPLASH') { splashes++; store('nn-splash25', String(splashes)); pendingSplash = true; sound.play('splash') }
     else if (['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key)) sound.play('fanfare')
     // Oracle sounds its foghorn when the Giants go deep: a Giants home run in the replay at Oracle, or your own swing there
     const giants = mode === 'replay' ? cur && !edited && cur.park === 'SF' && (cur.tb === 'Bot' ? cur.ht === 'SF' : cur.at === 'SF') : true
@@ -2655,10 +2667,12 @@ export async function build(root, api, U) {
   uiReady = true
   paintTabs()
   // the lab applied: the button's icon and color now; the controls' looks join below as they are built
-  const labHooks = [() => flight.setLand(lab.LN), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
-  applyLab = (k) => { const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
+  // THE ORANGE, live (2 Nov, later: a reload on every switch was a bug): the family in place, the park's materials and cubes, the interface's accent, the arcs
+  function switchOrange(n) { const map = setOrange(n); if (!map) return; recolor(api.NN.scene, map); THEMES.orange.acc = ORANGE.o; if (themeKey() === 'orange') root.style.setProperty('--acc', ORANGE.o); colC = null; if (!api.anim?.()) api.update() }
+  const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
+  applyLab = (k) => { if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+  window.__mix25 = { colors: () => colors(), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }

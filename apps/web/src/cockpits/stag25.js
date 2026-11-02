@@ -13,6 +13,7 @@
 // grey under nothing else, so the digits are the landmark
 // stag(api, [small, big], color, { side, prio, tie }) returns an empty Group: put it where the tag points (it rides its parent's visibility; off the scene, it goes away).
 import { readable as voxReadable, voxText } from './vox25.js'
+import { ORANGE } from './orange25.js'
 let L = null, STYLE = 5, TIE = 2
 const extra = [] // other things on the screen a tag keeps off: functions giving [x0, y0, x1, y1] boxes in pixels (Landing Party's marks)
 const sOf = () => (STYLE === 5 ? SQ : S)
@@ -29,7 +30,7 @@ const CSS = `
 // the voxel words of a tag, in cell units, centred on the group's origin; and their size on the screen
 function voxWords(THREE, t) {
   const bp = STYLE === 6 ? 2.4 : 1.5, sp = STYLE === 6 ? 0.75 : 1 // the number's and the caption's cells
-  const g = new THREE.Group(), back = STYLE === 2 || STYLE === 5 || STYLE === 6 ? '#141414' : undefined, big = voxText(THREE, t.lines[1] ?? '', { px: bp, color: tieCol(t) ?? '#f0802a', back })
+  const g = new THREE.Group(), back = STYLE === 2 || STYLE === 5 || STYLE === 6 ? '#141414' : undefined, big = voxText(THREE, t.lines[1] ?? '', { px: bp, color: tieCol(t) ?? ORANGE.o, back })
   g.add(big) // (voxCells centres its cells already; 1 Nov: shifting them by half a width again drew each line left of its spot, so a long caption ran into the tag beside it)
   let wU = big.userData.width + bp, hU = 7 * bp
   if (STYLE !== 3 && t.lines[0]) { const sm = voxText(THREE, t.lines[0], { px: sp, color: STYLE >= 5 ? '#8a8f99' : '#e8e1c9', back }); sm.position.set(0, hU + 2 * sp, 0); g.add(sm); wU = Math.max(wU, sm.userData.width + sp); hU += 9 * sp }

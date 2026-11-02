@@ -2,6 +2,7 @@
 // built from cubes, so the numbers in the park match the voxel kayaks, gloves and sea lion. One InstancedMesh per piece and color, flat Lambert like models25.js, so the
 // park's lights shade the faces and the post shader inks the outline.
 // FONT: 5 wide by 7 tall, # is a cube.
+import { ORANGE } from './orange25.js'
 export const FONT = {
   0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'], 1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
   2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'], 3: ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'],
@@ -47,7 +48,7 @@ export function voxCells(THREE, cells, px = 1) {
 }
 // a line of text in voxels, 7 cubes tall (px meters each), one cube deep, standing on its base; o.back adds a darker slab behind it so it reads over the stands
 export function voxText(THREE, text, o = {}) {
-  const px = o.px ?? 1, color = o.color ?? '#f0802a', cells = []
+  const px = o.px ?? 1, color = o.color ?? ORANGE.o, cells = []
   let x = 0
   for (const ch of String(text).toUpperCase()) {
     const rows = FONT[ch] ?? FONT[' ']
@@ -152,6 +153,6 @@ export function keepReadable(api, g, ref = 230, lo = 0.35, hi = 2.6, o = {}) {
   return g
 }
 // for the tests: every piece on screen now, with its box (normalized device coordinates) and whether it stood down
-export function readable() { return [...readers].map((r) => ({ prio: r.userData.read.prio, fixed: r.userData.read.fixed, off: r.userData.read.off, rect: r.userData.read.rect })) }
+export function readable() { return [...readers].map((r) => ({ ln: !!r.userData.landNumber, prio: r.userData.read.prio, fixed: r.userData.read.fixed, off: r.userData.read.off, rect: r.userData.read.rect })) }
 export function disposeVox(g) { g?.parent?.remove(g) } // geometry and materials are shared; nothing to free
 export const VOX_FONT = FONT

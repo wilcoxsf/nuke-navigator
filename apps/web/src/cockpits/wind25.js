@@ -6,6 +6,7 @@
 // field's frame (mph toward center field and toward right field). Oracle's home-to-center azimuth is 85 degrees (MLB Stats API), so a west wind blows straight out.
 // Under reduced motion the socks hold still and the streams stay off.
 // the engine's own conversion (dojo.js windParts, on window.__cp); the same arithmetic here if the engine is older
+import { ORANGE } from './orange25.js'
 const ORACLE_AZ = 85
 const windParts = (mph, fromDeg) => window.__cp?.windParts?.(mph, fromDeg) ?? (() => { const h = ((fromDeg + 180 - ORACLE_AZ) * Math.PI) / 180; return { wind: mph * Math.cos(h), xwind: mph * Math.sin(h) } })()
 // the model's foul-pole tops (field frame, metres: x to right field, y to center, z up), measured as the highest vertex within 1.5 m of where the wall meets 45 degrees
@@ -20,7 +21,7 @@ export function initWind25(api, o = {}) {
     const g = new THREE.Group(), hoop = toWorld([x, y, z + 1.6])
     const mast = new THREE.Mesh(cube, new THREE.MeshLambertMaterial({ color: '#d9dbe0', flatShading: true })); mast.scale.set(0.18, 1.8, 0.18); mast.position.copy(toWorld([x, y, z + 0.8])); g.add(mast)
     const rings = new THREE.InstancedMesh(cube, new THREE.MeshLambertMaterial({ flatShading: true }), SEG * AROUND)
-    for (let i = 0; i < SEG; i++) for (let k = 0; k < AROUND; k++) rings.setColorAt(i * AROUND + k, new THREE.Color(i % 2 ? '#f4f2ea' : '#fd5a1e'))
+    for (let i = 0; i < SEG; i++) for (let k = 0; k < AROUND; k++) rings.setColorAt(i * AROUND + k, new THREE.Color(i % 2 ? '#f4f2ea' : ORANGE.o))
     rings.frustumCulled = false; g.add(rings); scene.add(g)
     return { g, rings, hoop, droop: 0.2, yaw: 0 }
   })

@@ -3,12 +3,13 @@
 // column of cubes with the screen (the mesh fin) down its fair side from the top of the wall to near the top, as real poles have, its cubes in a lattice.
 // FP picks the paint: 1 GIANTS ORANGE   2 FOUL-POLE YELLOW   3 WHITE   4 ORANGE AND WHITE (an orange pole, a white screen).
 // During HERON the right pole is happen25.js's own bending one: hideRight(true), or o.hideRight, a getter checked each frame.
+import { ORANGE } from './orange25.js'
 const POLES = [[-73.89, 74.51, 26.2], [66.32, 67.36, 33.2]] // field frame, metres: x to right field, y to center, z up (wind25.js)
 export const POLE_LOOKS = [
-  { c: 1, name: 'GIANTS ORANGE', pole: '#fd5a1e', screen: '#fd5a1e' },
+  { c: 1, name: 'ORANGE', get pole() { return ORANGE.o }, get screen() { return ORANGE.o } },
   { c: 2, name: 'FOUL-POLE YELLOW', pole: '#ffd23f', screen: '#ffd23f' },
   { c: 3, name: 'WHITE', pole: '#f4f2ea', screen: '#f4f2ea' },
-  { c: 4, name: 'ORANGE AND WHITE', pole: '#fd5a1e', screen: '#f4f2ea' },
+  { c: 4, name: 'ORANGE AND WHITE', get pole() { return ORANGE.o }, screen: '#f4f2ea' },
 ]
 export function initPoles25(api, o = {}) {
   const { THREE, scene } = api.NN

@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (3: SLINGSHOT, LANDING NUMBER, FOUL POLES); no RIDE IT', dk.open && dk.chips === 3 && !dk.ride, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, later: SLINGSHOT only); no RIDE IT', dk.open && dk.chips === 1 && !dk.ride, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -191,7 +191,7 @@ for (const [w, h] of SIZES) {
     if (process.env.DBG) { await page.waitForTimeout(1500); console.log('DBG updates', JSON.stringify(await page.evaluate(() => window.__updLog ?? []), null, 1).slice(0, 3000)) }
     let sp = null // watch for the banner: the flight is 2.7 s of wall clock, but a frame can stall for a second or more on a loaded machine
     for (let k = 0; k < 30; k++) { await page.waitForTimeout(300); sp = await page.evaluate(() => ({ bn: document.querySelector('#c25bn').textContent, on: document.querySelector('#c25bn').classList.contains('go') })); if (/SPLASH HIT/.test(sp.bn)) break; if (process.env.DBG) console.log('DBG', k, JSON.stringify(await page.evaluate(() => ({ a: window.__cp.anim() ? { ex: window.__cp.anim().exploded, t0: Math.round(window.__cp.anim().t0 - performance.now()), dur: window.__cp.anim().dur } : null, fires: window.__mix25.fires(), lands: window.__mix25.lands(), hold: window.__cpHold, slow: window.__cpSlow, ft: window.__fixedTime, look: window.__mix25.look(), mode: window.__mix25.mode(), active: document.activeElement?.id || document.activeElement?.tagName })))) }
-    check('a splash hit gets its banner', key0 !== 'SPLASH' || (/SPLASH HIT/.test(sp.bn) && sp.on), JSON.stringify({ key0, sp }))
+    check('a splash hit puts up no banner words (2 Nov, later: no set dressing on a landing)', key0 !== 'SPLASH' || !/SPLASH HIT/.test(sp.bn) || !sp.on, JSON.stringify({ key0, sp }))
     if (key0 !== 'SPLASH') console.log('NOTE the splash preset did not land in the Cove here:', key0)
     let win = false
     for (let k = 0; k < 50 && !win; k++) { await page.waitForTimeout(500); win = await page.evaluate(() => !!window.__mix25.fx.winner() || !!window.__mix25.fx.actNow()) } // (1 Nov, later: a splash sets off one of the Cove's five acts, fx25.js)
@@ -391,8 +391,9 @@ if (!process.env.PHONE_ONLY && on('B')) {
   }
   // after TWEAK THE TATER the dojo keeps the original game's bug; a fresh dojo swing has none
   await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S1')); await page.waitForTimeout(400)
-  await page.click('#c25tw'); await page.waitForTimeout(1000)
-  const tb = await page.evaluate(() => getComputedStyle(document.querySelector('#c25bug')).display)
+  await page.click('#c25tw')
+  let tb = 'none' // (2 Nov, later: the bug comes back a beat after the tweak; on the software renderer that can be past a second, so wait for it)
+  for (let k = 0; k < 25 && tb !== 'grid'; k++) { await page.waitForTimeout(200); tb = await page.evaluate(() => getComputedStyle(document.querySelector('#c25bug')).display) }
   await page.keyboard.press('m'); await page.waitForTimeout(600); await page.keyboard.press('m'); await page.waitForTimeout(900)
   const fb = await page.evaluate(() => ({ m: window.__mix25.mode(), d: getComputedStyle(document.querySelector('#c25bug')).display }))
   check('the dojo shows the original game after TWEAK THE TATER, and no bug for a fresh swing', tb === 'grid' && (fb.m !== 'whatif' || fb.d === 'none'), JSON.stringify({ tb, fb }))
@@ -587,7 +588,7 @@ if (!process.env.PHONE_ONLY && on('E')) {
   check('a home run draws its arc in voxels with the zenith, the wall clearance and the landing distance posted', fl.posts === 3 && fl.shown === 3 && fl.cubes > 60 && fl.ballVox && fl.sphereHidden, JSON.stringify(fl))
   // X: a dot in the line at the zenith and where it cleared the wall, in the X color (X5 MINT by default); the voxel ball's seams follow E
   const dots = await page.evaluate(() => { const t = window.__mix25.flight().last(), out = []; for (const [, o] of t.userData.reveal.slice(0, 2)) o.traverse((m) => { if (m.isInstancedMesh && m.count === 1) out.push(m.material.color.getHexString()) }); let sm = null; window.__cp.ballMesh().userData.vox?.traverse?.((o) => { if (o.userData.seam) sm = o.material.color.getHexString() }); return { out, sm, signs: window.__mix25.life.signCount() } })
-  check('the zenith and the wall each get a dot in the line in the pitch color (X2); the voxel ball has red seams under E4', dots.out.length === 2 && dots.out.every((h) => h === '5ce1ff') && dots.sm === 'e4002b', JSON.stringify(dots))
+  check('the zenith gets a dot in the line in the pitch color (X2), the wall one in GEIGER (2 Nov, later); the voxel ball has red seams under E4', dots.out.length === 2 && dots.out[0] === '5ce1ff' && dots.out[1] === '9dff00' && dots.sm === 'e4002b', JSON.stringify(dots))
   check('the ORACLE PARK sign over the board lit up for the home run', dots.signs >= 1, JSON.stringify(dots))
   for (const U of [1, 2, 3, 4, 5]) {
     await page.evaluate((c) => window.__mix25.set(c), 'U' + U); await page.waitForTimeout(500)

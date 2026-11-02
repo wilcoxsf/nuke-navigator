@@ -3,6 +3,7 @@
 // itself as an orange voxel chair with a YOU flag. Where each ball came down is the flight engine's landing for it (as in LANDING PARTY), anchored to Statcast's
 // distance and bearing, not a seat record; they are worked out once, a few at a time so the page never stalls, and kept for the visit.
 import { voxText, voxPost, keepReadable } from './vox25.js'
+import { ORANGE } from './orange25.js'
 const FT = 0.3048
 export function initMySeat25(api, balls, o = {}) {
   const { THREE, scene } = api.NN
@@ -37,7 +38,7 @@ export function initMySeat25(api, balls, o = {}) {
     return { inside, closest: inside.length >= k ? inside : all.slice(0, Math.max(k, inside.length)) }
   }
   function clear() { if (group) { scene.remove(group); group = null } }
-  function show(at, list, color = '#f0802a') {
+  function show(at, list, color = ORANGE.o) {
     clear()
     group = new THREE.Group()
     const cube = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), lam = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true })

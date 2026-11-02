@@ -1,99 +1,96 @@
-// Study 25 landing number (1 Nov, Andrew: "I don't want 'landed' feet then it should just say the ft as a hover number. But chunky voxel, above where it landed. Give me
-// like 5 options for this"): the distance alone, in voxel digits three cubes deep (the face in the verdict color, the sides darker), over the spot where the ball came
-// down. It faces the camera and keeps a readable size (vox25.js keepReadable); the motion is on an inner group so the placement and the motion never fight. Five looks
-// (LANDING NUMBER, LN, in THE LAB):
-//   1 HOVER: a small FT beside it, a slow bob    2 COUNT-UP: counts from the wall's distance up to the landing, then a little pop    3 DROP-IN: the digits fall in one
-//   at a time and squash as they land    4 BIG PRIME: bigger, a foot mark for the FT    5 PINNED: hovering on a dotted line down to the spot, a ring of cubes where it hit
+// Study 25 landing number (1 Nov, Andrew: "I don't want 'landed' feet then it should just say the ft as a hover number. But chunky voxel, above where it landed"):
+// the distance alone, in voxel digits three cubes deep (the face in its color, the sides darker), facing the camera at a readable size (vox25.js keepReadable).
+// 2 Nov (Andrew: "I want count up with the number counting up the whole time, grey or pitch color when not a HR and then orange once it clears the wall"): it rides
+// from the crack, counting the feet the ball has gone, in the pitch color until the ball clears the wall, then the hot color (COUNT-UP COLOR: orange or the nuke's
+// GEIGER); when the ball comes down it settles on the landing's feet, with a little pop. The motion is on an inner group so the placement and the pop never fight.
+// Two places (LANDING NUMBER, LN, in the side menu; 2 Nov, later: "count up directly over the ball and count up where it lands over the destination"):
+//   2 OVER THE BALL: it moves with the ball, the height counting too ("a counter for both height and distance if it's riding"), then settles over the spot
+//   3 OVER THE SPOT: it waits over where the ball will come down and counts up there
+// 2 Nov, later (Andrew: "it is not riding the ball"): keepReadable put a piece back on the spot it was made at every frame, so a ride moved nothing. Its base moves
+// with it now, and while it flies it is fixed (it holds its place, the other tags step round it) instead of stepping aside or standing down.
 import { VOX_FONT, voxCells, voxText, voxPost, keepReadable } from './vox25.js'
 
 export const LAND_LOOKS = [
-  { c: 1, name: 'HOVER', desc: 'the feet in chunky voxel digits over the spot, a small FT beside them, bobbing slowly' },
-  { c: 2, name: 'COUNT-UP', desc: "the number counts up from the wall's distance to the landing as the ball comes down, then pops" },
-  { c: 3, name: 'DROP-IN', desc: 'the digits fall in one at a time and squash as they land' },
-  { c: 4, name: 'BIG PRIME', desc: 'bigger digits and a foot mark in place of FT' },
-  { c: 5, name: 'PINNED', desc: 'the number on a dotted line down to the spot, a ring of cubes where it hit' },
+  { c: 2, name: 'OVER THE BALL', desc: 'the count-up moves with the ball, its distance and its height, then settles over the spot where it came down' },
+  { c: 3, name: 'OVER THE SPOT', desc: 'the count-up waits over the spot where the ball will come down, counting as it flies' },
 ]
-const PRIME = ['.#', '.#', '#.', '..', '..', '..', '..']
-const DEEP = 3
+// 2 Nov, later (Andrew, on a screengrab: "we can get it closer to the real landing location right?"): it settles 4 m over the spot, not 10, held there (it no longer
+// steps aside for other pieces), with a dotted stake in its color down to where the ball came down
+const DEEP = 3, RIDE = 5, LIFT = 4 // a deep digit; how far over the ball it rides and over the spot it settles (m)
 const live = new Set()
 let hooked = false
 const shown = (g) => { for (let p = g; p; p = p.parent) if (!p.visible) return false; return true }
 
 // one glyph's cells, three deep: the face at z 0, the sides behind it
-function glyph(rows, x0, face, side) {
+function glyph(rows, face, side) {
   const out = []
-  rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '#') for (let z = 0; z < DEEP; z++) out.push([x0 + i, 6 - j, -z, z === 0 ? face : side]) }))
+  rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '#') for (let z = 0; z < DEEP; z++) out.push([i, 6 - j, -z, z === 0 ? face : side]) }))
   return out
 }
-function digits(THREE, text, px, face, side, prime) {
+function digits(THREE, text, px, face, side) {
   const g = new THREE.Group(), parts = []
   let x = 0
   for (const ch of String(text)) { const rows = VOX_FONT[ch] ?? VOX_FONT[' ']; parts.push({ ch, x, w: rows[0].length }); x += rows[0].length + 1 }
-  if (prime) { parts.push({ ch: "'", x, w: 2, rows: PRIME }); x += 3 }
   const width = x - 1
-  // one group per glyph, so DROP-IN can move them one by one; centred on the whole number
-  for (const p of parts) {
-    const d = new THREE.Group(), cells = glyph(p.rows ?? VOX_FONT[p.ch], 0, face, side)
-    const vc = voxCells(THREE, cells, px)
-    d.add(vc); d.position.x = (p.x + p.w / 2 - width / 2) * px
-    d.userData.glyph = true
-    g.add(d)
-  }
+  for (const p of parts) { const d = voxCells(THREE, glyph(VOX_FONT[p.ch], face, side), px); d.position.x = (p.x + p.w / 2 - width / 2) * px; g.add(d) } // centred on the whole number
   g.userData.width = width * px
   return g
 }
 
+// o: at (the landing spot, world), ft (the landing's feet), cool (its color before the wall), hot (after), gone (a home run), look, spot (counts over the spot),
+// up (the height's color)
+// the returned group's userData: ride(ft, pos, hot, upFt) while the ball flies (pos the ball, world; upFt its height, shown when riding), settle() when it comes down
 export function landNumber(api, o) {
-  const { THREE } = api.NN, look = o.look ?? 1, ft = Math.round(o.ft), from = Math.round(Math.min(ft - 1, o.from ?? ft - 60))
-  const face = new THREE.Color(o.color), side = '#' + face.clone().lerp(new THREE.Color('#000000'), 0.55).getHexString(), fc = '#' + face.getHexString()
-  const px = look === 4 ? 1.45 : 1.1
+  const { THREE } = api.NN, ft = Math.round(o.ft), px = 1.1
+  const dark = (c) => '#' + new THREE.Color(c).lerp(new THREE.Color('#000000'), 0.55).getHexString(), hex = (c) => '#' + new THREE.Color(c).getHexString()
   const outer = new THREE.Group(), inner = new THREE.Group()
   outer.add(inner)
   inner.rotation.y = -0.35 // turned a little off the camera, so the sides show and it reads as a block, not a sticker
-  const at = o.at.clone(), lift = look === 5 ? 14 : 10
-  outer.position.copy(at).add(new THREE.Vector3(0, lift, 0))
-  let num = null
-  const build = (n) => {
+  let num = null, key = '', upKey = '', upN = null
+  const build = (n, color, up) => {
+    const k = n + color, uk = up == null ? '' : String(up)
+    if (k === key && uk === upKey) return
     if (num) inner.remove(num)
-    num = digits(THREE, n, px, fc, side, look === 4)
-    if (look !== 4) { const unit = voxText(THREE, 'FT', { px: px * 0.45, color: '#e8e1c9' }); unit.position.set(num.userData.width / 2 + px * 3, 0, 0); num.add(unit) }
+    key = k; upKey = uk
+    num = digits(THREE, n, px, hex(color), dark(color))
+    const unit = voxText(THREE, 'FT', { px: px * 0.45, color: '#e8e1c9' }); unit.position.set(num.userData.width / 2 + px * 3, 0, 0); num.add(unit)
+    // the height, a smaller line over the distance: its digits in the zenith post's color, FT HIGH in bone
+    upN = null
+    if (up != null) {
+      const h = new THREE.Group(), d = digits(THREE, up, px * 0.5, hex(o.up ?? '#e8e1c9'), dark(o.up ?? '#e8e1c9')), w = voxText(THREE, 'FT HIGH', { px: px * 0.3, color: '#e8e1c9' })
+      d.position.x = -w.userData.width / 2 - px; w.position.x = d.userData.width / 2 + px * 0.5
+      h.add(d, w); h.position.y = px * 9; num.add(h); upN = up
+    }
     inner.add(num)
+    if (outer.userData.read) outer.userData.read.box = null // its size changed: keepReadable measures it again
   }
-  build(look === 2 ? from : ft)
+  const place = (v) => { outer.position.copy(v); outer.userData.read?.base.copy(v) }
+  const at = o.at.clone()
+  let stake = null
+  const settle = () => {
+    place(at.clone().add(new THREE.Vector3(0, LIFT, 0))); build(ft, o.gone ? o.hot : o.cool, null); outer.userData.settled = performance.now()
+    if (!stake && outer.parent) { stake = voxPost(THREE, at, at.clone().add(new THREE.Vector3(0, LIFT - 0.4, 0)), { px: 0.35, gap: 0.8, color: hex(o.gone ? o.hot : o.cool) }); stake.userData.stake = true; outer.parent.add(stake) }
+  }
+  const ride = (n, pos, hot, up) => {
+    if (outer.userData.settled) return
+    place(o.spot ? at.clone().add(new THREE.Vector3(0, LIFT, 0)) : pos.clone().add(new THREE.Vector3(0, RIDE, 0)))
+    build(Math.max(0, Math.round(n)), hot ? o.hot : o.cool, o.spot || up == null ? null : Math.max(0, Math.round(up)))
+  }
+  ride(0, o.from ?? at, false, 0)
   outer.userData.isTag = true
-  outer.userData.landNumber = { look, ft }
-  keepReadable(api, outer, 230, 0.45, 3, { prio: 2 })
+  outer.userData.landNumber = { look: o.look ?? 2, ft }
+  keepReadable(api, outer, 230, 0.45, 3, { prio: 2, fixed: true })
   const g = new THREE.Group()
   g.add(outer)
-  if (look === 5) { // the line down and the ring on the ground: in the park, not scaled
-    const ground = at.clone()
-    g.add(voxPost(THREE, ground.clone().add(new THREE.Vector3(0, 0.6, 0)), ground.clone().add(new THREE.Vector3(0, lift - 0.4, 0)), { px: 0.35, gap: 0.9, color: fc }))
-    const ring = []
-    for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; ring.push([Math.round(Math.cos(a) * 4), 0, Math.round(Math.sin(a) * 4), fc]) }
-    const r = voxCells(THREE, ring, 0.5); r.position.copy(ground).add(new THREE.Vector3(0, 0.05, 0)); g.add(r)
-  }
-  // the motion: from the first frame it is on screen
-  let t0 = null, shownN = look === 2 ? from : ft
+  g.userData.ride = ride
+  g.userData.settle = settle
+  // for the tests: the number, its color, the height it shows (null when none), and where it is in the world after the frame's placing
+  g.userData.num = () => ({ n: Number(key.match(/^\d+/)?.[0]), color: key.replace(/^\d+/, ''), up: upN, settled: !!outer.userData.settled, pos: outer.getWorldPosition(new THREE.Vector3()), shown: shown(outer) })
+  // the pop as it settles
   outer.userData.tick = (now) => {
-    if (!shown(outer)) return
-    if (t0 == null) t0 = now
-    const t = (now - t0) / 1000
-    if (look === 1 || look === 4 || look === 5) inner.position.y = Math.sin(t * 1.7) * px * 0.9
-    if (look === 2) {
-      const k = Math.min(1, t / 0.9), n = Math.round(from + (ft - from) * (1 - (1 - k) ** 3))
-      if (n !== shownN) { shownN = n; build(n) }
-      const pop = t > 0.9 && t < 1.25 ? 1 + 0.18 * Math.sin(((t - 0.9) / 0.35) * Math.PI) : 1
-      inner.scale.setScalar(pop)
-    }
-    if (look === 3) {
-      num.children.filter((c) => c.userData.glyph).forEach((d, i) => {
-        const s = t - i * 0.14, fall = 0.42
-        if (s < 0) { d.visible = false; return }
-        d.visible = true
-        if (s < fall) { const u = s / fall; d.position.y = 14 * px * (1 - u * u); d.scale.set(1, 1, 1) }
-        else { const u = Math.min(1, (s - fall) / 0.3); d.position.y = 0; const sq = Math.sin(u * Math.PI) * 0.35; d.scale.set(1 + sq * 0.5, 1 - sq, 1) }
-      })
-    }
+    if (!shown(outer) || !outer.userData.settled) return
+    const t = (now - outer.userData.settled) / 1000
+    inner.scale.setScalar(t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1)
   }
   live.add(outer)
   if (!hooked) {

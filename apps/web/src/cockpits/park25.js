@@ -7,6 +7,7 @@
 // Over the board, the ORACLE PARK sign and its clock are bulbs too (29 Oct): the sign glows and reacts to home runs, the clock tells the time of the swing.
 // Later on 29 Oct the sign and its clock were rebuilt in voxels from a photo of the real one, with the eight World Series pennants above (Q2, Q3; the bulbs are Q1).
 import { FONT } from './vox25.js'
+import { ORANGE } from './orange25.js'
 export function initPark25(api, col, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld
@@ -200,7 +201,7 @@ export function initPark25(api, col, o = {}) {
     const px = -22.4 + f * 5.6, top = 52.2 - Math.abs(px) * 0.05, foot = archY(px)
     const pole = new THREE.Mesh(vcube, pmat); pole.scale.set(0.2, top + 0.3 - foot, 0.2); pole.position.set(px, (top + 0.3 + foot) / 2, -0.55); vsign.add(pole)
     const knob = new THREE.Mesh(vcube, fmatL('#d9b44a')); knob.scale.setScalar(0.22); knob.position.set(px, top + 0.42, -0.55); vsign.add(knob)
-    const old = yr < 2000, bg = old ? '#141414' : '#fd5a1e', fg = old ? '#fd5a1e' : '#141414', txt = String(yr), logo = LOGO[old ? 'NY' : 'SF']
+    const old = yr < 2000, bg = old ? '#141414' : ORANGE.o, fg = old ? ORANGE.o : '#141414', txt = String(yr), logo = LOGO[old ? 'NY' : 'SF']
     const m = new THREE.InstancedMesh(vcube, new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true }), FC * FR)
     let n = 0
     for (let r = 0; r < FR; r++) for (let c = 0; c < FC; c++) {
@@ -1362,7 +1363,7 @@ export function initPark25(api, col, o = {}) {
     if (style === 2) {
       vox(h, W, 0.8, 0.75, 0.75, 0, 0.3, 1.05)
       for (const sx of [-1, 1]) { vox(h, '#ffffff', 0.12, 0.34, 0.34, sx * 0.44, 0.42, 1.18); vox(h, K, 0.06, 0.16, 0.16, sx * 0.5, 0.4, 1.26); vox(h, K, 0.1, 0.08, 0.36, sx * 0.44, 0.66, 1.16).rotation.x = sx * 0.0 + 0.35 }
-      vox(h, '#ff8a1c', 0.26, 0.16, 0.55, 0, 0.2, 1.65); vox(h, '#ff8a1c', 0.2, 0.1, 0.4, 0, 0.08, 1.58)
+      vox(h, ORANGE.o, 0.26, 0.16, 0.55, 0, 0.2, 1.65); vox(h, ORANGE.o, 0.2, 0.1, 0.4, 0, 0.08, 1.58)
       return h
     }
     vox(h, W, 0.55, 0.5, 0.55, 0, 0.22, 0.98)
@@ -1430,7 +1431,7 @@ export function initPark25(api, col, o = {}) {
     set gullFace(n) { if (n !== face) setFace(n) }, gullFaces: () => gulls.map((g) => g.m.userData.head?.children.length ?? 0), faceNow: () => face,
     board, names: () => Object.keys(ANIM), anim: () => cur?.name ?? null, queued: () => queue.map((q) => q.name), played: () => [...played],
     // for the tests: how many LEDs are lit right now, and the board's size in LEDs
-    litCount: () => buf.reduce((s, k) => s + (k ? 1 : 0), 0), size: [GW, GH],
+    litCount: () => buf.reduce((s, k) => s + (k ? 1 : 0), 0), size: [GW, GH], ascii: () => Array.from({ length: GHT }, (_, j) => Array.from({ length: GW }, (_, i) => (ledAt(j, i) ? '#' : '.')).join('')),
     dur: (n) => ANIM[n]?.dur, pace: PACE,
     // draw one frame of an animation at time t right now (the next tick redraws); returns how many LEDs it lit, and the board as a picture when asked
     peek(n, tt, a = {}, pic = false) { buf.fill(0); tbuf.fill(0); animT = tt; hush = false; gagOn = true; ANIM[n].draw(tt, a); gagOn = false; paint(); return { lit: buf.reduce((s, k) => s + (k ? 1 : 0), 0), url: pic ? out.toDataURL() : null } },

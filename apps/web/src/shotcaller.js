@@ -6,6 +6,7 @@
 // like that is (o.weight, the study's count of real balls at that speed and angle); the three most common are drawn, the first brightest.
 import * as THREE from 'three'
 import { voxDots } from './cockpits/vox25.js'
+import { ORANGE } from './cockpits/orange25.js'
 
 const R_OK = 4.5 // metres between the clicked spot and a swing's landing point
 export const GRID = { la: [14, 44, 2], ev: [90, 120, 2] } // launch angles and exit speeds tried: first, last, step
@@ -35,7 +36,7 @@ export function shotCaller(api, balls, o = {}) {
     const hits = ray.intersectObject(NN.stadium, true)
     return hits.length ? hits[0].point : null
   }
-  function call(spot, state, color = '#f0802a', opt = {}) {
+  function call(spot, state, color = ORANGE.o, opt = {}) {
     clear()
     const tb = bearingOf(spot), hand = state.hand ?? 1, temp = state.temp ?? 62, found = [], pastWall = distFt(spot) > (api.wallAt?.(tb) ?? [0])[0] + 1
     for (let la = GRID.la[0]; la <= GRID.la[1]; la += GRID.la[2]) for (let ev = GRID.ev[0]; ev <= GRID.ev[1]; ev += GRID.ev[2]) {

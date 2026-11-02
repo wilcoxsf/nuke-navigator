@@ -14,6 +14,7 @@
 //               4 CHEVRONS (more of them the stronger, pointing the way)  5 FLAG (a flag that turns with the wind, its tail longer the stronger)
 // Desktop only: phones keep the sliders. The number, the + and - and typing a number stay; a drag sets the same numbers through o.set. Each drawing is redrawn only when
 // its own number changes (GPT red team: changing the wind redrew all five).
+import { ORANGE } from './orange25.js'
 export const PIXCTL = { 8: { skin: 'pix', big: true }, 3: { skin: 'pix' }, 5: { skin: 'gb' }, 6: { skin: 'chalk' }, 7: { skin: 'bp' } }
 export const DESIGNS = {
   ev: ['RUNNER ON A RAIL', 'DUST TRAIL', 'FOOTPRINTS', 'RUNNING', 'BASE PATH'],
@@ -177,7 +178,7 @@ export function initPixCtl(slots, o) {
         if (d === 1) { dot(5, y, 4, col.fg); dot(5, y, 2.5, col.red); rect(x0, y - 2, x1 - x0, 4, col.fg); rect(x0, y - 1, x1 - x0 - 1, 2, sk.bg ?? '#0b0b0b'); rect(x0 - 1, y - 1, f * (x1 - x0 - 1) + 1, 2, col.red); for (const m of [0, 0.5, 1]) rect(x0 + m * (x1 - x0 - 2), y + 3, 1, 2, col.dim) }
         if (d === 2) { const n = 5, cw2 = (x1 - x0 + 5) / n, lit = Math.max(1, Math.ceil(f * n - 0.001)); for (let i = 0; i < n; i++) rect(x0 - 5 + i * cw2, y - 3, cw2 - 2, 6, i < lit ? (i < 2 ? col.cold : i < 4 ? col.sun : col.red) : col.dim) }
         if (d === 3) { rect(2, y - 3, 6, 6, col.cold); rect(3, y - 2, 2, 2, col.white); dot(gw - 6, y, 3, col.sun); for (const t of [0, 45, 90, 135, 180, 225, 270, 315]) { const [sx, sy] = pol(gw - 6, y, 5, t); set(sx, sy, col.sun) } seg(x0 + 2, y, x1 - 8, y, col.dim, 1); dot(x0 + 2 + f * (x1 - x0 - 10), y, 2.4, col.acc) }
-        if (d === 5) { const cols = ['#8a8f99', '#c7a46a', '#f0802a'], c3 = (i) => { const t = clamp(f * 2.2 - i * 0.6, 0, 1); return t < 0.33 ? cols[0] : t < 0.75 ? cols[1] : cols[2] }; [[x0 - 4, 7], [x0 + 6, 10], [x0 + 17, 5]].forEach(([bx, bh], i) => rect(bx, y + 4 - bh, 7, bh, c3(i))); seg(x0 - 4, y + 6, x1, y + 6, col.dim, 1); rect(x0 - 4 + f * (x1 - x0 + 2), y + 5, 2, 3, col.fg) }
+        if (d === 5) { const cols = ['#8a8f99', '#c7a46a', ORANGE.o], c3 = (i) => { const t = clamp(f * 2.2 - i * 0.6, 0, 1); return t < 0.33 ? cols[0] : t < 0.75 ? cols[1] : cols[2] }; [[x0 - 4, 7], [x0 + 6, 10], [x0 + 17, 5]].forEach(([bx, bh], i) => rect(bx, y + 4 - bh, 7, bh, c3(i))); seg(x0 - 4, y + 6, x1, y + 6, col.dim, 1); rect(x0 - 4 + f * (x1 - x0 + 2), y + 5, 2, 3, col.fg) }
         geo = { type: 'h', x0: d === 3 ? x0 + 2 : d === 2 || d === 5 ? x0 - 4 : x0, x1: d === 3 ? x1 - 8 : x1 }
       }
     } else if (k === 'wind') {

@@ -111,10 +111,21 @@ let parksData = null
 export async function loadParks() {
   if (parksData) return parksData
   try { const r = await fetch('/parks30.json'); parksData = r.ok ? await r.json() : { bearings: [-45, -22.5, 0, 22.5, 45], parks: [] } } catch { parksData = { bearings: [-45, -22.5, 0, 22.5, 45], parks: [] } }
+  // each park's measured crest (the wall a ball flown THERE meets, dojo.js), loaded behind the page; until one is in, that park uses its five-bearing fence.
+  // (1 Nov, night; playtest: Boston read +43 from Oracle and +33 once flown there, the Monster lost between five fence points)
+  parksData.crests = {}
+  for (const p of parksData.parks) if (p.abbr !== 'SF') fetch(`/parks/${p.abbr}/crest.json`).then((r) => (r.ok ? r.json() : null)).then((c) => { if (c?.bearing?.length) parksData.crests[p.abbr] = c }).catch(() => {})
   return parksData
 }
 export function wallFnOf(data, p) {
-  const B = data.bearings
+  const B = data.bearings, c = data.crests?.[p.abbr]
+  if (c) return (b) => { // the measured crest from -45 to +45 (radius and height in metres), as dojo.js flies it
+    const x = clamp(b, -45, 45)
+    let i = 0
+    while (i < c.bearing.length - 2 && c.bearing[i + 1] < x) i++
+    const f = clamp((x - c.bearing[i]) / (c.bearing[i + 1] - c.bearing[i]), 0, 1)
+    return [(c.radius[i] * (1 - f) + c.radius[i + 1] * f) / 0.3048, (c.height[i] * (1 - f) + c.height[i + 1] * f) / 0.3048]
+  }
   return (b) => {
     const x = clamp(b, B[0], B[4])
     let i = 0

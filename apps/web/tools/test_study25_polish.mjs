@@ -92,6 +92,17 @@ const lnum = await page.evaluate(() => { let n = null; window.__mix25.flight().l
 check('ONE AT A TIME: after the landing only the last moment shows (the landing number, or the wall tag for a ball off it)', (tags.length === 0 && lnum?.v) || (tags.length === 1 && /SHORT OF THE TOP/.test(tags[0])), JSON.stringify({ tags, lnum }))
 await page.evaluate(() => window.__mix25.lab('TF', 1)); await page.waitForTimeout(1200)
 check('ALL STAY brings the others back', (await page.evaluate(() => window.__mix25.readable().filter((r) => !r.fixed && !r.off).length)) >= 2)
+// ON HOVER (2 Nov, later: "zenith and cleared the wall show up when you hover over that cube and that's it"): hidden until the pointer is on the cube, gone once it leaves
+await page.evaluate(() => window.__mix25.lab('TF', 3)); await page.mouse.move(5, 5)
+await page.evaluate(() => { Object.assign(window.__cp.state, { ev: 113, la: 29, dir: -12, temp: 70, wind: 0, xwind: 0 }); window.__cp.update() }); await page.waitForTimeout(400)
+await page.click('#c25nk'); await page.mouse.move(5, 5)
+await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000); await page.waitForTimeout(1500)
+const hv0 = await page.evaluate(() => window.__mix25.flight().dots())
+const hvIn = []
+for (let i = 0; i < hv0.length; i++) { for (let k = 0; k < 3; k++) { const d = (await page.evaluate(() => window.__mix25.flight().dots()))[i]; await page.mouse.move(d.x + 2, d.y - 2); await page.waitForTimeout(300) } /* (aimed again each time: the camera drifts a little after a landing) */ hvIn.push(await page.evaluate(() => window.__mix25.flight().dots().map((x) => x.kind).join())) }
+await page.mouse.move(5, 5); await page.waitForTimeout(700)
+const hv1 = await page.evaluate(() => window.__mix25.flight().dots())
+check('ON HOVER: ZENITH and CLEARED THE WALL hidden after a home run, each shows (alone) with the pointer on its cube, and goes when the pointer leaves', hv0.length === 2 && hv0.every((d) => d.kind === 'off') && hvIn[0] === 'on,off' && hvIn[1] === 'off,on' && hv1.every((d) => d.kind === 'off'), JSON.stringify({ hv0, hvIn, hv1 }))
 
 // ---- WHAT'S NEW wraps ----
 await page.evaluate(() => window.__mix25.openMod('news')); await page.waitForTimeout(600)
@@ -102,7 +113,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300)
 // ---- THE LAB has today's choices ----
 await page.keyboard.press('?'); await page.waitForTimeout(400)
 const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .dx [data-ax]')].map((b) => b.dataset.ax))
-check('the side menu holds only the last open picks: SLINGSHOT, LANDING NUMBER, FOUL POLES (1 Nov, night)', chips.join() === 'SL,LN,FP', JSON.stringify(chips))
+check('the side menu holds only the last open pick, SLINGSHOT (2 Nov: the foul poles locked orange and white, THE ORANGE SAFETY ORANGE, the count-up OVER THE BALL in GEIGER)', chips.join() === 'SL', JSON.stringify(chips))
 await page.keyboard.press('Escape')
 
 // ---- PASS IT ON: a link opens on its swing ----
@@ -148,20 +159,36 @@ await page.keyboard.press('Escape')
   // the Seance: a point well behind the left-center bleachers is past the seats, not ROW 26
   const se = await p3.evaluate(() => { const S = window.__mix25, toW = window.__cp.toWorld, a = (-30 * Math.PI) / 180, r = 480 * 0.3048; const h = toW([0, 0, 0]), p = { x: h.x + r * Math.sin(a), y: h.y + 10, z: h.z - r * Math.cos(a) }; return S.seatOf(p) })
   check('SEAT SEANCE: a ball past the last row is called past the seats (the Fan Lot), not a seat', se && se.what === 'beyond' && /PAST/.test(se.line) && /FAN LOT/.test(se.short), JSON.stringify(se))
-  // the landing number: each look builds, faces the camera and shows after the landing
-  const looks = []
-  for (const n of [1, 2, 3, 4, 5]) {
-    await p3.evaluate((n) => window.__mix25.lab('LN', n), n)
+  // the landing number (2 Nov: the count-up, riding over the ball): each look builds, counts up in flight, cool before the wall and orange after, and settles over the spot
+  const looks = [], rides = []
+  // (2 Nov, later: the ball's own position, from the fly hook, so a ride is checked against the ball and not against where the number says it is)
+  await p3.evaluate(() => { const f = window.__cpOnFly; window.__cpOnFly = (pos, fr) => { window.__ballAt = pos.clone(); f(pos, fr) } })
+  { const w0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0); await p3.click('#c25nk'); for (let k = 0; k < 150 && (await p3.evaluate((w0) => (window.__mix25.lands?.() ?? 0) === w0, w0)); k++) await p3.waitForTimeout(200); await p3.waitForTimeout(800) } // a warm-up swing: the first after load flies before the first sample
+  for (const [n, lc] of [[2, 1], [3, 1], [2, 2]]) {
+    await p3.evaluate(([n, lc]) => { window.__mix25.lab('LN', n); window.__mix25.lab('LC', lc) }, [n, lc])
     await p3.evaluate(() => { Object.assign(window.__cp.state, { ev: 113, la: 29, dir: -12, temp: 70, wind: 0, xwind: 0 }); window.__cp.update() }); await p3.waitForTimeout(500)
     const l0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0)
     await p3.click('#c25nk')
-    for (let k = 0; k < 150 && (await p3.evaluate((l0) => (window.__mix25.lands?.() ?? 0) === l0, l0)); k++) await p3.waitForTimeout(200) // (wait for this ball to come down: NUKE IT winds up first)
+    const seen = [], num = () => { let n = null; window.__mix25.flight().last()?.traverse((c) => { if (c.userData.landNumber && c.parent?.userData.num) { let v = true; for (let p = c; p; p = p.parent) v = v && p.visible; const u = c.parent.userData.num(), b = window.__ballAt; n = { ...c.userData.landNumber, v, n: u.n, color: u.color, up: u.up, settled: u.settled, y: u.pos.y, gap: b ? Math.round(u.pos.distanceTo(b) * 10) / 10 : null } } }); return n }
+    for (let k = 0; k < 150 && (await p3.evaluate((l0) => (window.__mix25.lands?.() ?? 0) === l0, l0)); k++) { const r = await p3.evaluate(`(${num})()`); if (r && !r.settled) seen.push(r); await p3.waitForTimeout(200) } // (wait for this ball to come down: NUKE IT winds up first)
     await p3.waitForTimeout(1500)
-    looks.push(await p3.evaluate(() => { let n = null; window.__mix25.flight().last()?.traverse((c) => { if (c.userData.landNumber) { let v = true; for (let p = c; p; p = p.parent) v = v && p.visible; n = { ...c.userData.landNumber, v } } }); return n }))
+    const end = await p3.evaluate(`(${num})()`)
+    looks.push(end); rides.push({ look: n, lc, vis: seen.map((r) => r.v), ys: seen.map((r) => Math.round(r.y)), gaps: seen.map((r) => r.gap), ups: seen.map((r) => r.up), endY: end && Math.round(end.y), seen: seen.map((r) => r.n + ':' + r.color), end: end && end.n + ':' + end.color, cols: await p3.evaluate(() => { const c = window.__mix25.colors(); return { pc: c.pc, acc: c.acc, nk: c.nk } }) })
   }
-  check('the landing number: all five looks build and show over the spot, the feet only', looks.every((l, i) => l && l.look === i + 1 && l.v && l.ft > 300), JSON.stringify(looks))
-  const fp = await p3.evaluate(() => { const P = window.__mix25.poles(); if (!P) return null; const r = []; for (const n of [1, 2, 3, 4]) { window.__mix25.lab('FP', n); r.push(P.look()) } return { r, kids: P.group.children.length } })
-  check('FOUL POLES: four looks, both poles in the park', fp && fp.r.join() === '1,2,3,4' && fp.kids >= 2, JSON.stringify(fp))
+  check('the landing number: both looks build and settle over the spot, the feet only', looks.every((l, i) => l && l.look === [2, 3, 2][i] && l.v && l.settled && l.ft > 300 && l.n === l.ft), JSON.stringify(looks))
+  const hx = (c) => (c || '').toLowerCase()
+  check('COUNT-UP: in flight it counts up from short of the landing, in the pitch color before the wall and then orange (COUNT-UP COLOR 1) or GEIGER (2); it lands in that color on a home run',
+    rides.every((r, i) => { const n = r.seen.map((x) => Number(x.split(':')[0])), cool = hx(r.cols.pc), hot = hx(r.lc === 2 ? r.cols.nk : r.cols.acc), cs = r.seen.map((x) => hx(x.split(':')[1])); return n.length >= 2 && n.every((v, j) => !j || v >= n[j - 1]) && n[0] < looks[i].ft && cs.every((c) => c === cool || c === hot) && cs.indexOf(hot) !== 0 && hx(r.end.split(':')[1]) === hot }), JSON.stringify(rides))
+  // 2 Nov, later (Andrew: "it is not riding the ball"): the old check read the number's own position before the frame put it back; this one measures it against the ball
+  check('the count-up is on screen the whole flight in both places (2 Nov, later: ONE AT A TIME stood it down from the zenith on)', rides.every((r) => r.vis.length >= 2 && r.vis.every(Boolean)), JSON.stringify(rides.map((r) => ({ look: r.look, vis: r.vis }))))
+  check('OVER THE BALL moves with the ball (5 m over it all the flight, after the frame has placed it), its height counting too; OVER THE SPOT holds still over where it comes down, no height',
+    [rides[0], rides[2]].every((r) => r.gaps.length >= 2 && r.gaps.every((g) => g != null && Math.abs(g - 5) <= 1.5) && new Set(r.ys).size >= 2 && r.ups.every((u) => u != null) && Math.max(...r.ups) > 50) && rides[1].ys.every((y) => Math.abs(y - rides[1].endY) <= 1) && rides[1].ups.every((u) => u == null),
+    JSON.stringify(rides.map((r) => ({ look: r.look, gaps: r.gaps, ys: r.ys, ups: r.ups, endY: r.endY }))))
+  const fp = await p3.evaluate(() => { const P = window.__mix25.poles(); if (!P) return null; const at = P.look(), pc = P.group.children[0].children.map((m) => '#' + m.material.color.getHexString()); const r = []; for (const n of [1, 2, 3, 4]) { window.__mix25.lab('FP', n); r.push(P.look()) } window.__mix25.lab('FP', 4); return { at, pc, r, kids: P.group.children.length, acc: getComputedStyle(document.querySelector('.c25')).getPropertyValue('--acc').trim() } })
+  // THE ORANGE (2 Nov, later: locked to SAFETY ORANGE, "giants orange is reading as too red"): the interface and the poles in it from the start
+  const or = await p3.evaluate(() => ({ acc: getComputedStyle(document.querySelector('.c25')).getPropertyValue('--acc').trim().toLowerCase(), pole: '#' + window.__mix25.poles().group.children[0].children[0].material.color.getHexString() }))
+  check('THE ORANGE: locked to SAFETY ORANGE #ff7a00, the interface accent and the foul pole both', or.acc === '#ff7a00' && or.pole === '#ff7a00', JSON.stringify(or))
+  check('FOUL POLES: locked to ORANGE AND WHITE (2 Nov), the pole in the same orange as the interface, the screen white; both poles in the park', fp && fp.at === 4 && fp.pc[0] === fp.acc.toLowerCase() && fp.pc[1] === '#f4f2ea' && fp.r.join() === '1,2,3,4' && fp.kids >= 2, JSON.stringify(fp))
   await p3.close()
 }
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' || '))
