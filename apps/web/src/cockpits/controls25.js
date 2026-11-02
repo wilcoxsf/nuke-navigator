@@ -23,16 +23,18 @@ export function initControls25(api, o = {}) {
   const C = { acc: o.acc ?? '#f0802a', tx: o.tx ?? '#e8e1c9', dim: o.dim ?? '#8a8f99' }
   const mats = {}, mat = (c) => (mats[c] ??= new THREE.MeshBasicMaterial({ color: c, fog: false }))
   const g = new THREE.Group(); g.visible = false; scene.add(g)
-  const H0 = toWorld([0, 0, 0]), F = (x, y, z) => toWorld([x, y, z])
+  const F = (x, y, z) => toWorld([x, y, z])
   const pool = (n, color, parent = g) => { const m = new THREE.InstancedMesh(cube, mat(color), n); m.count = 0; m.frustumCulled = false; parent.add(m); return m }
   const fill = (m, pts) => { m.count = Math.min(pts.length, m.instanceMatrix.count); for (let i = 0; i < m.count; i++) { const p = pts[i]; d.position.set(p[0], p[1], p[2]); d.scale.setScalar(p[3]); d.updateMatrix(); m.setMatrixAt(i, d.matrix) } m.instanceMatrix.needsUpdate = true }
-  let k = 1, st = { ev: 103, la: 28, dir: 0, wind: 0, xwind: 0, temp: 70 }, drag = null, pull = null
+  let k = 2.05, st = { ev: 103, la: 28, dir: 0, wind: 0, xwind: 0, temp: 70 }, drag = null, pull = null
   const along = (b, r, z = 0.25) => F(Math.sin(b * RAD) * r, Math.cos(b * RAD) * r, z)
   // ---- 31 Oct, later (Andrew: "The 3D diagetic controls look sort of shitty too give me better voxel versions of those and 3-4 options each"; of the slingshot,
   // "gimme options I am not at this point convinced"): four of each, picked in THE LAB (OPTIONS): SL slingshot, SK windsock, TH thermometer. Every piece is cubes in
-  // a few colors (one pool per color); the sock and the thermometer grow with the camera's distance only up to a cap (they stood over Levi's Landing), and the
+  // a few colors (one pool per color); the sock and the thermometer were capped in size (they stood over Levi's Landing; since 1 Nov all three keep one size), and the
   // thermometer is drawn again only when its number or the camera's side changes (GPT red team: no work every frame for a still thing) ----
-  let sty = { sl: 1, sk: 5, th: 5 }, ks = 1
+  // 1 Nov (Andrew: "let's have all of those diagetic controls a fixed size"): they no longer grow and shrink with the zoom; k and ks stay at what they were in the
+  // dojo's opening view (the camera 225 m from home: k 2.05, the sock and the gauge at their cap of 1.5)
+  let sty = { sl: 1, sk: 5, th: 5 }, ks = 1.5
   const pools = new Map(), poolOf = (piece, color, n, parent) => { const key = piece + color; if (!pools.has(key)) pools.set(key, { piece, m: pool(n, color, parent) }); return pools.get(key).m }
   const paintPiece = (piece, parent, parts) => { for (const [key, p] of pools) if (p.piece === piece && !(key.slice(piece.length) in parts)) fill(p.m, []); for (const [c, pts] of Object.entries(parts)) fill(poolOf(piece, c, 640, parent), pts) }
   const WOOD = '#a8703f', STEEL = '#8a8f99', WHITE = '#f4f2ea', RED = '#e0403a', GREEN = '#3b8a52', ORANGE = '#f0802a'
@@ -46,6 +48,17 @@ export function initControls25(api, o = {}) {
   const GRIP = { 1: [0, 0, 2.95], 2: [0, 0, 3.1], 3: [0, 0, 2.9], 4: [0, 0.2, 2.9] }
   const forkTop = () => sg.localToWorld(tilt(...(GRIP[sty.sl] ?? GRIP[1])))
   const ballAt = () => sg.localToWorld(ballLocal())
+  // the ball's cubes, worked out once: a shell of radius 0.44 (in the slingshot's own size), the seam the curve a tennis ball and a baseball share
+  const BALL = (() => {
+    const out = [], R = 0.44, seam = []
+    for (let i = 0; i < 160; i++) { const t = (i / 160) * Math.PI * 2, a = 0.7, bb = 0.3; seam.push(new THREE.Vector3(a * Math.cos(t) + bb * Math.cos(3 * t), a * Math.sin(t) - bb * Math.sin(3 * t), 2 * Math.sqrt(a * bb) * Math.sin(2 * t))) }
+    for (let x = -R; x <= R + 0.01; x += 0.14) for (let y = -R; y <= R + 0.01; y += 0.14) for (let z = -R; z <= R + 0.01; z += 0.14) {
+      const r = Math.hypot(x, y, z); if (r > R + 0.02 || r < R - 0.17) continue
+      const n = new THREE.Vector3(x, y, z).normalize(), near = Math.min(...seam.map((q) => q.distanceTo(n)))
+      out.push([x, y, z, near < 0.2 ? RED : WHITE])
+    }
+    return out
+  })()
   function paintSling() {
     const P = {}, put = (c, v, s) => (P[c] ??= []).push([v.x, v.y, v.z, s]), qt = (c, x, y, z, s) => put(c, tilt(x, y, z), s), q = (c, x, y, z, s) => put(c, L(x, y, z), s)
     const line = (c, a, b, s, step = 0.12) => { const n = Math.max(1, Math.ceil(a.distanceTo(b) / step)); for (let i = 0; i <= n; i++) put(c, a.clone().lerp(b, i / n), typeof s === 'function' ? s(i / n) : s) }
@@ -85,15 +98,19 @@ export function initControls25(api, o = {}) {
       for (const s of [-1, 1]) line(WOOD, L(s * 0.9, -0.3, 0), tilt(0, 0.2, 1.2), 0.24, 0.2)
     }
     put(ORANGE, tilt(...(GRIP[sty.sl] ?? GRIP[1])), 0.45) // the lit grip for the angle
-    put(WHITE, b, 0.6) // the ball
+    // the ball (1 Nov, Andrew: "let's have the thing we're pulling back clearly be the ball"): a round shell of small cubes, white, with red seams
+    const seam = o.seam?.() ?? RED // (1 Nov, later: "the ball seam color should be the pitch color we already agreed on")
+    for (const [x, y, z, c] of BALL) put(c === RED ? seam : c, new THREE.Vector3(b.x + x, b.y + y, b.z + z), 0.15)
     paintPiece('sl', sg, P)
   }
   // ---- the windsock on first base, a little lower than it was, its size capped ----
   const B1 = 90 * FT * Math.SQRT1_2, C2 = F(B1, B1, 0), PH = 6, RW = 7
   const poleTop = () => C2.clone().setY(C2.y + PH * ks)
-  const HOLLOW = () => sty.sk === 5 || sty.sk === 6, SOCKL = 7.2
+  const HOLLOW = () => sty.sk === 5 || sty.sk === 6, SOCKL = 7.2, PENL = 7
   const sockAxis = () => { const m = Math.hypot(st.wind, st.xwind), dx = m ? st.xwind / m : 1, dz = m ? -st.wind / m : 0, droop = 0.2 + Math.min(1, m / 15) * (Math.PI / 2 - 0.25); return new THREE.Vector3(dx * Math.sin(droop), -Math.cos(droop), dz * Math.sin(droop)) }
-  const windTip = () => { if (HOLLOW()) return poleTop().addScaledVector(sockAxis(), SOCKL * ks); const m = Math.hypot(st.wind, st.xwind), top = poleTop(), r = (0.25 + (Math.min(25, m) / 25) * 0.75) * RW * ks; if (!m) return top.clone().add(new THREE.Vector3(0.5 * ks, -r * 0.8, 0)); const droop = sty.sk === 2 ? 0 : (1 - Math.min(25, m) / 25) * r * 0.6; return new THREE.Vector3(top.x + (st.xwind / m) * r, top.y - droop, top.z - (st.wind / m) * r) }
+  // the pennant never droops (1 Nov, later: "let's not ever have it droop, let's just make it go more or less far out horizontally"): level, downwind, longer the stronger
+  const penAxis = () => { const m = Math.hypot(st.wind, st.xwind); return m ? new THREE.Vector3(st.xwind / m, 0, -st.wind / m) : new THREE.Vector3(1, 0, 0) }, penLen = () => PENL * (0.8 + 0.4 * Math.min(1, Math.hypot(st.wind, st.xwind) / 20)) // (long enough for the word at a calm)
+  const windTip = () => { if (sty.sk === 4) return poleTop().addScaledVector(penAxis(), penLen() * ks); if (HOLLOW()) return poleTop().addScaledVector(sockAxis(), SOCKL * ks); const m = Math.hypot(st.wind, st.xwind), top = poleTop(), r = (0.25 + (Math.min(25, m) / 25) * 0.75) * RW * ks; if (!m) return top.clone().add(new THREE.Vector3(0.5 * ks, -r * 0.8, 0)); const droop = sty.sk === 2 ? 0 : (1 - Math.min(25, m) / 25) * r * 0.6; return new THREE.Vector3(top.x + (st.xwind / m) * r, top.y - droop, top.z - (st.wind / m) * r) }
   let sockAt = 0
   function paintSock(now = performance.now()) {
     sockAt = now
@@ -119,10 +136,22 @@ export function initControls25(api, o = {}) {
       for (let i = 0; i <= 4; i++) for (const s of [-1, 1]) put(ORANGE, tip.x - ux * i * 0.35 * ks + -uz * s * i * 0.3 * ks, top.y, tip.z - uz * i * 0.35 * ks + ux * s * i * 0.3 * ks, 0.38 * ks)
       for (let i = 0; i <= 3; i++) for (let j = -1; j <= 1; j++) put(WHITE, back[0] - ux * i * 0.3 * ks, top.y + j * 0.3 * ks, back[2] - uz * i * 0.3 * ks, 0.3 * ks)
       for (const [cx, cz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put(STEEL, top.x + cx * 0.9 * ks, top.y - 0.9 * ks, top.z + cz * 0.9 * ks, 0.22 * ks) // the compass pegs
-    } else { // 3 STAIR-STEP PENNANT: four rectangles, smaller and smaller, rising to the horizontal as it blows; 4 GIANTS PENNANT: an orange triangle, white along its edge
+    } else if (sty.sk === 4) { // GIANTS PENNANT (1 Nov, Andrew: "I like the giants pennant but would like it to actually say giants on it"): orange felt edged in white, GIANTS in black
+      // the cloth hangs from its top edge along the sock's axis (out with the wind, drooping as it drops); the word is on both faces, laid out so it reads left to right
+      // from wherever the camera is
+      const ax = penAxis(), dn = new THREE.Vector3(0, -1, 0), nrm = new THREE.Vector3().crossVectors(ax, dn).normalize(), PL = penLen()
+      const H = 2.6, hAt = (sd) => { const f = sd / PL; return f < 0.8 ? H * (1 - 0.75 * f) : H * 2 * (1 - f) }
+      const pt = (sd, j, off = 0) => { const f = sd / PL, wob = Math.sin(ft * 2.5 - f * 5) * f * 0.3; return top.clone().addScaledVector(ax, sd * ks).addScaledVector(dn, j * ks).addScaledVector(nrm, (wob + off) * ks) }
+      for (let sd = 0.15; sd <= PL; sd += 0.28) { const h = hAt(sd); for (let j = 0; j <= h; j += 0.28) { const q = pt(sd, j); put(j > h - 0.3 ? WHITE : ORANGE, q.x, q.y, q.z, 0.34 * ks) } }
+      const word = 'GIANTS', cs = 0.12, cols = []
+      for (const ch of word) { const rows = VOX_FONT[ch] ?? VOX_FONT[' ']; for (let i = 0; i < rows[0].length; i++) cols.push(rows.map((r) => r[i] === '#')); cols.push(null) }
+      cols.pop()
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), flip = ax.dot(right) < 0, W = cols.length
+      cols.forEach((col, c) => { if (!col) return; const sd = 0.45 + (flip ? W - 1 - c : c) * cs; col.forEach((on, j) => { if (!on) return; for (const off of [-0.2, 0.2]) { const q = pt(sd, 0.22 + j * cs, off); put('#141414', q.x, q.y, q.z, 0.13 * ks) } }) })
+    } else { // 3 STAIR-STEP PENNANT: four rectangles, smaller and smaller, rising to the horizontal as it blows
       for (let f = 0; f <= 1; f += 0.03) {
-        const wob = Math.sin(ft * 2.5 - f * 5) * f * 0.3 * ks, wd = sty.sk === 3 ? 1.6 - Math.floor(f * 4) * 0.32 : 1.8 * (1 - f) + 0.15, p = at(f, wob)
-        for (let j = 0; j <= wd; j += 0.3) put(sty.sk === 3 ? (Math.floor(f * 4) % 2 ? WHITE : ORANGE) : j > wd - 0.31 ? WHITE : ORANGE, p[0], p[1] - j * ks, p[2], 0.34 * ks)
+        const wob = Math.sin(ft * 2.5 - f * 5) * f * 0.3 * ks, wd = 1.6 - Math.floor(f * 4) * 0.32, p = at(f, wob)
+        for (let j = 0; j <= wd; j += 0.3) put(Math.floor(f * 4) % 2 ? WHITE : ORANGE, p[0], p[1] - j * ks, p[2], 0.34 * ks)
       }
     }
     put(ORANGE, tip.x, tip.y, tip.z, 0.9 * ks) // the grip
@@ -166,12 +195,13 @@ export function initControls25(api, o = {}) {
       for (let y = T0; y <= T1; y += 0.3) for (const a of [-0.3, 0.3]) put('#1c2026', y, a, 0.3, 0.25)
       for (const [y, a] of [[0.05, -0.72], [0.05, 0.72], [T1 + 0.65, -0.72], [T1 + 0.65, 0.72]]) put(WHITE, y, a, 0.3, -0.05)
       tube('#cfe3ef', true, '#b8bec8'); ticks(WHITE, null, 0.95)
-    } else { // MERCURY TOWER (the first one)
-      for (let y = T0; y <= T1 + 0.01; y += 0.35) for (const a of [-0.7, 0.7]) put(WHITE, y, a, 0.4)
-      for (const a of [-0.35, 0, 0.35]) put(WHITE, T1 + 0.35, a, 0.4)
-      for (let y = 0.2; y <= 1.5; y += 0.32) for (let a = -0.9; a <= 0.91; a += 0.3) { const r = Math.hypot((y - 0.85) / 0.7, a / 0.95); if (r <= 1) put(r > 0.7 ? WHITE : RED, y, a, 0.36) }
-      for (let y = 1.4; y <= lvl; y += 0.3) for (const a of [-0.25, 0.25]) put(RED, y, a, 0.32)
-      for (const n of [0, 0.5, 1]) for (const a of [-1.15, -1.45]) put(STEEL, T0 + n * (T1 - T0), a, 0.24)
+    } else { // MERCURY TOWER (the first one; 1 Nov, Andrew: "the mercury red can't be hollow, needs to read as cleaner"): a white case filled in behind, a solid red
+      // column a little proud of it, a solid red bulb in a white ring, three notches
+      for (let y = T0 - 0.2; y <= T1 + 0.01; y += 0.3) for (const a of [-0.6, -0.3, 0, 0.3, 0.6]) put(WHITE, y, a, 0.32, Math.abs(a) > 0.5 ? 0 : 0.12)
+      for (const a of [-0.45, -0.15, 0.15, 0.45]) put(WHITE, T1 + 0.3, a, 0.32)
+      for (let y = 0.15; y <= 1.6; y += 0.2) for (let a = -0.95; a <= 0.96; a += 0.19) { const r = Math.hypot((y - 0.88) / 0.72, a / 0.95); if (r <= 1) put(r > 0.74 ? WHITE : RED, y, a, 0.22, r > 0.74 ? 0 : -0.06) }
+      for (let y = 1.4; y <= lvl; y += 0.16) for (const a of [-0.16, 0, 0.16]) put(RED, y, a, 0.2, -0.08)
+      for (const n of [0, 0.5, 1]) for (const a of [-0.95, -1.2]) put(STEEL, T0 + n * (T1 - T0), a, 0.22)
     }
     const tp = tempTip(); (P[RED] ??= []).push([tp.x, tp.y, tp.z, 0.5 * ks]) // the grip, the top of the red
     paintPiece('th', g, P)
@@ -189,9 +219,7 @@ export function initControls25(api, o = {}) {
   paint()
   api.NN.frames.push(() => {
     if (!g.visible) return
-    const nk = Math.min(3, Math.max(0.7, camera.position.distanceTo(H0) / 110))
-    if (Math.abs(nk - k) > k * 0.04) { k = nk; ks = Math.min(k, 1.5); paint() }
-    else { const now = performance.now(); if (!drag && now - sockAt > 80 && sty.sk !== 2) paintSock(now); paintTherm() } // the sock flutters at a dozen frames a second; the gauge only when it must
+    const now = performance.now(); if (!drag && now - sockAt > 80 && sty.sk !== 2) paintSock(now); paintTherm() // the sock flutters at a dozen frames a second; the gauge only when it must
     sg.scale.setScalar(k * 1.6)
     if (drag) showTag(tagFor(drag.k), handleAt(drag.k))
   })
@@ -241,6 +269,14 @@ export function initControls25(api, o = {}) {
       const fx = p.x - top.x, fy = -(p.z - top.z), len = Math.hypot(fx, fy), mph = clamp(Math.round((Math.max(0, len / (RW * ks) - 0.25) / 0.75) * 25), 0, 25)
       ch.wind = mph ? clamp(Math.round((mph * fy) / len), -20, 20) : 0; ch.xwind = mph ? clamp(Math.round((mph * fx) / len), -20, 20) : 0
     }
+    // the fine clutch (1 Nov, later; GPT red team II, B11 "THE PRECISION CLUTCH"; Andrew on the leftovers: "if you want to institute any as options be my guest"):
+    // hold Alt while dragging and the handle moves a tenth as far; let go and it carries on from there, no jump
+    drag.fine ??= {}
+    for (const kk of Object.keys(ch)) {
+      const f = (drag.fine[kk] ??= { off: 0, at: null }), raw = ch[kk]
+      if (e.altKey) { f.at ??= { raw, val: st[kk] }; ch[kk] = Math.round(f.at.val + (raw - f.at.raw) / 10) }
+      else { if (f.at) { f.off = st[kk] - raw; f.at = null } ch[kk] = raw + f.off }
+    }
     const diff = Object.keys(ch).some((kk) => ch[kk] !== st[kk])
     Object.assign(st, ch)
     if (diff) { paint(); pend = { ...pend, ...ch }; const now = performance.now(); if (now - sentAt > 120) flush() } // (30 Oct, later: the drag lagged; every change re-flew the ball)
@@ -258,7 +294,8 @@ export function initControls25(api, o = {}) {
     move(e)
   }, true)
   canvas?.addEventListener('pointermove', (e) => {
-    if (!drag) { if (g.visible) canvas.style.cursor = grabAt(e) ? 'grab' : ''; return }
+    // (1 Nov, later) pointing at a handle shows its value over it, so you know what you'd be grabbing; it goes when you point away
+    if (!drag) { if (g.visible) { const kk = grabAt(e); canvas.style.cursor = kk ? 'grab' : ''; if (kk !== hoverK) { hoverK = kk; if (kk) showTag(tagFor(kk), handleAt(kk)); else if (!step.t || performance.now() - (step.at ?? 0) > 1200) showTag('', null) } } return }
     e.stopImmediatePropagation(); move(e)
   }, true)
   const end = (e) => {
@@ -273,18 +310,43 @@ export function initControls25(api, o = {}) {
   canvas?.addEventListener('pointercancel', end, true)
   // the launch angle while the ball is held: a wheel notch or an arrow is a degree (shift: five)
   const nudge = (d) => { st.la = clamp(st.la + d, -10, 60); paint(); pend = { ...pend, la: st.la }; if (performance.now() - sentAt > 120) flush() }
-  canvas?.addEventListener('wheel', (e) => { if (drag?.k !== 'ev') return; e.preventDefault(); e.stopImmediatePropagation(); nudge((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1)) }, { capture: true, passive: false })
+  // and with nothing held, a wheel notch over a handle is one of its units: a mph of speed, a degree of angle or of air, a mph of wind (its direction kept); shift: five
+  // (1 Nov, later: the fine tuning, GPT red team II B11); the value shows over the handle for a moment
+  let tagT = 0
+  const step = (kk, d) => {
+    if (kk === 'ev') st.ev = clamp(st.ev + d, 60, 125)
+    else if (kk === 'la') st.la = clamp(st.la + d, -10, 60)
+    else if (kk === 'temp') st.temp = clamp(st.temp + d, 40, 100)
+    else { const m = Math.hypot(st.wind, st.xwind), m2 = clamp(Math.round(m) + d, 0, 25), ux = m ? st.xwind / m : 0, uy = m ? st.wind / m : 1; st.wind = Math.round(uy * m2); st.xwind = Math.round(ux * m2) }
+    paint(); pend = { ...pend, ...(kk === 'wind' ? { wind: st.wind, xwind: st.xwind } : { [kk]: st[kk] }) }; if (performance.now() - sentAt > 120) flush(); else { clearTimeout(tagT); tagT = setTimeout(flush, 130) }
+    showTag(tagFor(kk), handleAt(kk)); step.at = performance.now(); clearTimeout(step.t); step.t = setTimeout(() => { if (!drag && !hoverK) showTag('', null) }, 1200)
+  }
+  canvas?.addEventListener('wheel', (e) => {
+    const kk = drag?.k === 'ev' ? 'la' : !drag ? grabAt(e) : null
+    if (!kk) return
+    e.preventDefault(); e.stopImmediatePropagation()
+    if (drag?.k === 'ev') nudge((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1)); else step(kk, (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1))
+  }, { capture: true, passive: false })
   addEventListener('keydown', (e) => { if (drag?.k !== 'ev' || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return; e.preventDefault(); e.stopImmediatePropagation(); nudge((e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 5 : 1)) }, true)
-  canvas?.addEventListener('dblclick', (e) => { if (grabAt(e) !== 'wind') return; e.stopImmediatePropagation(); st.wind = 0; st.xwind = 0; o.set?.({ wind: 0, xwind: 0 }); paint() }, true)
+  // a double-click puts a handle back: the wind to calm, and the rest to where they started (the dojo's blank swing, or the real ball when you are tweaking it; 1 Nov,
+  // later: the sock had it, now all four)
+  let hoverK = null
+  canvas?.addEventListener('dblclick', (e) => {
+    const kk = grabAt(e); if (!kk) return
+    e.stopImmediatePropagation()
+    const h = o.home?.() ?? { ev: 103, la: 28, temp: 62, wind: 0, xwind: 0, dir: 0 }, ch = kk === 'wind' ? { wind: 0, xwind: 0 } : kk === 'ev' ? { ev: Math.round(h.ev), dir: Math.round(h.dir ?? 0) } : { [kk]: Math.round(h[kk]) }
+    Object.assign(st, ch); o.set?.(ch); paint(); o.sound?.('back'); showTag(tagFor(kk), handleAt(kk))
+  }, true)
   return {
     group: g,
-    set visible(v) { g.visible = v; if (!v && drag) { drag = null; pull = null; if (api.NN.controls) api.NN.controls.enabled = true; showTag('', null) } },
+    set visible(v) { g.visible = v; if (!v && canvas) canvas.style.cursor = ''; if (!v && drag) { drag = null; pull = null; if (api.NN.controls) api.NN.controls.enabled = true; showTag('', null) } }, // (1 Nov: no grab hand left over the replay)
     get visible() { return g.visible },
     // the numbers from the state (after a typed number, a slider, a new ball)
     sync(s) { const n = { ev: Math.round(s.ev), la: Math.round(s.la), dir: Math.round(s.dir), wind: s.wind ?? 0, xwind: s.xwind ?? 0, temp: Math.round(s.temp ?? 70) }; if (Object.keys(n).every((kk) => n[kk] === st[kk])) return; st = n; paint() },
     // for the tests: where each handle is on screen, and a drag from one to a point
     // the looks (THE LAB: SL, SK, TH)
     setStyles(x) { sty = { ...sty, ...x }; paint() }, styles: () => ({ ...sty }),
+    step, // (tests: a wheel notch on a handle)
     handles: () => Object.fromEntries(['ev', 'la', 'wind', 'temp'].map((kk) => [kk, screen(handleAt(kk)).slice(0, 2)])),
     dragging: () => drag?.k ?? null,
   }

@@ -8,7 +8,7 @@ const root = new URL('../dist/', import.meta.url).pathname.replace(/^\/([A-Za-z]
 const NEVER = new Set(['.parquet', '.csv', '.duckdb', '.env', '.key', '.pem'])
 const NEVER_NAMES = /^(\.env.*|credentials\.json|token\.json|tokens\.txt)$/
 const SERVED_WITH_CARE = new Set(['.glb', '.gltf'])
-const DERIVED = /^(parks30|dists|giants_faces|replay|pool)\.json$/
+const DERIVED = /^(parks30|dists|giants_faces|replay|pool|giants_games)\.json$/
 const rows = []
 const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f), s = statSync(p); if (s.isDirectory()) walk(p); else rows.push({ p: p.slice(root.length), f, ext: extname(f).toLowerCase(), size: s.size }) } }
 walk(root)

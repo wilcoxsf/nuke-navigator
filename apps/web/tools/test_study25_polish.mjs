@@ -1,0 +1,170 @@
+// Real-interaction test of Study 25's 1 Nov polish pass (an audit's findings and the second GPT red team's picks). No screenshots: state and boxes are read.
+// Every id on the page is used once (MY SEAT's form used to share the MENU button's); Backspace undoes a burst of dojo changes and 0 puts the blank swing back; Esc
+// closes the side menu before the menu opens and Space still nukes it with the side menu focused; WHAT'S NEW wraps rather than cutting its rows; the ball's
+// shadow runs under a flight and goes at the landing, and a flight cut short by a new number takes it along; a wheel notch over a 3D handle is one unit and a
+// double-click puts the handle back; tags one at a time show only the newest; THE LAB has the new choices.
+// Usage: node tools/test_study25_polish.mjs [base url]
+import { chromium } from 'playwright-core'
+
+const base = process.argv[2] ?? 'http://localhost:5175'
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+let fails = 0
+const check = (name, ok, extra = '') => { if (!ok) fails++; console.log(ok ? 'PASS' : 'FAIL', name, ok ? '' : extra) }
+const errs = []
+const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 })
+page.on('pageerror', (e) => errs.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')))
+await page.route('**/api.open-meteo.com/**', (r) => r.abort())
+await page.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7&ir=0&menu=0`)
+await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 })
+await page.waitForTimeout(2000)
+const until = async (fn, ms = 20000, arg) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await page.evaluate(fn, arg)) return true; await page.waitForTimeout(200) } return false }
+const st = () => page.evaluate(() => { const s = window.__cp.state; return { ev: s.ev, la: s.la, dir: s.dir, temp: s.temp, wind: s.wind, xwind: s.xwind ?? 0 } })
+const dupes = () => page.evaluate(() => { const n = {}; for (const e of document.querySelectorAll('[id]')) n[e.id] = (n[e.id] ?? 0) + 1; return Object.entries(n).filter(([, c]) => c > 1).map(([k]) => k) })
+
+// ---- ids ----
+check('every id on the page is used once', (await dupes()).length === 0, JSON.stringify(await dupes()))
+await page.click('#c25ch [data-show="my"]'); await page.waitForTimeout(1200)
+check('with the MY SEAT form open too', (await dupes()).length === 0, JSON.stringify(await dupes()))
+const mn0 = await page.evaluate(() => document.querySelector('#c25mn').textContent)
+await page.evaluate(() => document.querySelector('#c25mg')?.click()); await page.waitForTimeout(600)
+check('THAT\'S MY SEAT leaves the MENU button as it was', (await page.evaluate(() => document.querySelector('#c25mn').textContent)) === mn0, mn0)
+await page.click('#c25ch [data-show="my"]'); await page.waitForTimeout(600)
+
+// ---- the dojo: undo and the blank swing ----
+await page.evaluate(() => window.__mix25.setMode('whatif')); await page.waitForTimeout(2500)
+const s0 = await st()
+await page.evaluate(() => window.__mix25.controls().step('ev', 5)); await page.waitForTimeout(700)
+await page.evaluate(() => window.__mix25.controls().step('temp', 3)); await page.waitForTimeout(700)
+const s1 = await st()
+check('a wheel notch over a handle is one unit (five with shift): +5 MPH, +3 degrees', s1.ev === s0.ev + 5 && s1.temp === s0.temp + 3, JSON.stringify({ s0, s1 }))
+await page.mouse.move(5, 300)
+await page.keyboard.press('Backspace'); await page.waitForTimeout(600)
+const s2 = await st()
+check('Backspace undoes the last change', s2.temp === s0.temp && s2.ev === s0.ev + 5, JSON.stringify({ s0, s2 }))
+await page.keyboard.press('Backspace'); await page.waitForTimeout(600)
+check('and the one before', (await st()).ev === s0.ev, JSON.stringify(await st()))
+await page.evaluate(() => { Object.assign(window.__cp.state, { ev: 117, la: 35, wind: 9 }); window.__cp.update() }); await page.waitForTimeout(700)
+await page.keyboard.press('0'); await page.waitForTimeout(600)
+const s3 = await st()
+check('0 puts the blank swing back (103 MPH, 28 degrees, calm)', s3.ev === 103 && s3.la === 28 && s3.wind === 0, JSON.stringify(s3))
+
+// ---- double-click a handle ----
+await page.evaluate(() => window.__mix25.controls().step('temp', 9)); await page.waitForTimeout(800)
+const th = await page.evaluate(() => window.__mix25.controls().handles().temp)
+await page.mouse.dblclick(th[0], th[1]); await page.waitForTimeout(800)
+check('a double-click on the thermometer puts the air back to where it started', (await st()).temp === 62, JSON.stringify(await st()))
+
+// ---- Esc and the side menu; Space through it ----
+await page.keyboard.press('?'); await page.waitForTimeout(400)
+await page.evaluate(() => document.querySelector('#c25dk').focus()); await page.waitForTimeout(300) // (the side menu itself, as after a click on it; a focused chip is a button and takes Space)
+await until(() => !window.__cp.anim?.(), 15000) // (the last ball down first)
+const fires0 = await page.evaluate(() => window.__mix25.lands?.() ?? 0)
+await page.keyboard.press(' '); await page.waitForTimeout(300)
+const flying = await until((l0) => !!(window.__cp.anim?.() && !window.__cp.anim().exploded) || (window.__mix25.lands?.() ?? 0) > l0, 9000, fires0)
+check('with the side menu focused, Space still nukes it', flying, String(fires0))
+await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000)
+await page.keyboard.press('Escape'); await page.waitForTimeout(500)
+const esc1 = await page.evaluate(() => ({ dock: document.querySelector('.c25').classList.contains('dk'), menu: !!document.querySelector('.sm.open') }))
+check('the first Esc closes the side menu and opens nothing else', !esc1.dock && !esc1.menu, JSON.stringify(esc1))
+
+// ---- the shadow: under the flight, gone at the landing; a flight cut short takes it along ----
+const shadowVis = () => page.evaluate(() => { let v = null; window.__cp.NN.scene.traverse((o) => { if (o.isGroup && o.children.length === 2 && o.children[0].isInstancedMesh && o.children[0].material.opacity === 0.62) v = o.visible }); return v })
+await page.evaluate(() => { window.__mix25.lab('SH', 1); Object.assign(window.__cp.state, { ev: 108, la: 30, dir: 10 }); window.__cp.update() }); await page.waitForTimeout(1500)
+await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000); await page.waitForTimeout(500)
+await page.click('#c25nk')
+let seen = false
+for (let k = 0; k < 70 && !seen; k++) { await page.waitForTimeout(200); seen = !!(await shadowVis()) }
+check('the ball\'s shadow shows while it flies', seen)
+await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000); await page.waitForTimeout(800)
+check('and is gone once it lands', (await shadowVis()) === false)
+await page.click('#c25nk')
+for (let k = 0; k < 40 && !(await shadowVis()); k++) await page.waitForTimeout(200)
+await page.evaluate(() => { window.__cp.state.ev += 1; window.__cp.update() }); await page.waitForTimeout(1500)
+check('a new number while the ball is up cuts the flight short and the shadow goes with it', (await shadowVis()) === false)
+
+// ---- tags one at a time ----
+await page.evaluate(() => window.__mix25.lab('TF', 2)); await page.waitForTimeout(400)
+await page.click('#c25nk')
+await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000); await page.waitForTimeout(1500)
+const tags = await page.evaluate(() => window.__mix25.readable().filter((r) => !r.fixed && !r.off && r.text != null).map((r) => r.text)) // (the voxel pieces in the park have no text)
+const lnum = await page.evaluate(() => { let n = null; window.__mix25.flight().last()?.traverse((c) => { if (c.userData.landNumber) { let v = true; for (let p = c; p; p = p.parent) v = v && p.visible; n = { ...c.userData.landNumber, v } } }); return n })
+// (1 Nov, evening: no LANDED tag; the feet are a voxel number over the spot, landnum25.js)
+check('ONE AT A TIME: after the landing only the last moment shows (the landing number, or the wall tag for a ball off it)', (tags.length === 0 && lnum?.v) || (tags.length === 1 && /SHORT OF THE TOP/.test(tags[0])), JSON.stringify({ tags, lnum }))
+await page.evaluate(() => window.__mix25.lab('TF', 1)); await page.waitForTimeout(1200)
+check('ALL STAY brings the others back', (await page.evaluate(() => window.__mix25.readable().filter((r) => !r.fixed && !r.off).length)) >= 2)
+
+// ---- WHAT'S NEW wraps ----
+await page.evaluate(() => window.__mix25.openMod('news')); await page.waitForTimeout(600)
+const news = await page.evaluate(() => [...document.querySelectorAll('#c25mb .lpr.nw .wh')].map((s) => ({ cut: s.scrollWidth > s.clientWidth + 1, h: s.getBoundingClientRect().height })))
+check('WHAT\'S NEW: no row is cut short, and long ones wrap', news.length >= 8 && news.every((n) => !n.cut) && news.some((n) => n.h > 20), JSON.stringify(news.slice(0, 4)))
+await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+
+// ---- THE LAB has today's choices ----
+await page.keyboard.press('?'); await page.waitForTimeout(400)
+const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .dx [data-ax]')].map((b) => b.dataset.ax))
+check('the side menu holds only the last open picks: SLINGSHOT, LANDING NUMBER, FOUL POLES (1 Nov, night)', chips.join() === 'SL,LN,FP', JSON.stringify(chips))
+await page.keyboard.press('Escape')
+
+// ---- PASS IT ON: a link opens on its swing ----
+{
+  const p2 = await browser.newPage({ viewport: { width: 1600, height: 900 } })
+  p2.on('pageerror', (e) => errs.push('swing link: ' + e.message))
+  await p2.route('**/api.open-meteo.com/**', (r) => r.abort())
+  await p2.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7&ir=0&swing=111.33.-12.80.7.3`, { timeout: 120000 })
+  await p2.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 })
+  await p2.waitForTimeout(1500)
+  const r = await p2.evaluate(() => { const s = window.__cp.state; return { m: window.__mix25.mode(), s: [s.ev, s.la, s.dir, s.temp, s.wind, s.xwind], menu: !!document.querySelector('.sm.open') } })
+  check('a ?swing= link opens the dojo on exactly that swing, without the menu in the way', r.m === 'whatif' && r.s.join() === '111,33,-12,80,7,3' && !r.menu, JSON.stringify(r))
+  await p2.close()
+}
+// ---- 1 Nov, evening: WALLOP WITNESS within 72 hours; the Seance past the last row; the landing number's five looks; foul poles; Daily Dinger and the gag reel gone ----
+{
+  const p3 = await browser.newPage({ viewport: { width: 1600, height: 900 } })
+  p3.on('pageerror', (e) => errs.push(e.message))
+  await p3.route('**/api.open-meteo.com/**', (r) => r.abort())
+  // the day after the last Oracle game in the data, at noon: that game is open, older ones shut
+  await p3.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7&ir=0&menu=0&now=2026-09-28T12:00:00-07:00`, { timeout: 120000 })
+  await p3.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 })
+  await p3.evaluate(() => { try { localStorage.removeItem('nn-witness') } catch {} window.__mix25.openMod('witness') }); await p3.waitForTimeout(800)
+  const w0 = await p3.evaluate(() => ({ open: [...document.querySelectorAll('#c25mb .wd.open')].map((x) => x.dataset.d), shut: document.querySelectorAll('#c25mb .wd.shut').length, head: document.querySelector('#c25mb .bulh')?.textContent }))
+  const shutD = await p3.evaluate(() => document.querySelector('#c25mb .wd.shut')?.dataset.d)
+  await p3.click(`#c25mb .wd[data-d="${shutD}"]`); await p3.waitForTimeout(300)
+  const tickedShut = await p3.evaluate((d) => document.querySelector(`#c25mb .wd[data-d="${d}"]`).classList.contains('on'), shutD)
+  let tickedOpen = null
+  let asked = null
+  if (w0.open[0]) {
+    await p3.click(`#c25mb .wd[data-d="${w0.open[0]}"]`); await p3.waitForTimeout(300)
+    asked = await p3.evaluate(() => !!document.querySelector('#c25mb .wask #c25wsec'))
+    await p3.fill('#c25wsec', '143'); await p3.fill('#c25wrow', '10'); await p3.fill('#c25wst', '5'); await p3.click('#c25wgo'); await p3.waitForTimeout(800)
+    tickedOpen = await p3.evaluate((d) => document.querySelector(`#c25mb .wd[data-d="${d}"]`).classList.contains('on'), w0.open[0])
+  }
+  check('WALLOP WITNESS: a game more than 72 hours old cannot be logged; one inside the window asks for the seat, then is logged', !tickedShut && w0.shut > 50 && (w0.open.length === 0 || (asked && tickedOpen === true)) && /72 HOURS/.test(w0.head), JSON.stringify({ ...w0, shutD, tickedShut, asked, tickedOpen }))
+  await p3.evaluate(() => { try { localStorage.removeItem('nn-witness') } catch {} })
+  await p3.keyboard.press('Escape'); await p3.waitForTimeout(300)
+  await p3.evaluate(() => window.__mix25.menu.show()); await p3.waitForTimeout(500)
+  const hdr = await p3.evaluate(() => ({ dd: !!document.querySelector('#c25dd'), mix: getComputedStyle(document.querySelector('#c25mx')).display, tabs: [...document.querySelectorAll('#c25tabs [data-tab]')].map((t) => t.dataset.tab), menu: [...document.querySelectorAll('.c25 .sm .smi b')].map((b) => b.textContent) }))
+  await p3.evaluate(() => window.__mix25.menu.close()); await p3.waitForTimeout(300)
+  check('no DAILY DINGER, no MIX in the header; four tabs; the menu is the four modes and nothing else', !hdr.dd && hdr.mix === 'none' && hdr.tabs.join() === 'replay,whatif,shot,witness' && hdr.menu.length === 4 && !hdr.menu.some((t) => /DAILY|GAG|OPTIONS|NEW|SOUND/.test(t)), JSON.stringify(hdr))
+  // the Seance: a point well behind the left-center bleachers is past the seats, not ROW 26
+  const se = await p3.evaluate(() => { const S = window.__mix25, toW = window.__cp.toWorld, a = (-30 * Math.PI) / 180, r = 480 * 0.3048; const h = toW([0, 0, 0]), p = { x: h.x + r * Math.sin(a), y: h.y + 10, z: h.z - r * Math.cos(a) }; return S.seatOf(p) })
+  check('SEAT SEANCE: a ball past the last row is called past the seats (the Fan Lot), not a seat', se && se.what === 'beyond' && /PAST/.test(se.line) && /FAN LOT/.test(se.short), JSON.stringify(se))
+  // the landing number: each look builds, faces the camera and shows after the landing
+  const looks = []
+  for (const n of [1, 2, 3, 4, 5]) {
+    await p3.evaluate((n) => window.__mix25.lab('LN', n), n)
+    await p3.evaluate(() => { Object.assign(window.__cp.state, { ev: 113, la: 29, dir: -12, temp: 70, wind: 0, xwind: 0 }); window.__cp.update() }); await p3.waitForTimeout(500)
+    const l0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0)
+    await p3.click('#c25nk')
+    for (let k = 0; k < 150 && (await p3.evaluate((l0) => (window.__mix25.lands?.() ?? 0) === l0, l0)); k++) await p3.waitForTimeout(200) // (wait for this ball to come down: NUKE IT winds up first)
+    await p3.waitForTimeout(1500)
+    looks.push(await p3.evaluate(() => { let n = null; window.__mix25.flight().last()?.traverse((c) => { if (c.userData.landNumber) { let v = true; for (let p = c; p; p = p.parent) v = v && p.visible; n = { ...c.userData.landNumber, v } } }); return n }))
+  }
+  check('the landing number: all five looks build and show over the spot, the feet only', looks.every((l, i) => l && l.look === i + 1 && l.v && l.ft > 300), JSON.stringify(looks))
+  const fp = await p3.evaluate(() => { const P = window.__mix25.poles(); if (!P) return null; const r = []; for (const n of [1, 2, 3, 4]) { window.__mix25.lab('FP', n); r.push(P.look()) } return { r, kids: P.group.children.length } })
+  check('FOUL POLES: four looks, both poles in the park', fp && fp.r.join() === '1,2,3,4' && fp.kids >= 2, JSON.stringify(fp))
+  await p3.close()
+}
+check('no page errors', errs.length === 0, errs.slice(0, 3).join(' || '))
+await browser.close()
+console.log(fails ? `${fails} FAILED` : 'ALL PASS')
+process.exit(fails ? 1 : 0)

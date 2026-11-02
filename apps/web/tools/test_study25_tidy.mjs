@@ -38,14 +38,14 @@ const page = await open(1827, 992)
 {
   await page.keyboard.press('?'); await page.waitForTimeout(500)
   const d = await page.evaluate(() => ({ chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, lk: document.querySelectorAll('#c25dk .dx .lk').length }))
-  check('? opens the side menu with only the open choices and THE LAB, nothing locked (31 Oct, later)', d.chips === 14 && d.lk === 0, JSON.stringify(d))
+  check('? opens the side menu with only what is still open: SLINGSHOT, LANDING NUMBER, FOUL POLES (1 Nov, evening: the rest locked)', d.chips === 3 && d.lk === 0, JSON.stringify(d))
   // (31 Oct, later: the side menu holds THE LAB as well; a lab choice is kept on the device)
-  await page.click('#c25dk .dx [data-ax="SK"]'); await page.waitForTimeout(300)
-  await page.click('#c25dk .do[data-c="2"]'); await page.waitForTimeout(400)
-  check('a lab choice can be picked in the side menu (SK2 weather vane)', (await page.evaluate(() => window.__mix25.lab().SK)) === 2)
+  await page.click('#c25dk .dx [data-ax="SL"]'); await page.waitForTimeout(300)
+  await page.click('#c25dk .do[data-c="1"]'); await page.waitForTimeout(400)
+  check('a lab choice can be picked in the side menu (SL1 chunky Y-fork)', (await page.evaluate(() => window.__mix25.lab().SL)) === 1)
   await page.reload(); await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 }); await page.waitForTimeout(1500)
-  check('a reload keeps the lab choice (SK2)', (await page.evaluate(() => window.__mix25.lab().SK)) === 2)
-  await page.evaluate(() => window.__mix25.lab('SK', 5))
+  check('a reload keeps the lab choice (SL1)', (await page.evaluate(() => window.__mix25.lab().SL)) === 1)
+  await page.evaluate(() => window.__mix25.lab('SL', 5))
 }
 // ---- GAG REEL ----
 {
@@ -98,7 +98,7 @@ await set(page, { ev: 112, la: 27, dir: -8 }); await set(page, { ev: 114, la: 28
   const free = rs.filter((r) => !r.fixed), fixed = rs.filter((r) => r.fixed)
   let bad = 0
   for (let i = 0; i < free.length; i++) { for (let j = i + 1; j < free.length; j++) if (hit(free[i].rect, free[j].rect)) bad++; for (const f of fixed) if (hit(free[i].rect, f.rect)) bad++ }
-  check('3D tags: none on another, none on the scoreboard or the sign', bad === 0 && free.length >= 2, `tags ${free.length}, fixed ${fixed.length}, overlaps ${bad}`)
+  check('3D tags: none on another, none on the scoreboard or the sign (one at a time now)', bad === 0 && free.length >= 1, `tags ${free.length}, fixed ${fixed.length}, overlaps ${bad}`)
   const wb = await page.evaluate(() => { const W = window.__cpWindow; return { x0: (2 * W.l) / innerWidth - 1, x1: 1 - (2 * W.r) / innerWidth, y0: (2 * W.b) / innerHeight - 1, y1: 1 - (2 * W.t) / innerHeight } })
   const outs = free.filter((r) => r.rect.x0 < wb.x0 - 0.002 || r.rect.x1 > wb.x1 + 0.002 || r.rect.y0 < wb.y0 - 0.002 || r.rect.y1 > wb.y1 + 0.002)
   check('3D tags: every one shown sits inside the park window, none under a panel', outs.length === 0, JSON.stringify(outs.map((r) => r.rect)))
@@ -106,9 +106,9 @@ await set(page, { ev: 112, la: 27, dir: -8 }); await set(page, { ev: 114, la: 28
   await page.evaluate(() => { const NN = window.__cp.NN; NN.camera.position.multiplyScalar(1.6); NN.controls.update() })
   await page.waitForTimeout(1500)
   const rs2 = await page.evaluate(() => window.__mix25.readable().filter((r) => r.rect))
-  let bad2 = 0
-  for (let i = 0; i < rs2.length; i++) for (let j = i + 1; j < rs2.length; j++) if (!(rs2[i].fixed && rs2[j].fixed) && hit(rs2[i].rect, rs2[j].rect)) bad2++
-  check('3D tags: still clear of each other from far back', bad2 === 0, `overlaps ${bad2}`)
+  let bad2 = 0; const pairs = []
+  for (let i = 0; i < rs2.length; i++) for (let j = i + 1; j < rs2.length; j++) if (!(rs2[i].fixed && rs2[j].fixed) && hit(rs2[i].rect, rs2[j].rect)) { bad2++; pairs.push([rs2[i].text ?? (rs2[i].fixed ? 'fixed' : '?'), rs2[j].text ?? (rs2[j].fixed ? 'fixed' : '?')]) }
+  check('3D tags: still clear of each other from far back', bad2 === 0, `overlaps ${bad2} ${JSON.stringify(pairs)}`)
 }
 // ---- the dojo's controls in the park ----
 await page.close()

@@ -42,6 +42,8 @@ function prepare(NN) {
   return meshes
 }
 export function warmBVH(NN) { prepare(NN) }
+// the first thing of the park's along a ray from p (world) in direction dir (a unit vector), or null (1 Nov: the ball's shadow, shadow25.js)
+export function parkHit(NN, p, dir, far = 400) { const ms = prepare(NN); if (!ms.length) return null; ray0.set(p, dir); ray0.far = far; return ray0.intersectObjects(ms, false)[0] ?? null }
 // Follows a path (list of {p}) past the wall until it meets the stands, the street or the water. Returns the world point, what it is, and the path index.
 export function findLanding(NN, path, toWorld) {
   const ms = prepare(NN)

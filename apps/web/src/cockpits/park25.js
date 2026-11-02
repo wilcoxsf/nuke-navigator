@@ -286,6 +286,18 @@ export function initPark25(api, col, o = {}) {
     clk = { shown: clk.shown, live: false, hm: s.hm, spin: o.still ? null : { from: clk.shown, to: clk.shown - d, t: 0, dur: 1.5 }, target: to }
     if (o.still) clk.shown = to
   }
+  // THE CLOCK PANICS (1 Nov, from GPT's second red team, Andrew's pick): a very long home run and the hands take off, faster and faster for three seconds (three
+  // times round), overshoot by twelve minutes, stop dead, then the minute hand creeps back a minute at a time, with a little wait between, to the right time
+  const PANIC = { up: 3, over: 3.6, wait: 4.2, end: 6.6, laps: 3, past: 12 }
+  function panicAt(sp) {
+    const t = sp.t, P = PANIC, top = sp.base + P.laps * 720
+    if (t < P.up) return sp.base + P.laps * 720 * (t / P.up) ** 3
+    if (t < P.over) return top + P.past * ease((t - P.up) / (P.over - P.up))
+    if (t < P.wait) return top + P.past
+    const k = Math.min(1, (t - P.wait) / (P.end - P.wait - 0.2)), steps = Math.floor(k * P.past), f = k * P.past - steps
+    return top + P.past - steps - ease(Math.min(1, f * 3)) // a minute, a pause, a minute
+  }
+  function clockPanic() { if (o.still) return; const base = clk.live ? sfNow() : clk.target ?? clk.shown; clk.spin = { panic: true, t: 0, base }; clk.shown = base }
   // the voxel clock (29 Oct, evening, Andrew: "I want the clock to be a voxel clock"), for the real sign: a pale pink face of cubes, the red band round it with a white
   // dot every minute, the hours in black 3 by 5 digits, and the hands as bars of cubes that turn (the green bezel is the steel ring above); in the dojo a thin red
   // second hand. It sits in the sign's own frame, over the clock's place
@@ -312,7 +324,8 @@ export function initPark25(api, col, o = {}) {
   }
   function paintClock(dt) {
     const c = col(), R = CPX / 2
-    if (clk.spin) { const sp = clk.spin; sp.t += dt; const k = ease(sp.t / sp.dur); clk.shown = sp.from + (sp.to - sp.from) * k; if (sp.t >= sp.dur) { clk.spin = null; clk.shown = clk.live ? sfNow() : clk.target } }
+    if (clk.spin?.panic) { const sp = clk.spin; sp.t += dt; clk.shown = panicAt(sp); if (sp.t >= PANIC.end) { clk.spin = null; clk.shown = clk.live ? sfNow() : sp.base } }
+    else if (clk.spin) { const sp = clk.spin; sp.t += dt; const k = ease(sp.t / sp.dur); clk.shown = sp.from + (sp.to - sp.from) * k; if (sp.t >= sp.dur) { clk.spin = null; clk.shown = clk.live ? sfNow() : clk.target } }
     else if (clk.live) clk.shown = sfNow()
     const dimA = fogged ? 0.5 : 1
     if (q !== 1) { turnVoxClock(); return } // the voxel clock (the canvas one is the bulbs')
@@ -1410,7 +1423,7 @@ export function initPark25(api, col, o = {}) {
     // the sign's moments ('hr', or 'walk' for a walk-off), Karl dimming it and the clock, and the clock: { hm: 'HH:MM' } for a real ball, { live: true } for now in San Francisco
     signFx(kind) { sfx = { kind, t: 0, dur: kind === 'walk' ? 5 : 3.6 }; gleam = null; signs++ }, signCount: () => signs,
     set fog(v) { fogged = !!v },
-    setClock, clock: () => { const m = ((clk.shown % 720) + 720) % 720; return { h: Math.floor(m / 60) || 12, m: Math.floor(m % 60), live: clk.live, hm: clk.hm ?? null, spinning: !!clk.spin } },
+    setClock, clockPanic, panicking: () => !!clk.spin?.panic, clock: () => { const m = ((clk.shown % 720) + 720) % 720; return { h: Math.floor(m / 60) || 12, m: Math.floor(m % 60), live: clk.live, hm: clk.hm ?? null, spinning: !!clk.spin } },
     sign, clockFace, signState: () => (sfx ? sfx.kind : gleam ? 'gleam' : 'idle'),
     set gullsOn(v) { for (const g of gulls) g.m.visible = v },
     // the gulls' faces (W1 to W3), and for the tests: the face each gull wears

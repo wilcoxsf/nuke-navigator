@@ -37,7 +37,7 @@ export function selectMenu(host, items, o = {}) {
   const el = document.createElement('div')
   el.className = 'sm'
   el.innerHTML = `<div class="smb"><div class="lgo"></div><div class="sms">SELECT MODE</div><div class="sml"></div><div class="artbox"><canvas class="ins2" width="780" height="144" role="img" aria-label="a little pixel scene"></canvas></div><div class="art" role="button"></div>
-    <div class="smf">UP / DOWN TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE<br>SOUND: <span class="snd"></span> (S) &nbsp; JUKEBOX (J)</div></div>`
+    <div class="smf">UP / DOWN OR 1 TO 4 TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE</div></div>`
   host.appendChild(el)
   let i = 0, open = false, idle = null, logo = o.logo ?? 1
   // the title, three ways (the M option): stacked letters, a pixel home-run arc over the name, or a marquee of chasing bulbs
@@ -279,7 +279,7 @@ export function selectMenu(host, items, o = {}) {
   const list = el.querySelector('.sml')
   const paint = () => {
     list.innerHTML = items.map((it, n) => `<div class="smi${n === i ? ' on' : ''}${it.off?.() ? ' dis' : ''}${it.hero ? ' hero' : ''}" data-n="${n}" role="button" aria-label="${it.name}"><b>${it.name}</b><span>${it.blurb}</span></div>`).join('')
-    el.querySelector('.snd').textContent = sound.on() ? 'ON' : 'OFF'
+    { const sn = el.querySelector('.snd'); if (sn) sn.textContent = sound.on() ? 'ON' : 'OFF' }
     list.querySelectorAll('.smi').forEach((x) => {
       x.addEventListener('mouseenter', () => { if (i !== Number(x.dataset.n)) { i = Number(x.dataset.n); sound.play('move'); paint() } })
       x.addEventListener('click', () => { i = Number(x.dataset.n); pick() })

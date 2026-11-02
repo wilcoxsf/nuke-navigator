@@ -287,6 +287,23 @@ R.zap = R.laser
 R.heartbeat = (K) => { for (let i = 0; i < 3; i++) { K.tone('sine', 60, K.t + i * 0.8, 0.1, 0.25, 45); K.tone('sine', 55, K.t + i * 0.8 + 0.18, 0.12, 0.2, 40) } }
 R.splash2 = (K) => { R.water(K); for (let i = 0; i < 8; i++) K.tone('sine', rnd(600, 1400), K.t + rnd(0, 0.4), 0.05, 0.03, 300) }
 
+// ---- 1 Nov, night (Andrew: "Let's make more sounds yeah - can we have multiple sounds for a launch / nuke?"): NUKE IT's launch comes off a shuffled deck, each one
+// the crack of the bat first (the contact stays true) and then its own tail; and the new landings' sounds (moments25.js: the mushroom cloud, the UFO, the fries) ----
+R['nk-classic'] = (K, o) => R.crack(K, o)
+R['nk-rocket'] = (K, o) => { R.crack(K, o); K.noise(K.t + 0.05, 1.4, { type: 'bandpass', f: 400, q: 1.2 }, 0.09, 3800, 0.08); K.tone('sawtooth', 70, K.t + 0.05, 1.2, 0.05, 220, { lp: 600 }) }
+R['nk-airraid'] = (K, o) => { R.crack(K, o); K.tone('sawtooth', 300, K.t + 0.08, 1.3, 0.03, 900, { a: 0.25, lp: 1600, vib: [5, 8] }); K.tone('sawtooth', 302, K.t + 0.08, 1.3, 0.02, 905, { a: 0.25, lp: 1600 }) }
+R['nk-8bit'] = (K, o) => { R.crack(K, o); K.seq(K.t + 0.08, [[262, 0.05], [330, 0.05], [392, 0.05], [523, 0.05], [659, 0.05], [784, 0.05], [1047, 0.05], [1568, 0.14]]) }
+R['nk-sonic'] = (K, o) => { R.crack(K, { ...o, ev: Math.max(o.ev ?? 95, 112) }); K.noise(K.t + 0.42, 0.5, { type: 'lowpass', f: 400 }, 0.3, 60, 0.004, { brown: true }); K.tone('sine', 55, K.t + 0.42, 0.6, 0.25, 28) }
+R['nk-slide'] = (K, o) => { R.crack(K, o); K.tone('sine', 380, K.t + 0.06, 0.8, 0.06, 2200, { vib: [7, 25], a: 0.02 }) }
+R['nk-geiger'] = (K, o) => { R.crack(K, o); for (let i = 0; i < 26; i++) { const u = 0.08 + (i / 26) ** 1.6 * 1.6; K.noise(K.t + u + rnd(0, 0.03), 0.006, { type: 'highpass', f: 3000 }, 0.14) } }
+R['nk-thunder'] = (K, o) => { R.crack(K, o); K.noise(K.t + 0.25, 1.6, { type: 'lowpass', f: 300 }, 0.22, 80, 0.05, { brown: true, hold: 0.3 }); for (let i = 0; i < 5; i++) K.noise(K.t + 0.25 + rnd(0, 0.5), 0.05, { type: 'lowpass', f: 1200 }, 0.08) }
+export const NUKE_SOUNDS = ['nk-classic', 'nk-rocket', 'nk-airraid', 'nk-8bit', 'nk-sonic', 'nk-slide', 'nk-geiger', 'nk-thunder']
+let nkDeck = []
+// the next launch off the deck (each once before any again); the classic crack is always in it
+export function nuke(ev = 95) { if (!nkDeck.length) { nkDeck = NUKE_SOUNDS.slice(); for (let i = nkDeck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [nkDeck[i], nkDeck[j]] = [nkDeck[j], nkDeck[i]] } } const n = nkDeck.pop(); play(n, { ev }); return n }
+R.ufo = (K) => { K.tone('sine', 600, K.t, 1.6, 0.04, 900, { a: 0.2, hold: 1, vib: [9, 120] }); K.tone('sine', 1200, K.t + 0.1, 1.4, 0.015, 1500, { vib: [11, 200] }) }
+R.fizz = (K) => { for (let i = 0; i < 40; i++) K.noise(K.t + rnd(0, 1.2), 0.012, { type: 'highpass', f: 5000 }, 0.04) }
+R.mushroom = (K) => { R.kaboom(K); R.rumble(at(K, 0.3)) }
 // ---- names to recipes: the beat first, then the thing, then a soft blip ----
 const FALL = new Set(['drop', 'drops', 'fall', 'falls', 'falling', 'plunge', 'dive'])
 const IMPACT = new Set(['hit', 'hits', 'land', 'lands', 'impact', 'smash', 'crash', 'squash', 'squashed', 'thunk', 'splat', 'flatten', 'flattened'])
@@ -414,6 +431,8 @@ export function follow(pos) {
   fly.p.pan.setTargetAtTime(clamp(((dx * e[0] + dy * e[1] + dz * e[2]) / d) * 0.9, -0.9, 0.9), ac.currentTime, 0.05)
 }
 function endFly() { if (!fly) return; try { fly.g.gain.cancelScheduledValues(ac.currentTime); fly.g.gain.setTargetAtTime(0.0001, ac.currentTime, 0.05); fly.s.stop(ac.currentTime + 0.3) } catch {} fly = null }
+// a flight cut short (a new preview while the ball was up, 1 Nov): the whoosh stops and the crowd settles, as on a landing but without the answer
+export function cancel() { endFly(); tension(0, 1) }
 // what landed: ev.key from the engine, info.ft
 export function land(ev = {}, info = {}) {
   const k = ev.key, ft = info.ft ?? 0

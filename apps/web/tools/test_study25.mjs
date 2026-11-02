@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with the open choices and THE LAB; no RIDE IT', dk.open && dk.chips === 14 && !dk.ride, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (3: SLINGSHOT, LANDING NUMBER, FOUL POLES); no RIDE IT', dk.open && dk.chips === 3 && !dk.ride, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -194,8 +194,8 @@ for (const [w, h] of SIZES) {
     check('a splash hit gets its banner', key0 !== 'SPLASH' || (/SPLASH HIT/.test(sp.bn) && sp.on), JSON.stringify({ key0, sp }))
     if (key0 !== 'SPLASH') console.log('NOTE the splash preset did not land in the Cove here:', key0)
     let win = false
-    for (let k = 0; k < 50 && !win; k++) { await page.waitForTimeout(500); win = await page.evaluate(() => !!window.__mix25.fx.winner()) }
-    check('a kayak reaches the splash', key0 !== 'SPLASH' || win)
+    for (let k = 0; k < 50 && !win; k++) { await page.waitForTimeout(500); win = await page.evaluate(() => !!window.__mix25.fx.winner() || !!window.__mix25.fx.actNow()) } // (1 Nov, later: a splash sets off one of the Cove's five acts, fx25.js)
+    check('the Cove\'s kayakers go after the splash (one of the five acts)', key0 !== 'SPLASH' || win)
     await page.evaluate(() => window.__mix25.karl(true)); await page.waitForTimeout(1500) // Karl comes in with the forecast; the test brings him in by hand
     for (let k = 0; k < 20 && !(await page.evaluate(() => window.__mix25.fx.karlBanks().some((x) => x.op > 0))); k++) await page.waitForTimeout(300) // it fades in on the effects clock: slow frames under the software renderer
     const kl = await page.evaluate(() => ({ on: window.__mix25.fx.karlOn(), lv: window.__mix25.fx.karlLevel(), b: document.querySelector('#c25kl').textContent, banks: window.__mix25.fx.karlBanks() }))
@@ -451,10 +451,10 @@ if (!process.env.PHONE_ONLY && on('C')) {
   await page.waitForTimeout(3500)
   const s2 = await swing({ ev: 116, la: 28, dir: 24, hand: -1, temp: 70, wind: 0 })
   // the new seat moments (29 Oct, later): a gull steals it, a dog catches it, a beer goes up
-  const nm = await page.evaluate(async () => { const m = window.__mix25.moments, at = window.__cp.toWorld([-30, 110, 12]), out = {}; for (const k of ['gull', 'dog', 'beer']) { const n0 = m.shown(); m.try(k, at); out[k] = m.shown() - n0 } await new Promise((r) => setTimeout(r, 300)); out.log = m.log().slice(-3); return out })
+  const nm = await page.evaluate(async () => { const m = window.__mix25.moments, at = window.__cp.toWorld([-30, 110, 12]), out = {}; for (const k of ['gull', 'dog', 'beer']) { m.try(k, at); out[k] = m.shown() } /* (1 Nov, night: each clears the last, one landing show at a time) */ await new Promise((r) => setTimeout(r, 300)); out.log = m.log().slice(-3); return out })
   check('the new seat moments build: GULL GRAB, GOOD BOY, BEER SHOWER', nm.gull >= 1 && nm.dog >= 1 && nm.beer >= 1 && nm.log.join() === 'gull,dog,beer', JSON.stringify(nm))
   await page.waitForTimeout(3600)
-  check('a splash hit: the sea lion surfaces in the Cove, on screen', s2.key !== 'SPLASH' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
+  check('a splash hit: the Cove answers it (the kayakers when they are out, the sea lion when not)', s2.key !== 'SPLASH' || s2.moment === 'cove' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
   // (30 Oct: the board plays Dodger gags and nothing else)
   const onlyGags = () => page.evaluate(() => { const L = window.__mix25.life, g = L.gags(); return [...L.played(), L.anim(), ...L.queued()].filter((n) => n && !g.includes(n)) })
   await page.waitForTimeout(3000)
@@ -500,7 +500,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with eight lines (29 Oct: Shot Caller its own mode; 30 Oct: OPTIONS with every choice, GAG REEL, WHATS NEW)', m0.open && m0.n === 8 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with four lines: the four modes (1 Nov, night: nothing else)', m0.open && m0.n === 4 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -534,7 +534,7 @@ if (!process.env.PHONE_ONLY && on('D')) {
   await page.click('#c25mn'); await page.waitForTimeout(400)
   await page.click('.c25 .sm .smi:nth-child(4)'); await page.waitForTimeout(4000)
   const m3 = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), title: document.querySelector('#c25mt').textContent, txt: document.querySelector('#c25mb').textContent.slice(0, 160) }))
-  check('clicking DAILY DINGER in the menu opens it', m3.open && /D A I L Y/.test(m3.title), JSON.stringify(m3))
+  check('clicking WALLOP WITNESS in the menu opens it', m3.open && /W\s*A\s*L\s*L\s*O\s*P/.test(m3.title), JSON.stringify(m3))
   await page.close()
   // another park: its team's color, Oracle-only features hidden
   const p2 = await open(1440, 820, '&menu=0&park=NYY&mix=L1P5A3T1')
@@ -562,8 +562,8 @@ for (const [w, h] of on('D') ? [[390, 844], [360, 740]] : []) {
 // 28 Oct, night round: the locks, the voxel park, the seat call, the arcs, the look, the stand-ins, the tater
 if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
-  const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join(''))
-  check('only the open choices sit in the header, STANDS (V) and DOJO CONTROLS (J, open again 31 Oct); the locked ones are gone from it, TYPE too', hdr === 'VJ' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
+  const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join('') + '|' + getComputedStyle(document.querySelector('#c25mx')).display)
+  check('nothing open sits in the header (1 Nov, night: V and J locked, MIX gone); TYPE gone too', hdr === '|none' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
   check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B12 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 W1 Q2 C1 O2 G2, V (STANDS) open at V5 LOWER BOWL (31 Oct) and J (DOJO CONTROLS) open at J8 (BIG ARCS)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B12 V5 Z2 H1 U2 D1 M1 X2 E1 N1 J8 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
@@ -812,7 +812,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone (eight lines)', sm.open && sm.n === 8 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone (the four modes)', sm.open && sm.n === 4 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()

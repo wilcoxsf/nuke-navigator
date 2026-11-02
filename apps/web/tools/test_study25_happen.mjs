@@ -36,9 +36,9 @@ const geo = await page.evaluate(() => {
   const h = window.__mix25.happen(), H = window.__cp.toWorld([0, 0, 0]), v = new window.__cp.NN.THREE.Vector3(), st = window.__nn.stadium
   const pl = (o) => { o.getWorldPosition(v); return { x: v.x - H.x, y: H.z - v.z, z: v.y - H.y } }
   const bb = new window.__cp.NN.THREE.Box3().setFromObject(st)
-  return { sign: h.splashSign(), minX: bb.min.x - H.x, names: h.names }
+  return { sign: h.splashSign(), minX: bb.min.x - H.x, names: h.names, events: h.events ?? [] }
 })
-check('eight happenings, none of them on a street', geo.names.length === 8 && !['startup', 'ipo', 'evict', 'robocar', 'cablecar'].some((n) => geo.names.includes(n)), geo.names.join())
+check('ten happenings by chance and one on a landing (1 Nov: CRABS, HERON; HATS), none of them on a street', geo.names.length === 10 && geo.events.length === 1 && !['startup', 'ipo', 'evict', 'robocar', 'cablecar'].some((n) => geo.names.includes(n)), geo.names.join())
 check('no SPLASH HITS sign (30 Oct, later: killed)', geo.sign == null)
 // nothing built round the park: no quay, street or block in the happenings' own layer outside the water
 const city = await page.evaluate(() => { const h = window.__mix25.happen(), H = window.__cp.toWorld([0, 0, 0]), m4 = new window.__cp.NN.THREE.Matrix4(), v = new window.__cp.NN.THREE.Vector3(); let n = 0
@@ -55,8 +55,12 @@ const RULE = {
   escapee: [3, (ps) => ps.every((p) => p.x > 120), 'out in the bay'],
   whale: [1, () => true, ''],
   flocked: [3, (ps) => ps.length >= 2 && ps.some((p) => p.z > 3), 'a Dodger fan carried up out of the stands by the gulls'],
+  // (1 Nov) the arcade is the strip behind the right-field wall, 7.3 m up; the right-field pole top stands at (66, 67), 33 m up
+  crabs: [3, (ps) => ps.filter((p) => p.n <= 3).length >= 2 && ps.filter((p) => p.n <= 3).every((p) => p.x > 30 && p.z > 4 && p.z < 14 && Math.hypot(p.x, p.y) > 90 && Math.hypot(p.x, p.y) < 130), 'crabs in single file along the right-field arcade'],
+  heron: [4, (ps) => ps.some((p) => p.z > 26 && Math.hypot(p.x - 66.3, p.y - 67.4) < 9), 'a heron up on the right-field foul pole'],
+  hats: [2, (ps) => ps.filter((p) => p.z > 5 && p.z < 13 && p.x > 30).length >= 7, 'a row of fans in the right-field arcade'],
 }
-for (const name of geo.names) {
+for (const name of [...geo.names, ...geo.events]) {
   const ok = await page.evaluate((n) => window.__mix25.happen().force(n), name)
   check(`${name}: starts when forced`, ok)
   if (!ok) continue
@@ -68,6 +72,32 @@ for (const name of geo.names) {
   const lg = await page.evaluate(() => window.__mix25.happen().log().at(-1))
   check(`${name}: ends cleanly`, lg.name === name && lg.end != null && (await page.evaluate(() => window.__mix25.happen().live())) === 0, JSON.stringify(lg))
 }
+// the landings (1 Nov): a home run into the right-field arcade starts the hats; a splash (the Cove's kayakers now, fx25.js) and a home run to center start nothing here
+const ol = await page.evaluate(() => { const h = window.__mix25.happen(), W = window.__cp.toWorld, r = (b, d, z) => { const w = window.__cp.wallAt(b)[0] * 0.3048 + d, a = (b * Math.PI) / 180; return W([Math.sin(a) * w, Math.cos(a) * w, z]) }
+  const out = [h.onLand({ key: 'SPLASH', at: W([106, 92, -1.6]) })]; h.stop(); out.push(h.onLand({ key: 'GONE', at: r(36, 3, 7.3) })); h.stop(); out.push(h.onLand({ key: 'GONE', at: r(0, 8, 6) })); h.stop(); return out })
+check('landings: an arcade home run sets off the hats; a splash and a home run to center start no happening', ol[0] == null && ol[1] === 'hats' && ol[2] == null, JSON.stringify(ol))
+// the Cove (1 Nov, later: "5 different things that COULD happen if there's a splash hit, all of which need to be from the kayaks already there"): each of the five
+// acts, forced at a splash, plays to its end and hits its beats; afterwards the same six kayaks, every paddler back aboard, and no hull more in the scene than six
+const EXPECT = { dive: ['stand', 'dive', 'catch'], capsize: ['bump', 'roll', 'upright', 'catch'], steal: ['steal', 'slap', 'catch'], fungo: ['swat', 'plop', 'catch'], bonk: ['bonk', 'catch'] }
+const acts = await page.evaluate(() => window.__mix25.fx.splashActs())
+check('the Cove has five splash acts (DIVE, CAPSIZE, STEAL, FUNGO, BONK)', JSON.stringify(acts.slice().sort()) === JSON.stringify(Object.keys(EXPECT).sort()), JSON.stringify(acts))
+const hulls = () => page.evaluate(() => { let n = 0; window.__cp.NN.scene.traverse((m) => { if (m.isMesh && m.material?.name === '#e4002b') n++ }); return n })
+const hull0 = await hulls()
+for (const name of acts) {
+  const e0 = errs.length
+  const ok = await page.evaluate((n) => window.__mix25.fx.splashAct(n, window.__cp.toWorld([106, 92, -1.6])), name)
+  let mid = null
+  const ended = await poll(page, (n) => { const a = window.__mix25.fx.actNow(); if (a && a.t > 2.5) window.__coveMid = window.__mix25.fx.kayakState(); return !a || a.name !== n }, name, 150000)
+  mid = await page.evaluate(() => window.__coveMid ?? null)
+  const marks = await page.evaluate(() => window.__mix25.fx.actMarks()), st = await page.evaluate(() => window.__mix25.fx.kayakState())
+  const busy = mid ? mid.filter((k) => k.act).length : 0
+  check(`cove ${name}: plays to its end with its beats (${EXPECT[name].join(', ')})`, ok && ended && EXPECT[name].every((m) => marks.includes(m)) && errs.length === e0, JSON.stringify({ ok, ended, marks, errs: errs.slice(e0, e0 + 2) }))
+  check(`cove ${name}: the same six kayaks, every paddler back aboard, no new hulls`, st.length === 6 && busy === 6 && st.every((k) => k.kit > 0 && k.shown && !k.act && Math.abs(k.roll) < 0.2) && (await hulls()) === hull0 && hull0 === 6, JSON.stringify({ n: st.length, busy, hull0, st: st.map((k) => [k.kit, k.shown, k.act, +k.roll.toFixed(2)]) }))
+  await page.evaluate(() => { window.__coveMid = null })
+}
+// one at random on each splash, never the same one twice running
+const seq = await page.evaluate(() => { const fx = window.__mix25.fx, out = []; for (let i = 0; i < 12; i++) { fx.splash(window.__cp.toWorld([110, 96, -1.6])); out.push(fx.lastSplashAct()) } fx.endSplashAct(); return out })
+check('a splash picks one of the five at random, never the same one twice running', seq.every((n) => acts.includes(n)) && seq.every((n, i) => i === 0 || n !== seq[i - 1]) && new Set(seq).size >= 3, JSON.stringify(seq))
 // the scheduler: one at a time, never while a ball is up
 await page.evaluate(() => window.__mix25.happen().setGap(0.3, 0.6))
 for (let k = 0; k < 240; k++) { // let the scheduler pick; cut each one short after 2 s of its own time so the test does not sit through a 37 s cable car

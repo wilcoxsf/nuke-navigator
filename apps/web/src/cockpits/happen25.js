@@ -13,7 +13,8 @@
 import { WATER_Z } from './water25.js'
 import { FONT } from './vox25.js'
 const GLYPH = { ...FONT, $: ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'], '!': ['#', '#', '#', '#', '#', '.', '#'] }
-export const HAPPENINGS = ['seal', 'mole', 'serpent', 'jets', 'escapee', 'fries', 'flocked', 'whale']
+export const HAPPENINGS = ['seal', 'mole', 'serpent', 'jets', 'escapee', 'fries', 'flocked', 'whale', 'crabs', 'heron']
+export const ON_LANDING = ['hats'] // (1 Nov) this one only comes with a landing: onLand(ev). (1 Nov, later: the KAYAK TRAFFIC JAM went; a splash is the Cove's own kayakers now, fx25.js)
 export function initHappen25(api, o = {}) {
   const { THREE, scene } = api.NN
   const toWorld = window.__cp.toWorld, cube = new THREE.BoxGeometry(1, 1, 1), still = !!o.still
@@ -338,12 +339,176 @@ export function initHappen25(api, o = {}) {
     }
   }
 
+  // ---------------- 1 Nov (Andrew, of GPT's second list: "On happeneings I like C2, C4, C7, C8, C9, C11 (might be tough)"): four of them live here ----------------
+  // (C4, the glove catching fog, and C7, the clock, belong to the glove and the clock.) Two come by chance (CRABS, HERON) and one on a landing (HATS on a home run
+  // into the right-field arcade; onLand below decides). The arcade is the strip behind the right-field wall, 7.3 m up and 8 m deep, then the Cove.
+  const rf = (b, d, z) => { const w = (window.__cp.wallAt?.(b) ?? [340])[0] * 0.3048 + d, r = (b * Math.PI) / 180; return P(Math.sin(r) * w, Math.cos(r) * w, z) }
+  const ARC_Z = 7.3
+  const SPRAY = []
+  for (let i = 0; i < 16; i++) SPRAY.push([((i * 7) % 9) - 4, i % 3, ((i * 5) % 7) - 3, i % 4 ? '#e9f2ff' : '#bcd8f2'])
+  const splashAt = (at, s = 0.5) => { const g = fly(build(SPRAY, s)); g.position.copy(at); g.visible = false; return g }
+  // a splash that rises and falls in a second
+  const spray = (g, u) => { g.visible = u > 0 && u < 1; if (g.visible) { g.scale.set(1 + u * 1.5, Math.max(0.05, 4 * u * (1 - u) * 2.2), 1 + u * 1.5) } }
+  // HATS: a row of fans in the right-field arcade; the one nearest the landing loses his cap, then the next, and the next, down the row; the last cap sails out
+  // into the Cove. Nobody gets up.
+  const SHIRTS = ['#fd5a1e', '#141414', '#f4f2ea', '#fd5a1e', '#8a8f99', '#141414', '#fd5a1e', '#f4f2ea', '#141414']
+  H.hats = (arg) => {
+    let b0 = 34
+    if (arg) { const H2 = P(0, 0, 0), x = arg.x - H2.x, y = H2.z - arg.z; b0 = Math.min(43, Math.max(25, (Math.atan2(x, y) * 180) / Math.PI)) }
+    const sgn = b0 < 35 ? 1 : -1, S = 0.55, N = 7, STEP = 2, bs = sgn > 0 ? Math.min(Math.max(b0, 25), 31) : Math.min(Math.max(b0, 38), 44) // the row runs away from the landing, inside the arcade
+    const fans = SHIRTS.slice(0, N).map((shirt, i) => {
+      const at = rf(bs + sgn * i * STEP, 3.2, ARC_Z), body = [], cap = []
+      box(body, 0, 1, 0, 1, 0, 3, '#2b2e33'); box(body, 0, 1, 2, 6, -1, 0, shirt); box(body, 0, 1, 7, 8, -1, 0, '#e0b48a')
+      box(cap, -1, 2, 0, 0, -2, 1, i % 2 ? '#141414' : '#fd5a1e'); box(cap, 3, 4, 0, 0, -1, 0, i % 2 ? '#141414' : '#fd5a1e'); cap.push([0, 1, -1, i % 2 ? '#fd5a1e' : '#141414'], [1, 1, 0, i % 2 ? '#fd5a1e' : '#141414']) // a cap and its brim
+      const g = fly(new THREE.Group()); root.add(g); g.position.copy(at); facing(g, at, home); build(body, S, g)
+      const cg = build(cap, S, g); cg.position.set(0, 9 * S, 0)
+      return { g, cg, t0: 0.8 + i * 0.45, last: i === N - 1 }
+    })
+    const cove = rf(bs + sgn * N * STEP, 26, WATER_Z), plop = splashAt(cove.clone().setY(sea), 0.4)
+    let splashed = -1
+    sound('hats-pop', fans[0].g.position)
+    return {
+      step(dt, t) {
+        for (const f of fans) {
+          const u = t - f.t0
+          if (u < 0) continue
+          if (!f.last) { // up, a spin, and back down on his head
+            const k = Math.min(1, u / 0.7); f.cg.position.set(0, 9 * S + 4 * k * (1 - k) * 2.6, 0); f.cg.rotation.y = k * Math.PI * 2
+            if (u - dt < 0) sound('hats-pop', f.g.position)
+          } else { // the last one: off into the Cove
+            if (f.cg.parent === f.g) { const w = f.g.localToWorld(f.cg.position.clone()); f.g.remove(f.cg); root.add(f.cg); f.cg.position.copy(w); f.from = w; sound('hats-whee', w) }
+            const k = Math.min(1, u / 2.4)
+            if (k < 1) { f.cg.position.lerpVectors(f.from, cove.clone().setY(sea + 0.3), k); f.cg.position.y += Math.sin(k * Math.PI) * 14; f.cg.rotation.y += dt * 9; f.cg.rotation.z = Math.sin(u * 6) * 0.5 }
+            else { if (splashed < 0) { splashed = t; sound('hats-plop', cove) } f.cg.position.y = sea + 0.25 + Math.sin(t * 2) * 0.1; f.cg.rotation.z = 0; f.cg.rotation.y += dt * 0.6 }
+          }
+        }
+        spray(plop, splashed < 0 ? -1 : (t - splashed) / 0.7)
+        return t < (fans.at(-1).t0 + 6.5)
+      },
+      end() { for (const f of fans) { done(f.g); if (f.cg.parent === root) done(f.cg) } done(plop) },
+    }
+  }
+  // CRABS: six orange crabs scuttle single file along the arcade under a little walk signal; it turns to the red hand, five stop, the sixth does not and the
+  // pile-up goes down the line; it flips on its back, legs going; the signal changes back, it rights itself, and they all march off the edge into the Cove
+  const crabCells = (legPh) => {
+    const C = []
+    ell(C, 0, 1, 0, 2.6, 1.1, 1.7, (x, y) => (y >= 2 ? '#ff7a3c' : '#e2531f'))
+    C.push([-1, 3, 1, '#141414'], [1, 3, 1, '#141414'], [-1, 2, 1, '#e2531f'], [1, 2, 1, '#e2531f']) // eyes on stalks, toward the field
+    for (const s of [-1, 1]) { box(C, s * 3, s * 3, 1, 1, 2, 3, '#e2531f'); box(C, s * 3 - 1, s * 3 + 1, 1, 2, 4, 4, '#ff7a3c'); C.push([s * 3 + s, 2, 5, '#ff7a3c'], [s * 3 - s, 1, 5, '#ff7a3c']) } // the claws, open
+    for (const s of [-1, 1]) for (const z of [-1, 0, 1]) C.push([s * 3, (z + legPh) % 2 ? 0 : 1, z - 1, '#c9441a'], [s * 4, 0, z - 1, '#c9441a']) // the legs, in two steps
+    return C
+  }
+  const SIG = [], SIG_W = [], SIG_R = []
+  box(SIG, 0, 0, 0, 9, 0, 0, '#2b2e33'); box(SIG, -2, 2, 10, 15, -1, -1, '#141414')
+  box(SIG_W, -1, 1, 11, 14, 0, 0, '#141414'); SIG_W.push([0, 14, 0, '#f4f2ea'], [0, 13, 0, '#f4f2ea'], [-1, 12, 0, '#f4f2ea'], [1, 12, 0, '#f4f2ea'], [0, 12, 0, '#f4f2ea'], [-1, 11, 0, '#f4f2ea'], [1, 11, 0, '#f4f2ea']) // the walking man
+  box(SIG_R, -1, 1, 11, 14, 0, 0, '#ff3b2f'); SIG_R.push([0, 14, 0, '#141414']) // the red hand
+  H.crabs = () => {
+    const B0 = 25, B1 = 44.5, mid = rf(35, 4, ARC_Z)
+    if (!clearOf(mid, 22)) return null
+    const S = 0.6, n = 6, GAP = 4.2, STOP = 33 // the lead crab stops at this bearing (each crab 3 m across: they read from the broadcast seat)
+    const sig = fly(new THREE.Group()); root.add(sig); const sAt = rf(STOP + 2, 7, ARC_Z); sig.position.copy(sAt); facing(sig, sAt, home); build(SIG, S, sig)
+    const walk = build(SIG_W, S, sig), red = build(SIG_R, S, sig); red.visible = false
+    const crabs = Array.from({ length: n }, () => { const g = fly(new THREE.Group()); root.add(g); const a = build(crabCells(0), S, g), b = build(crabCells(1), S, g); b.visible = false; return { g, a, b, s: 0, flip: 0, z: ARC_Z, out: 0 } })
+    const metres = (b) => (b * Math.PI) / 180 * ((window.__cp.wallAt?.(b) ?? [340])[0] * 0.3048 + 4) // arc length to a bearing, near enough
+    const sStop = metres(STOP) - metres(B0), sEnd = metres(B1) - metres(B0), SPD = 3.4
+    crabs.forEach((c, i) => { c.s = -i * GAP })
+    let state = 'go', crashT = -1, greenT = 0
+    sound('crabs-click', mid)
+    return {
+      step(dt, t) {
+        const lead = crabs[0], last = crabs[n - 1]
+        if (state === 'go' && lead.s >= sStop - 5) { state = 'red'; walk.visible = false; red.visible = true; sound('crabs-beep', sAt) } // the hand comes up as the first nears it
+        if (state === 'red' && crashT > 0 && t > crashT + 3.6) { state = 'go2'; greenT = t; walk.visible = true; red.visible = false; sound('crabs-beep', sAt) }
+        crabs.forEach((c, i) => {
+          if (state === 'red' && i < n - 1) c.s = Math.min(c.s + SPD * dt, Math.max(c.s, sStop - i * GAP)) // five stop in a tidy line
+          else if (state === 'red' && crashT < 0) { c.s += SPD * 1.3 * dt; if (c.s >= crabs[i - 1].s - 2.2) { c.s = crabs[i - 1].s - 2.2; crashT = t; sound('crabs-crunch', c.g.position) } } // the sixth does not
+          else if (state !== 'red' || (i === n - 1 && crashT < 0)) c.s += SPD * dt * (state === 'go2' && c === last && t - greenT < 0.6 ? 0 : 1) // (the sixth rights itself first)
+        })
+        // the pile-up: a shove runs up the line; the sixth flips on its back, legs going, until the signal changes
+        crabs.forEach((c, i) => { const u = crashT > 0 ? t - crashT - (n - 1 - i) * 0.12 : -1; c.shove = u > 0 && u < 0.35 ? Math.sin((u / 0.35) * Math.PI) * 1.4 : 0 })
+        last.flip = crashT > 0 && state === 'red' ? Math.min(1, (t - crashT) / 0.3) : Math.max(0, last.flip - dt * 3)
+        crabs.forEach((c, i) => {
+          const s = c.s + c.shove, past = Math.max(0, s - sEnd) // past the end of the arcade: out over the edge and down into the Cove
+          const b = B0 + ((B1 - B0) * Math.min(s, sEnd)) / sEnd, d = 4 + past * 0.9
+          const p = rf(b, d, ARC_Z), fall = d > 10 ? Math.min(ARC_Z - WATER_Z, (d - 10) ** 2 * 0.9) : 0
+          c.g.position.copy(p); c.g.position.y -= fall
+          if (fall >= ARC_Z - WATER_Z && !c.wet) { c.wet = true; sound('crabs-plop', p) }
+          c.g.visible = s > 0 && !c.wet
+          facing(c.g, p, home) // the front toward the field: they go sideways, as crabs do
+          c.g.rotation.z = c === last ? c.flip * Math.PI : 0; if (c === last) c.g.position.y += c.flip * 1.3
+          const moving = state !== 'red' || (i === n - 1 && crashT < 0) || (c === last && c.flip > 0.5)
+          const ph = moving ? Math.floor(t * 8 + i) % 2 : 0; c.a.visible = !ph; c.b.visible = !!ph
+        })
+        return t < 30 && !crabs.every((c) => c.wet)
+      },
+      end() { for (const c of crabs) done(c.g); done(sig) },
+    }
+  }
+  // HERON: a great blue heron flies in off the bay and lands on top of the right-field foul pole; the pole bends; it edges down to even it out; the pole springs
+  // back straight and flings it off over the Cove. Most likely at dusk in San Francisco (16:00 to 20:59 there), but it can come any time.
+  const POLE = [66.32, 67.36, 33.2] // the model's pole top (wind25.js), plate frame
+  const dusk = () => { try { const h = Number(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hour12: false })); return h >= 16 && h <= 20 } catch { return true } }
+  const HER = [], WING = []
+  ell(HER, 0, 9, 0, 3, 1.5, 1.3, (x, y) => (y >= 10 ? '#5f7186' : '#7d8fa3')); box(HER, -4, -3, 9, 9, 0, 0, '#5f7186')
+  for (let k = 0; k <= 4; k++) HER.push([2 + Math.floor(k / 3), 10 + k, 0, '#c9d3dc']) // the long neck
+  box(HER, 3, 4, 15, 15, 0, 0, '#f4f2ea'); HER.push([2, 16, 0, '#141414'], [1, 16, 0, '#141414'], [4, 15, 1, '#141414']); box(HER, 5, 7, 15, 15, 0, 0, '#f2c230') // a white head, a black crest, the bill
+  for (const z of [-1, 1]) box(HER, 0, 0, 0, 7, z, z, '#c9a24a') // the long legs
+  for (const s of [-1, 1]) for (let x = -3; x <= 2; x++) for (let k = 1; k <= 7; k++) if (k <= 7 - Math.abs(x + 0.5)) WING.push([x, 10, s * (1 + k), k > 5 ? '#2f3a48' : '#5f7186'])
+  H.heron = (arg, forced) => {
+    if (!forced && !dusk() && Math.random() < 0.6) return null
+    const base = P(POLE[0], POLE[1], 9), tip = P(POLE[0], POLE[1], POLE[2])
+    if (!clearOf(tip, 18)) return null
+    const L = POLE[2] - 9, side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize(), out = P(140, 150, 30)
+    // the pole: accent cubes from the top of the wall up, bent by d metres at the top (a quarter circle near enough)
+    const n = 26, pole = new THREE.InstancedMesh(cube, lam('#f0802a'), n), m4 = new THREE.Matrix4(), q = new THREE.Vector3()
+    pole.frustumCulled = false; fly(pole); root.add(pole)
+    const at = (f, d) => q.copy(base).addScaledVector(side, d * f * f).add(V(0, L * f - (d * d * f) / (3 * L), 0))
+    const drawPole = (d) => { for (let i = 0; i < n; i++) { at(i / (n - 1), d); m4.makeScale(0.75, (L / n) * 1.15, 0.75).setPosition(q); pole.setMatrixAt(i, m4) } pole.instanceMatrix.needsUpdate = true }
+    const S = 0.4, bird = fly(new THREE.Group()); root.add(bird); build(HER, S, bird); const wings = build(WING, S, bird)
+    let d = 0, v = 0, perch = 1, flung = null, landed = false
+    const spring = (dt, want, k, damp) => { for (let h = dt; h > 1e-6; h -= 1 / 120) { const e = Math.min(h, 1 / 120); v += ((want - d) * k - v * damp) * e; d += v * e } } // small steps: a slow frame is a quarter second
+    sound('heron-call', out)
+    return {
+      step(dt, t) {
+        if (t < 2.6) { // in off the bay, wings beating
+          const k = ease(t / 2.6); bird.position.lerpVectors(out, tip, k); bird.position.y += Math.sin(k * Math.PI) * 8
+          const dd = tip.clone().sub(out); along(bird, dd.x, dd.z); wings.visible = true; wings.rotation.x = Math.sin(t * 10) * 0.6
+        } else if (!flung) {
+          if (!landed) { landed = true; sound('heron-land', tip); wings.visible = false; wings.rotation.x = 0 }
+          perch = t < 3.6 ? 1 : Math.max(0.82, 1 - (t - 3.6) * 0.075) // it edges down the pole to even the weight out
+          const want = t < 6.2 ? 6 * perch ** 3 : -7 // the bend it would settle at; then the pole lets go
+          spring(dt, want, 26, t < 6.2 ? 7 : 1.5)
+          if (t >= 6.2 && d < -2) { flung = { p: bird.position.clone(), v: V(0, 18, 0).addScaledVector(side, -14), t }; sound('heron-squawk', bird.position) }
+          at(perch, d); bird.position.copy(q).add(V(0, 0.1, 0)); bird.rotation.z = -Math.atan2(2 * d * perch, L) * 0.8 // it leans with the pole
+          along(bird, side.x, side.z); bird.rotation.y += Math.sin(t * 2.5) * 0.15 // and teeters
+        } else { // flung: up, tumbling, then it gets its wings out and makes for the bay
+          const u = t - flung.t
+          spring(dt, 0, 30, 1.6) // the pole rings down
+          flung.v.y -= 9 * dt; bird.position.addScaledVector(flung.v, dt)
+          bird.rotation.z = u < 1.4 ? u * 9 : 0; wings.visible = u > 0.9; wings.rotation.x = Math.sin(t * 13) * 0.7
+          if (u > 1.4) { flung.v.lerp(out.clone().sub(bird.position).setY(4).normalize().multiplyScalar(16), Math.min(1, dt * 2)); along(bird, flung.v.x, flung.v.z) }
+        }
+        drawPole(d)
+        return t < 11
+      },
+      end() { done(bird); done(pole) },
+    }
+  }
+  // the landings: a home run into the right-field arcade knocks the caps off down the row (a splash belongs to the Cove's kayakers, fx25.js). Returns what it started.
+  function onLand(ev) {
+    if (still || !ev?.at) return null
+    const h = P(0, 0, 0), x = ev.at.x - h.x, y = h.z - ev.at.z, b = (Math.atan2(x, y) * 180) / Math.PI, r = Math.hypot(x, y), z = ev.at.y - h.y
+    const wl = (window.__cp.wallAt?.(b) ?? [340])[0] * 0.3048
+    if (['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key) && b > 22 && b < 46 && r > wl - 1 && r < wl + 10 && z > 4) return start('hats', true, ev.at) ? 'hats' : null
+    return null
+  }
+
   // ---------------- the scheduler: one at a time, every 20 to 40 s, never while a ball is up ----------------
   let t = 0, wall = performance.now(), active = null, nextAt = o.firstAt ?? 18, gap = [20, 40], bag = []
   const log = []
-  function start(name, forced) {
+  function start(name, forced, arg) {
     if (active) stop()
-    const run = H[name]?.()
+    const run = H[name]?.(arg, forced)
     if (!run) return false
     active = { name, run, t0: t, forced: !!forced }
     log.push({ name, start: t, end: null })
@@ -390,7 +555,7 @@ export function initHappen25(api, o = {}) {
   api.NN.frames.push(() => { const now = performance.now(), dt = Math.min(0.25, (now - wall) / 1000); wall = now; step(dt) })
   return {
     blimp, ferry, whale, breaches: () => breaches, breach() { start('whale', true) },
-    force: (name) => start(name, true), stop, active: () => active?.name ?? null, clock: () => t, since: () => (active ? t - active.t0 : null), log: () => log.map((l) => ({ ...l })), names: HAPPENINGS.slice(),
+    force: (name, at) => start(name, true, at), onLand, events: ON_LANDING.slice(), stop, active: () => active?.name ?? null, clock: () => t, since: () => (active ? t - active.t0 : null), log: () => log.map((l) => ({ ...l })), names: HAPPENINGS.slice(),
     setGap(lo, hi) { gap = [lo, hi]; nextAt = Math.min(nextAt, t + hi) },
     splash: () => splashN, setSplash(n) { splashN = nextN = n; setDigits(n) }, bump,
     splashSign: () => splashG, root, live: () => live.size, groupOf: (name) => (active?.name === name ? [...live] : []),

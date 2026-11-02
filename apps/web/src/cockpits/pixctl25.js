@@ -108,7 +108,8 @@ export function initPixCtl(slots, o) {
     if (w.last != null && String(w.last) !== String(v)) w.moved = now
     w.last = v
     const stride = k === 'ev' && now - w.moved < 450 ? Math.floor(now / 110) % 2 : 0
-    const key = [style, d, cw, ch, k, ...v, C.acc, ink, stride, k === 'ev' && now - w.moved < 450].join()
+    const wave = k === 'wind' && d === 5 && (v[0] || v[1]) ? Math.floor(now / 120) : 0 // (1 Nov, later; an audit: the FLAG's wave was drawn once and never moved)
+    const key = [style, d, cw, ch, k, ...v, C.acc, ink, stride, k === 'ev' && now - w.moved < 450, wave].join()
     if (key === w.key) return
     w.key = key
     if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr) }
@@ -223,7 +224,7 @@ export function initPixCtl(slots, o) {
     if (force) for (const w of W) w.key = ''
     for (const w of W) paintOne(w, s, C)
     // the runner strides (and the dust settles) for a moment after the speed changes; the flag waves
-    if (!raf && W.some((w) => (w.k === 'ev' && performance.now() - w.moved < 500) || (w.k === 'wind' && design.wind === 5))) raf = requestAnimationFrame(() => { raf = 0; paint() })
+    if (!raf && W.some((w) => (w.k === 'ev' && performance.now() - w.moved < 500) || (w.k === 'wind' && design.wind === 5 && w.cv.clientWidth > 0))) raf = requestAnimationFrame(() => { raf = 0; paint() }) // (only while the flag is on screen)
   }
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => paint(true)) : null
   for (const w of W) ro?.observe(w.cv)

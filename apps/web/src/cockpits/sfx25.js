@@ -1,7 +1,7 @@
 // Study 25 sound: everything synthesized with WebAudio (no sound files). Since 29 Oct, night (Andrew: "a crazy sound pass"), the recipes live in sound25.js, which
 // runs the one AudioContext, the buses and the mixer; this keeps the old names working (move, pick, back, fanfare, splash, crack, thud, launch, pop, crowd, ring,
 // water, jingle, horn) and adds the swing hooks. Nothing plays until the first key or click (browsers require it); S switches it all off (nn-snd).
-import { play, soundOn, refresh, swing, follow, land, mixerHTML, bindMixer, getLevels, setLevel } from './sound25.js'
+import { play, soundOn, refresh, swing, follow, land, cancel, nuke, mixerHTML, bindMixer, getLevels, setLevel } from './sound25.js'
 const SCALES = [[0, 2, 4, 7, 9], [0, 3, 5, 7, 10], [0, 2, 4, 5, 7, 9, 11], [0, 2, 3, 5, 7, 8, 10]]
 function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
 // each batter's walk-up tune: 16 notes in one of four scales, seeded by their id, so the same batter always gets the same tune
@@ -26,5 +26,7 @@ export const sound = {
   swing, // the crack's companion: the whoosh that follows the ball, the crowd leaning in
   fly: (pos) => follow(pos),
   land, // the crowd's answer to where it came down
+  cancel, // a flight cut short
+  nuke: (ev) => (soundOn() ? nuke(ev) : null), // NUKE IT's launch, off a shuffled deck (1 Nov, night)
   mixerHTML, bindMixer, levels: getLevels, setLevel,
 }

@@ -33,6 +33,8 @@ export function seatSeance25(api) {
     if (kind !== 'STANDS') return { what: 'field', line: kind === 'FOUL' ? 'FOUL' : 'IN THE PARK', short: kind === 'FOUL' ? 'FOUL' : 'NO SEAT' }
     const b = bearingOf(p), s = SECTIONS.find((x) => b >= x[0] && b < x[1]) ?? (b < 0 ? SECTIONS[0] : SECTIONS[SECTIONS.length - 1])
     const wall = (api.wallAt?.(b) ?? [400, 8])[0] * 0.3048, deep = Math.max(0, distM(p) - wall)
+    // past the last row (1 Nov, Andrew's screengrab: a 467 ft ball behind the left-field bleachers was called ROW 26): no seat; the Fan Lot behind left-center, the concourse elsewhere
+    if (deep > s[4] * 0.84 + 1) { const lot = b < -18, place = lot ? 'THE FAN LOT' : 'THE CONCOURSE', lastRow = s[3] === 'BLEACHERS' ? String(s[4] - 1) : String(s[4]); return { what: 'beyond', sec: s[2], area: s[3], line: `PAST ROW ${lastRow} OF ${s[2]}: ${place}`, short: lot ? 'PAST THE SEATS: FAN LOT' : 'PAST THE SEATS' } }
     const ri = Math.min(s[4] - 1, Math.floor(deep / 0.84)), row = s[3] === 'BLEACHERS' ? (ri === 0 ? 'A' : String(ri)) : String(ri + 1)
     // seats count up toward right field ("lower numbers on the right" facing the field from these sections), 0.51 m each along the arc
     const r = distM(p), w = ((s[1] - s[0]) * Math.PI) / 180 * r, n = Math.max(1, Math.floor(w / 0.51)), seat = 1 + Math.min(n - 1, Math.floor(Math.min(0.999, Math.max(0, (b - s[0]) / (s[1] - s[0]))) * n)) // past the last section's edge: its end seat

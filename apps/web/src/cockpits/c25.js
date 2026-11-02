@@ -42,10 +42,14 @@ import { initCoke25 } from './coke25.js'
 import { initDiamond25 } from './diamond25.js'
 import { initGhost25 } from './ghost25.js'
 import { keepReadable, readable } from './vox25.js'
-import { screenTags, setTagStyle } from './stag25.js'
+import { screenTags, setTagStyle, setTagTie } from './stag25.js'
+import { LAND_LOOKS } from './landnum25.js'
+import { witnessStats, witnessStore, windowOpen, openKeys, gameKey, BOARDS, rankBoard, TROPHIES } from './witness25.js'
 import { initHappen25 } from './happen25.js'
+import { initPoles25, POLE_LOOKS } from './poles25.js'
 import { initWind25 } from './wind25.js'
 import { initControls25 } from './controls25.js'
+import { initShadow25 } from './shadow25.js'
 import { initMySeat25 } from './myseat25.js'
 import { initMoments25 } from './moments25.js'
 import { initWater25 } from './water25.js'
@@ -63,7 +67,7 @@ const store = (k, v) => { try { if (v === undefined) return localStorage.getItem
 const f = (v, d = 1, u = '') => (v == null || v !== v ? '--' : (typeof v === 'number' ? v.toFixed(d) : v) + u)
 const clock = (ax) => { if (ax == null) return '--'; const h = ((((ax + 180) / 30) % 12) + 12) % 12, hh = Math.floor(h) || 12, mm = Math.round((h % 1) * 60); return `${hh}:${String(mm === 60 ? 59 : mm).padStart(2, '0')}` }
 // names Andrew chose on 26 Oct; one place to change them
-const NAMES = { offMenu: 'OFF THE MENU', low: 'GOLF SHOT', high: 'TOMAHAWK', away: 'CHASE SCENE', inside: 'INSIDE JOB', tweak: 'TWEAK THE TATER', replay: 'DINGER DÉJÀ-VU', dojo: 'DINGER DOJO', shot: 'SHOT CALLER' }
+const NAMES = { witness: 'WALLOP WITNESS', offMenu: 'OFF THE MENU', low: 'GOLF SHOT', high: 'TOMAHAWK', away: 'CHASE SCENE', inside: 'INSIDE JOB', tweak: 'TWEAK THE TATER', replay: 'DINGER DÉJÀ-VU', dojo: 'DINGER DOJO', shot: 'SHOT CALLER' }
 
 // panel icons (I, 28 Oct, Andrew: a pitcher for the pitch, a batter for the contact, bars for the histograms), drawn as pixels: # the title color, a the accent
 const ICONS = {
@@ -279,51 +283,50 @@ export const AXES = {
 // THE LAB (31 Oct): the mixer has used every letter, so the newer choices live here, two letters each, kept on this device (and ?lab=BI2-BC3 for a link); they
 // are listed under OPTIONS after the mixer. NUKE IT (31 Oct, Andrew: "let's make it nuke it and let's always have like a fun little nuclear bomb icon. Give me options on
 // both icon and color"): one button, the same place in every mode, its own color
-// the icons are drawn by rule on a 16 by 16 grid (31 Oct, later, Andrew: "the icon should be a like nuclear atom bomb. Give me better pixel icons"): '#' the button's ink,
-// 'g' a mid grey, 'w' bone, 'y' yellow, 'r' red
-const nukeGrid = (f) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => f(x + 0.5, y + 0.5) || '.').join(''))
+// the icons are drawn by rule (31 Oct, later, Andrew: "the icon should be a like nuclear atom bomb. Give me better pixel icons"): '#' the button's ink, 'g' a mid grey,
+// 'w' bone, 'y' yellow, 'r' red
 const trefoil = (x, y, cx, cy, R) => { const dx = x - cx, dy = cy - y, r = Math.hypot(dx, dy), a = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360; if (r < R * 0.22) return true; return r > R * 0.36 && r < R && [90, 210, 330].some((c) => Math.abs(((a - c + 540) % 360) - 180) < 30) }
 const inEll = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1
+// 1 Nov (Andrew: "I like fat man, falling atom bomb, and the atom. Can we make each just a little higher fidelity? Right now they're hard to read"): those three on a
+// 24 by 24 grid, in passes: cells(f) fills by rule, atomOn() draws three orbits a cell wide round a nucleus. 'd' is the ink's shadow side, 'k' black, 'R' dark red
+const nukePaint = (N, ...passes) => { const g = Array.from({ length: N }, () => Array(N).fill('.')), set = (x, y, c) => { const i = Math.floor(x), j = Math.floor(y); if (i >= 0 && j >= 0 && i < N && j < N) g[j][i] = c }; for (const p of passes) p(set, N); return g.map((r) => r.join('')) }
+const cells = (f) => (set, N) => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const c = f(x + 0.5, y + 0.5); if (c) set(x, y, c) } }
+const atomOn = (cx, cy, rx, ry, ink, nr, electrons) => (set) => {
+  for (const t of [0, Math.PI / 3, (2 * Math.PI) / 3]) for (let a = 0; a < 900; a++) { const th = (a / 900) * Math.PI * 2, u = Math.cos(th) * rx, v = Math.sin(th) * ry; set(cx + u * Math.cos(t) - v * Math.sin(t) + 0.5, cy + u * Math.sin(t) + v * Math.cos(t) + 0.5, ink) }
+  for (let y = cy - nr - 1; y <= cy + nr + 1; y++) for (let x = cx - nr - 1; x <= cx + nr + 1; x++) { const dx = Math.floor(x) + 0.5 - cx, dy = Math.floor(y) + 0.5 - cy, r = Math.hypot(dx, dy); if (r < nr) set(x, y, Math.hypot(dx + nr * 0.4, dy + nr * 0.4) < nr * 0.38 ? 'w' : dx + dy > nr * 0.55 ? 'O' : 'o') }
+  if (electrons) for (const [t, th] of [[0, 0.5], [Math.PI / 3, 3.6], [(2 * Math.PI) / 3, 2.1]]) { const u = Math.cos(th) * rx, v = Math.sin(th) * ry, ex = cx + u * Math.cos(t) - v * Math.sin(t), ey = cy + u * Math.sin(t) + v * Math.cos(t); for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) set(ex + i - 0.5, ey + j - 0.5, 'w') }
+}
+// 1 Nov, later (Andrew: "let's make the middle of the atom and the current yellow area in falling atom bomb giants orange and have those be the two finalists"):
+// the other four are gone; 'o' is Giants orange, 'O' its shadow
 export const NUKE_ICONS = {
-  1: { name: 'FAT MAN', rows: nukeGrid((x, y) => { // the round bomb: an egg body, a box tail, a yellow trefoil on its side
-    if (x > 12 && x < 16 && y > 4 && y < 12 && (x < 13 || x > 15 || y < 5 || y > 11 || Math.abs(y - 8) < 0.6)) return '#'
-    if (x > 11 && x < 13.5 && y > 6.5 && y < 9.5) return 'g'
-    if (inEll(x, y, 6.5, 8, 6.2, 5.6)) return trefoil(x, y, 6.2, 8, 3.7) ? 'y' : inEll(x, y, 4.2, 5.2, 1.5, 1) ? 'w' : '#'
-  }) },
-  2: { name: 'TREFOIL BOMB', rows: nukeGrid((x, y) => { // a cartoon bomb, the radiation sign on it, a lit fuse
-    if ((x > 12.5 && y < 2.5 && (x + y) % 2 < 1) || (x > 13.5 && x < 15 && y > 0.5 && y < 2)) return x > 14 ? 'r' : 'y'
-    if (Math.abs(x - y * -1 - 14.5) < 0.9 && y > 2 && y < 5) return 'g'
-    if (x > 9 && x < 12 && y > 3 && y < 5.5) return '#'
-    if (inEll(x, y, 7.5, 9.5, 6.3, 6.3)) return trefoil(x, y, 7.5, 9.5, 4.6) ? 'y' : inEll(x, y, 5, 6.8, 1.6, 1.1) ? 'w' : '#'
-  }) },
-  3: { name: 'FALLING ATOM BOMB', rows: nukeGrid((x, y) => { // nose down, fins up, an atom on its side
-    if (y < 4 && ((x > 3 && x < 6) || (x > 10 && x < 13) || (x > 7 && x < 9))) return '#'
-    if (inEll(x, y, 8, 9.5, 4.6, 6.3)) { const dx = x - 8, dy = y - 9.6, e = (u, v) => Math.abs(u * u / 9 + v * v / 1.4 - 1) < 0.35; const rot = (t) => [dx * Math.cos(t) - dy * Math.sin(t), dx * Math.sin(t) + dy * Math.cos(t)]; if (Math.hypot(dx, dy) < 0.9) return 'r'; if ([0, 1.05, 2.1].some((t) => e(...rot(t)))) return 'y'; return inEll(x, y, 6, 6, 1, 1.4) ? 'w' : '#' }
-  }) },
-  4: { name: 'MUSHROOM CLOUD', rows: nukeGrid((x, y) => { // the cap with its glow, the stem, the ring at its foot
-    if (inEll(x, y, 8, 4.6, 7.2, 3.9)) return inEll(x, y, 8, 5.4, 4.6, 2) ? 'y' : inEll(x, y, 5, 2.6, 1.8, 0.9) ? 'w' : '#'
-    if (y > 7 && y < 12.5 && Math.abs(x - 8) < 1.8 + (y - 7) * 0.12) return Math.abs(x - 8) < 0.7 ? 'y' : '#'
-    if (inEll(x, y, 8, 13.6, 7, 2.2)) return '#'
-  }) },
-  5: { name: 'ATOM', rows: nukeGrid((x, y) => { // three orbits round a red nucleus
-    const dx = x - 8, dy = y - 8
-    if (Math.hypot(dx, dy) < 1.9) return Math.hypot(dx + 0.6, dy + 0.6) < 0.8 ? 'w' : 'r'
-    for (const t of [0, Math.PI / 3, (2 * Math.PI) / 3]) { const u = dx * Math.cos(t) + dy * Math.sin(t), v = -dx * Math.sin(t) + dy * Math.cos(t); if (Math.abs((u * u) / 49 + (v * v) / 5.3 - 1) < 0.24) return '#' }
-  }) },
-  6: { name: 'LITTLE BOY', rows: nukeGrid((x, y) => { // the long one: a round nose, a band, box fins
-    if (x > 12.5 && y > 4 && y < 12 && (x > 15 || y < 5 || y > 11 || x < 13.5)) return '#'
-    if (x > 1 && x < 13 && y > 5.5 && y < 10.5) return x > 8 && x < 9.6 ? 'y' : y < 7 && x > 3 ? 'w' : '#'
-    if (inEll(x, y, 2.4, 8, 2.2, 2.5)) return '#'
-  }) },
+  3: { name: 'FALLING ATOM BOMB', rows: nukePaint(24, cells((x, y) => { // nose down, three fins up, the radiation sign on its side, speed lines streaming up past it
+    if ((Math.abs(x - 2.5) < 0.5 && y > 3 && y < 10) || (Math.abs(x - 21.5) < 0.5 && y > 2 && y < 8) || (Math.abs(x - 20.5) < 0.5 && y > 11 && y < 15)) return 'd'
+    const dx = Math.abs(x - 12)
+    if (y > 1 && y < 8 && ((dx > 2.4 && dx < 2.4 + (8 - y) * 0.7 && y > 2) || dx < 0.5)) return '#'
+    if (y > 2.5 && y < 9 && dx < 1.4 + (y - 2.5) * 0.45) return 'd'
+    const w = y < 8.5 ? 0 : y < 10 ? 4 + (y - 8.5) : y < 15 ? 5.6 : 5.6 * Math.sqrt(Math.max(0, 1 - ((y - 15) / 7.8) ** 2))
+    if (dx >= w) return
+    if (Math.hypot(x - 12, y - 14.6) < 4) return trefoil(x, y, 12, 14.6, 3.7) ? 'k' : 'o'
+    if (x < 12 - w * 0.35 && x > 12 - w * 0.8 && y > 9.5 && y < 13) return 'w'
+    return x > 12 + w * 0.45 ? 'd' : '#'
+  })) },
+  5: { name: 'ATOM', rows: nukePaint(24, atomOn(12, 12, 10.6, 3.9, '#', 2.9, true)) }, // three orbits, an electron riding each, a shaded red nucleus
 }
 // nuclear greens (31 Oct, later, Andrew: "I want the nuke color to read as like nuclear green"; outside his palette library at his ask), and the acid yellow from before
 const NUKE_COLORS = { 1: ['NUCLEAR GREEN', '#5dff3a'], 2: ['GEIGER', '#9dff00'], 3: ['URANIUM GLASS', '#ccff00'], 4: ['REACTOR', '#00ff9c'], 5: ['ACID YELLOW', '#dee000'] }
 export const LAB = {
-  BI: { name: 'NUKE IT: ICON', opts: Object.entries(NUKE_ICONS).map(([c, o]) => ({ c: Number(c), name: o.name, desc: 'the little bomb on the button' })) },
-  BC: { name: 'NUKE IT: COLOR', opts: Object.entries(NUKE_COLORS).map(([c, [n, hex]]) => ({ c: Number(c), name: n, desc: hex, hex })) },
+  BI: { name: 'NUKE IT: ICON', opts: [3, 5].map((c) => ({ c, name: NUKE_ICONS[c].name, desc: 'the little bomb on the button: the two finalists, Giants orange in the middle (1 Nov)' })) },
+  BC: { name: 'NUKE IT: COLOR', def: 2, opts: Object.entries(NUKE_COLORS).map(([c, [n, hex]]) => ({ c: Number(c), name: n, desc: hex, hex })) },
+  BS: { name: 'NUKE IT: BUTTON', def: 2, opts: [ // (1 Nov, later: "Outline fills on hover 100%") // (1 Nov: "tone it down just a little? Maybe only have the button outlined by that")
+    { c: 1, name: 'OUTLINE', desc: 'a dark button, the color only in its edge, the word and the bomb' },
+    { c: 2, name: 'OUTLINE, FILLS ON HOVER', desc: 'the same, and it fills with the color while you point at it' },
+    { c: 3, name: 'SMOLDER', desc: 'a dark button with a little of the color in it, a darker edge' },
+    { c: 4, name: 'LIT WORD', desc: 'a dark button with a grey edge: only the word and the bomb carry the color' },
+    { c: 5, name: 'SOLID', desc: 'filled with the color, as it was' },
+  ] },
   // the 3D controls in the park (controls25.js): the Y-forks first (31 Oct, later: "I like chunky y fork but still want more options there")
-  SL: { name: 'SLINGSHOT (IN THE PARK)', opts: [
-    { c: 1, name: 'CHUNKY Y-FORK', desc: 'a thick fork, broad orange bands, a notched angle arc beside it' },
+  SL: { name: 'SLINGSHOT (IN THE PARK)', def: 5, opts: [
+    { c: 1, name: 'CHUNKY Y-FORK', desc: 'a thick fork, broad orange bands, a notched angle arc beside it; the ball in the bands a real voxel baseball (1 Nov)' },
     { c: 5, name: 'WRIST ROCKET', desc: 'a steel fork with an arm brace behind it, black rubber bands, a leather pouch' },
     { c: 6, name: 'TREE BRANCH', desc: 'a forked branch in bark, a twig off one arm, tan bands and a pouch' },
     { c: 7, name: 'GIANTS FORK', desc: 'black arms, an orange stem in bands, orange tips' },
@@ -338,45 +341,88 @@ export const LAB = {
     { c: 1, name: 'AIRPORT SOCK', desc: 'a cuff and five solid bands, still but for a flutter at the tail' },
     { c: 2, name: 'WEATHER VANE', desc: 'an arrow along the wind, longer the stronger, compass pegs under it' },
     { c: 3, name: 'STAIR-STEP PENNANT', desc: 'four rectangles rising to the horizontal as it blows' },
-    { c: 4, name: 'GIANTS PENNANT', desc: 'an orange triangle edged in white, on a steel pole' },
+    { c: 4, name: 'GIANTS PENNANT', desc: 'orange felt edged in white with GIANTS on it in black, reading the right way from wherever you look (1 Nov)' },
   ] },
   TH: { name: 'THERMOMETER (IN THE PARK)', opts: [ // (31 Oct, later: "needs to stay a mercury thermo but it looks cheap rn, give me more options there")
     { c: 5, name: 'GLASS TUBE', desc: 'a clear tube with a glint down it, a steel cap, a red bulb, ticks every 10 degrees and 40, 70, 100 in voxels' },
     { c: 6, name: 'PORCH BOARD', desc: 'the tube on a wooden board with dark ticks, like a porch thermometer' },
     { c: 7, name: 'ENAMEL SIGN', desc: 'the tube on an orange enamel sign, F at the top' },
     { c: 8, name: 'CHROME CASE', desc: 'the tube in a steel case with a window and bolts' },
-    { c: 1, name: 'MERCURY TOWER', desc: 'the first one: a chunky stem, a big bulb, three notches' },
+    { c: 1, name: 'MERCURY TOWER', desc: 'the first one, cleaner (1 Nov): a white case, a solid red column and bulb, three notches' },
   ] },
   // the words in the park (stag25.js; 31 Oct, later: "the diagetic zenith, cleared the wall, distance still needs to be voxel. Give me options for that too")
-  TG: { name: 'PARK TAGS', def: 2, opts: [
+  TG: { name: 'PARK TAGS', def: 5, opts: [
+    { c: 5, name: 'QUIET BOARD', desc: 'on a board, smaller, the caption in grey: the number carries it (1 Nov: "I like voxel on a board, but it\'s still pretty loud")' },
     { c: 1, name: 'VOXEL, STEADY', desc: 'voxel letters held at one size on the screen, placed clear of everything' },
     { c: 2, name: 'VOXEL ON A BOARD', desc: 'the same on a dark board, like a little scoreboard' },
     { c: 3, name: 'VOXEL NUMBER ONLY', desc: 'just the number in voxels, no caption' },
     { c: 4, name: 'PIXEL TYPE', desc: 'flat pixel type on a dark strip (the last version)' },
+    { c: 6, name: 'BIG NUMBER', desc: 'the number large on its board, the caption small and grey: the digits are the landmark (GPT red team II, B8)' },
+  ] },
+  // (1 Nov: "difficult to tell what they're referring to with voxel number only - maybe we make them the same color as their ice blue line? ... maybe we connect them via a line too?")
+  // (1 Nov, later: GPT red team II, B6, left to me as an option)
+  TF: { name: 'PARK TAGS: WHEN', opts: [
+    { c: 1, name: 'ALL STAY', desc: 'each tag comes up as the ball passes its point and stays' },
+    { c: 2, name: 'ONE AT A TIME', desc: 'only the newest: ZENITH at the top, the wall as it crosses, LANDED when it comes down; the posts stay for the rest' },
+  ] },
+  // the Coke bottle (coke25.js; 1 Nov, later, from GPT red team II B1 and B2, Andrew on the leftovers: "if you want to institute any as options be my guest")
+  CB: { name: 'COKE BOTTLE', opts: [
+    { c: 1, name: 'AS IS', desc: 'the open green frame, the red label, the slides' },
+    { c: 2, name: 'LIVING BOTTLE', desc: 'thicker ribs at the base and shoulder; on a home run toward left field, orange and white bubbles race up and burst from the mouth' },
+    { c: 3, name: 'SODA LANTERN', desc: 'the label lit from inside, the green staves flickering unevenly' },
+  ] },
+  // the ball's shadow (shadow25.js; 1 Nov, later, Andrew of GPT's A2 THE SHADOW LANDS FIRST: "I like the idea of an A2 shadow dig that")
+  SH: { name: 'BALL SHADOW', opts: [
+    { c: 1, name: 'STRAIGHT DOWN', desc: 'a dark spot right under the ball, over the grass, the wall and the seats' },
+    { c: 2, name: 'LOW SUN', desc: 'an afternoon sun low in the southwest: the shadow runs out ahead of the ball and meets it where it lands' },
+    { c: 3, name: 'OFF', desc: 'no shadow' },
+  ] },
+  TT: { name: 'PARK TAGS: TIE', def: 2, opts: [ // (1 Nov, later: "I think color only is sufficient for tags")
+    { c: 1, name: 'LINE AND COLOR', desc: 'the number in its post\'s color (ICE for the zenith and the wall), and a dashed line from the tag to its point' },
+    { c: 2, name: 'COLOR ONLY', desc: 'the number in its post\'s color, no line' },
+    { c: 3, name: 'LINE ONLY', desc: 'a dashed line from the tag to its point, the number in its old color' },
+    { c: 4, name: 'NEITHER', desc: 'as it was' },
   ] },
   // LANDING PARTY in the park (landing.js; 31 Oct, later: "show the top 5 other ones as like points on the map")
-  LP: { name: 'LANDING PARTY MARKS', opts: [
+  LP: { name: 'LANDING PARTY MARKS', def: 2, opts: [ // (1 Nov, later: "I like numbered pins for landing party the most")
+    { c: 6, name: 'NUMBERED FLAGS', desc: 'the six on stakes with numbered flags; the one in focus orange and taller (1 Nov, his pick)' },
     { c: 1, name: 'DOTS', desc: 'the next five as dots where they came down; the one in focus lit, with its tag' },
-    { c: 2, name: 'NUMBERED PINS', desc: 'the next five on short stakes with their numbers in voxels' },
+    { c: 2, name: 'NUMBERED PINS', desc: 'the six on short stakes with their numbers in voxels; the one in focus orange' },
     { c: 3, name: 'FLAGS', desc: 'the next five as little orange-and-white flags' },
     { c: 4, name: 'TRAILS', desc: 'the next five as faint flights ending in dots' },
     { c: 5, name: 'HALO', desc: 'a faint ring round where all six came down, and a dot for each' },
   ] },
+  // 1 Nov, evening (Andrew: no LANDED, the feet alone as a chunky voxel number over the spot, "give me like 5 options"): landnum25.js
+  LN: { name: 'LANDING NUMBER', opts: LAND_LOOKS },
+  // 1 Nov, evening (Andrew: "The foul poles are basically unseeable right now - could we make them white and/or orange and/or yellow?"): poles25.js
+  FP: { name: 'FOUL POLES', def: 1, opts: POLE_LOOKS.map((l) => ({ c: l.c, name: l.name, desc: l.c === 4 ? 'an orange pole with a white screen down its fair side' : 'the pole and its screen in ' + l.name.toLowerCase() })) },
   // the dojo's drawings on the left (pixctl25.js), five each, his picks first (31 Oct, later: RUNNING, GROUND RAY, DIAMOND, UPRIGHT, WIND PAD)
   ...Object.fromEntries([['CS', 'ev', 'SPEED', 4], ['CA', 'la', 'ANGLE', 1], ['CD', 'dir', 'AIM', 2], ['CT', 'temp', 'AIR', 4], ['CW', 'wind', 'WIND', 1]].map(([L2, k, w, def]) => [L2, { name: 'DOJO ' + w, def, opts: DESIGNS[k].map((n, i) => ({ c: i + 1, name: n, desc: 'the ' + w.toLowerCase() + ' control on the left (J8, J3, J5 to J7)' })).sort((a, b) => (b.c === def) - (a.c === def)) }])),
 }
-const nukeSVG = (n, px = 3, ink = '#0b0b0b') => { const rows = (NUKE_ICONS[n] ?? NUKE_ICONS[1]).rows, C = { '#': ink, g: '#5a5f68', w: '#f4f2ea', r: '#e4002b', y: '#ffd23f' }; let r = ''; rows.forEach((row, j) => [...row].forEach((ch, i) => { if (C[ch]) r += `<rect x="${i}" y="${j}" width="1" height="1" fill="${C[ch]}"/>` })); return `<svg class="nki" width="${rows[0].length * px}" height="${rows.length * px}" viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>` }
+// an icon as one path per color, px a 16th of its width (the 16 grid ones and the 24 grid ones come out the same size); ink and its shadow can be CSS colors
+const nukeSVG = (n, px = 3, ink = '#0b0b0b', shade) => {
+  const rows = (NUKE_ICONS[n] ?? NUKE_ICONS[3]).rows, N = rows[0].length, C = { '#': ink, d: shade ?? `color-mix(in srgb,${ink} 52%,#000)`, k: '#0b0b0b', g: '#5a5f68', w: '#f4f2ea', r: '#e4002b', R: '#8c0a1e', y: '#ffd23f', o: '#fd5a1e', O: '#a8360c' }, P = {}
+  rows.forEach((row, j) => [...row].forEach((ch, i) => { if (C[ch]) P[ch] = (P[ch] ?? '') + `M${i} ${j}h1v1h-1z` }))
+  return `<svg class="nki" width="${16 * px}" height="${16 * px}" viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges" aria-hidden="true">${Object.entries(P).map(([ch, d]) => `<path style="fill:${C[ch]}" d="${d}"/>`).join('')}</svg>`
+}
 const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'V', 'Z', 'H', 'U', 'D', 'M', 'X', 'E', 'N', 'J', 'W', 'Q', 'C', 'O', 'G']
 // locked 28 Oct, night (Andrew): these are set and leave the mixer; a code can still load another value (the tests do), but the dock and the header show only what is open.
 // 29 Oct: U2 PIXEL LINE, D1 PIXEL SLUGGER, M1 STACKED too
 // 29 Oct, later: X2 (the arc dots in the pitch color) and E1 (the stitches in the pitch color) as well
 // 29 Oct, evening: Y3 ICE, N1, J2, W1, Q2 (with a voxel clock), C1 GLASS
 // 29 Oct, later still: G2 RELIEF and O2 BOX SCORE / FRONT OFFICE / NO LIFE
-const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2 }
+// 1 Nov, evening (Andrew: "no more options"): V5 LOWER BOWL and J8 BIG ARCS, what he has been looking at, so the header's MIX goes
+const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2, V: 5, J: 8 }
+// and the lab's settled ones (1 Nov, evening: "falling atom bomb fucking spectacular", GEIGER, OUTLINE FILLS ON HOVER, STRAIGHT DOWN, ONE AT A TIME, LIVING BOTTLE,
+// COLOR ONLY, NUMBERED PINS, MERCURY TOWER, GIANTS PENNANT, QUIET BOARD, his dojo drawings): they win over a stored lab; a ?lab= code still loads another (the tests)
+const LAB_LOCK = { BI: 3, BC: 2, BS: 2, SH: 1, TF: 2, CB: 2, TT: 2, LP: 2, TH: 1, SK: 4, TG: 5, CS: 4, CA: 1, CD: 2, CT: 4, CW: 1 }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
+// 1 Nov, night (Andrew: "dinger deja vu, dinger dojo, shot caller, wallop witness. I think those are the 4 marquee modes and everything else slots within those"; "keys 1-4
+// more modes and esc still pulls the menu up"): the four, in order, as tabs across the header; Wallop Witness is a panel over the park, the other three are modes
+const TABS = [['replay', 'DINGER DÉJÀ-VU'], ['whatif', 'DINGER DOJO'], ['shot', 'SHOT CALLER'], ['witness', 'WALLOP WITNESS']]
 const HDR_AX = OPEN // what is still open sits in the header
 // 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
-const DOCK = [...OPEN, ...Object.keys(LAB)] // (31 Oct, later: only what is open, and the lab)
+const DOCK = [...OPEN, ...Object.keys(LAB).filter((k) => !(k in LAB_LOCK))] // (31 Oct, later: only what is open, and the lab; 1 Nov, evening: the lab's open ones)
 const DEF = { ...Object.fromEntries(OPEN.map((k) => [k, AXES[k].opts[0].c])), ...LOCKED } // an open choice starts at its first option
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
@@ -493,6 +539,14 @@ export async function build(root, api, U) {
 #cp .c25 .hdr{display:grid;grid-template-rows:22px 22px;gap:4px;min-width:0}
 #cp .c25 .hdr .h1{display:flex;justify-content:space-between;align-items:center;gap:12px;white-space:nowrap;min-width:0}
 #cp .c25 .hdr .h2{display:flex;justify-content:flex-start;align-items:center;gap:22px;white-space:nowrap;min-width:0}
+#cp .c25 .hdr .tabs{display:flex;gap:8px}
+#cp .c25 .hdr .tab{display:inline-flex;align-items:center;gap:7px;padding-right:10px}
+#cp .c25 .hdr .tab kbd{font:inherit;font-size:.8em;color:var(--dim);border:1px solid currentColor;padding:0 4px;line-height:1.2}
+#cp .c25 .hdr .tab.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
+#cp .c25 .hdr .tab.on kbd{color:var(--k)}
+#cp .c25 .bsel .bt.ball{border-color:var(--acc)}
+@media (max-width:700px){#cp .c25 .bsel select,#cp .c25 .bsel .bt.ball{display:none}#cp .c25 .bsel .r1:not(:has(> :not(.ball))){display:none}}
+#cp .c25 .bsel select{font:inherit;font-size:.92em;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:1px 4px;margin:0 6px;pointer-events:auto;cursor:pointer;max-width:12em}
 #cp .c25 .hdr .rt{display:flex;gap:14px;align-items:center}
 #cp .c25 .hdr .grp{display:flex;gap:6px;align-items:center;color:var(--dim)}
 @media (max-width:1500px){#cp .c25 .hdr .h2 .gl{display:none}#cp .c25 .hdr .h2{gap:10px}}
@@ -523,8 +577,8 @@ export async function build(root, api, U) {
 #cp .c25 .rd .lbl{display:block;color:var(--dim);font-size:16px;margin-top:2px}
 #cp .c25 .rd .sub{display:block;color:var(--dim);font-size:18px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .lpr[data-n]{cursor:pointer}
-#cp .c25 .lpr[data-n]:hover b,#cp .c25 .lpr[data-n]:focus b{color:var(--acc)}
-#cp .c25 .lpr[data-n]:hover .nm,#cp .c25 .lpr[data-n]:focus .nm{text-decoration:underline}
+#cp .c25 .lpr[data-n]:hover b,#cp .c25 .lpr[data-n]:focus b,#cp .c25 .lpr.pt b{color:var(--acc)}
+#cp .c25 .lpr[data-n]:hover .nm,#cp .c25 .lpr[data-n]:focus .nm,#cp .c25 .lpr.pt .nm{text-decoration:underline}
 #cp .c25 .rd.pick>*{display:none}#cp .c25 .rd.pick::before{content:'PICK A SEAT';display:block;font-family:PS2P,monospace;font-size:26px;color:var(--tx)}#cp .c25 .rd.pick::after{content:'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT';display:block;margin-top:10px;color:var(--dim)}#cp .c25 .chip.pick{display:none}
 #cp .c25 .rd .gn{color:var(--acc);font-size:18px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
 #cp .c25 .rd .fun{color:var(--tx);font-size:16px;margin-top:4px;max-width:620px;line-height:1.2}
@@ -547,18 +601,23 @@ export async function build(root, api, U) {
 #cp .c25 .rd .sit{color:var(--tx);font-size:15px;margin-top:6px}
 #cp .c25 .bsel{position:absolute;left:18px;bottom:12px;right:236px;display:grid;gap:4px;font-size:17px}
 #cp .c25.ns .bsel{right:236px}
-#cp .c25 .nuke{position:absolute;right:16px;bottom:12px;height:58px;min-width:204px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px 0 12px;background:var(--nk,#dee000);color:#0b0b0b;cursor:pointer;pointer-events:auto;z-index:3;user-select:none;box-shadow:4px 4px 0 color-mix(in srgb,var(--nk,#dee000) 35%,#000)}
+#cp .c25 .nuke{position:absolute;right:16px;bottom:12px;height:58px;min-width:204px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px 0 12px;background:var(--nkbg,var(--nk,#dee000));color:var(--nktx,#0b0b0b);--nki:var(--nktx,#0b0b0b);cursor:pointer;pointer-events:auto;z-index:3;user-select:none;box-shadow:inset 0 0 0 var(--nkb,0px) var(--nkc,transparent),4px 4px 0 color-mix(in srgb,var(--nk,#dee000) var(--nksh,35%),#000);transition:transform .08s,box-shadow .08s}
+/* 1 Nov (Andrew: "the button is just so lurid - can we tone it down just a little? Maybe only have the button outlined by that"; "It should just raise like the other buttons - no wiggling"): five ways to wear the color (NUKE IT: BUTTON in THE LAB) */
+#cp .c25 .nuke.nk1,#cp .c25 .nuke.nk2{--nkbg:#0d0f0c;--nktx:var(--nk);--nkb:2px;--nkc:var(--nk);--nksh:22%}
+#cp .c25 .nuke.nk2:hover{--nkbg:var(--nk);--nktx:#0b0b0b}
+#cp .c25 .nuke.nk3{--nkbg:color-mix(in srgb,var(--nk) 15%,#0b0b0b);--nktx:var(--nk);--nkb:2px;--nkc:color-mix(in srgb,var(--nk) 55%,#000);--nksh:18%}
+#cp .c25 .nuke.nk4{--nkbg:#0d0f0c;--nktx:var(--nk);--nkb:1px;--nkc:#3a3f46;--nksh:0%}
+#cp .c25 .nuke:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 var(--nkb,0px) var(--nkc,transparent),4px 6px 0 color-mix(in srgb,var(--nk,#dee000) var(--nksh,35%),#000)}
 #cp .c25 .nuke b{font-family:PS2P,monospace;font-weight:400;font-size:17px;letter-spacing:.02em;white-space:nowrap}
 #cp .c25 .nuke i{font-style:normal;font-family:var(--lf),monospace;font-size:10px;opacity:.6;align-self:flex-end;margin:0 0 8px auto}
 #cp .c25 .nuke .nkw{display:flex;align-items:center;justify-content:center;width:42px;height:42px;flex:none}
-#cp .c25 .nuke:hover .nkw svg{animation:nkwob .36s steps(2) infinite}
-#cp .c25 .nuke.go{transform:translate(3px,3px);box-shadow:1px 1px 0 color-mix(in srgb,var(--nk,#dee000) 35%,#000)}
+#cp .c25 .nuke.go{transform:translate(3px,3px);box-shadow:inset 0 0 0 var(--nkb,0px) var(--nkc,transparent),1px 1px 0 color-mix(in srgb,var(--nk,#dee000) var(--nksh,35%),#000)}
 #cp .c25 .nuke:focus-visible{outline:2px solid var(--tx);outline-offset:3px}
-@keyframes nkwob{50%{transform:translateY(-2px) rotate(-6deg)}}
-@media (prefers-reduced-motion:reduce){#cp .c25 .nuke:hover .nkw svg{animation:none}}
+@media (prefers-reduced-motion:reduce){#cp .c25 .nuke,#cp .c25 .nuke:hover{transition:none}}
 #cp .c25 .strip .bt.hot{display:none}
 #cp .c25 .bsel .r1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 #cp .c25 .bsel .r2{color:var(--dim);background:var(--k);justify-self:start;padding:1px 4px 1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#cp .c25.wi .bsel .r2{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2} /* (1 Nov: the result came last and was the part cut off) */
 #cp .c25 .bsel .r2 b{font-weight:400;color:var(--tx)}
 #cp .c25 .bsel .bt.hot{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .tly{position:absolute;right:16px;bottom:80px;width:170px;font-size:15px;display:grid;gap:1px;pointer-events:none;text-align:right}
@@ -648,6 +707,8 @@ export async function build(root, api, U) {
 #cp .c25 .lpr b{font-weight:400;color:var(--acc)}
 #cp .c25 .lpr.on{color:var(--acc)}
 #cp .c25 .lpr span{overflow:hidden;text-overflow:ellipsis}
+#cp .c25 .lpr.nw{grid-template-columns:22px minmax(10em,16em) minmax(0,1fr);white-space:normal;align-items:baseline;padding:3px 0} /* WHAT'S NEW wraps (1 Nov: its rows were cut to a few words) */
+#cp .c25 .lpr.nw span{overflow:visible}
 #cp .c25 .lpr .wh{color:var(--dim)}
 #cp .c25 .sel{display:grid;gap:3px;font-size:16px}
 #cp .c25 .scall{display:grid;gap:2px;margin:0 0 6px;padding:6px 8px;border:1px solid var(--acc)}
@@ -656,6 +717,7 @@ export async function build(root, api, U) {
 #cp .c25 .sbar{display:flex;height:12px;border:1px solid var(--tx);margin:2px 0 6px}
 #cp .c25 .sbar i{display:block;height:100%}
 #cp .c25 .lpr2{display:flex;justify-content:space-between;gap:10px;white-space:nowrap}
+#cp .c25 .lpr2.go{cursor:pointer}#cp .c25 .lpr2.go:hover span,#cp .c25 .lpr2.go:focus span{color:var(--acc);text-decoration:underline}
 #cp .c25 .lpr2 span{color:var(--dim);overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .lpr2 b{font-weight:400}
 #cp .c25 .bay{display:grid;gap:8px;min-width:min(760px,80vw);font-size:18px}
@@ -699,6 +761,32 @@ export async function build(root, api, U) {
 #cp .c25 .wd sup{color:var(--acc);font-size:10px;margin-left:2px}
 #cp .c25 .wd.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .wd.on sup{color:var(--k)}
+#cp .c25 .wd.shut{opacity:.38;cursor:not-allowed;box-shadow:none}
+#cp .c25 .wd u{text-decoration:none;font-size:.6em;color:var(--dim);margin-left:1px}
+#cp .c25 .wd.ask{outline:2px solid var(--acc);outline-offset:2px}
+#cp .c25 .ww .wtabs{display:flex;gap:8px;margin-bottom:12px}
+#cp .c25 .ww .wme{display:flex;gap:14px;align-items:center;margin:8px 0;font-size:13px;color:var(--dim)}
+#cp .c25 .ww .wme i{font-style:normal}
+#cp .c25 .ww input{font:inherit;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:2px 6px;text-transform:uppercase;pointer-events:auto}
+#cp .c25 .ww .wask{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0;padding:8px 10px;border:1px solid var(--acc)}
+#cp .c25 .ww .wask b{color:var(--acc);font-weight:400}
+#cp .c25 .ww .wmsg{color:var(--acc);margin:6px 0}
+#cp .c25 .ww .wsg{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px 18px;margin:10px 0 16px}
+#cp .c25 .ww .wst{display:grid;grid-template-columns:1fr auto;align-items:baseline;border-bottom:1px solid var(--e);padding-bottom:4px}
+#cp .c25 .ww .wst span{color:var(--dim);font-size:12px}
+#cp .c25 .ww .wst b{font-weight:400;font-size:18px;color:var(--tx)}
+#cp .c25 .ww .wst i{grid-column:1/-1;font-style:normal;font-size:11px;color:var(--dim)}
+#cp .c25 .ww .wts{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin:8px 0 16px}
+#cp .c25 .ww .wtt{border:1px solid var(--acc);padding:8px 10px}
+#cp .c25 .ww .wtt b{display:block;color:var(--acc);font-weight:400}
+#cp .c25 .ww .wtt span{font-size:13px}
+#cp .c25 .ww .wbds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+#cp .c25 .ww .wr{display:grid;grid-template-columns:3em 1fr auto;gap:10px;padding:4px 0;border-bottom:1px solid var(--e)}
+#cp .c25 .ww .wr span{color:var(--dim)}
+#cp .c25 .ww .wr b{font-weight:400}
+#cp .c25 .ww .wr i{font-style:normal;color:var(--acc)}
+#cp .c25 .wd.shut.on{opacity:.7}
+#cp .c25 .wd.open{border-color:var(--acc)}
 #cp .c25 .wsum{display:grid;gap:4px}
 #cp .c25 .strip{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding-bottom:6px}
 #cp .c25 .strip .bt{padding:8px 34px 18px 10px;display:flex;flex-direction:column;justify-content:space-between;position:relative;min-width:0}
@@ -790,7 +878,8 @@ export async function build(root, api, U) {
 #cp .c25 .dock .do .sw{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px}#cp .c25 .dock .do .nki{vertical-align:-5px;margin-right:4px}#cp .c25 .dock .dx .bt.lb{color:var(--dim)}#cp .c25 .dock .dx .bt.lb.on{color:var(--acc)}
 #cp .c25 .dock .do b{font-weight:400;color:var(--dim)}
 #cp .c25 .dock .do.on b{color:var(--acc)}
-#cp .c25 .dock .dd{color:var(--dim);font-size:14px;min-height:2.3em}
+#cp .c25 .dock .dd{color:var(--dim);font-size:14px;height:5.6em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical} /* a fixed height (1 Nov, night): a longer preview on hover used to push the list up under the pointer, so a click landed on the next option */
+#cp .c25 .dock .dd.pv{color:var(--tx)} /* an option pointed at, not yet picked */
 #cp .c25 .dock .df{display:flex;justify-content:space-between;align-items:center;gap:6px;color:var(--dim);font-size:13px}
 @media (max-width:900px){#cp .c25 .dock{position:fixed;left:8px;right:8px;bottom:8px;width:auto;max-width:none;max-height:46vh;z-index:25}#cp .c25.dk .bsel{right:8px}}
 #cp .c25 .tys{display:grid;grid-template-columns:repeat(3,minmax(300px,1fr));gap:14px}
@@ -863,9 +952,13 @@ export async function build(root, api, U) {
   const mix = q.get('mix') != null ? parseMix(q.get('mix')) : { ...parseMix(store('nn-mix25') ?? ''), ...LOCKED } // a stored mix keeps its open choices; the locks win over it
   let lastInput = -1e9, settleT = 0 // SETTLE (see render)
   const moving = () => performance.now() - lastInput < 260
-  function markInput() { lastInput = performance.now(); clearTimeout(settleT); settleT = setTimeout(() => { lpKey = ''; if (last) render(last) }, 300) }
+  // undo in the dojo (1 Nov, later; an audit): each burst of changes (a drag, a run of key presses) is one step; Backspace goes back a step, 0 puts the blank swing
+  // back. settled is the state as it last stood still (render() keeps it), pushed when a new burst starts
+  const SNAP = ['ev', 'la', 'dir', 'temp', 'wind', 'xwind'], snap = () => Object.fromEntries(SNAP.map((k) => [k, api.state[k] ?? 0]))
+  let undo = [], settled = null, burst = false, undoing = false
+  function markInput() { if (!burst && !undoing && settled) { undo.push(settled); if (undo.length > 50) undo.shift() } burst = true; lastInput = performance.now(); clearTimeout(settleT); settleT = setTimeout(() => { burst = false; lpKey = ''; if (last) render(last) }, 300) }
   const labRead = (t) => Object.fromEntries([...(t ?? '').toUpperCase().matchAll(/([A-Z]{2})(\d+)/g)].filter(([, k, n]) => LAB[k]?.opts.some((o) => o.c === Number(n))).map(([, k, n]) => [k, Number(n)]))
-  const lab = { ...Object.fromEntries(Object.entries(LAB).map(([k, a]) => [k, a.def ?? a.opts[0].c])), ...labRead((() => { try { return localStorage.getItem('nn-lab25') } catch { return '' } })()), ...labRead(q.get('lab')) }
+  const lab = { ...Object.fromEntries(Object.entries(LAB).map(([k, a]) => [k, a.def ?? a.opts[0].c])), ...labRead((() => { try { return localStorage.getItem('nn-lab25') } catch { return '' } })()), ...LAB_LOCK, ...labRead(q.get('lab')) }
   const labCode = () => Object.entries(lab).map(([k, n]) => k + n).join('-')
   let applyLab = () => {}
   function setLab(k, n) { if (!LAB[k]?.opts.some((o) => o.c === n)) return; lab[k] = n; try { localStorage.setItem('nn-lab25', labCode()) } catch {} applyLab(k) }
@@ -877,11 +970,9 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx">MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
-    <div class="h2"><span class="grp"><span class="gl">IN THE PARK</span> <span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span></span>
-    <span class="grp"><span class="gl">TONIGHT</span> <span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span></span>
-    <span class="grp"><span class="gl">YESTERDAY</span> <span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25dd">DAILY DINGER</span></span>
-    <span class="grp"><span class="gl">YOU</span> <span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
+    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}<span class="bt mx" id="c25lg" aria-label="every option">?</span></span></span></div>
+    <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
+    <span class="old" hidden><span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span><span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span><span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
     <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="nuke" id="c25nk" role="button" tabindex="0" aria-label="nuke it"><span class="nkw"></span><b>NUKE IT</b><i>SPACE</i></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div><div class="dock" id="c25dk" tabindex="-1" role="dialog" aria-label="options"></div></div>
   <div class="pnl p pitch"><span class="t">/ T H E &nbsp; P I T C H /</span><div class="pin"><div class="zg" id="c25zg"></div><div class="pl" id="c25pl"></div></div></div>
@@ -890,7 +981,7 @@ export async function build(root, api, U) {
   <div class="pnl p hists" id="c25hi"><span class="t">/ V S &nbsp; A L L /</span><span class="hsw" id="c25hw"><span class="bt" data-w="mlb">ALL</span><span class="bt" data-w="sf">ORACLE</span></span><div id="c25hb"></div></div>
   <div class="ptabs p" id="c25pt">${[['batter', 'BATTER'], ['pitch', 'PITCH'], ['slice', 'CONTACT'], ['hists', 'VS ALL']].map(([k, l]) => `<span class="bt" data-card="${k}">${l}</span>`).join('')}</div>
   <div class="strip p" id="c25sl"><span class="swi">${iconSVG(ICONS.swing[2], 2, 'YOUR SWING')}</span>${ctl.SLOTS.map((s, i) => `<div class="bt" data-i="${i}" data-k="${s.k}"><span class="ps"></span><b class="num"${['ev', 'la', 'dir'].includes(s.k) ? ' title="click to type it"' : ''}></b><span class="ud"><i data-d="1">+</i><i data-d="-1">-</i></span>${s.k === 'hand' ? '' : `<input type="range" class="sld" min="0" max="1000" step="1" aria-label="${s.label}">`}</div>`).join('')}<div class="bt hot" data-i="${ctl.SLOTS.length}"><span class="ps">ENTER</span><b>SWING</b></div></div>
-  <div class="mod" id="c25m"><div class="box"><span class="bt x" id="c25cl" aria-label="close">CLOSE</span><h3 id="c25mt"></h3><div id="c25mb"></div></div></div></div>`
+  <div class="mod" id="c25m"><div class="box"><span class="bt x" id="c25cl" tabindex="0" role="button" aria-label="close">CLOSE</span><h3 id="c25mt"></h3><div id="c25mb"></div></div></div></div>`
   const E = (id) => root.querySelector(id), hero = E('#c25h'), grid = E('.c25')
   const setCard = (k) => { grid.dataset.card = k; root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.classList.toggle('on', b.dataset.card === k)); if (last) render(last) }
   root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.addEventListener('click', () => { pressEl(b); setCard(b.dataset.card) }))
@@ -914,17 +1005,17 @@ export async function build(root, api, U) {
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
 
   const getJSON = async (u) => { try { const r = await fetch(u); return r.ok ? await r.json() : {} } catch { return {} } }
-  const [parks, R, pool, D, facesRaw, bio] = await Promise.all([loadParks(), loadReplay(), loadPool(), loadDists(), getJSON('/faces_tone.json'), getJSON('/batter_bio.json')]) // bio: heights from the MLB Stats API (science/pull_batter_bio.py)
+  const [parks, R, pool, D, facesRaw, bio, gamesJ] = await Promise.all([loadParks(), loadReplay(), loadPool(), loadDists(), getJSON('/faces_tone.json'), getJSON('/batter_bio.json'), getJSON('/giants_games.json')]) // bio: heights from the MLB Stats API (science/pull_batter_bio.py)
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
   const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99', name: (b) => pname(b.b)?.[0]?.split(' ').slice(-1)[0] ?? '' }); lp.warm(); const se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true, dim: '#8a8f99' })
-  let show = ['lp', 'se', 'rc', 'sm', 'my', 'reel'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
+  let show = ['lp', 'se', 'rc', 'sm', 'my'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
   if (q.get('show') === 'sc') mode = 'shot'
   const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25my', 'my'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
   // the star map is. I don't care about the odds receipt"); KARL comes in only when the forecast says fog, no button
   for (const id of ['#c25sc', '#c25rc', '#c25sm', '#c25kl']) E(id).style.display = 'none'
-  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') ghost?.hide(); if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
+  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
@@ -961,8 +1052,10 @@ export async function build(root, api, U) {
   E('#c25pk').addEventListener('click', () => { pressEl(E('#c25pk')); openMod('parks') })
   const goPark = (abbr) => { const u = new URL(location.href); if (abbr === 'SF') u.searchParams.delete('park'); else u.searchParams.set('park', abbr); u.searchParams.set('mix', mixCode(mix).replace(/ /g, '')); u.searchParams.set('mode25', mode); u.searchParams.set('menu', '0'); if (mode === 'replay') { u.searchParams.set('ball', String(idx)); u.searchParams.set('filter', filter) } else { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) u.searchParams.set('w' + k, String(api.state[k])) } location.href = u.toString() }
   E('#c25bl').addEventListener('click', () => { pressEl(E('#c25bl')); openMod('bulletin') })
-  E('#c25dd').addEventListener('click', () => { pressEl(E('#c25dd')); openMod('dinger') })
   E('#c25ww').addEventListener('click', () => { pressEl(E('#c25ww')); openMod('witness') })
+  const goTab = (m) => { if (!uiReady) return; sound.play('move'); if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (modal) closeMod(); if (m !== mode) setMode(m); paintTabs() }
+  function paintTabs() { const on = modal === 'witness' ? 'witness' : mode; root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
+  root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
   // OFF THE MENU: the pitch was outside the zone (by the ball's edge, so a pitch touching the zone is a strike); where it missed names it
   const offZone = (b) => {
@@ -1008,7 +1101,7 @@ export async function build(root, api, U) {
     } else if (w != null) bar = `<div class="wl"><span>WIN CHANCE</span><b class="${w >= 0 ? 'up' : 'dn'}" title="how much this swing moved the batting team's chance of winning">${w >= 0 ? '+' : '-'}${Math.abs(P(w))}% WPA</b></div>`
     return `<div class="br1"><span class="inn">${b.tb === 'Top' ? '&#9650;' : '&#9660;'}${b.in}</span>${dia}${outs}<span class="cnt">${b.bl ?? '-'}-${b.sk ?? '-'}</span>${score}</div>${bar}`
   }
-  const seenDays = () => { try { return JSON.parse(store('nn-witness') ?? '[]') } catch { return [] } }
+  const seenDays = () => { try { return JSON.parse(store('nn-witness') ?? '[]').map((k) => String(k).slice(0, 10)) } catch { return [] } } // (a doubleheader's game is date#2)
   const big = (b) => { const st = situation(b)?.stamp; return b.hr && (/WALK-OFF|GRAND SLAM/.test(st ?? '') || (st === 'GO-AHEAD' && b.in >= 7)) }
   const filtered = () => (filter === 'big' ? R.balls.filter(big) : filter === 'mine' ? R.balls.filter((b) => b.hr && b.park === 'SF' && seenDays().includes(b.d)) : filter === 'giants' ? R.balls.filter((b) => b.g && b.hr) : filter === 'oracle' ? R.balls.filter((b) => b.park === 'SF' && b.hr) : filter === 'menu' ? R.balls.filter((b) => b.hr && offZone(b)) : R.balls)
 
@@ -1083,10 +1176,12 @@ export async function build(root, api, U) {
     dock.innerHTML = `<div class="dh"><b>OPTIONS</b><span class="bt" data-dk="all" aria-label="every option at once">ALL</span><span class="bt" data-dk="x" aria-label="close the options">X</span></div>
       <div class="dx" style="grid-template-columns:repeat(${Math.min(5, DOCK.length)},minmax(0,1fr))">${DOCK.map((a) => `<span class="bt${a === k ? ' on' : ''}${LAB[a] ? ' lb' : ''}" data-ax="${a}" title="${kName(a)}" aria-label="${kName(a)}">${a}${kVal(a)}</span>`).join('')}</div>
       <div class="da">${kName(k)}<span>${n + 1} OF ${os.length}</span></div>
-      <div class="dl">${os.map((x) => `<div class="do${x.c === kVal(k) ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}"><b>${k}${x.c}</b><span>${k === 'BI' ? nukeSVG(x.c, 1.5, 'var(--tx)') + ' ' : k === 'BC' ? `<i class="sw" style="background:${x.hex}"></i>` : ''}${x.name}</span></div>`).join('')}</div>
+      <div class="dl">${os.map((x) => `<div class="do${x.c === kVal(k) ? ' on' : ''}" data-c="${x.c}" role="button" aria-label="${k}${x.c} ${x.name}" title="${x.name}"><b>${k}${x.c}</b><span>${k === 'BI' ? nukeSVG(x.c, 1.5, 'var(--tx)') + ' ' : k === 'BC' ? `<i class="sw" style="background:${x.hex}"></i>` : ''}${x.name}</span></div>`).join('')}</div>
       <div class="dd">${(o.desc ?? '').toUpperCase()}</div>
       <div class="df">&larr; &rarr; TRY &nbsp; &uarr; &darr; WHAT${SEE[k] ? `<span class="bt" data-dk="see">${SEE[k]}</span>` : ''}</div>`
     dock.querySelectorAll('[data-ax]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); dockTo(b.dataset.ax) }))
+    // (1 Nov, later; an audit) pointing at an option shows what it is before you pick it; the one that is on comes back when you leave
+    { const dd = dock.querySelector('.dd'), own = dd.textContent; dock.querySelectorAll('.do').forEach((d) => { const x = os.find((y) => String(y.c) === d.dataset.c); d.addEventListener('mouseenter', () => { dd.textContent = `${k}${x.c} ${x.name}: ${(x.desc ?? '').toUpperCase()}`; dd.classList.add('pv') }); d.addEventListener('mouseleave', () => { dd.textContent = own; dd.classList.remove('pv') }) }) }
     dock.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { sound.play('move'); kSet(k, Number(b.dataset.c)); dock.focus({ preventScroll: true }) }))
     dock.querySelector('[data-dk="x"]').addEventListener('click', () => toggleDock(false))
     dock.querySelector('[data-dk="all"]').addEventListener('click', () => { toggleDock(false); openMod('mix') })
@@ -1104,7 +1199,7 @@ export async function build(root, api, U) {
   // the dock's own keys while it has focus; anything else falls through to the usual shortcuts
   dock.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || modal || !grid.classList.contains('dk')) return // a closed dock (still holding focus) leaves every key alone
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); e.target.closest?.('[data-c],[data-ax],[data-dk]')?.click(); return }
+    if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest?.('[data-c],[data-ax],[data-dk]'); if (!t) return; e.preventDefault(); e.stopPropagation(); t.click(); return } // (else Space still nukes it)
     const i = DOCK.indexOf(dockAx), n = DOCK.length
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { sound.play('move'); stepAx(dockAx, e.key === 'ArrowRight' ? 1 : -1) }
     else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sound.play('move'); dockTo(DOCK[(i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n]) }
@@ -1136,6 +1231,8 @@ export async function build(root, api, U) {
     syncMode()
     relayout()
     paintChooser()
+    if (uiReady) paintTabs()
+    if (uiReady) paintBug() // (1 Nov, later: a fresh dojo swing has no game; in the dojo nothing else repaints it until a ball flies)
   }
   // the grid for the mode: ns (no number strip along the bottom: the replay, Shot Caller, and the dojo, whose controls sit top left in the pitch's place, dj); the title
   function syncMode() {
@@ -1166,40 +1263,48 @@ export async function build(root, api, U) {
   }
   function backToReplay() { const s = stepped; filter = s.filter; idx = s.idx; setMode('replay'); sound.play('back') }
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser(); sound.play('move') }
+  // the ball's buttons (1 Nov, night: "landing party and seat seance are buttons on specific balls - both in deja vu and dojo")
+  const ballBtns = () => atOracle ? [['lp', 'LANDING PARTY', 'L'], ['se', 'SEAT SEANCE', 'G'], ['my', 'MY SEAT', '']].map(([k, l, key]) => `<span class="bt ball${show === k ? ' on' : ''}" data-show="${k}" title="${l}${key ? ` (${key})` : ''}">${l}</span>`).join('') : ''
+  const wireBall = (el) => el.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => { if (!uiReady) return; pressEl(b); sound.play('move'); setShow(b.dataset.show); paintChooser() }))
+  const nightName = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
   function paintChooser() {
     const el = E('#c25ch')
     if (mode === 'shot') { paintShotBar(el); return }
     if (mode !== 'replay') {
       const sb = stepped ? pname(stepped.b.b) : null
-      el.innerHTML = stepped ? `<div class="r1"><span class="bt" id="c25back">BACK TO THE REPLAY</span><span class="bt" id="c25rst">RESET TO THE REAL BALL</span></div><div class="r2">${tweakLine()}</div>` : `<div class="r2">${tweakLine()}</div>`
+      el.innerHTML = `<div class="r1">${stepped ? '<span class="bt" id="c25back">BACK TO THE REPLAY</span><span class="bt" id="c25rst">RESET TO THE REAL BALL</span>' : ''}${ballBtns()}</div><div class="r2">${tweakLine()}</div>`
+      wireBall(el)
       el.querySelector('#c25rst')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('back'); Object.assign(api.state, stepped.real); api.update(); paintChooser() })
       el.querySelector('#c25back')?.addEventListener('click', () => { pressEl(el.querySelector('#c25back')); backToReplay() })
       return
     }
     const bn = pname(cur?.b), pn = pname(cur?.p)
-    el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="previous ball">&lt;</span><span class="bt" data-st="1" aria-label="next ball">&gt;</span> BALL ${idx + 1} OF ${balls.length}
-      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span></div>
-      <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ?? ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}</div>`
+    const nights = [...new Set(balls.map((b) => b.d))]
+    el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="newer ball" title="newer ([)">&lt;</span><span class="bt" data-st="1" aria-label="older ball" title="older (])">&gt;</span> BALL ${idx + 1} OF ${balls.length} <select id="c25nt" aria-label="go back to a night">${nights.map((d) => `<option value="${d}"${d === cur?.d ? ' selected' : ''}>${nightName(d)}</option>`).join('')}</select>
+      ${[['giants', 'GIANTS HR'], ['oracle', 'ORACLE HR'], ['menu', NAMES.offMenu], ['big', 'BIG ONES'], ...(seenDays().length ? [['mine', 'MY GAMES']] : []), ['all', 'ALL']].map(([k, l]) => `<span class="bt${filter === k ? ' on' : ''}" data-f="${k}">${l}</span>`).join('')}<span class="bt" id="c25rl" title="the walk-offs, grand slams and late go-ahead shots, back to back">REEL</span><span class="bt hot" id="c25tw">${NAMES.tweak}</span>${ballBtns()}</div>
+      <div class="r2"><b>${bn ? bn[0].toUpperCase() : 'BATTER ' + cur?.b}</b> V ${pn ? pn[0].toUpperCase() : 'PITCHER'}  ${cur?.d ? nightName(cur.d) : ''}  ${cur?.park === 'SF' ? 'AT ORACLE' : 'AT ' + (cur?.park ?? '')}${cur?.temp != null ? `  ${Math.round(cur.temp)}°F` : ''}</div>`
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); filter = b.dataset.f; balls = filtered(); idx = 0; applyBall(balls[0]); paintChooser() }))
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
     E('#c25rl').addEventListener('click', () => { pressEl(E('#c25rl')); if (reel) stopReel(); else startReel() })
+    el.querySelector('#c25nt')?.addEventListener('change', (e) => { const i = balls.findIndex((b) => b.d === e.target.value); if (i < 0) return; sound.play('move'); idx = i; applyBall(balls[idx]); paintChooser() })
+    wireBall(el)
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
   // TWEAK THE TATER, made plain (28 Oct, night, Andrew: "really difficult to discern... think through this interface"): the strip is the swing (speed, angle, where it's
   // aimed) and the night (air, wind); each number says how far it is from the real ball; the line over the strip says, in words, what your changes did
   const FIELD = (d) => (Math.abs(d) <= 4 ? 'DEAD CENTER' : `${Math.round(Math.abs(d))}° ${Math.abs(d) >= 38 ? (d < 0 ? 'LF LINE' : 'RF LINE') : Math.abs(d) >= 20 ? (d < 0 ? 'LEFT FIELD' : 'RIGHT FIELD') : d < 0 ? 'LEFT-CENTER' : 'RIGHT-CENTER'}`)
-  const UNIT = { ev: ' MPH', la: '°', temp: '°', wind: ' MPH' }
+  const UNIT = { ev: ' MPH', la: '°', temp: '°F', wind: ' MPH' }
   function slotText(k) {
     const v = api.state[k], r = mode !== 'replay' && stepped?.real ? stepped.real[k] : null, d = r == null ? 0 : Math.round(v - r)
     const xw = api.state.xwind ?? 0, main = k === 'dir' ? FIELD(v) : k === 'wind' ? (v === 0 && !xw ? 'CALM' : `${v ? `${Math.abs(v)} ${v > 0 ? 'OUT' : 'IN'}` : ''}${v && xw ? ' ' : ''}${xw ? `${Math.abs(xw)}${xw > 0 ? 'R' : 'L'}` : ''}`) : `${v}${UNIT[k] ?? ''}`
     return main + (d ? ` <i class="dv">${d > 0 ? '+' : ''}${d}</i>` : '')
   }
   function tweakLine() {
-    if (!stepped?.real) return 'SPEED, ANGLE AND AIM ARE THE SWING; AIR AND WIND ARE THE NIGHT. ENTER TO SWING.'
+    if (!stepped?.real) return 'SPEED, ANGLE AND AIM ARE THE SWING; AIR AND WIND ARE THE NIGHT. SPACE TO NUKE IT.'
     const sb = pname(stepped.b.b), who = (sb ? sb[0] : 'BATTER ' + stepped.b.b).toUpperCase(), s = api.state, R0 = stepped.real
     const ch = [['ev', ' MPH'], ['la', '°'], ['dir', '° OF AIM'], ['temp', '° OF AIR'], ['wind', ' MPH OF WIND']].map(([k, u]) => { const d = s[k] - R0[k], t = Math.abs(d) < 1 ? d.toFixed(1) : String(Math.round(d)); return Math.abs(d) >= 0.05 ? `${d > 0 ? '+' : ''}${t}${u}` : null }).filter(Boolean)
-    if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND SWING.`
+    if (!ch.length) return `${who}'S REAL BALL, ${stepped.b.d}: ${stepped.ft} FT. CHANGE A NUMBER BELOW AND NUKE IT.`
     const fl = window.__dojo ?? api.fly({ ...api.state }, {}), now = Math.round(fl.landFt), dd = now - stepped.ft, gone = fl.verdict?.kind === 'GONE' // (the engine's own last flight, 31 Oct)
     return `${who}, ${stepped.b.d}, WITH ${ch.join(', ')}: <b>${now} FT</b> (${dd >= 0 ? '+' : ''}${dd}), ${gone ? 'STILL GONE' : 'NOT GONE'}${stepped.b.hr && !gone ? '. YOU TOOK AWAY A HOME RUN' : !stepped.b.hr && gone ? '. YOU MADE IT A HOME RUN' : ''}`
   }
@@ -1281,8 +1386,10 @@ export async function build(root, api, U) {
 
   // ---- pop-ups ----
   let iniCancel = null
-  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) sound.play('modal-open'); modal = k; E('#c25m').classList.add('open'); paintModal(); if (k === 'moon') life?.play('moon', {}, 0, true) }
-  const closeMod = () => { if (modal) sound.play('modal-close'); modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null }
+  // (1 Nov, later; an audit) the focus goes into an open window and back where it was when it closes, so Tab and Enter never reach a button behind it
+  let modFrom = null
+  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) { sound.play('modal-open'); modFrom = document.activeElement } modal = k; E('#c25m').classList.add('open'); paintModal(); E('#c25cl')?.focus?.({ preventScroll: true }); if (k === 'moon') life?.play('moon', {}, 0, true); if (uiReady) paintTabs() }
+  const closeMod = () => { if (modal) sound.play('modal-close'); modal = null; E('#c25m').classList.remove('open'); iniCancel?.(); iniCancel = null; if (modFrom?.isConnected) modFrom.focus?.({ preventScroll: true }); modFrom = null; if (uiReady) paintTabs() }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
   function paintModal() {
@@ -1290,8 +1397,8 @@ export async function build(root, api, U) {
     const body = E('#c25mb')
     if (modal === 'mix') {
       E('#c25mt').textContent = '/ O P T I O N S /'
-      body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">LOCKED: ${Object.entries(LOCKED).map(([a, c]) => a + c + ' ' + optOf(a, c).name).join(' · ')}. CLICK AN OPTION TO TRY IT.</div>` + OPEN.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c).map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${o.desc}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
-      body.querySelector('.legend').insertAdjacentHTML('beforeend', `<div><h5 class="lab">THE LAB <span>${labCode()}</span></h5></div>` + Object.entries(LAB).map(([k, a]) => `<div><h5>${k} ${a.name}</h5>${a.opts.map((o) => `<div class="o${lab[k] === o.c ? ' on' : ''}" data-lab="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${k === 'BI' ? nukeSVG(o.c, 2, 'var(--tx)') + ' ' : k === 'BC' ? `<i class="sw" style="background:${o.hex}"></i>` : ''}${o.name}<span>${o.desc}</span></div>`).join('')}</div>`).join(''))
+      body.innerHTML = `<div class="legend"><div class="code num">${mixCode(mix)}</div><div class="fix">LOCKED: ${Object.entries(LOCKED).map(([a, c]) => a + c + ' ' + optOf(a, c).name).join(' · ')}. CLICK AN OPTION TO TRY IT.</div>` + OPEN.map((k) => `<div><h5>${k} ${AXES[k].name}</h5>${AXES[k].opts.filter((o) => !o.hide || mix[k] === o.c).map((o) => `<div class="o${mix[k] === o.c ? ' on' : ''}" data-k="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${o.name}<span>${(o.desc ?? "").toUpperCase()}</span>${o.why && o.c > 1 ? `<em>WHY: ${o.why.toUpperCase()}</em>` : ''}</div>`).join('')}</div>`).join('') + '</div>'
+      body.querySelector('.legend').insertAdjacentHTML('beforeend', `<div><h5 class="lab">THE LAB <span>${labCode()}</span></h5></div>` + Object.entries(LAB).map(([k, a]) => `<div><h5>${k} ${a.name}</h5>${a.opts.map((o) => `<div class="o${lab[k] === o.c ? ' on' : ''}" data-lab="${k}" data-i="${o.c}"><b>${k}${o.c}</b>${k === 'BI' ? nukeSVG(o.c, 2, 'var(--tx)') + ' ' : k === 'BC' ? `<i class="sw" style="background:${o.hex}"></i>` : ''}${o.name}<span>${(o.desc ?? '').toUpperCase()}</span></div>`).join('')}</div>`).join(''))
       body.querySelectorAll('.o[data-lab]').forEach((o) => o.addEventListener('click', (e) => { e.stopImmediatePropagation(); sound.play('move'); setLab(o.dataset.lab, Number(o.dataset.i)); paintModal() }))
       body.querySelectorAll('.o:not([data-lab])').forEach((o) => o.addEventListener('click', () => { mix[o.dataset.k] = Number(o.dataset.i); sound.play('move'); applyMix(o.dataset.k) }))
       return
@@ -1302,19 +1409,33 @@ export async function build(root, api, U) {
     if (modal === 'jukebox') { paintJukebox(body); return }
     if (modal === 'news') { // (30 Oct, night) what is new, and the things you would not find by looking
       E('#c25mt').textContent = "/ W H A T ' S   N E W /"
-      const L = [['NUKE IT', 'ONE BUTTON, BOTTOM RIGHT OF THE PARK IN EVERY MODE (OR SPACE): PLAYS THE REAL ONE, SWINGS YOURS, FLIES THE SHOT CALLER WAYS'],
-        ['THE SIDE MENU (?)', 'ONLY WHAT IS OPEN NOW, AND THE LAB: THE BUTTON\'S ICON AND COLOR, THE DOJO DRAWINGS, THE SLINGSHOT, THE WINDSOCK, THE THERMOMETER, THE PARK TAGS, THE LANDING PARTY MARKS'],
+      const L = [['THE MENU', 'FOUR THINGS NOW: DINGER DÉJÀ-VU, DINGER DOJO, SHOT CALLER, WALLOP WITNESS (DAILY DINGER AND THE GAG REEL ARE GONE; THE GAGS STILL PLAY IN THE PARK)'],
+        ['HOW FAR', 'WHERE A BALL COMES DOWN, ITS FEET IN BIG VOXEL DIGITS OVER THE SPOT'],
+        ['WALLOP WITNESS', 'TICK A GAME WITHIN 72 HOURS OF FIRST PITCH; AFTER THAT IT IS CLOSED'],
+        ['FOUL POLES AND BUBBLES', 'THE FOUL POLES STAND OUT NOW; THE COKE BOTTLE\'S BUBBLES FIZZ OUT OF THE NECK AND POP IN THE AIR'],
+        ['SEAT SEANCE', 'A BALL THAT CLEARS THE LAST ROW IS CALLED PAST THE SEATS, NOT IN ONE'],
+        ['KEYS', 'SPACE NUKE IT · U COPY A LINK TO THIS SWING · [ ] THE BALLS · M DOJO · C SHOT CALLER · X TWEAK IT · L LANDING PARTY · G SEANCE · W WEATHER · B BIRD\'S EYE · Z CAMERA PUSH · S SOUND · J JUKEBOX · A STATS · T TYPE A BALL · ? OPTIONS · BACKSPACE UNDO · 0 A BLANK SWING · ESC MENU'],
+        ['NUKE IT', 'ONE BUTTON, BOTTOM RIGHT OF THE PARK IN EVERY MODE (OR SPACE): PLAYS THE REAL ONE, SWINGS YOURS, FLIES THE SHOT CALLER WAYS; NOW DARK WITH A COLORED EDGE, FINER BOMBS'],
+        ['THE PARK\'S TAGS, QUIETER', 'A SMALLER BOARD, THE CAPTION IN GREY, EACH NUMBER IN ITS POST\'S COLOR (PARK TAGS AND TIE IN THE SIDE MENU)'],
+        ['THE BALL\'S SHADOW', 'A DARK SPOT RUNS OVER THE GRASS, THE WALL AND THE SEATS UNDER THE BALL (BALL SHADOW IN THE SIDE MENU: STRAIGHT DOWN OR A LOW SUN)'],
+        ['NEW IN AND AROUND THE PARK', 'FIVE THINGS THE KAYAKERS IN THE COVE DO ON A SPLASH (ONE IS A DIVE), A HAT DOMINO IN THE ARCADE, A CRAB CROSSING, A HERON ON THE FOUL POLE, THE CLOCK PANICS ON A LONG ONE, THE GLOVE CATCHES THE FOG'],
+        ['THE COKE BOTTLE', 'THREE LOOKS IN THE SIDE MENU: AS IS, LIVING BOTTLE (IT BUBBLES ON A HOME RUN TO LEFT), SODA LANTERN'],
+        ['LANDING PARTY', 'NUMBERED PINS IN THE PARK; POINT AT A PIN FOR ITS FLIGHT (ITS ROW LIGHTS), CLICK IT TO TWEAK IT'],
+        ['PASS IT ON', 'IN THE DOJO, U COPIES A LINK THAT OPENS A FRIEND ON EXACTLY YOUR SWING'],
+        ['UNDO', 'BACKSPACE STEPS BACK THROUGH YOUR DOJO CHANGES; 0 PUTS THE BLANK SWING BACK; A DOUBLE-CLICK ON A 3D HANDLE PUTS THAT ONE BACK'],
+        ['FINE TUNING', 'HOLD ALT WHILE DRAGGING THE SLINGSHOT, THE SOCK OR THE THERMOMETER FOR A TENTH AS MUCH; A WHEEL NOTCH OVER ONE IS ONE MPH OR ONE DEGREE (SHIFT: FIVE)'],
+        ['IN THE PARK', 'THE SLINGSHOT, SOCK AND THERMOMETER KEEP ONE SIZE AT ANY ZOOM; A REAL BALL IN THE BANDS; GIANTS ON THE PENNANT, STRAIGHT OUT; LANDING PARTY AS NUMBERED PINS'],
+        ['THE SIDE MENU (?)', 'THE LAST THREE PICKS: THE SLINGSHOT, THE LANDING NUMBER, THE FOUL POLES'],
         ['DOJO CONTROLS', 'BIG ARCS ON THE LEFT: DRAG THE DRAWINGS; THE SPEED IS A ROADRUNNER ON A RAIL (J IN THE HEADER FOR THE OTHER LAYOUTS)'],
         ['THE PARK\'S TAGS', 'VOXEL AGAIN, ON A LITTLE BOARD, ONE SIZE ON THE SCREEN AT ANY ZOOM, NEVER ON EACH OTHER (FOUR LOOKS IN THE SIDE MENU)'],
         ['A HOME RUN IN A CROSSWIND', 'A BALL CURVING ACROSS INTO A NEARER STRETCH OF WALL NOW COUNTS AS GONE (IT USED TO READ AS IN PLAY)'],
-        ['LANDING PARTY', 'THE SIX NEAREST MARKED WHERE THEY CAME DOWN (FIVE WAYS), ONE LIT AT A TIME, #1 FIRST; POINT AT ANOTHER FOR ITS FLIGHT, CLICK IT TO TWEAK IT'],
         ['SHOT CALLER', 'STARTS CLEAN: PICK A SEAT'], ['FASTER', 'THE DOJO ANSWERS AS YOU DRAG; THE CHARTS AND THE 30 PARKS CATCH UP WHEN YOU STOP'],
         ['NEW GAGS', 'MISSION BURRITO, PARKING BOOT, BISON, POINT TAKEN (GAG REEL)'], ['THE INNING', 'IN THE MENU: A GAME THAT NEVER ENDS; THE ART RUNS EACH SCENE TWICE, THEN ANOTHER'],
         ['STANDS', 'THE LOWER BOWL NOW (V5; MORE IN THE SIDE MENU); A BALL STILL COMES DOWN IN THE SEATS THAT ARE CUT AWAY'],
         ['BAY WATER', 'WIDE AND SLOW, BARELY THERE (B12)'],
         ['CLICK THE SCOREBOARD', 'IN THE PARK: IT PLAYS THE NEXT DODGER GAG'], ['FLOCKED', 'NOW AND THEN THE GULLS CARRY A DODGER FAN OUT OF THE STANDS'],
         ['↑↑↓↓←→←→ B A', 'TRY IT']]
-      body.innerHTML = `<div class="lpl">${L.map(([a, b]) => `<div class="lpr"><b>&middot;</b><span class="nm">${a}</span><span></span><span></span><span class="wh">${b}</span></div>`).join('')}</div>`
+      body.innerHTML = `<div class="lpl">${L.map(([a, b]) => `<div class="lpr nw"><b>&middot;</b><span class="nm">${a}</span><span class="wh">${b}</span></div>`).join('')}</div>`
       return
     }
     if (modal === 'bay') { paintBay(body); return }
@@ -1339,7 +1460,7 @@ export async function build(root, api, U) {
   function paintBefore(body) {
     const b = mode === 'replay' ? cur : stepped?.b, nm = b ? pname(b.b) : null, O = optOf('O', mix.O)
     E('#c25mt').textContent = '/ S T A T S   B E F O R E   T H I S   S H O T /'
-    if (!b) { body.innerHTML = '<div class="lph">PICK A REAL HOME RUN IN DEJA-VU FIRST.</div>'; return }
+    if (!b) { body.innerHTML = `<div class="lph">PICK A REAL HOME RUN IN ${NAMES.replay} FIRST.</div>`; return }
     if (before === undefined) { before = null; getJSON('/before_stats.json').then((d) => { before = d && d.rows ? d : false; if (modal === 'before') paintModal() }); }
     if (!before) { body.innerHTML = `<div class="lph">${before === false ? 'THE STATS ARE NOT BUILT ON THIS MACHINE (SCIENCE/BUILD_BEFORE_STATS.PY).' : 'LOADING...'}</div>`; return }
     const row = before.rows[R.balls.indexOf(b)]
@@ -1477,27 +1598,94 @@ export async function build(root, api, U) {
       <div class="ddb"><span class="bt hot" data-c="1">GONE</span><span class="bt" data-c="0">NOT GONE</span></div></div>`
     body.querySelectorAll('[data-c]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play(x.dataset.c === '1' ? 'pick' : 'back'); st.a.push(x.dataset.c === '1'); store('nn-dd-' + date, JSON.stringify(st)); paintDinger(body) }))
   }
-  // ---- WALLOP WITNESS: tick the Oracle Park games you were at; every home run you saw, the longest, and all of them laid end to end (kept in this browser, nn-witness)
+  // ---- WALLOP WITNESS (1 Nov, night; Andrew: "wallop witness is still the mode and witness stand is the leaderboard"): log the Oracle games you were at, within 72
+  // hours of first pitch, with your seat; what you saw, counted (witness25.js); and the WITNESS STAND, everyone's counts ranked, with the season's titles on top.
+  // Shared through the Pages Function when it is there (functions/api/witness.js); in this browser only when it is not.
   let lib = null
   loadLibrary().then((l) => { lib = l }).catch(() => {})
-  const oracleHR = R.balls.filter((b) => b.park === 'SF' && b.hr)
-  const gamesAt = [...new Set(oracleHR.map((b) => b.d))].sort().reverse()
+  const wstore = witnessStore()
+  let wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = ''
+  const G = (gamesJ?.games ?? [])
+  const wNow = () => (q.get('now') ? Date.parse(q.get('now')) : Date.now())
+  const wOpen = (k) => windowOpen(k, G, wNow())
+  const hrsAt = new Map()
+  for (const b of R.balls) if (b.park === 'SF' && b.hr) hrsAt.set(String(b.gm), (hrsAt.get(String(b.gm)) ?? 0) + 1)
+  // each home run flown once, for its zenith and where it came down (the altitude and the golf game's closest)
+  const wFlown = new Map(), wSeatAt = new Map()
+  const flownOf = (b) => { const k = `${b.gm}|${b.ev}|${b.la}|${b.dir}`; if (!wFlown.has(k)) { const r = api.fly({ ...api.state, ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false }, {}); wFlown.set(k, { peak: r.peakFt, at: api.findLanding?.(r.path)?.point ?? null }) } return wFlown.get(k) }
+  const seatWorld = (s) => { const k = `${s.sec}|${s.row}|${s.seat}`; if (!wSeatAt.has(k)) { const r = se.seatPoint(s.sec, s.row, s.seat); wSeatAt.set(k, r.err ? null : r.at) } return wSeatAt.get(k) }
+  const wOpts = { name: (id) => pname(id)?.[0] ?? null, peakFt: (b) => flownOf(b).peak, distToSeat: (b, s) => { if (s.row == null) return null; const a = flownOf(b).at, p = seatWorld(s); return a && p ? Math.hypot(a.x - p.x, a.z - p.z) / 0.3048 : null } }
+  const wSeason = () => String(Math.max(...G.filter((g) => Date.parse(g.start ?? g.d) <= wNow()).map((g) => Number(g.d.slice(0, 4))), 2023))
+  const wFmt = (n) => Math.round(n).toLocaleString('en-US'), wPct = (x) => (x == null ? '--' : `${Math.round(x * 100)}%`)
+  const shortDate = (d) => new Date(d.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
   function paintWitness(body) {
     E('#c25mt').textContent = '/ W A L L O P   W I T N E S S /'
-    let seen = []
-    try { seen = JSON.parse(store('nn-witness') ?? '[]') } catch {}
-    const mine = oracleHR.filter((b) => seen.includes(b.d)).sort((a, b) => b.ft - a.ft)
-    const feet = mine.reduce((s, b) => s + b.ft, 0)
-    let phrase = ''
-    if (lib && feet) { const p = pick(lib, 'length', feet * 0.3048, mulberry32(feet)); if (p) phrase = 'LAID END TO END: ' + p.phrase.toUpperCase() }
+    if (!wData) { wData = wstore.load().then((d) => { wData = d }).catch(() => { wData = { me: wstore.local(), all: [], shared: false } }).finally(() => { if (modal === 'witness') paintWitness(E('#c25mb')) }) }
+    if (wData instanceof Promise) { body.innerHTML = '<div class="bay">OPENING THE BOOKS...</div>'; return }
+    const me = { name: '', days: [], seats: {}, ...wData.me }
+    const tabs = `<div class="wtabs"><span class="bt${wTab === 'mine' ? ' on' : ''}" data-wt="mine">YOUR GAMES</span><span class="bt${wTab === 'stand' ? ' on' : ''}" data-wt="stand">THE WITNESS STAND</span></div>`
+    body.innerHTML = `<div class="bul ww">${tabs}${wTab === 'stand' ? standHTML(me) : mineHTML(me)}</div>`
+    body.querySelectorAll('[data-wt]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wTab = x.dataset.wt; wMsg = ''; paintWitness(body) }))
+    if (wTab === 'stand') { body.querySelectorAll('[data-bd]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wBoard = x.dataset.bd; paintWitness(body) })); return }
+    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); const r = await wstore.save(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'COULD NOT SAVE THAT. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
+    body.querySelectorAll('.wd').forEach((x) => x.addEventListener('click', () => {
+      const k = x.dataset.d
+      if (me.days.includes(k)) { pressEl(x); sound.play('back'); const seats = { ...me.seats }; delete seats[k]; wAsk = null; save({ ...me, days: me.days.filter((y) => y !== k), seats }, 'TAKEN OFF') ; return }
+      if (!wOpen(k)) { pressEl(x); sound.play('thud'); wMsg = 'THAT ONE CLOSED 72 HOURS AFTER FIRST PITCH'; paintWitness(body); return }
+      pressEl(x); sound.play('pick'); wAsk = k; wMsg = ''; paintWitness(body); body.querySelector('#c25wsec')?.focus()
+    }))
+    const nm = body.querySelector('#c25wnm')
+    nm?.addEventListener('change', () => { const name = nm.value.toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').slice(0, 20).trim(); save({ ...me, name }, name ? 'ON THE STAND AS ' + name : 'NAME CLEARED') })
+    body.querySelector('#c25wno')?.addEventListener('click', () => { wAsk = null; sound.play('back'); paintWitness(body) })
+    const go = () => {
+      const sec = body.querySelector('#c25wsec').value.trim(), row = body.querySelector('#c25wrow').value.trim().toUpperCase(), seat = body.querySelector('#c25wst').value.trim()
+      const r = se.seatPoint(sec, row, Number(seat))
+      if (r.err) { wMsg = r.err; sound.play('thud'); paintWitness(body); return }
+      const k = wAsk; wAsk = null; sound.play('pick')
+      save({ ...me, days: [...me.days, k], seats: { ...me.seats, [k]: { sec: r.sec, row: r.row, seat: r.seat } } }, `LOGGED: SEC ${r.sec} ROW ${r.row} SEAT ${r.seat}`)
+    }
+    body.querySelector('#c25wgo')?.addEventListener('click', go)
+    body.querySelectorAll('.wask input').forEach((x) => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } if (e.key === 'Escape') { wAsk = null; paintWitness(body) } }))
+  }
+  // YOUR GAMES: what you saw, then every home game since July 2023 by month; the open ones (inside their 72 hours) outlined, a click logs one and asks for the seat
+  function mineHTML(me) {
+    const s = witnessStats(G, R.balls, me, wOpts), openNow = openKeys(G, wNow())
+    const row = (l, v, sub = '') => `<div class="wst"><span>${l}</span><b>${v}</b>${sub ? `<i>${sub}</i>` : ''}</div>`
+    const nameOf = (x) => (x?.name ?? (x ? 'BATTER ' + x.b : '')).toUpperCase()
+    const stats = s.games ? `<div class="wsg">
+      ${row('GAMES', s.games, `${s.wins} W · ${s.losses} L`)}
+      ${row('THE JINX', wPct(s.winPct), `THE GIANTS AT HOME: ${wPct(s.theirPct)}${s.jinx != null ? ` · ${s.jinx >= 0 ? '+' : ''}${Math.round(s.jinx * 100)} POINTS WITH YOU THERE` : ''}`)}
+      ${row('MARGIN', `+${s.winRuns} / -${s.lossRuns}`, 'RUNS WON BY, RUNS LOST BY')}
+      ${row('GIANTS WALLOPS', s.giantsHR, `${s.allHR} HOME RUNS IN ALL`)}
+      ${row('FOOT-I-TUDE', wFmt(s.footitude) + ' FT', `${wFmt(s.giantsFeet)} FT OF IT GIANTS`)}
+      ${s.altitude ? row('ALTITUDE', `${s.altitude.coit.toFixed(1)} COIT TOWERS`, `${s.altitude.twinPeaks.toFixed(2)} TWIN PEAKS, STACKED`) : ''}
+      ${s.longest ? row('LONGEST', s.longest.ft + ' FT', nameOf(s.longest)) : ''}
+      ${s.shortest ? row('SHORTEST', s.shortest.ft + ' FT', nameOf(s.shortest)) : ''}
+      ${s.closest ? row('CLOSEST TO YOUR SEAT', s.closest.away + ' FT', nameOf(s.closest)) : ''}
+      ${s.hours != null ? row('HOURS AT ORACLE', s.hours.toFixed(1)) : ''}
+      ${row('EXTRA INNINGS', s.extra)}${row('WALK-OFFS', s.walkoffs)}
+      ${s.yourGuy ? row('YOUR GUY', nameOf(s.yourGuy), `${s.yourGuy.n} HOME RUN${s.yourGuy.n === 1 ? '' : 'S'} IN FRONT OF YOU`) : ''}
+      ${s.topEv ? row('TOP EXIT SPEED', s.topEv.mph + ' MPH', nameOf(s.topEv)) : ''}</div>` : '<div class="dds">NOTHING LOGGED YET.</div>'
+    const ask = wAsk ? `<div class="wask"><b>${shortDate(wAsk)}: WHERE WERE YOU SITTING?</b> <label>SEC <input id="c25wsec" inputmode="numeric" maxlength="4" size="4"></label> <label>ROW <input id="c25wrow" maxlength="3" size="3"></label> <label>SEAT <input id="c25wst" inputmode="numeric" maxlength="3" size="3"></label> <span class="bt" id="c25wgo">LOG IT</span><span class="bt" id="c25wno">NOT THIS ONE</span></div>` : ''
     const byMonth = {}
-    for (const d of gamesAt) (byMonth[d.slice(0, 7)] ??= []).push(d)
-    const n = (d) => oracleHR.filter((b) => b.d === d).length
-    body.innerHTML = `<div class="bul"><div class="bulh">TICK THE ORACLE PARK GAMES YOU WERE AT (EVERY GAME WITH A HOME RUN SINCE JULY 2023)</div>
-      <div class="wsum"><div class="ddbig num">${mine.length} HOME RUN${mine.length === 1 ? '' : 'S'} SEEN</div>
-      <div class="dds">${mine.length ? `${feet.toLocaleString()} FT IN ALL. LONGEST: ${(pname(mine[0].b)?.[0] ?? 'BATTER ' + mine[0].b).toUpperCase()}, ${mine[0].ft} FT ON ${mine[0].d}.` : 'NONE YET.'}</div>${phrase ? `<div class="dds">${phrase}</div>` : ''}</div>
-      <div class="wgrid">${Object.entries(byMonth).map(([m, ds]) => `<div class="wm"><span>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</span><div>${ds.map((d) => `<span class="bt wd${seen.includes(d) ? ' on' : ''}" data-d="${d}" title="${n(d)} HOME RUN${n(d) === 1 ? '' : 'S'}">${Number(d.slice(8))}<sup>${n(d)}</sup></span>`).join('')}</div></div>`).join('')}</div></div>`
-    body.querySelectorAll('.wd').forEach((x) => x.addEventListener('click', () => { const d = x.dataset.d; seen = seen.includes(d) ? seen.filter((y) => y !== d) : [...seen, d]; store('nn-witness', JSON.stringify(seen)); sound.play('move'); paintWitness(body) }))
+    for (const g of [...G].sort((a, b) => b.d.localeCompare(a.d) || b.dh - a.dh)) (byMonth[g.d.slice(0, 7)] ??= []).push(g)
+    const cal = Object.entries(byMonth).map(([m, gs]) => `<div class="wm"><span>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</span><div>${gs.map((g) => { const k = gameKey(g), n = hrsAt.get(String(g.pk)) ?? 0, on = me.days.includes(k) || me.days.includes(g.d), op = wOpen(k); return `<span class="bt wd${on ? ' on' : ''}${op ? ' open' : ' shut'}${wAsk === k ? ' ask' : ''}" data-d="${k}" title="${g.win ? 'W' : 'L'} ${g.sf}-${g.opp_r} V ${g.opp}${g.dh ? ' (GAME ' + g.dh + ')' : ''}${n ? ` · ${n} HOME RUN${n === 1 ? '' : 'S'}` : ''}${op ? ' · OPEN NOW' : ''}">${Number(g.d.slice(8))}${g.dh ? '<u>' + g.dh + '</u>' : ''}${n ? `<sup>${n}</sup>` : ''}</span>` }).join('')}</div></div>`).join('')
+    return `<div class="bulh">LOG A GAME WITHIN 72 HOURS OF FIRST PITCH. ${openNow.length ? `OPEN NOW: ${openNow.map(shortDate).join(', ')}.` : 'NOTHING IS OPEN RIGHT NOW: THE NEXT HOME GAME OPENS AT FIRST PITCH.'}</div>
+      <div class="wme"><label>YOUR NAME ON THE STAND <input id="c25wnm" maxlength="20" value="${(me.name ?? '').replace(/"/g, '')}" placeholder="NAME"></label>${wData.shared ? '' : '<i>KEPT IN THIS BROWSER FOR NOW</i>'}</div>
+      ${ask}${wMsg ? `<div class="wmsg">${wMsg}</div>` : ''}${stats}<div class="wgrid">${cal}</div>`
+  }
+  // THE WITNESS STAND: one board at a time, everyone on it; the season's titles across the top (who holds each right now; Andrew hands them out at the end)
+  function standHTML(me) {
+    const season = wSeason()
+    const people = (wData.all?.length ? wData.all : [{ ...me, name: me.name || 'YOU' }]).map((p) => ({ name: (p.name || 'NO NAME').toUpperCase(), entry: p }))
+    const all = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, wOpts) })), now = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, { ...wOpts, season }) }))
+    const titles = TROPHIES.map((t) => { const b = BOARDS.find((x) => x.key === t.board), top = rankBoard(b, now)[0]; return `<div class="wtt"><b>${t.names[0]}</b><span>${top ? `${top.name} · ${wFmt(top.value)}${b.unit ? ' ' + b.unit : ''}` : 'UP FOR GRABS'}</span></div>` }).join('')
+    const board = BOARDS.find((b) => b.key === wBoard) ?? BOARDS[0], ranked = rankBoard(board, all)
+    const val = (v) => (board.pct ? `${v >= 0 ? '+' : ''}${Math.round(v * 100)}` : board.key === 'altitude' ? v.toFixed(1) : wFmt(v)) + (board.unit ? ' ' + board.unit : board.pct ? ' POINTS' : '')
+    return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts">${titles}</div>
+      <div class="wbds">${BOARDS.filter((b) => b.key !== 'hours' || all.some((p) => p.stats.hours != null)).map((b) => `<span class="bt${b.key === board.key ? ' on' : ''}" data-bd="${b.key}">${b.title}</span>`).join('')}</div>
+      <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b>${r.name}</b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
+      ${wData.shared ? '' : '<div class="dds">THE STAND FILLS UP ONCE IT IS SHARED; FOR NOW IT IS ONLY YOU.</div>'}`
   }
   function statCols(res) {
     const s = api.state, b = cur, v = res.verdict, bn = b ? pname(b.b) : null, pn = b ? pname(b.p) : null, o = odds()
@@ -1513,51 +1701,64 @@ export async function build(root, api, U) {
   }
 
   // ---- the SELECT menu (Esc or MENU opens it) and attract mode (idle on the menu: the park replays the longest home runs behind it) ----
+  // (1 Nov, later; an audit) the ball you were on comes back when the menu closes: attract mode used to leave you on a random long one, maybe mid-flight
+  let attractFrom = null
   const attract = () => {
     if (mode !== 'replay' || !balls.length || reduced) return
+    attractFrom ??= { idx, filter }
     const long = balls.map((b, i) => [b, i]).filter(([b]) => b.ft >= 420)
     const [b, i] = long.length ? long[Math.floor(Math.random() * long.length)] : [balls[0], 0]
     idx = i; applyBall(b); paintChooser()
-    setTimeout(() => api.fire(), 300)
+    setTimeout(() => { if (mode === 'replay' && attractFrom) api.fire() }, 300)
   }
+  const unAttract = () => { const a = attractFrom; attractFrom = null; if (!a || mode !== 'replay') return; filter = a.filter; balls = filtered(); idx = Math.min(a.idx, balls.length - 1); if (balls[idx]) { applyBall(balls[idx]); paintChooser() } }
   // the menu (28 Oct, night, Andrew: "many of these are superfluous"): five lines. Moonshot and the Bay Barometer became the fun line under the distance, Thirty Parks is
   // GONE IN N PARKS (click it) and the PARK button, Blast Bulletin is Daily Dinger's results page, the highlight reel is the REEL button by PLAY IT, the jukebox is J
+  // 1 Nov, evening (Andrew: "kill daily dinger ... no more options, no more gag reel, it's just dinger deja vu, dinger dojo, shot caller, wallop witness"): the four, and
+  // WHAT'S NEW; the gags still play in the park and on a scoreboard click
   menu = selectMenu(grid, [
     { k: 'replay', name: NAMES.replay, hero: true, blurb: 'WATCH A REAL GIANTS HOME RUN FLY AGAIN', run: () => setMode('replay') },
     { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT ONE YOURSELF: PICK THE SPEED, THE ANGLE AND THE AIM, THEN NUKE IT', run: () => setMode('whatif') },
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, CLICKED OR TYPED: EVERY SWING THAT PUTS A BALL THERE', run: () => setMode('shot'), off: () => !atOracle },
-    { k: 'dinger', name: 'DAILY DINGER', blurb: "CALL YESTERDAY'S FIVE CLOSEST BALLS, THEN SEE EVERY HOME RUN FROM THE NIGHT", run: () => openMod('dinger') },
-    { k: 'witness', name: 'WALLOP WITNESS', blurb: 'TICK THE GAMES YOU WERE AT, SEE WHAT YOU SAW', run: () => openMod('witness') },
-    { k: 'options', name: 'OPTIONS', blurb: 'EVERY CHOICE IN A SMALL PANEL OVER THE PARK, THE LOCKED ONES TOO: A LOCKED ONE CHANGED LASTS UNTIL YOU RELOAD (?)', run: () => toggleDock(true) },
-    { k: 'news', name: "WHAT'S NEW", blurb: 'THE LATEST ADDITIONS, AND THE THINGS YOU WOULD NOT FIND BY LOOKING', run: () => openMod('news') },
-    { k: 'reel', name: 'GAG REEL', blurb: 'EVERY DODGER GAG ON THE SCOREBOARD, EACH WITH ITS OWN PLAY BUTTON, AND PLAY ALL', run: () => { if (mode === 'shot') setMode('replay'); if (show !== 'reel') setShow('reel') } },
-  ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
+    { k: 'witness', name: NAMES.witness, blurb: 'LOG THE GAMES YOU WERE AT, SEE WHAT YOU SAW, AND THE WITNESS STAND', run: () => goTab('witness') },
+  ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { unAttract(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
-  const menuKey = () => (mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
+  const menuKey = () => (modal === 'witness' ? 'witness' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
   const openMenu = (el) => { if (el) pressEl(el); sound.play('pick'); menu.show(menuKey()) }
   E('#c25mn').addEventListener('click', () => openMenu(E('#c25mn')))
+  // (1 Nov, later; an audit) each button with a key says it when you point at it
+  for (const [id, k] of [['#c25lp', 'L'], ['#c25se', 'G'], ['#c25b', 'B'], ['#c25sc', 'C'], ['#c25nk', 'SPACE']]) { const el = E(id); if (el && !el.title) el.title = `${el.textContent.replace(/\s+/g, ' ').trim()} (${k})` }
   E('#c25ti').addEventListener('click', () => openMenu(null))
 
   addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || !uiReady || e.target?.closest?.('input,select,textarea')) return // typing a seat is not a shortcut
-    if (!atOracle && 'lgcnwkLGCNWK'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
-    if (e.key === 'Escape') { if (modal) closeMod(); else { sound.play('back'); menu.show(menuKey()) } }
+    if (e.repeat && !'[],.'.includes(e.key)) return // (1 Nov, later) a held key is one press, except stepping through the balls
+    if (!atOracle && 'lgcnwkLGCNWK3'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
+    if (/^[1-4]$/.test(e.key) && modal && !e.repeat) { goTab(TABS[Number(e.key) - 1][0]); return }
+    if (e.key === 'Escape') { if (modal) closeMod(); else if (grid.classList.contains('dk')) toggleDock(false); else { sound.play('back'); menu.show(menuKey()) } } // (the side menu closes before the menu opens)
     else if (modal) return
+    else if (e.key === 'Backspace' && mode !== 'replay' && mode !== 'shot') { e.preventDefault(); const s0 = undo.pop(); if (!s0) { banner('NOTHING TO UNDO', 'BACKSPACE STEPS BACK THROUGH YOUR CHANGES'); return } undoing = true; Object.assign(api.state, s0); api.update(); ctl.onChange(); undoing = false; settled = snap(); banner('UNDONE', undo.length ? `${undo.length} MORE TO GO BACK` : 'BACK TO WHERE YOU STARTED') }
+    else if (e.key === '0' && mode === 'whatif' && !stepped) { if (settled) undo.push(settled); undoing = true; Object.assign(api.state, DOJO0); api.update(); ctl.onChange(); undoing = false; settled = snap(); banner('A BLANK SWING', 'BACKSPACE TO UNDO') }
     else if (e.key === ']' || e.key === '.') { e.preventDefault(); step(1) } else if (e.key === '[' || e.key === ',') { e.preventDefault(); step(-1) } else if (e.key === 'b' || e.key === 'B') flipBird()
     else if (e.key === 'm' || e.key === 'M') setMode(mode === 'replay' ? 'whatif' : 'replay')
     else if ((e.key === 'a' || e.key === 'A') && (cur || stepped)) openMod('before')
     else if (e.key === '?') toggleDock()
     else if (e.key === 't' || e.key === 'T') openMod('type')
-    else if (e.key === 'l' || e.key === 'L') setShow('lp')
-    else if (e.key === 'g' || e.key === 'G') setShow('se')
-    else if (e.key === 'w' || e.key === 'W') openMod('bay')
+    else if (e.key === 'l' || e.key === 'L') { if (mode === 'shot') setMode('replay'); setShow('lp') } // (as the header buttons do: Shot Caller has no panels of its own)
+    else if (e.key === 'g' || e.key === 'G') { if (mode === 'shot') setMode('replay'); setShow('se') }
+    else if (/^[1-4]$/.test(e.key)) goTab(TABS[Number(e.key) - 1][0])
     else if (e.key === 'c' || e.key === 'C') setMode(mode === 'shot' ? 'replay' : 'shot')
-    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); sound.play('move') }
+    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); sound.play('move'); banner(sound.on() ? 'SOUND ON' : 'SOUND OFF', 'S TO SWITCH') }
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
-    else if (e.key === 'n' || e.key === 'N') setShow('sm')
     else if (e.key === 'z' || e.key === 'Z') { mix.Z = mix.Z === 2 ? 1 : 2; sound.play('move'); applyMix('Z'); banner(mix.Z === 2 ? 'PUSH ON' : 'PUSH OFF', 'THE CAMERA ' + (mix.Z === 2 ? 'EASES TO THE LANDING' : 'STAYS PUT') + ' (Z)') }
     else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
     else if (e.key === 'j' || e.key === 'J') openMod('jukebox')
+    else if ((e.key === 'u' || e.key === 'U') && mode === 'whatif') {
+      const s = api.state, u = new URL(location.href); for (const k of [...u.searchParams.keys()]) if (k !== 't') u.searchParams.delete(k)
+      u.searchParams.set('swing', [s.ev, s.la, s.dir, s.temp, s.wind, s.xwind ?? 0].map((x) => Math.round(x)).join('.'))
+      const done = () => banner('LINK COPIED', 'SEND IT: IT OPENS ON THIS SWING'), miss = () => { history.replaceState(null, '', u); banner('THE LINK IS IN THE ADDRESS BAR', 'COPY IT FROM THERE') }
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(u.href).then(done, miss); else miss()
+    }
   })
   api.setPreview(true)
 
@@ -1617,9 +1818,13 @@ export async function build(root, api, U) {
     }
     const ym = null
     const name = bat ? bat[0] : cur ? 'BATTER ' + cur.b : ym ? ym.name : 'YOUR SWING'
-    E('#c25i').innerHTML = `<b>${name.toUpperCase()}</b><span>${bat?.[1] ? '#' + bat[1] + ' · ' : ym ? '#' + ym.num + ' · ' : ''}${ym ? (youHand() > 0 ? 'R' : 'L') + ' · ' + ym.why : hand}</span>
-      ${id ? '<div class="row"><span class="bt" id="c25bs" title="everything he had done this season up to this swing">STATS BEFORE THIS SHOT</span></div>' : ''}`
-    E('#c25bs')?.addEventListener('click', () => { pressEl(E('#c25bs')); openMod('before') })
+    // (1 Nov, later; an audit) written only when it changes: rewritten on every beat, the STATS button was swapped out under the pointer mid-flight and lost clicks
+    const info = `<b>${name.toUpperCase()}</b><span>${bat?.[1] ? '#' + bat[1] + ' · ' : ym ? '#' + ym.num + ' · ' : ''}${ym ? (youHand() > 0 ? 'R' : 'L') + ' · ' + ym.why : hand}</span>
+      ${id ? '<div class="row"><span class="bt" id="c25bs" title="everything they had done this season up to this swing (A)">STATS BEFORE THIS SHOT</span></div>' : ''}`
+    if (info !== E('#c25i')._html) {
+      E('#c25i').innerHTML = E('#c25i')._html = info
+      E('#c25bs')?.addEventListener('click', () => { pressEl(E('#c25bs')); openMod('before') })
+    }
   }
   // CONTACT, SIDE ON
   function paintSide() {
@@ -1733,7 +1938,7 @@ export async function build(root, api, U) {
         lookAt([seRes.at], Math.max(12, seRes.most * 0.3048))
         ghost?.show(seRes.at, seRes.call, cs.getPropertyValue('--acc').trim())
         const sc0 = seRes.call, flying = !!api.anim?.() && !api.anim().exploded
-        if (!flying) { if (sc0.what === 'seat') life?.show('SEC ' + sc0.sec, `ROW ${sc0.row} SEAT ${sc0.seat}`); else life?.show(sc0.short) } // the board calls the seat too
+        if (!flying) { if (sc0.what === 'seat') life?.show('SEC ' + sc0.sec, `ROW ${sc0.row} SEAT ${sc0.seat}`); else life?.show(sc0.short); life?.idle(sc0.what === 'seat' ? `SEC ${sc0.sec}  ·  ROW ${sc0.row} SEAT ${sc0.seat}` : sc0.short) } // the board calls the seat too
         paintSeance(last)
       }, window.__fixedTime !== undefined ? 0 : 450)
     }
@@ -1761,11 +1966,11 @@ export async function build(root, api, U) {
       if (hb.querySelector('.sfm')) return // built once, so typing is never interrupted
       hb.innerHTML = `<div class="sfm"><div class="hd">WHERE DO YOU SIT?</div>
         <label>SECTION<select id="c25ms">${se.SECTIONS.map((x) => `<option value="${x[2]}">${x[2]} · ${x[3]}</option>`).join('')}</select></label>
-        <label>ROW<input id="c25mr" maxlength="2" autocomplete="off" spellcheck="false" aria-label="row"></label><label>SEAT<input id="c25mt" maxlength="2" inputmode="numeric" autocomplete="off" aria-label="seat"></label>
-        <span class="bt hot" id="c25mg" role="button" tabindex="0">THAT'S MY SEAT</span><div class="sfn" id="c25mn"></div>
+        <label>ROW<input id="c25mr" maxlength="2" autocomplete="off" spellcheck="false" aria-label="row"></label><label>SEAT<input id="c25sx" maxlength="2" inputmode="numeric" autocomplete="off" aria-label="seat"></label>
+        <span class="bt hot" id="c25mg" role="button" tabindex="0">THAT'S MY SEAT</span><div class="sfn" id="c25myn"></div>
         <div class="sfo">OR CLICK IT IN THE PARK. KEPT ON THIS DEVICE ONLY.</div></div>`
-      E('#c25ms').value = me?.sec ?? '140'; if (me) { E('#c25mr').value = me.row; E('#c25mt').value = me.seat }
-      const go = () => { const r = se.seatPoint(E('#c25ms').value, E('#c25mr').value, E('#c25mt').value); E('#c25mn').textContent = r.err ?? ''; if (r.err) { sound.play('back'); return } mySave(r) }
+      E('#c25ms').value = me?.sec ?? '140'; if (me) { E('#c25mr').value = me.row; E('#c25sx').value = me.seat }
+      const go = () => { const r = se.seatPoint(E('#c25ms').value, E('#c25mr').value, E('#c25sx').value); E('#c25myn').textContent = r.err ?? ''; if (r.err) { sound.play('back'); return } mySave(r) }
       E('#c25mg').addEventListener('click', (e) => { pressEl(e.currentTarget); go() })
       E('#c25mg').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } })
       hb.querySelectorAll('input,select').forEach((x) => x.addEventListener('keydown', (e) => { if (e.key === 'Escape') { x.blur(); return } e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } }))
@@ -1995,8 +2200,10 @@ export async function build(root, api, U) {
     hb._fr = f; hb._sc = r; hb._n = mix.N
     if (side) {
       side.innerHTML = '<div class="lph">THE MOST COMMON WAYS IN. DRAG ALONG THE CHART ON THE RIGHT, CLICK A SQUARE, OR USE THE ARROW KEYS ON IT.</div>' + r.ways.slice(0, 4).map((w, i) => `<div class="swy${w === sel ? ' on' : ''}" data-w="${i}" role="button"><b>${i + 1}</b><span>${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</span><i>${one(w.w)}</i></div>`).join('') +
-        '<div class="lph cl" style="margin-top:6px">CLOSEST REAL ORACLE HOME RUNS</div>' + r.near.slice(0, 3).map((n) => { const nm = pname(n.b.b); return `<div class="lpr2"><span>${(nm ? nm[0] : 'BATTER ' + n.b.b).toUpperCase()} ${n.b.d}</span><b>${Math.round(n.d / 0.3048)} FT AWAY</b></div>` }).join('')
+        '<div class="lph cl" style="margin-top:6px">CLOSEST REAL ORACLE HOME RUNS</div>' + r.near.slice(0, 3).map((n, i) => { const nm = pname(n.b.b); return `<div class="lpr2 go" data-near="${i}" role="button" tabindex="0" title="PLAY IT IN ${NAMES.replay}"><span>${(nm ? nm[0] : 'BATTER ' + n.b.b).toUpperCase()} ${n.b.d}</span><b>${Math.round(n.d / 0.3048)} FT AWAY</b></div>` }).join('')
       side.querySelectorAll('.swy').forEach((x) => x.addEventListener('click', () => { sound.play('move'); stopShot(); pickWay(Number(x.dataset.w)) }))
+      // (1 Nov, later; an audit) a real home run near your seat plays in DEJA-VU, as the ones in MY SEAT do
+      side.querySelectorAll('[data-near]').forEach((row) => { const go = () => { const b = r.near[Number(row.dataset.near)]?.b; if (!b) return; sound.play('pick'); stopShot(); setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.indexOf(b); if (i >= 0) { idx = i; applyBall(b); paintChooser(); play() } }; row.addEventListener('click', go); row.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); go() } }) })
       // a short panel drops the real home runs first, then the ways from the bottom
       const pl = E('#c25pl'), over = () => pl.scrollHeight > pl.clientHeight + 1
       const drop = (q) => { for (const x of [...side.querySelectorAll(q)].reverse()) { if (!over()) return; x.remove() } }
@@ -2123,12 +2330,13 @@ export async function build(root, api, U) {
     return o
   }
   function render(res) {
+    if (!burst) settled = snap()
     last = res
     if (ctl3d) { ctl3d.visible = mode === 'whatif'; ctl3d.sync(api.state) }
     if (windFx) { const k = mode === 'whatif' ? `${api.state.wind},${api.state.xwind ?? 0}` : 'tonight'; if (k !== windKey) { windKey = k; if (mode === 'whatif') windFx.setField({ wind: api.state.wind, xwind: api.state.xwind ?? 0 }); else tonightWind() } } // the socks show the dojo's wind, or tonight's
     paintHead(res)
     paintPanel(res)
-    paintBatter(); paintSide(); paintPitch(); paintSlots(); paintTally(); paintVerdict(false); paintBug(); if (['parks', 'moon', 'before', 'mix'].includes(modal)) paintModal() // (red team: the data modals were rebuilt on every beat, eating clicks)
+    paintBatter(); paintSide(); paintPitch(); paintSlots(); paintTally(); paintVerdict(false); paintBug(); if (['parks', 'moon', 'before'].includes(modal)) paintModal() // (red team: the data modals were rebuilt on every beat, eating clicks)
   }
   // the bug shows for a real ball as it happened, and in the dojo for a home run brought over with TWEAK THE TATER (its game); a fresh dojo swing has no game
   function paintBug() {
@@ -2156,7 +2364,9 @@ export async function build(root, api, U) {
   }
 
   // ---- effects and sound: hit-stop, contact spark and flash, trail, fireworks on a home run, the Cove splash and its kayaks, Karl's fog ----
-  const colors = () => { const cs = getComputedStyle(root), gs = getComputedStyle(grid); return { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), pc: gs.getPropertyValue('--pc').trim(), mk: gs.getPropertyValue('--mk').trim(), sc: gs.getPropertyValue('--sc').trim() } }
+  // (1 Nov, later; an audit) the board and the effects ask for these a dozen times a second; two style reads each time, so they keep for a quarter second
+  let colC = null, colAt = 0
+  const colors = () => { const now = performance.now(); if (colC && now - colAt < 250) return colC; colAt = now; const cs = getComputedStyle(root), gs = getComputedStyle(grid); return colC = { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), pc: gs.getPropertyValue('--pc').trim(), mk: gs.getPropertyValue('--mk').trim(), sc: gs.getPropertyValue('--sc').trim() } }
   let splashes = Number(store('nn-splash25') ?? 0) || 0
   let bannerT = 0
   const banner = (big, small) => { sound.play('banner'); const b = E('#c25bn'); b.innerHTML = `${big}${small ? `<i>${small}</i>` : ''}`; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('go'), 2600) } // the class comes off on a timer too: reduced motion drops the fade that used to hide it
@@ -2165,6 +2375,9 @@ export async function build(root, api, U) {
   life = atOracle ? initPark25(api, colors, { still: reduced, gullFace: mix.W, signStyle: mix.Q, boardStyle: mix.G }) : null
   if (life) for (const b of [life.board, life.vboard, life.vsign]) if (b) keepReadable(api, b, 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the 3D tags keep off the scoreboard and the sign (30 Oct)
   if (atOracle) coke = await initCoke25(api, { style: mix.C, still: reduced }).catch((e) => { console.warn('Coke corner', e); return null }) // (red team: a bad file used to stop everything after it)
+  coke?.setLook?.(lab.CB)
+  // the glove catches a bit of Karl now and then while the fog is in (1 Nov, later: GPT red team II C4, his pick)
+  if (coke && !reduced) setInterval(() => { if (fx?.karlOn?.() && !coke.grabbing() && !(window.__cp.anim?.() && !window.__cp.anim().exploded) && Math.random() < 0.5) coke.fogGrab() }, 40000)
   const diamond = initDiamond25(api) // the infield in voxels: dirt, grass, chalk, the raised mound, the bases and the plate (29 Oct, later; all voxel 30 Oct). Before the cut, which uses it
   // the model's own sign, clock and arch and its own bottle and glove are cut out of it (29 Oct, evening, Andrew: "you can still see the old oracle park lettering
   // and clock behind the new voxel ones - let's delete those"; "kill the wireframe beneath both the coke bottle and mitt"); the voxel ones stand in their place.
@@ -2179,18 +2392,34 @@ export async function build(root, api, U) {
   flight = initFlight25(api, colors); flight.setStyle(mix.U)
   ghost = initGhost25(api, { still: reduced }) // SEAT SEANCE's ghost
   // the dojo's controls in the park (30 Oct: LA1 protractor, DR1 spray fan, EV1 slingshot, the wind rose); they set the same numbers as the typed boxes and sliders
-  { const cs = cs0(); ctl3d = initControls25(api, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), words: { dir: FIELD }, set: (ch) => { markInput(); Object.assign(api.state, ch); api.update() }, fire: () => fire(), sound: (k) => sound.play(k), enabled: () => mode === 'whatif' && !modal }) }
+  const shadow = initShadow25(api)
+  // LANDING PARTY's pins in the park answer the pointer like the list does (1 Nov, later: "still think this interface needs help"): point at a pin for its flight,
+  // and its row lights; click it to take it into TWEAK THE TATER
+  { const cv = api.NN.renderer?.domElement; let hov = null
+    cv?.addEventListener('pointermove', (e) => { if (show !== 'lp' || e.buttons) { if (hov) { hov = null; cv.style.cursor = '' } return } const k = lp.pick(e.clientX, e.clientY); if (k === hov) return; hov = k; lp.focus(k); document.querySelectorAll('#c25hb .lpr').forEach((r) => r.classList.toggle('pt', Number(r.dataset.n) === k)); cv.style.cursor = k ? 'pointer' : '' })
+    // (1 Nov, later; an audit) the park says what a click does: a crosshair in SHOT CALLER (pick a seat), a hand over the scoreboard (the next gag) in DEJA-VU (not in
+    // the dojo, where the 3D controls own the cursor); a few times a second
+    let curAt = 0
+    cv?.addEventListener('pointermove', (e) => { if (e.buttons || hov || performance.now() - curAt < 90) return; curAt = performance.now(); const want = mode === 'shot' ? 'crosshair' : atOracle && life && mode === 'replay' && boardHit(e) ? 'pointer' : ''; if (cv.style.cursor !== want && (want || cv.style.cursor === 'crosshair' || cv.style.cursor === 'pointer')) cv.style.cursor = want })
+    cv?.addEventListener('click', (e) => { if (show !== 'lp') return; const k = lp.pick(e.clientX, e.clientY), x = k && lpList?.[k - 1]; if (x) { e.stopImmediatePropagation(); tweakBall(x.b) } }, true)
+  }
+  { const cs = cs0(); ctl3d = initControls25(api, { acc: cs.getPropertyValue('--acc').trim(), tx: cs.getPropertyValue('--tx').trim(), dim: cs.getPropertyValue('--dim').trim(), seam: () => optOf('Y', mix.Y).col, home: () => (mode === 'whatif' && stepped?.real) || DOJO0, words: { dir: FIELD }, set: (ch) => { markInput(); Object.assign(api.state, ch); api.update(); ctl.onChange() }, fire: () => fire(), sound: (k) => sound.play(k), enabled: () => mode === 'whatif' && !modal }) }
   // the wind (30 Oct, Andrew: "Is the wind slightly horizontal? If so I need to know that somehow"): windsocks on the foul poles, the sign's pennants and faint air
   // streams over the field show tonight's forecast wind at Oracle (shown, not flown); in the dojo they show the wind you set, which is flown, across as well as out
   windFx = atOracle ? initWind25(api, { still: reduced, onChange: (w) => { if (life) life.wind = w && { ...w, cfDeg: window.__cp.ORACLE_AZ ?? 85 } } }) : null
   tonightWind = () => { if (windFx) Promise.resolve(getBay()).then((j) => { const H = j?.hourly; if (!H || mode === 'whatif') return; const now = new Date().toLocaleString('sv-SE', { timeZone: 'America/Los_Angeles' }).slice(0, 13).replace(' ', 'T'); const i = Math.max(0, H.time.findIndex((t) => t.startsWith(now))); windFx.set({ mph: H.wind_speed_10m[i], fromDeg: H.wind_direction_10m[i] }) }) }
   tonightWind()
   const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, gull: life ? () => life.makeGull() : null }) : null // the blimp, the ferry, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count
+  // voxel foul poles (poles25.js); during HERON its own bending pole stands in for the right one
+  const poles = atOracle ? initPoles25(api, { look: lab.FP, hideRight: () => happen?.active?.() === 'heron' }) : null
   if (happen?.splashSign?.()) keepReadable(api, happen.splashSign(), 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the tags keep off the Splash Hits sign too
-  window.__cpTrack = (pts, res, color, prev) => flight.track(pts, res, color, prev); window.__cpNoApex = true
+  // (1 Nov, later; an audit) a new preview while a ball is up cuts its flight short: the engine stops calling __cpOnFly and __cpOnLand, so the shadow, the whoosh, the
+  // leaning crowd and the board's TRACKING are put away here (the board only while it says TRACKING: a Seance call or a gag stays)
+  let flying = false
+  window.__cpTrack = (pts, res, color, prev) => { if (prev && flying) { flying = false; shadow.hide(); sound.cancel(); if (/TRACKING/.test(life?.text?.() ?? '')) { if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } else life?.idle('DINGER DOJO') } } return flight.track(pts, res, color, prev) }; window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
-  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, oracle: atOracle })
+  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0 })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
@@ -2317,13 +2546,13 @@ export async function build(root, api, U) {
     reel.t.push(setTimeout(() => { if (reel) { reel.mine = true; api.fire() } }, 900))
   }
   function stopReel() { if (reel) for (const t of reel.t) clearTimeout(t); reel = null }
-  addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') stopReel() }, true)
+  addEventListener('keydown', (e) => { if (reel && e.key === 'Escape') { stopReel(); e.stopPropagation() } }, true) // (one Esc, one thing: it used to stop the reel and open the menu)
   addEventListener('pointerdown', (e) => { if (reel && onPark(e)) stopReel() })
   let fires = 0
   const voxBall = (bm) => { const v0 = bm.userData.vox; if (v0?.isObject3D) { if (v0.parent !== bm) bm.add(v0); bm.material.visible = false; return } if (v0) return; bm.userData.vox = 1; loadModels(api.NN.THREE).then((M) => { if (!M.ball) return; const v = cloneModel(M.ball, 2.0 / 0.42 / 0.09); v.traverse((o) => { if (o.isMesh && o.material.color.r > 0.5 && o.material.color.g < 0.35) o.userData.seam = true }); bm.add(v); bm.material.visible = false; bm.userData.vox = v; paintSeams() }) }
   // the voxel ball's stitches take the E color too
   function paintSeams() { const v = api.ballMesh?.()?.userData.vox; if (!v?.isObject3D) return; const c = colors().sc || '#e4002b'; v.traverse((o) => { if (o.userData.seam) o.material.color.set(c) }) }
-  window.__cpOnFire = (ev) => {
+  window.__cpOnFire = (ev) => { flying = true
     fires++
     clearTimeout(songT); if (autoSong) { jukebox.stop(); autoSong = false }
     endPush()
@@ -2333,20 +2562,26 @@ export async function build(root, api, U) {
     life?.clear()
     life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
-    sound.play('crack', { ev: api.state.ev }); sound.swing(api.state.ev) // the whoosh follows the ball; the crowd leans in
+    if (mode === 'replay' && !edited) sound.play('crack', { ev: api.state.ev }); else sound.nuke(api.state.ev) // a real ball has its real crack; your own come off the launch deck (1 Nov, night)
+    sound.swing(api.state.ev) // the whoosh follows the ball; the crowd leans in
   }
-  window.__cpOnFly = (pos, fr) => { flight.reveal(fr); sound.fly(pos); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
+  window.__cpOnFly = (pos, fr) => { if (!flying) return; flight.reveal(fr); if (fr < 0.995) shadow.at(pos); else shadow.hide(); sound.fly(pos); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
   let lands = 0
   window.__cpOnLand = (ev) => {
-    flight.done()
+    flying = false; flight.done(); shadow.hide()
     lands++
     const ft = Math.round(window.__dojo?.landFt ?? 0), hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(ev.key)
+    // (1 Nov, later: GPT red team II, his picks) the clock over the board panics on a very long one; the living bottle bubbles on one toward left
+    if (hr && ft >= 440) life?.clockPanic?.()
+    if (hr && ev.at && ev.at.x < -20) coke?.bubble?.()
     sound.land(ev, { ft }) // the crowd: a roar sized by distance, a groan off the wall, the foghorn on a splash, CHARGE! on the organ
     if (reel?.mine) { reel.mine = false; reel.i++; reel.t.push(setTimeout(reelNext, 2600)) }
+    const hap = happen?.onLand?.(ev) // the hat domino on an arcade home run; a splash sets off one of the Cove's five acts (fx25.js)
     fx.land(ev)
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
-    lastMoment = mix.F === 1 && show !== 'se' ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
+    if (hap) moments.clear?.() // (1 Nov, night: one landing show at a time; a happening that came with the landing has the spot)
+    lastMoment = mix.F === 1 && show !== 'se' && !hap ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
     if (life) boardFor(ev, hr, ft)
     camPush(ev.at)
     if (atOracle && ev.at && lastMoment !== 'mitt' && ev.at.x > -75 && ev.at.x < -40 && ev.at.z > -150 && ev.at.z < -118) { fx.bonk(ev.at); banner('BOTTLE BONK', 'OFF THE COKE CORNER'); sound.play('thud') }
@@ -2386,16 +2621,21 @@ export async function build(root, api, U) {
   if (mode === 'whatif' && q.get('wev')) { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) if (q.get('w' + k) != null) api.state[k] = Number(q.get('w' + k)); api.update() }
   const wantBat = q.get('bat')
   if (wantBat && R.balls.length) { filter = 'all'; balls = R.balls.filter((b) => String(b.b) === wantBat); idx = 0; if (balls.length) { mode = 'replay'; applyBall(balls[0]); paintChooser() } }
+  // PASS IT ON (1 Nov, later): U copies a link that opens a friend's dojo on exactly this swing (?swing=speed.angle.aim.air.wind.crosswind), and the link opens
+  // straight onto it
+  const swingQ = q.get('swing')?.split('.').map(Number)
+  if (swingQ?.length >= 2 && swingQ.every(Number.isFinite)) { const [ev, la, dir = 0, temp = 62, wind = 0, xwind = 0] = swingQ, cl = (x, a, b) => Math.max(a, Math.min(b, Math.round(x))); setMode('whatif'); Object.assign(api.state, { ev: cl(ev, 60, 125), la: cl(la, -10, 60), dir: cl(dir, -50, 50), temp: cl(temp, 40, 100), wind: cl(wind, -20, 20), xwind: cl(xwind, -20, 20) }); api.update(); setTimeout(() => banner('A SWING SENT TO YOU', 'NUKE IT (SPACE)'), 1500) }
   const wantMod = q.get('mod')
   if (wantMod) setTimeout(() => openMod(wantMod), 1200)
-  if (q.get('menu') !== '0' && !wantMod) menu.show(menuKey())
+  if (q.get('menu') !== '0' && !wantMod && !swingQ) menu.show(menuKey()) // (a swing sent to you opens on it, not the menu)
   uiReady = true
+  paintTabs()
   // the lab applied: the button's icon and color now; the controls' looks join below as they are built
-  const labHooks = [() => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => lp.setStyle(lab.LP)]
-  applyLab = (k) => { const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5); grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#5dff3a') } for (const f of labHooks) f(k) }
+  const labHooks = [() => flight.setLand(lab.LN), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
+  applyLab = (k) => { const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
-    fun: () => [...fun.list], flight: () => flight, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
+  window.__mix25 = { openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+    fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }
   return {
