@@ -53,6 +53,7 @@ import { initShadow25 } from './shadow25.js'
 import { initMySeat25 } from './myseat25.js'
 import { initMoments25 } from './moments25.js'
 import { initImpact25, IMPACTS, COVES } from './impact25.js'
+import { initTouches25 } from './touches25.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
@@ -481,7 +482,7 @@ const LAYOUT_CSS = `
   const noBat = L.areas.map((row, r) => row.split(' ').map((a, c) => (a === 'batter' ? L.areas[r + 1]?.split(' ')[c] ?? L.areas[r - 1]?.split(' ')[c] ?? a : a)).join(' '))
   return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}#cp .c25.L${n}.wi.ns,#cp .c25.L${n}.shot{grid-template-areas:${q(noBat)}}}`
 }).join('\n') + '\n@media (min-width:900px){#cp .c25.wi .pnl.batter,#cp .c25.shot .pnl.batter{display:none}}'
-  + `\n@media (min-width:900px){#cp .c25.cmp.L1{grid-template-columns:clamp(226px,17.5vw,380px) minmax(0,1fr) clamp(240px,18.5vw,420px)}#cp .c25.cmp.L2{grid-template-columns:clamp(240px,18.5vw,420px) minmax(0,1fr) clamp(226px,17.5vw,380px)}#cp .c25.c25.cmp{inset:6px;gap:8px}}` // (2 Nov, night: COMPACT) // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
+  + `\n@media (min-width:900px){#cp .c25.cmp.L1{grid-template-columns:clamp(236px,18vw,380px) minmax(0,1fr) clamp(262px,19vw,420px)}#cp .c25.cmp.L2{grid-template-columns:clamp(262px,19vw,420px) minmax(0,1fr) clamp(262px,18vw,380px)}#cp .c25.c25.cmp{inset:6px;gap:8px}}` // (2 Nov, night: COMPACT) // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
 const FRAME_CSS = `
 #cp .c25 .pnl{overflow:visible}
 #cp .c25.P1 .pnl>.t{top:-6px}
@@ -1064,7 +1065,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); E('#c25b').textContent = k === 'top' ? "BIRD'S EYE: ON" : "BIRD'S EYE"; if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req) lookAt(req.pts, req.rad) } // a look under way starts again from the new seat
+  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); E('#c25b').textContent = k === 'top' ? "BIRD'S EYE: ON" : "BIRD'S EYE"; if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req?.seat) lookSeat(req.seat); else if (req?.pts) lookAt(req.pts, req.rad) } // (2 Nov, night: the seat look, Shot Caller) // a look under way starts again from the new seat
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -2066,6 +2067,9 @@ export async function build(root, api, U) {
   // MY SEAT in the shared panel (30 Oct, idea 3): your seat, typed once or clicked in the park and kept on this device, and the real home runs that came down
   // within 10 ft of it (myseat25.js); with none that close, the five closest. Click one to fly it
   const mySeat = initMySeat25(api, R.balls)
+  // (2 Nov, night: YOUR FLAG) your seat flies your WALLOP WITNESS emblem while MY SEAT shows it
+  let touches = null
+  { const show0 = mySeat.show, clear0 = mySeat.clear; mySeat.show = (at, ...a) => { show0(at, ...a); touches?.flag(at, wstore.local().emblem) }; mySeat.clear = () => { clear0(); touches?.flag(null) } }
   let myKey = '', myRes = null, myEdit = false
   const mySaved = () => { try { return JSON.parse(store('nn-myseat25') || 'null') } catch { return null } }
   const mySave = (x) => { store('nn-myseat25', JSON.stringify({ sec: x.sec, row: x.row, seat: x.seat })); myEdit = false; myKey = ''; sound.play('pick'); if (last) render(last) }
@@ -2578,6 +2582,9 @@ export async function build(root, api, U) {
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
   // (2 Nov, later: no words when the ball lands, "we don't need that set dressing"; the moments still play)
   const impact = initImpact25(api, colors)
+  touches = initTouches25(api, { sound: (k, a) => sound.play(k, a), makeGull: () => life?.makeGull?.() })
+  // POINTING AT A SEAT: Shot Caller's pointer, a raycast at most every 70 ms
+  { let pT = 0; addEventListener('pointermove', (e) => { if (mode !== 'shot' || !onPark(e)) { touches.hoverSeat(null); return } const n = performance.now(); if (n - pT < 70) return; pT = n; const p = sc.pick(e.clientX, e.clientY); touches.hoverSeat(p, p && seatOf(p), cs0().getPropertyValue('--acc').trim()) }) }
   const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner: null, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0 })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
@@ -2738,6 +2745,8 @@ export async function build(root, api, U) {
   }
   window.__cpOnFly = (pos, fr) => { if (!flying) return; flight.reveal(fr, pos); if (fr < 0.995) shadow.at(pos); else shadow.hide(); sound.fly(pos); const v = api.ballMesh?.()?.userData.vox; if (v?.rotation && fr < 0.97) v.rotation.x -= 0.35 }
   let lands = 0
+  // (2 Nov, night: nice touches) the count-up's Geiger clicks, never two in 28 ms; the cube knocked off a big number, landing
+  { let gT = 0; window.__cpGeiger = () => { const n = performance.now(); if (n - gT < 28) return; gT = n; sound.play('geiger', { vol: 0.6 }) }; window.__cpChipSnd = () => sound.play('chip', { vol: 0.7 }) }
   window.__cpOnLand = (ev) => {
     flying = false; flight.done(); shadow.hide(); quietUntil = performance.now() + 1800
     lands++
@@ -2752,6 +2761,8 @@ export async function build(root, api, U) {
     const diverNow = ev.key === 'SPLASH' && atOracle && (lab.CV === 2 || (lab.CV === 3 && Math.random() < 1 / 3)), hap = hap0 || (diverNow ? 'diver' : null)
     fx.land(ev, { noAct: diverNow })
     impact.land(ev, { impact: lab.LI, diver: diverNow })
+    // THE GULL ON THE NUMBER: about one landing in three, a few seconds after it settles (with the gulls on)
+    if (mix.F !== 3 && !diverNow) { const ld = flight.last()?.userData.ld; setTimeout(() => { if (ld && flight.last()?.userData.ld === ld && Math.random() < (window.__cpGullOdds ?? 1 / 3)) touches.gull(ld) }, 3200) }
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
     if (hap) moments.clear?.() // (1 Nov, night: one landing show at a time; a happening that came with the landing has the spot)
@@ -2810,7 +2821,7 @@ export async function build(root, api, U) {
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
   applyLab = (k) => { if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { colors: () => colors(), impact: () => impact, sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+  window.__mix25 = { colors: () => colors(), impact: () => impact, touches: () => touches, sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }

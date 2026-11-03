@@ -131,6 +131,11 @@ R.crack = (K, o) => {
 R.contact = R.crack
 R.mitt = (K) => { K.noise(K.t, 0.06, { type: 'lowpass', f: 1500 }, 0.25); K.tone('sine', 180, K.t, 0.08, 0.12, 90) }
 R.thud = (K) => { K.tone('sine', 110, K.t, 0.18, 0.12, 55); K.noise(K.t, 0.08, { type: 'lowpass', f: 500 }, 0.05) }
+// (2 Nov, night: nice touches) a Geiger counter's click as the count-up runs past the wall (GEIGER, NUKE IT's green); a gull's beak on the voxel number; a digit's cube
+// knocked off a big number, landing
+R.geiger = (K) => { K.noise(K.t, 0.005, { type: 'highpass', f: 2800 }, 0.11); K.tone('square', 3400 + Math.random() * 600, K.t, 0.003, 0.012) }
+R.peck = (K) => { K.tone('triangle', 2400, K.t, 0.02, 0.05, 1900); K.noise(K.t, 0.01, { type: 'highpass', f: 3500 }, 0.04) }
+R.chip = (K) => { K.tone('triangle', 900, K.t, 0.05, 0.06, 600); K.tone('triangle', 700, K.t + 0.16, 0.04, 0.03, 500) }
 R.launch = (K) => K.noise(K.t, 0.7, { type: 'bandpass', f: 500, q: 3 }, 0.03, 2400, 0.25)
 R.pop = (K) => { K.noise(K.t, 0.12, { type: 'lowpass', f: 1800 }, 0.12); K.tone('sine', 140, K.t, 0.2, 0.08, 50); for (let i = 0; i < 6; i++) K.noise(K.t + 0.12 + Math.random() * 0.5, 0.03, { type: 'highpass', f: 3000 }, 0.03) }
 R.crowd = (K) => K.noise(K.t, 2.6, { type: 'bandpass', f: 900, q: 0.5 }, 0.045, 700, 0.45)

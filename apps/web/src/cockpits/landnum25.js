@@ -13,6 +13,10 @@
 //   CLEAR OF THE ARC: settled, it tries a few spots round the one in front of the landing and keeps the first whose box on the screen no part of the flight crosses
 //   THE DIP: on a splash hit it comes down into the Cove, sinks to its middle, comes up wet (bluer) and dripping, and climbs out to its spot, drying as it goes
 //   THE OVERSHOOT: about one landing in six it counts past the feet by a few and ticks back down
+// 2 Nov, night (Andrew: "attention to detail things that make users say 'wow that's a nice touch' ... surprise me"):
+//   GEIGER: past the wall the count-up ticks like a Geiger counter (o.geiger, a click every few feet, faster the farther it goes), and it pops once as it heats up
+//   404: a 404 ft landing scrambles its digits for a moment before it settles     A CHIP: a 450 ft one knocks a cube off a digit, which tumbles down past the stake
+//   TOUCH: settled, it wobbles when the pointer passes over it, and a click counts it up again
 import { VOX_FONT, voxCells, voxText, voxPost, keepReadable, readable } from './vox25.js'
 
 export const LAND_LOOKS = [
@@ -25,7 +29,7 @@ export const LAND_LOOKS = [
 // so whatever happens at the landing is behind it. (Drawing it over the park with no depth test fails: the park's ink pass outlines what is behind it on top.)
 const DEEP = 3, RIDE = 5, LIFT = 4, FRONT = 12 // a deep digit; how far over the ball it rides, how far up and toward the camera it settles (m)
 const WET = '#5fd3ff' // the Cove's spray (fx25.js)
-const live = new Set()
+const live = new Set(), hover = new Set(), chips = []
 let hooked = false
 const shown = (g) => { for (let p = g; p; p = p.parent) if (!p.visible) return false; return true }
 const ease = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u))
@@ -107,15 +111,20 @@ export function landNumber(api, o) {
     const now = performance.now(), fixed = window.__fixedTime !== undefined
     const odds = window.__cpOverOdds ?? (navigator.webdriver ? 0 : 1 / 6)
     const overBy = !fixed && Math.random() < odds ? 3 + Math.floor(Math.random() * 9) : 0
-    plan = { t0: now, list: spots(), i: 0, best: null, wait: 0, dip: !!o.splash && !fixed, overBy, ticked: 0, wetUntil: 0 }
+    plan = { t0: now, list: spots(), i: 0, best: null, wait: 0, dip: !!o.splash && !fixed, overBy: ft === 404 ? 0 : overBy, ticked: 0, wetUntil: 0, glitch: ft === 404 && !fixed, chip: ft >= 450 && !fixed }
     outer.userData.settled = now
     if (plan.dip) { place(at.clone().add(new THREE.Vector3(0, LIFT, 0))); build(ft, hotC(), null); return } // THE DIP plays first (tick)
     place(plan.list[0]); build(ft + overBy, hotC(), null); staked(plan.list[0])
   }
+  let heatT = 0, clickN = 0, gap = 6
+  const geiger = (n, far) => { if (n - clickN < gap) return; clickN = n; gap = far ? 1 + Math.random() * 3 : 2 + Math.random() * 7; o.geiger?.() }
   const ride = (n, pos, hot, up) => {
     if (outer.userData.settled) return
     place(o.spot ? at.clone().add(new THREE.Vector3(0, LIFT, 0)) : pos.clone().add(new THREE.Vector3(0, RIDE, 0)))
-    build(Math.max(0, Math.round(n)), hot ? o.hot : o.cool, o.spot || up == null ? null : Math.max(0, Math.round(up)))
+    const m = Math.max(0, Math.round(n))
+    if (hot && !heatT) { heatT = performance.now(); clickN = m }
+    if (hot) geiger(m, m >= 430)
+    build(m, hot ? o.hot : o.cool, o.spot || up == null ? null : Math.max(0, Math.round(up)))
   }
   ride(0, o.from ?? at, false, 0)
   outer.userData.isTag = true
@@ -149,7 +158,9 @@ export function landNumber(api, o) {
   let lastT = 0
   outer.userData.tick = (now) => {
     const dt = Math.min(0.05, lastT ? (now - lastT) / 1000 : 0.016); lastT = now
-    if (!shown(outer) || !outer.userData.settled || !plan) return
+    if (!shown(outer)) return
+    if (!outer.userData.settled) { const h = heatT ? (now - heatT) / 1000 : 9; inner.scale.setScalar(h < 0.28 ? 1 + 0.18 * Math.sin((h / 0.28) * Math.PI) : 1); return }
+    if (!plan) return
     const P = plan, t = (now - P.t0) / 1000
     if (P.dip) {
       P.dip0 = true
@@ -164,8 +175,13 @@ export function landNumber(api, o) {
       return
     }
     if (drips) dripTick((now - P.t0) / 1000 + 1.4, dt)
-    // the pop (on the spot it took), then drying off after the dip
-    inner.scale.setScalar(t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1)
+    // the pop (on the spot it took), then drying off after the dip; a touch wobbles it (squash and stretch, three bounces)
+    const wt = P.wob ? (now - P.wob) / 1000 : 9, wob = wt < 0.6 ? Math.sin(wt * 26) * 0.12 * (1 - wt / 0.6) : 0
+    inner.scale.set(t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1 - wob * 0.5, t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1 + wob, 1)
+    if (P.chip && t > 0.12) { P.chip = false; chipOff() }
+    if (P.glitch) { if (t < 0.7) { if (!P.gl || now - P.gl > 60) { P.gl = now; build(100 + Math.floor(Math.random() * 900), hotC(), null) } return } P.glitch = false; o.geiger?.() }
+    // a click counts it up again (0.8 s, the Geiger with it past the wall's feet)
+    if (P.recount) { const u = Math.min(1, (now - P.recount) / 800), n = Math.round(ft * (1 - (1 - u) ** 3)); if (o.gone && n >= (o.wallFt ?? 330)) geiger(n, n >= 430); build(n, o.gone && n >= (o.wallFt ?? 330) ? hotC() : o.cool, null); if (u < 1) return; P.recount = 0; P.t0 = now - 400 }
     const wetK = P.wetUntil ? Math.max(0, (P.wetUntil - now) / 4200) * 0.55 : 0
     // THE OVERSHOOT: hold a beat past the feet, then a foot at a time back down
     let n = ft
@@ -189,13 +205,43 @@ export function landNumber(api, o) {
     if (best && best.i !== P.i) { P.i = best.i; place(P.list[P.i]); staked(P.list[P.i]) }
     P.done = true
   }
+  // A CHIP: one cube off the top of the first digit, knocked loose, tumbling down past the stake to the landing and lying there a moment
+  function chipOff() {
+    if (!outer.parent || !num) return
+    const sc = outer.scale.x || 1, R = new THREE.Vector3(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize()
+    const p = outer.getWorldPosition(new THREE.Vector3()).addScaledVector(R, -num.userData.width * 0.38 * sc).add(new THREE.Vector3(0, px * 6.5 * sc, 0))
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: hex(hotC()), flatShading: true, fog: false })); m.scale.setScalar(px * sc); m.position.copy(p); outer.parent.add(m)
+    const v = R.clone().multiplyScalar(-3).add(new THREE.Vector3(0, 6, 0)), floor = at.y + px * sc * 0.5
+    let t = 0, last = performance.now(), bounced = false
+    chips.push(() => {
+      const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt
+      v.y -= 24 * dt; m.position.addScaledVector(v, dt); m.rotation.x += 7 * dt; m.rotation.z += 4 * dt
+      if (m.position.y < floor) { m.position.y = floor; if (!bounced) { bounced = true; o.chip?.() } v.multiplyScalar(0.3); v.y = Math.abs(v.y) * 0.4 }
+      if (t > 3.2 || !outer.parent) { m.parent?.remove(m); m.geometry.dispose(); m.material.dispose(); return false }
+      return true
+    })
+  }
+  g.userData.touch = () => { if (plan && !plan.dip && plan.done !== undefined) plan.wob = performance.now() }
+  g.userData.recount = () => { if (plan && !plan.dip && !plan.glitch) { plan.recount = performance.now(); clickN = 0 } }
+  g.userData.rect = () => (outer.userData.settled && shown(outer) ? outer.userData.read?.rect ?? null : null)
+  // for the touches (touches25.js): the top of the number in the world, its width and scale, the camera's right
+  g.userData.perch = () => { const sc = outer.scale.x || 1, p = outer.getWorldPosition(new THREE.Vector3()); return { top: p.clone().add(new THREE.Vector3(0, px * 7 * sc * (inner.scale.y || 1), 0)), w: (num?.userData.width ?? 10) * sc, sc, R: new THREE.Vector3(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize(), live: !!outer.parent && shown(outer) && !!outer.userData.settled && !plan?.dip } }
+  hover.add(g)
   live.add(outer)
   if (!hooked) {
     hooked = true
     api.NN.frames.push(() => {
       const now = performance.now()
       for (const n of live) { let r = n; while (r.parent) r = r.parent; if (r !== api.NN.scene && n.userData.seen) { live.delete(n); continue } if (r === api.NN.scene) n.userData.seen = true; n.userData.tick(now) }
+      for (let i = chips.length - 1; i >= 0; i--) if (!chips[i]()) chips.splice(i, 1)
     })
+    // TOUCH: the pointer over a settled number wobbles it; a click on it (a press and a let-go that barely moved) counts it up again
+    const at = (e) => { const cv = api.NN.renderer?.domElement; if (!cv) return null; const r = cv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1] }
+    const under = (e) => { const q = at(e); if (!q) return null; for (const g of hover) { if (!g.parent) { hover.delete(g); continue } const r = g.userData.rect(); if (r && q[0] > r.x0 && q[0] < r.x1 && q[1] > r.y0 && q[1] < r.y1) return g } return null }
+    let over = null, down = null
+    addEventListener('pointermove', (e) => { const g = under(e); if (g && g !== over) g.userData.touch(); over = g }, true)
+    addEventListener('pointerdown', (e) => { down = e.button === 0 ? { x: e.clientX, y: e.clientY, g: under(e) } : null }, true)
+    addEventListener('pointerup', (e) => { if (down?.g && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && under(e) === down.g) down.g.userData.recount(); down = null }, true)
   }
   return g
 }

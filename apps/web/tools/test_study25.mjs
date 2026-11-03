@@ -18,7 +18,7 @@ async function open(w, h, qs = '', ctxOpts = null) {
   const page = ctx ? await ctx.newPage() : await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 })
   page.on('pageerror', (e) => errs.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')))
   await page.route('**/api.open-meteo.com/**', FIX)
-  await page.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7${qs}${/[?&]ir=/.test(qs) ? "" : "&ir=0"}`)
+  await page.goto(`${base}/?mode=dojo&ui=K&cp=25&seed=7${qs}${/[?&]ir=/.test(qs) ? "" : "&ir=0"}${/[?&]lab=/.test(qs) ? "" : "&lab=CV1"}`) // (2 Nov, night: THE COVE pinned to the kayaks; EITHER sends the diver one splash in three)
   await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 })
   await page.waitForTimeout(2500)
   page._ctx = ctx
@@ -456,6 +456,15 @@ if (!process.env.PHONE_ONLY && on('C')) {
   check('the new seat moments build: GULL GRAB, GOOD BOY, BEER SHOWER', nm.gull >= 1 && nm.dog >= 1 && nm.beer >= 1 && nm.log.join() === 'gull,dog,beer', JSON.stringify(nm))
   await page.waitForTimeout(3600)
   check('a splash hit: the Cove answers it (the kayakers when they are out, the sea lion when not)', s2.key !== 'SPLASH' || s2.moment === 'cove' || (s2.moment === 'seal' && s2.boxes.some((b) => b.on)), JSON.stringify(s2))
+  // (2 Nov, night) THE COVE on THE SCUBA DIVER: the same splash sends the diver, and no sea lion
+  if (s2.key === 'SPLASH') {
+    await page.evaluate(() => window.__mix25.lab('CV', 2)); await page.waitForTimeout(3000)
+    const d0 = await page.evaluate(() => window.__mix25.impact().count().diver)
+    const s3 = await swing({ ev: 116, la: 28, dir: 24, hand: -1, temp: 70, wind: 0 })
+    const d1 = await page.evaluate(() => window.__mix25.impact().count().diver)
+    check('THE COVE: THE SCUBA DIVER comes up for a splash hit, and the sea lion stays down', s3.key !== 'SPLASH' || (d1 === d0 + 1 && s3.moment !== 'seal'), JSON.stringify({ d0, d1, moment: s3.moment }))
+    await page.evaluate(() => window.__mix25.lab('CV', 1)); await page.waitForTimeout(3000)
+  }
   // (30 Oct: the board plays Dodger gags and nothing else)
   const onlyGags = () => page.evaluate(() => { const L = window.__mix25.life, g = L.gags(); return [...L.played(), L.anim(), ...L.queued()].filter((n) => n && !g.includes(n)) })
   await page.waitForTimeout(3000)

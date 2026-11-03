@@ -118,7 +118,7 @@ export function initFlight25(api, colors) {
       const end = toWorld(src[src.length - 1].p), lp = res.landing?.point ?? end, base = lp.clone(); base.y = Math.max(base.y, ground)
       const gone = v.kind === 'GONE', over = gone && v.wallFt ? src.findIndex((s) => Math.hypot(s.p[0], s.p[1]) / FT >= v.wallFt) : -1
       // 2 Nov, later (Andrew: "pitch color until it's gone, after which I want to see both orange and the nuke color"): COUNT-UP COLOR, 1 ORANGE or 2 GEIGER
-      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: c.pc || c.tx, hot: landCol === 2 ? c.nk || c.acc : c.acc, up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3, avoid: at(1.5), splash: res.landing?.kind === 'SPLASH' }) // (2 Nov, night: it keeps off the arc; a splash takes a dip)
+      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: c.pc || c.tx, hot: landCol === 2 ? c.nk || c.acc : c.acc, up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3, avoid: at(1.5), splash: res.landing?.kind === 'SPLASH', wallFt: v.wallFt, geiger: () => window.__cpGeiger?.(), chip: () => window.__cpChipSnd?.() }) // (2 Nov, night: it keeps off the arc; a splash takes a dip)
       ld.userData.src = src; ld.userData.over = over < 0 ? Infinity : over
       g.add(ld); g.userData.reveal.push([0, ld]); g.userData.ld = ld
       if (window.__fixedTime !== undefined) ld.userData.settle()

@@ -164,17 +164,19 @@ await page.keyboard.press('Escape')
   // (2 Nov, later: the ball's own position, from the fly hook, so a ride is checked against the ball and not against where the number says it is)
   await p3.evaluate(() => { const f = window.__cpOnFly; window.__cpOnFly = (pos, fr) => { window.__ballAt = pos.clone(); f(pos, fr) } })
   { const w0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0); await p3.click('#c25nk'); for (let k = 0; k < 400 && (await p3.evaluate((w0) => (window.__mix25.lands?.() ?? 0) === w0, w0)); k++) await p3.waitForTimeout(200); for (let k = 0; k < 100 && (await p3.evaluate(() => !!window.__cp.anim?.() && !window.__cp.anim().exploded)); k++) await p3.waitForTimeout(200); await p3.waitForTimeout(1500) } // a warm-up swing: the first after load flies before the first sample
+  await p3.evaluate(() => { window.__cpSlow = 4 }) // (2 Nov, night: the flights four times as slow, so a loaded machine still draws a few frames of each ride)
   for (const [n, lc] of [[2, 1], [3, 1], [2, 2]]) {
     await p3.evaluate(([n, lc]) => { window.__mix25.lab('LN', n); window.__mix25.lab('LC', lc) }, [n, lc])
     await p3.evaluate(() => { Object.assign(window.__cp.state, { ev: 113, la: 29, dir: -12, temp: 70, wind: 0, xwind: 0 }); window.__cp.update() }); await p3.waitForTimeout(500)
     const l0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0)
     await p3.click('#c25nk')
     const seen = [], num = () => { let n = null; window.__mix25.flight().last()?.traverse((c) => { if (c.userData.landNumber && c.parent?.userData.num) { let v = true; for (let p = c; p; p = p.parent) v = v && p.visible; const u = c.parent.userData.num(), b = window.__ballAt; n = { ...c.userData.landNumber, v, n: u.n, color: u.color, up: u.up, settled: u.settled, y: u.pos.y, gap: b ? Math.round(u.pos.distanceTo(b) * 10) / 10 : null } } }); return n }
-    for (let k = 0; k < 150 && (await p3.evaluate((l0) => (window.__mix25.lands?.() ?? 0) === l0, l0)); k++) { const r = await p3.evaluate(`(${num})()`); if (r && !r.settled) seen.push(r); await p3.waitForTimeout(200) } // (wait for this ball to come down: NUKE IT winds up first)
+    for (let k = 0; k < 400 && (await p3.evaluate((l0) => (window.__mix25.lands?.() ?? 0) === l0, l0)); k++) { const r = await p3.evaluate(`(${num})()`); if (r && !r.settled) seen.push(r); const t0 = await p3.evaluate(() => window.__lastT); for (let j = 0; j < 40 && (await p3.evaluate((t0) => window.__lastT === t0, t0)); j++) await p3.waitForTimeout(100) } // (wait for this ball to come down: NUKE IT winds up first; 2 Nov, night: a sample a drawn frame, so a slow machine is not read as a still ball)
     await p3.waitForTimeout(1500)
     const end = await p3.evaluate(`(${num})()`)
     looks.push(end); rides.push({ look: n, lc, vis: seen.map((r) => r.v), ys: seen.map((r) => Math.round(r.y)), gaps: seen.map((r) => r.gap), ups: seen.map((r) => r.up), endY: end && Math.round(end.y), seen: seen.map((r) => r.n + ':' + r.color), end: end && end.n + ':' + end.color, cols: await p3.evaluate(() => { const c = window.__mix25.colors(); return { pc: c.pc, acc: c.acc, nk: c.nk } }) })
   }
+  await p3.evaluate(() => { delete window.__cpSlow })
   check('the landing number: both looks build and settle over the spot, the feet only', looks.every((l, i) => l && l.look === [2, 3, 2][i] && l.v && l.settled && l.ft > 300 && l.n === l.ft), JSON.stringify(looks))
   const hx = (c) => (c || '').toLowerCase()
   check('COUNT-UP: in flight it counts up from short of the landing, in the pitch color before the wall and then orange (COUNT-UP COLOR 1) or GEIGER (2); it lands in that color on a home run',
