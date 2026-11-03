@@ -128,7 +128,7 @@ ITEMS += [
     speed("rec-wheelchair", "The fastest wheelchair-style electric mobility vehicle", 66.826, "weird-trivia", G,
           "https://wheelchairtravel.org/new-world-records-fastest-electric-wheelchair-fastest-garbage-bin/", "news-via-search", False,
           "Jason Liversidge, Elvington Airfield, 27 Sept 2020; a custom prototype, listed as fastest electric mobility vehicle"),
-    speed("rec-wheelie-bin", "The fastest motorised wheelie bin", 43, "weird-trivia", "News via search",
+    speed("rec-wheelie-bin", "the fastest motorized trash can", 43, "weird-trivia", "News via search",
           "https://www.breakingnews.ie/discover/motorised-wheelie-bin-and-fastest-wheelchair-set-new-world-records-1019334.html",
           "news-via-search", False, "about 43 mph, set the same day as the wheelchair record"),
     speed("rec-pitch", "The fastest pitch ever recorded in a major league game", 105.8, "weird-trivia", "NBC Sports via search",

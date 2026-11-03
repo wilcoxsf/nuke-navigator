@@ -4,8 +4,8 @@
 //   (or, off the wall, the gap down from the top to where it hit)
 // and a dot in the line at both (29 Oct, Andrew: a dot where the zenith is and where it cleared the wall, a different color; the X option picks it, colors().mk)
 // The cubes are flat Lambert, so the park's lights shade them and the post shader inks their outline, like the kayaks.
-import { stag } from './stag25.js'
-import { landNumber } from './landnum25.js'
+import { landNumber, voxDigits } from './landnum25.js'
+import { voxText, keepReadable } from './vox25.js'
 const FT = 0.3048
 export const ARCS = [
   { c: 1, name: 'BEADS', desc: 'a voxel bead every 8 ft along the flight, big enough to read from the broadcast seat' },
@@ -32,7 +32,17 @@ export function initFlight25(api, colors) {
   // side: -1 sets the tag off to the camera's left of its post, 1 to the right, so the zenith and the clearance tags never sit on each other; kept readable (vox25.js)
   // 31 Oct: the words are on the screen now, crisp at any zoom and never on each other (stag25.js); the post and the dot stay in the park
   // 1 Nov: tie is the color of the tag's own post (the zenith and clearance posts are ICE), for its number and its leader line (TAGS: TIE)
-  function tag(small, bigTxt, at, color, side = 0, prio = 1, tie) { const g = stag(api, [small, bigTxt], color, { side, prio, tie }); g.position.copy(at); g.userData.isTag = true; return g }
+  // 2 Nov, night (Andrew: "let's actually kill the card completely on them - let's have it be fully diegetic text like the full distance card"): no card on the screen;
+  // the caption in small bone voxels over the number in deep voxel digits of its post's color (tie), like the distance, standing off its dot to one side, readable
+  function tag(small, bigTxt, at, color, side = 0, prio = 1, tie) {
+    const g = new THREE.Group(), inner = new THREE.Group(), px = 0.75, col = new THREE.Color(tie ?? color), face = '#' + col.getHexString(), sideC = '#' + col.clone().lerp(new THREE.Color('#000000'), 0.55).getHexString()
+    const big = String(bigTxt).replace(/ FT$/, ''), d = voxDigits(THREE, big, px, face, sideC), unit = voxText(THREE, 'FT', { px: px * 0.45, color: '#e8e1c9' }), cap = voxText(THREE, small, { px: px * 0.32, color: '#e8e1c9' })
+    unit.position.set(d.userData.width / 2 + px * 2.6, 0, 0); cap.position.set(0, px * 8.4, 0)
+    inner.add(d, unit, cap); inner.rotation.y = -0.3 * (side || 1); inner.position.x = side * (d.userData.width / 2 + px * 3)
+    g.add(inner); g.position.copy(at).add(new THREE.Vector3(0, 1.2, 0)); g.userData.isTag = true; g.userData.vtag = [small, String(bigTxt)]
+    keepReadable(api, g, 230, 0.45, 2.6, { prio })
+    return g
+  }
   // PARK TAGS: WHEN (1 Nov, later; GPT red team II, B6 "ONE TAG AT A TIME"): 1 ALL STAY, every tag up once its moment has passed; 2 ONE AT A TIME, only the newest
   // (ZENITH at the top, the wall as it crosses, LANDED when it comes down), the posts and dots staying for the others
   let flow = 1, landLook = 2, landCol = 1
@@ -108,7 +118,7 @@ export function initFlight25(api, colors) {
       const end = toWorld(src[src.length - 1].p), lp = res.landing?.point ?? end, base = lp.clone(); base.y = Math.max(base.y, ground)
       const gone = v.kind === 'GONE', over = gone && v.wallFt ? src.findIndex((s) => Math.hypot(s.p[0], s.p[1]) / FT >= v.wallFt) : -1
       // 2 Nov, later (Andrew: "pitch color until it's gone, after which I want to see both orange and the nuke color"): COUNT-UP COLOR, 1 ORANGE or 2 GEIGER
-      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: c.pc || c.tx, hot: landCol === 2 ? c.nk || c.acc : c.acc, up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3 })
+      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: c.pc || c.tx, hot: landCol === 2 ? c.nk || c.acc : c.acc, up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3, avoid: at(1.5), splash: res.landing?.kind === 'SPLASH' }) // (2 Nov, night: it keeps off the arc; a splash takes a dip)
       ld.userData.src = src; ld.userData.over = over < 0 ? Infinity : over
       g.add(ld); g.userData.reveal.push([0, ld]); g.userData.ld = ld
       if (window.__fixedTime !== undefined) ld.userData.settle()

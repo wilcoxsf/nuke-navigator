@@ -113,7 +113,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300)
 // ---- THE LAB has today's choices ----
 await page.keyboard.press('?'); await page.waitForTimeout(400)
 const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .dx [data-ax]')].map((b) => b.dataset.ax))
-check('the side menu holds only the last open pick, SLINGSHOT (2 Nov: the foul poles locked orange and white, THE ORANGE SAFETY ORANGE, the count-up OVER THE BALL in GEIGER)', chips.join() === 'SL', JSON.stringify(chips))
+check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'SL,LP,LI,CV,SA', JSON.stringify(chips))
 await page.keyboard.press('Escape')
 
 // ---- PASS IT ON: a link opens on its swing ----
@@ -163,7 +163,7 @@ await page.keyboard.press('Escape')
   const looks = [], rides = []
   // (2 Nov, later: the ball's own position, from the fly hook, so a ride is checked against the ball and not against where the number says it is)
   await p3.evaluate(() => { const f = window.__cpOnFly; window.__cpOnFly = (pos, fr) => { window.__ballAt = pos.clone(); f(pos, fr) } })
-  { const w0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0); await p3.click('#c25nk'); for (let k = 0; k < 150 && (await p3.evaluate((w0) => (window.__mix25.lands?.() ?? 0) === w0, w0)); k++) await p3.waitForTimeout(200); await p3.waitForTimeout(800) } // a warm-up swing: the first after load flies before the first sample
+  { const w0 = await p3.evaluate(() => window.__mix25.lands?.() ?? 0); await p3.click('#c25nk'); for (let k = 0; k < 400 && (await p3.evaluate((w0) => (window.__mix25.lands?.() ?? 0) === w0, w0)); k++) await p3.waitForTimeout(200); for (let k = 0; k < 100 && (await p3.evaluate(() => !!window.__cp.anim?.() && !window.__cp.anim().exploded)); k++) await p3.waitForTimeout(200); await p3.waitForTimeout(1500) } // a warm-up swing: the first after load flies before the first sample
   for (const [n, lc] of [[2, 1], [3, 1], [2, 2]]) {
     await p3.evaluate(([n, lc]) => { window.__mix25.lab('LN', n); window.__mix25.lab('LC', lc) }, [n, lc])
     await p3.evaluate(() => { Object.assign(window.__cp.state, { ev: 113, la: 29, dir: -12, temp: 70, wind: 0, xwind: 0 }); window.__cp.update() }); await p3.waitForTimeout(500)

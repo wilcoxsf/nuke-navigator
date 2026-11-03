@@ -178,7 +178,7 @@ ITEMS += [
       "guinness-via-search", False, "83.8 mph (135 km/h), Tom Onslow-Cole, 2017", article="the"),
     S("veh-bathtub", "the world's fastest bathtub", 116.08 * MPH, "weird", G, "https://guinnessworldrecords.com/world-records/381071-fastest-bathtub",
       "guinness-via-search", False, "186.82 km/h, Hannes Roth, verified 6 May 2016", article="the"),
-    S("veh-bathroom", "the fastest motorised bathroom (Bog Standard)", 42.25 * MPH, "weird", G,
+    S("veh-bathroom", "the fastest motorized bathroom", 42.25 * MPH, "weird", G,
       "https://www.guinnessworldrecords.com/world-records/625359-fastest-motorized-bathroom/", "guinness-via-search", False,
       "68 km/h, built by Edd China", article="the"),
     S("veh-toilet", "the fastest toilet (Guinness-listed)", 53.25 * MPH, "weird", G,

@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (2 Nov, later: SLINGSHOT only); no RIDE IT', dk.open && dk.chips === 1 && !dk.ride, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 5 && !dk.ride, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -423,7 +423,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   const jp = await page.evaluate(() => window.__mix25.jukebox.playing())
   await page.click('#c25mb [data-song="ballgame"]'); await page.waitForTimeout(300)
   const js = await page.evaluate(() => window.__mix25.jukebox.playing())
-  check('J opens the JUKEBOX with all nine songs, and a song plays and stops', jb.open && jb.rows === 9 && /SAN FRANCISCO/.test(jb.txt) && jp === 'ballgame' && js === null, JSON.stringify({ open: jb.open, rows: jb.rows, jp, js }))
+  check('J opens the JUKEBOX with all ten songs (2 Nov, later: the anthem and Hava Nagila in, the Hat Dance out), and a song plays and stops', jb.open && jb.rows === 10 && /SAN FRANCISCO/.test(jb.txt) && jp === 'ballgame' && js === null, JSON.stringify({ open: jb.open, rows: jb.rows, jp, js }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)

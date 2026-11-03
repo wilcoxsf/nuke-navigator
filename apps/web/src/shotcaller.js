@@ -5,7 +5,7 @@
 // 29 Oct (Andrew: SHOT CALLER is its own mode; PLAY IT shows the most common flight paths): every swing that gets there comes back, ranked by how common a ball hit
 // like that is (o.weight, the study's count of real balls at that speed and angle); the three most common are drawn, the first brightest.
 import * as THREE from 'three'
-import { voxDots } from './cockpits/vox25.js'
+import { voxDots, voxPost, voxText, keepReadable } from './cockpits/vox25.js'
 import { ORANGE } from './cockpits/orange25.js'
 
 const R_OK = 4.5 // metres between the clicked spot and a swing's landing point
@@ -57,8 +57,26 @@ export function shotCaller(api, balls, o = {}) {
       // Study 25 (28 Oct, night): voxels. A ring of cubes on the spot, each swing that gets there as a line of small cubes, the nearest real landings as bone cubes
       const ring = Array.from({ length: 28 }, (_, k) => { const a = (k / 28) * Math.PI * 2; return spot.clone().add(new THREE.Vector3(Math.cos(a) * 3, 0.6, Math.sin(a) * 3)) })
       group.add(voxDots(THREE, ring, { px: 0.7, color }))
-      picks.forEach((p, i) => group.add(voxDots(THREE, p.L.res.path.filter((_, k) => k % (i ? 4 : 2) === 0).map((q) => api.toWorld(q.p)), { px: i ? 0.4 : 0.55, color: i ? o.dim ?? color : color })))
+      // 2 Nov, night (Andrew: "the arcs should feel like a probability cloud / frontier not just 2-5 arcs that are hovering there"): o.cloud draws every way in at
+      // once as a cloud of voxels, each 2 m cell of the air holding as much as the ways through it weigh (how common a ball hit like that is), dim and small where
+      // few go, big and in the color where most do; the way picked flies over it as the preview. Without o.cloud, the three most common as lines (as it was).
+      if (opt.cloud !== false && found.length) {
+        const CELL = 2, cells = new Map()
+        for (const f of found) { const seen = new Set(); for (const q of f.L.res.path) { const w = api.toWorld(q.p), k = Math.round(w.x / CELL) + ',' + Math.round(w.y / CELL) + ',' + Math.round(w.z / CELL); if (seen.has(k)) continue; seen.add(k); const c = cells.get(k) ?? { w: 0, x: 0, y: 0, z: 0, n: 0 }; c.w += f.w; c.x += w.x; c.y += w.y; c.z += w.z; c.n++; cells.set(k, c) } }
+        const all0 = [...cells.values()], mx = Math.max(...all0.map((c) => c.w)), lv = (c) => Math.sqrt(c.w / mx), all = all0.filter((c) => lv(c) >= 0.12) // (the thinnest edge of it is noise)
+        const at = (c) => new THREE.Vector3(c.x / c.n, c.y / c.n, c.z / c.n), lo = all.filter((c) => lv(c) < 0.45), hi = all.filter((c) => lv(c) >= 0.45)
+        group.add(voxDots(THREE, lo.map(at), { size: (i) => 0.22 + 0.5 * lv(lo[i]), color: o.dim ?? color }), voxDots(THREE, hi.map(at), { size: (i) => 0.4 + 0.75 * lv(hi[i]), color }))
+        group.userData.cloud = all.length
+      } else picks.forEach((p, i) => group.add(voxDots(THREE, p.L.res.path.filter((_, k) => k % (i ? 4 : 2) === 0).map((q) => api.toWorld(q.p)), { px: i ? 0.4 : 0.55, color: i ? o.dim ?? color : color })))
       group.add(voxDots(THREE, near.map((n) => n.at.clone().add(new THREE.Vector3(0, 0.6, 0))), { px: 1.2, color: '#e8e1c9' }))
+      // the locator (2 Nov, home stretch; GPT red team III, A25: "a small orange ring deep in a huge stadium"; Andrew: "there should most certainly be a seat locator"):
+      // a beam of cubes straight up from the seat, and the seat's name on top of it, readable from anywhere
+      if (opt.label) {
+        const top = spot.clone().add(new THREE.Vector3(0, 13, 0)), label = voxText(THREE, opt.label, { px: 0.55, color, back: '#141414' })
+        label.position.copy(top).add(new THREE.Vector3(0, 1.2, 0)); keepReadable(api, label, 140, 0.5, 2.2, { prio: 5 })
+        group.add(voxPost(THREE, spot.clone().add(new THREE.Vector3(0, 1.4, 0)), top, { px: 0.7, gap: 1.1, color }), label)
+        group.userData.locator = label
+      }
       NN.scene.add(group)
       return { spot: { bearing: tb, ft: distFt(spot), height: (spot.y - home.y) / 0.3048 }, at: spot.clone(), found: found.length, picks, ways: found, near, grid: GRID }
     }
@@ -77,5 +95,5 @@ export function shotCaller(api, balls, o = {}) {
     NN.scene.add(group)
     return { spot: { bearing: tb, ft: distFt(spot), height: spot.y / 0.3048 }, found: found.length, picks, near }
   }
-  return { pick, call, clear, warm: realLandings }
+  return { pick, call, clear, warm: realLandings, locator: () => group?.userData.locator ?? null, cloud: () => group?.userData.cloud ?? 0 }
 }

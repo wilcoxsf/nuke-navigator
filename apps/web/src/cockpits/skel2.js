@@ -7,7 +7,7 @@ import { ORANGE } from './orange25.js'
 
 export const THEMES = {
   // dim is also used for small text, so each is at least 4.5:1 against its ground (checked by the explorer QA tool)
-  orange: { name: 'ORANGE', k: '#030403', tx: '#e9e7dc', dim: '#80827a', ln: '#2c2e2a', acc: ORANGE.o },
+  orange: { name: 'ORANGE', k: '#030403', tx: '#e9e7dc', dim: '#96988f' /* home stretch: a step lighter (was #80827a) */, ln: '#2c2e2a', acc: ORANGE.o },
   amber: { name: 'AMBER', k: '#030403', tx: '#e9e7dc', dim: '#80827a', ln: '#2c2e2a', acc: '#e8a33a' },
   red: { name: 'RED', k: '#050303', tx: '#e9e4de', dim: '#857d77', ln: '#2d2826', acc: '#ff3b2f' },
   green: { name: 'GREEN', k: '#020503', tx: '#b9f3c3', dim: '#5fa06f', ln: '#1c3024', acc: '#7dff9d' },

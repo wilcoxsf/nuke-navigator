@@ -5,7 +5,7 @@ import { jukebox } from './music25.js'
 import { ORANGE } from './orange25.js'
 
 export const MENU_CSS = `
-#cp .c25 .sm{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k) 90%,transparent);pointer-events:auto}
+#cp .c25 .sm{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k) 97%,transparent);pointer-events:auto}
 #cp .c25 .sm.open{display:flex}
 #cp .c25 .sm .smb{display:grid;gap:16px;justify-items:center;max-width:min(920px,94vw);max-height:94vh;overflow:auto;padding:10px 12px}
 #cp .c25 .sm .smx{position:fixed;top:14px;right:18px;display:inline-flex;gap:8px;align-items:center;pointer-events:auto;cursor:pointer}

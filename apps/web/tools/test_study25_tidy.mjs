@@ -38,7 +38,7 @@ const page = await open(1827, 992)
 {
   await page.keyboard.press('?'); await page.waitForTimeout(500)
   const d = await page.evaluate(() => ({ chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, lk: document.querySelectorAll('#c25dk .dx .lk').length }))
-  check('? opens the side menu with only what is still open: SLINGSHOT (2 Nov, later: the rest locked)', d.chips === 1 && d.lk === 0, JSON.stringify(d))
+  check('? opens the side menu with only what is still open: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, THE WAYS IN (2 Nov, night)', d.chips === 5 && d.lk === 0, JSON.stringify(d))
   // (31 Oct, later: the side menu holds THE LAB as well; a lab choice is kept on the device)
   await page.click('#c25dk .dx [data-ax="SL"]'); await page.waitForTimeout(300)
   await page.click('#c25dk .do[data-c="1"]'); await page.waitForTimeout(400)
@@ -98,7 +98,7 @@ await set(page, { ev: 112, la: 27, dir: -8 }); await set(page, { ev: 114, la: 28
   const free = rs.filter((r) => !r.fixed), fixed = rs.filter((r) => r.fixed)
   let bad = 0
   for (let i = 0; i < free.length; i++) { for (let j = i + 1; j < free.length; j++) if (hit(free[i].rect, free[j].rect)) bad++; for (const f of fixed) if (hit(free[i].rect, f.rect)) bad++ }
-  check('3D tags: none on another, none on the scoreboard or the sign (one at a time now)', bad === 0 && free.length >= 1, `tags ${free.length}, fixed ${fixed.length}, overlaps ${bad}`)
+  check('3D tags: none on another, none on the scoreboard or the sign (2 Nov, later: ZENITH and the wall on hover only; the landing number is up, held over the spot)', bad === 0 && rs.some((r) => r.ln), `tags ${free.length}, fixed ${fixed.length}, overlaps ${bad}, landing number ${rs.some((r) => r.ln)}`)
   const wb = await page.evaluate(() => { const W = window.__cpWindow; return { x0: (2 * W.l) / innerWidth - 1, x1: 1 - (2 * W.r) / innerWidth, y0: (2 * W.b) / innerHeight - 1, y1: 1 - (2 * W.t) / innerHeight } })
   const outs = free.filter((r) => r.rect.x0 < wb.x0 - 0.002 || r.rect.x1 > wb.x1 + 0.002 || r.rect.y0 < wb.y0 - 0.002 || r.rect.y1 > wb.y1 + 0.002)
   check('3D tags: every one shown sits inside the park window, none under a panel', outs.length === 0, JSON.stringify(outs.map((r) => r.rect)))

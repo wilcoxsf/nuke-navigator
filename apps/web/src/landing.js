@@ -50,8 +50,13 @@ export function landingParty(api, balls, o = {}) {
     flags = []; tops = []
     for (const [i, it] of six.entries()) {
       const p = it.p
-      tops.push({ k: i + 1, at: p.clone().setY(p.y + (style === 6 ? (i === lit - 1 ? 8 : 6) : style === 2 ? (i === lit - 1 ? 6.6 : 5) : 1)) })
+      tops.push({ k: i + 1, at: p.clone().setY(p.y + (style === 6 ? (i === lit - 1 ? 8 : 6) : style === 2 ? (i === lit - 1 ? 6.6 : 5) : style === 7 ? (i === lit - 1 ? 3.2 : 2.6) : 1)) })
       if (style === 1) g.add(voxDots(THREE, [p, p.clone().setY(p.y + 0.9)], { size: (j) => (j ? 0.7 : 1.5), color: MARK })) // DOTS
+      else if (style === 7) { // SHORT PINS (2 Nov, home stretch; GPT red team III, A13: "the numbered landing pins form tall pillars that dominate the park"; Andrew: "do
+        // the pins too as an option"): the same numbers on a stub a third as tall, so the mark stays on the spot and the number sits just over it
+        const on = i === lit - 1, top = p.clone().setY(p.y + (on ? 2.2 : 1.6)); g.add(voxPost(THREE, p, top, { px: on ? 0.45 : 0.35, gap: 0.7, color: on ? ORANGE.o : MARKD }))
+        const n = voxText(THREE, String(i + 1), { px: on ? 0.8 : 0.6, color: on ? ORANGE.o : MARK, back: '#141414' }), fl = new THREE.Group(); fl.add(n); fl.position.copy(top).add(new THREE.Vector3(0, 0.3, 0)); g.add(fl); flags.push(fl)
+      }
       else if (style === 2) { // NUMBERED PINS (1 Nov, later, his pick: "I like numbered pins for landing party the most but still think this interface needs help"): bigger,
         // the number on a dark plate turned to the camera, the one in focus orange and taller
         const on = i === lit - 1, top = p.clone().setY(p.y + (on ? 6 : 4.4)); g.add(voxPost(THREE, p, top, { px: on ? 0.45 : 0.35, gap: 0.7, color: on ? ORANGE.o : MARKD }))
@@ -73,7 +78,7 @@ export function landingParty(api, balls, o = {}) {
       for (let a = 0; a < 64; a++) ring.push(new THREE.Vector3(c.x + Math.cos((a / 64) * Math.PI * 2) * R0, Math.max(...six.map((it) => it.p.y)) + 0.4, c.z + Math.sin((a / 64) * Math.PI * 2) * R0))
       g.add(voxDots(THREE, ring, { px: 0.4, color: MARKD }))
     }
-    for (const it of items) if (it?.n.children[0]) it.n.children[0].visible = style !== 6 && style !== 2 // the flags and pins stand in for the lit stake (its tag stays)
+    for (const it of items) if (it?.n.children[0]) it.n.children[0].visible = style !== 6 && style !== 2 && style !== 7 // the flags and pins stand in for the lit stake (its tag stays)
     marksG = g; group.add(g)
   }
   const oracle = balls.filter((b) => b.park === 'SF' && b.hr)
