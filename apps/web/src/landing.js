@@ -39,7 +39,7 @@ export function landingParty(api, balls, o = {}) {
   // (1 Nov, later) the marks are things you can point at: pick(x, y) is the mark nearest a screen point (within 26 px), and the park's tags keep off them
   const scr = (v) => { const c = api.NN.renderer?.domElement, r = c?.getBoundingClientRect() ?? { left: 0, top: 0, width: innerWidth, height: innerHeight }, q = v.clone().project(api.NN.camera); return q.z > 1 ? null : [((q.x + 1) / 2) * r.width + r.left, ((1 - q.y) / 2) * r.height + r.top] }
   function pick(x, y) { if (!group) return null; let best = null, bd = 26; for (const t of tops) { const s = scr(t.at); if (!s) continue; const d = Math.hypot(s[0] - x, s[1] - y); if (d < bd) { bd = d; best = t.k } } return best }
-  stagAvoid(() => (group ? tops.map((t) => scr(t.at)).filter(Boolean).map(([x, y]) => [x - 14, y - 16, x + 14, y + 12]) : []))
+  stagAvoid(() => (group ? tops.map((t) => [scr(t.at), t.big]).filter(([q]) => q).map(([[x, y], big]) => (big ? [x - 40, y - 46, x + 40, y + 30] : [x - 14, y - 16, x + 14, y + 12])) : [])) // (3 Nov: the loud pin's big number is kept clear as a whole)
   // 31 Oct, later (Andrew: "I still want landing party to show the top 5 other ones as like points on the map if we can, give me options for that too"): the six
   // nearest are marked where they came down, one of five ways (LP in THE LAB); the one in focus is lit with its tag over the marks
   const MARK = '#c9c2ad', MARKD = '#8a8f99'
@@ -50,7 +50,28 @@ export function landingParty(api, balls, o = {}) {
     flags = []; tops = []
     for (const [i, it] of six.entries()) {
       const p = it.p
-      tops.push({ k: i + 1, at: p.clone().setY(p.y + (style === 6 ? (i === lit - 1 ? 8 : 6) : style === 2 ? (i === lit - 1 ? 6.6 : 5) : style === 7 ? (i === lit - 1 ? 3.2 : 2.6) : 1)) })
+      const loud = style === 8 || style === 9, on0 = i === lit - 1
+      tops.push({ k: i + 1, big: loud && on0, at: p.clone().setY(p.y + (style === 6 ? (on0 ? 8 : 6) : style === 2 ? (on0 ? 6.6 : 5) : style === 7 ? (on0 ? 3.2 : 2.6) : loud ? (on0 ? 12.5 : style === 9 ? 3.4 : 1.2) : 1)) })
+      if (loud) { // (3 Nov, Andrew: "numbered pins is more or less the move - I think that one should be loud and then the rest don't need to be numbered and can just be
+        // points on the map - could we try them as little mushroom clouds too?"): LOUD PIN, POINTS (8) and LOUD PIN, MUSHROOMS (9). The one in focus is a tall orange
+        // stake with its number big on a dark plate; the other five are a point where they came down (8), or a little voxel mushroom cloud standing on the spot (9)
+        if (on0) {
+          const top = p.clone().setY(p.y + 8.4); g.add(voxPost(THREE, p, top, { px: 0.55, gap: 0.6, color: ORANGE.o }))
+          const n = voxText(THREE, String(i + 1), { px: 1.15, color: ORANGE.o, back: '#141414' }), fl = new THREE.Group(); fl.add(n); fl.position.copy(top).add(new THREE.Vector3(0, 0.3, 0)); g.add(fl); flags.push(fl)
+        } else if (style === 8) g.add(voxDots(THREE, [p.clone().setY(p.y + 0.5)], { px: 1.1, color: MARK }), voxDots(THREE, [p.clone().setY(p.y + 0.1)], { px: 1.9, color: MARKD }))
+        else {
+          const c = [], cube = (x, y, z, k) => c.push([x, y, z, k]), cap = [-1, 0, 1]
+          for (let y = 0; y < 3; y++) cube(0, y, 0, '#7c7a73') // the stem
+          for (const x of cap) for (const z of cap) cube(x, 3, z, Math.abs(x) + Math.abs(z) === 2 ? '#7c7a73' : '#c9c2ad') // the cap
+          for (const [x, z] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) cube(x, 4, z, x || z ? '#c9c2ad' : '#e8e1c9')
+          cube(0, 5, 0, '#e8e1c9'); for (const [x, z] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) cube(x, 3, z, '#7c7a73') // the top, the rim rolling out
+          const m = new THREE.Group(), byC = new Map()
+          for (const [x, y, z, k] of c) (byC.get(k) ?? byC.set(k, []).get(k)).push(p.clone().add(new THREE.Vector3(x * 0.55, 0.3 + y * 0.55, z * 0.55)))
+          for (const [k, pts] of byC) m.add(voxDots(THREE, pts, { px: 0.55, color: k }))
+          g.add(m)
+        }
+        continue
+      }
       if (style === 1) g.add(voxDots(THREE, [p, p.clone().setY(p.y + 0.9)], { size: (j) => (j ? 0.7 : 1.5), color: MARK })) // DOTS
       else if (style === 7) { // SHORT PINS (2 Nov, home stretch; GPT red team III, A13: "the numbered landing pins form tall pillars that dominate the park"; Andrew: "do
         // the pins too as an option"): the same numbers on a stub a third as tall, so the mark stays on the spot and the number sits just over it
@@ -78,7 +99,7 @@ export function landingParty(api, balls, o = {}) {
       for (let a = 0; a < 64; a++) ring.push(new THREE.Vector3(c.x + Math.cos((a / 64) * Math.PI * 2) * R0, Math.max(...six.map((it) => it.p.y)) + 0.4, c.z + Math.sin((a / 64) * Math.PI * 2) * R0))
       g.add(voxDots(THREE, ring, { px: 0.4, color: MARKD }))
     }
-    for (const it of items) if (it?.n.children[0]) it.n.children[0].visible = style !== 6 && style !== 2 && style !== 7 // the flags and pins stand in for the lit stake (its tag stays)
+    for (const it of items) if (it?.n.children[0]) it.n.children[0].visible = ![2, 6, 7, 8, 9].includes(style) // the flags and pins stand in for the lit stake (its tag stays)
     marksG = g; group.add(g)
   }
   const oracle = balls.filter((b) => b.park === 'SF' && b.hr)

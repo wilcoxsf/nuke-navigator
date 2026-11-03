@@ -16,7 +16,9 @@
 // 2 Nov, night (Andrew: "attention to detail things that make users say 'wow that's a nice touch' ... surprise me"):
 //   GEIGER: past the wall the count-up ticks like a Geiger counter (o.geiger, a click every few feet, faster the farther it goes), and it pops once as it heats up
 //   404: a 404 ft landing scrambles its digits for a moment before it settles     A CHIP: a 450 ft one knocks a cube off a digit, which tumbles down past the stake
-//   TOUCH: settled, it wobbles when the pointer passes over it, and a click counts it up again
+//   TOUCH: settled, a click on it counts it up again. (3 Nov, Andrew: "The wiggling number not it": no wobble under the pointer)
+// 3 Nov (Andrew: "The number cannot jump to a completely different spot when it lands - if anything it has to move slowly to a new area"): clear of the arc, it
+// glides to its new spot over 1.6 s, its stake taken down while it goes and put up again when it gets there
 import { VOX_FONT, voxCells, voxText, voxPost, keepReadable, readable } from './vox25.js'
 
 export const LAND_LOOKS = [
@@ -175,9 +177,9 @@ export function landNumber(api, o) {
       return
     }
     if (drips) dripTick((now - P.t0) / 1000 + 1.4, dt)
-    // the pop (on the spot it took), then drying off after the dip; a touch wobbles it (squash and stretch, three bounces)
-    const wt = P.wob ? (now - P.wob) / 1000 : 9, wob = wt < 0.6 ? Math.sin(wt * 26) * 0.12 * (1 - wt / 0.6) : 0
-    inner.scale.set(t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1 - wob * 0.5, t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1 + wob, 1)
+    // the pop (on the spot it took), then drying off after the dip
+    inner.scale.setScalar(t < 0.35 ? 1 + 0.2 * Math.sin((t / 0.35) * Math.PI) : 1)
+    if (P.glide) { const u = Math.min(1, (now - P.glide.t0) / 1600); place(P.glide.from.clone().lerp(P.glide.to, ease(u))); if (u >= 1) { staked(P.glide.to); P.glide = null } }
     if (P.chip && t > 0.12) { P.chip = false; chipOff() }
     if (P.glitch) { if (t < 0.7) { if (!P.gl || now - P.gl > 60) { P.gl = now; build(100 + Math.floor(Math.random() * 900), hotC(), null) } return } P.glitch = false; o.geiger?.() }
     // a click counts it up again (0.8 s, the Geiger with it past the wall's feet)
@@ -202,7 +204,7 @@ export function landNumber(api, o) {
       if (!best || n < best.n) best = { n, i }
       if (n === 0) break
     }
-    if (best && best.i !== P.i) { P.i = best.i; place(P.list[P.i]); staked(P.list[P.i]) }
+    if (best && best.i !== P.i) { P.i = best.i; if (stake) { stake.parent?.remove(stake); stake = null } P.glide = { from: outer.position.clone(), to: P.list[P.i].clone(), t0: now } }
     P.done = true
   }
   // A CHIP: one cube off the top of the first digit, knocked loose, tumbling down past the stake to the landing and lying there a moment
@@ -221,7 +223,6 @@ export function landNumber(api, o) {
       return true
     })
   }
-  g.userData.touch = () => { if (plan && !plan.dip && plan.done !== undefined) plan.wob = performance.now() }
   g.userData.recount = () => { if (plan && !plan.dip && !plan.glitch) { plan.recount = performance.now(); clickN = 0 } }
   g.userData.rect = () => (outer.userData.settled && shown(outer) ? outer.userData.read?.rect ?? null : null)
   // for the touches (touches25.js): the top of the number in the world, its width and scale, the camera's right
@@ -235,11 +236,10 @@ export function landNumber(api, o) {
       for (const n of live) { let r = n; while (r.parent) r = r.parent; if (r !== api.NN.scene && n.userData.seen) { live.delete(n); continue } if (r === api.NN.scene) n.userData.seen = true; n.userData.tick(now) }
       for (let i = chips.length - 1; i >= 0; i--) if (!chips[i]()) chips.splice(i, 1)
     })
-    // TOUCH: the pointer over a settled number wobbles it; a click on it (a press and a let-go that barely moved) counts it up again
+    // TOUCH: a click on a settled number (a press and a let-go that barely moved) counts it up again
     const at = (e) => { const cv = api.NN.renderer?.domElement; if (!cv) return null; const r = cv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1] }
     const under = (e) => { const q = at(e); if (!q) return null; for (const g of hover) { if (!g.parent) { hover.delete(g); continue } const r = g.userData.rect(); if (r && q[0] > r.x0 && q[0] < r.x1 && q[1] > r.y0 && q[1] < r.y1) return g } return null }
-    let over = null, down = null
-    addEventListener('pointermove', (e) => { const g = under(e); if (g && g !== over) g.userData.touch(); over = g }, true)
+    let down = null
     addEventListener('pointerdown', (e) => { down = e.button === 0 ? { x: e.clientX, y: e.clientY, g: under(e) } : null }, true)
     addEventListener('pointerup', (e) => { if (down?.g && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && under(e) === down.g) down.g.userData.recount(); down = null }, true)
   }

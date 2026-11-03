@@ -8,6 +8,9 @@ import * as THREE from 'three'
 import { voxDots, voxPost, voxText, keepReadable } from './cockpits/vox25.js'
 import { ORANGE } from './cockpits/orange25.js'
 
+// a soft round puff for the FOG cloud, drawn once: a disc that thins to nothing at its edge
+let puff = null
+const puffTex = () => { if (puff) return puff; const N = 64, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), r = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.6, 'rgba(255,255,255,.45)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, N, N); puff = new THREE.CanvasTexture(c); return puff }
 const R_OK = 4.5 // metres between the clicked spot and a swing's landing point
 export const GRID = { la: [14, 44, 2], ev: [90, 120, 2] } // launch angles and exit speeds tried: first, last, step
 export function shotCaller(api, balls, o = {}) {
@@ -15,7 +18,7 @@ export function shotCaller(api, balls, o = {}) {
   const home = api.toWorld([0, 0, 0])
   let group = null, real = null
   const ray = new THREE.Raycaster()
-  const clear = () => { if (!group) return; NN.scene.remove(group); group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose(); x.material?.dispose?.() }); group = null }
+  const clear = () => { if (!group) return; { const h = NN.hideForNormal, i = h?.indexOf(group.userData.cloudG) ?? -1; if (i >= 0) h.splice(i, 1) } NN.scene.remove(group); group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose(); x.material?.dispose?.() }); group = null }
   const bearingOf = (p) => (Math.atan2(p.x - home.x, -(p.z - home.z)) * 180) / Math.PI
   const distFt = (p) => Math.hypot(p.x - home.x, p.z - home.z) / 0.3048
   const land = (st) => {
@@ -57,17 +60,41 @@ export function shotCaller(api, balls, o = {}) {
       // Study 25 (28 Oct, night): voxels. A ring of cubes on the spot, each swing that gets there as a line of small cubes, the nearest real landings as bone cubes
       const ring = Array.from({ length: 28 }, (_, k) => { const a = (k / 28) * Math.PI * 2; return spot.clone().add(new THREE.Vector3(Math.cos(a) * 3, 0.6, Math.sin(a) * 3)) })
       group.add(voxDots(THREE, ring, { px: 0.7, color }))
-      // 2 Nov, night (Andrew: "the arcs should feel like a probability cloud / frontier not just 2-5 arcs that are hovering there"): o.cloud draws every way in at
-      // once as a cloud of voxels, each 2 m cell of the air holding as much as the ways through it weigh (how common a ball hit like that is), dim and small where
-      // few go, big and in the color where most do; the way picked flies over it as the preview. Without o.cloud, the three most common as lines (as it was).
-      if (opt.cloud !== false && found.length) {
-        const CELL = 2, cells = new Map()
-        for (const f of found) { const seen = new Set(); for (const q of f.L.res.path) { const w = api.toWorld(q.p), k = Math.round(w.x / CELL) + ',' + Math.round(w.y / CELL) + ',' + Math.round(w.z / CELL); if (seen.has(k)) continue; seen.add(k); const c = cells.get(k) ?? { w: 0, x: 0, y: 0, z: 0, n: 0 }; c.w += f.w; c.x += w.x; c.y += w.y; c.z += w.z; c.n++; cells.set(k, c) } }
-        const all0 = [...cells.values()], mx = Math.max(...all0.map((c) => c.w)), lv = (c) => Math.sqrt(c.w / mx), all = all0.filter((c) => lv(c) >= 0.12) // (the thinnest edge of it is noise)
-        const at = (c) => new THREE.Vector3(c.x / c.n, c.y / c.n, c.z / c.n), lo = all.filter((c) => lv(c) < 0.45), hi = all.filter((c) => lv(c) >= 0.45)
-        group.add(voxDots(THREE, lo.map(at), { size: (i) => 0.22 + 0.5 * lv(lo[i]), color: o.dim ?? color }), voxDots(THREE, hi.map(at), { size: (i) => 0.4 + 0.75 * lv(hi[i]), color }))
-        group.userData.cloud = all.length
-      } else picks.forEach((p, i) => group.add(voxDots(THREE, p.L.res.path.filter((_, k) => k % (i ? 4 : 2) === 0).map((q) => api.toWorld(q.p)), { px: i ? 0.4 : 0.55, color: i ? o.dim ?? color : color })))
+      // 2 Nov, night (Andrew: "the arcs should feel like a probability cloud / frontier not just 2-5 arcs that are hovering there"); 3 Nov (Andrew: "def has to be a
+      // cloud that links up visually with the frontier on the RHS -- can we just have it be semi opaque and eschew the voxel art in this instance? Give me 5 different
+      // cloud options"): every way in at once, see-through, in the frontier's own color and with its own rule for how strong (0.22 + 0.78 x the square root of how
+      // common, the chart's cells), so the bright part of the chart is the bright part of the cloud. opt.cloud picks the look (SHOT CALLER: THE WAYS IN):
+      //   1 RIBBONS: a see-through tube for each way, thicker and stronger the more common     2 FOG: soft round puffs wherever the ways go, densest where most do
+      //   3 SHEET: one see-through skin stretched across the ways in order of launch angle     4 HAIR: a thin line for each way, like a long exposure
+      //   5 CORE AND RIM: the most common half of the swings as one strong band, the rest as faint threads round it
+      if (found.length) {
+        const look = opt.cloud ?? 1, mx = Math.max(...found.map((f) => f.w)), K = (f) => Math.sqrt(f.w / mx), A = (k) => 0.22 + 0.78 * k
+        const pathOf = (f, n = 48) => { const P = f.L.res.path.map((q) => api.toWorld(q.p)), c = new THREE.CatmullRomCurve3(P); return c.getSpacedPoints(n) }
+        const mat = (a) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: a, depthWrite: false, fog: false, side: THREE.DoubleSide })
+        const cloud = new THREE.Group(); cloud.renderOrder = 24
+        if (look === 1) for (const f of found) { const k = K(f); cloud.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pathOf(f)), 64, 0.18 + 0.5 * k, 6, false), mat(A(k) * 0.13))) }
+        else if (look === 2) {
+          const CELL = 2.4, cells = new Map()
+          for (const f of found) { const seen = new Set(); for (const w of pathOf(f, 90)) { const key = Math.round(w.x / CELL) + ',' + Math.round(w.y / CELL) + ',' + Math.round(w.z / CELL); if (seen.has(key)) continue; seen.add(key); const c = cells.get(key) ?? { w: 0, x: 0, y: 0, z: 0, n: 0 }; c.w += f.w; c.x += w.x; c.y += w.y; c.z += w.z; c.n++; cells.set(key, c) } }
+          const all = [...cells.values()], cm = Math.max(...all.map((c) => c.w)), tex = puffTex()
+          for (const c of all) { const k = Math.sqrt(c.w / cm); if (k < 0.1) continue; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity: A(k) * 0.16, depthWrite: false, fog: false })); sp.position.set(c.x / c.n, c.y / c.n, c.z / c.n); sp.scale.setScalar(2.6 + 4 * k); cloud.add(sp) }
+        } else if (look === 3) {
+          const ord = found.slice().sort((a, b) => a.la - b.la || a.ev - b.ev), N = 48, P = ord.map((f) => pathOf(f, N))
+          for (let i = 0; i + 1 < ord.length; i++) {
+            const a = P[i], b = P[i + 1], pos = [], k = (K(ord[i]) + K(ord[i + 1])) / 2
+            for (let j = 0; j < N; j++) pos.push(a[j].x, a[j].y, a[j].z, b[j].x, b[j].y, b[j].z, b[j + 1].x, b[j + 1].y, b[j + 1].z, a[j].x, a[j].y, a[j].z, b[j + 1].x, b[j + 1].y, b[j + 1].z, a[j + 1].x, a[j + 1].y, a[j + 1].z)
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cloud.add(new THREE.Mesh(g, mat(A(k) * 0.1)))
+          }
+        } else if (look === 4) for (const f of found) { const k = K(f); cloud.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pathOf(f, 80)), new THREE.LineBasicMaterial({ color, transparent: true, opacity: A(k) * 0.45, depthWrite: false, fog: false }))) }
+        else {
+          // the core: the most common swings until they hold half the weight, as wide faint tubes over each other (one band); the rest as threads
+          const ord = found.slice().sort((a, b) => b.w - a.w), tot = ord.reduce((t, f) => t + f.w, 0)
+          let run = 0
+          for (const f of ord) { const core = run < tot / 2; run += f.w; cloud.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pathOf(f)), 64, core ? 1.1 : 0.12, core ? 8 : 4, false), mat(core ? 0.07 : 0.14 * A(K(f))))) }
+        }
+        group.add(cloud); NN.hideForNormal?.push(cloud); group.userData.cloudG = cloud // (the ink pass reads normals: a see-through cloud stays out of it)
+        group.userData.cloud = cloud.children.length; group.userData.cloudLook = look
+      }
       group.add(voxDots(THREE, near.map((n) => n.at.clone().add(new THREE.Vector3(0, 0.6, 0))), { px: 1.2, color: '#e8e1c9' }))
       // the locator (2 Nov, home stretch; GPT red team III, A25: "a small orange ring deep in a huge stadium"; Andrew: "there should most certainly be a seat locator"):
       // a beam of cubes straight up from the seat, and the seat's name on top of it, readable from anywhere

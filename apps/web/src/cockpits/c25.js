@@ -389,7 +389,9 @@ export const LAB = {
     { c: 4, name: 'NEITHER', desc: 'as it was' },
   ] },
   // LANDING PARTY in the park (landing.js; 31 Oct, later: "show the top 5 other ones as like points on the map")
-  LP: { name: 'LANDING PARTY MARKS', def: 2, opts: [ // (1 Nov, later: "I like numbered pins for landing party the most")
+  LP: { name: 'LANDING PARTY MARKS', def: 8, opts: [ // (1 Nov, later: "I like numbered pins for landing party the most"; 3 Nov: "that one should be loud and then the rest ... just points")
+    { c: 8, name: 'LOUD PIN, POINTS', desc: 'the one in focus a tall orange stake with its number big; the other five a point where each came down (3 Nov)' },
+    { c: 9, name: 'LOUD PIN, MUSHROOMS', desc: 'the one in focus a tall orange stake with its number big; the other five little voxel mushroom clouds on their spots (3 Nov)' },
     { c: 6, name: 'NUMBERED FLAGS', desc: 'the six on stakes with numbered flags; the one in focus orange and taller (1 Nov, his pick)' },
     { c: 1, name: 'DOTS', desc: 'the next five as dots where they came down; the one in focus lit, with its tag' },
     { c: 2, name: 'NUMBERED PINS', desc: 'the six on short stakes with their numbers in voxels; the one in focus orange' },
@@ -403,7 +405,14 @@ export const LAB = {
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
   CV: { name: 'THE COVE', def: 3, opts: COVES },
   // 2 Nov, night (Andrew: "the arcs should feel like a probability cloud / frontier not just 2-5 arcs"): shotcaller.js
-  SA: { name: 'SHOT CALLER: THE WAYS IN', def: 1, opts: [{ c: 1, name: 'CLOUD', desc: 'every way in at once, as a cloud of voxels: big and bright where the most common go' }, { c: 2, name: 'THREE ARCS', desc: 'the three most common, as lines (as it was)' }] },
+  // 3 Nov (Andrew: "semi opaque and eschew the voxel art in this instance ... Give me 5 different cloud options"): all five in the frontier's color and strength
+  SA: { name: 'SHOT CALLER: THE WAYS IN', def: 1, opts: [
+    { c: 1, name: 'RIBBONS', desc: 'a see-through tube for each way in, thicker and stronger the more common' },
+    { c: 2, name: 'FOG', desc: 'soft round puffs wherever the ways go, densest where the most common do' },
+    { c: 3, name: 'SHEET', desc: 'one see-through skin stretched across the ways, in order of launch angle' },
+    { c: 4, name: 'HAIR', desc: 'a thin line for each way, like a long exposure' },
+    { c: 5, name: 'CORE AND RIM', desc: 'the most common half of the swings as one strong band, the rest as faint threads round it' },
+  ] },
   LN: { name: 'LANDING NUMBER', opts: LAND_LOOKS }, // 2 Nov (Andrew: "I want count up"; later: "count up directly over the ball and count up where it lands")
   // 2 Nov, later (Andrew: "pitch color until it's gone, after which I want to see both orange and the nuke color (geiger yeah?)"): the pitch color before the wall, always
   LC: { name: 'COUNT-UP COLOR', opts: [{ c: 1, name: 'ORANGE', desc: 'the pitch color (ICE) until the ball clears the wall, orange from there' }, { c: 2, name: 'GEIGER', desc: 'the pitch color (ICE) until the ball clears the wall, then the green of NUKE IT' }] },
@@ -1021,8 +1030,10 @@ export async function build(root, api, U) {
   // undo in the dojo (1 Nov, later; an audit): each burst of changes (a drag, a run of key presses) is one step; Backspace goes back a step, 0 puts the blank swing
   // back. settled is the state as it last stood still (render() keeps it), pushed when a new burst starts
   const SNAP = ['ev', 'la', 'dir', 'temp', 'wind', 'xwind'], snap = () => Object.fromEntries(SNAP.map((k) => [k, api.state[k] ?? 0]))
-  let undo = [], settled = null, burst = false, undoing = false
-  function markInput() { if (!burst && !undoing && settled) { undo.push(settled); if (undo.length > 50) undo.shift() } burst = true; lastInput = performance.now(); clearTimeout(settleT); settleT = setTimeout(() => { burst = false; lpKey = ''; if (last) render(last) }, 300) }
+  let undo = [], settled = null, settledT = 0, after = null, afterT = 0, burst = false, undoing = false
+  // (3 Nov) a burst ends 300 ms after its last change, by the clock and not only by the timer: on a loaded machine the timer runs late and two steps became one.
+  // The step back is the state after the last change before this burst (or the settled state, if that is newer: something else changed it since)
+  function markInput() { const now = performance.now(), fresh = !burst || now - lastInput > 300; if (fresh && !undoing) { const back = after && afterT > settledT ? after : settled; if (back) { undo.push(back); if (undo.length > 50) undo.shift() } } after = snap(); afterT = now; burst = true; lastInput = now; clearTimeout(settleT); settleT = setTimeout(() => { burst = false; lpKey = ''; if (last) render(last) }, 300) }
   const labRead = (t) => Object.fromEntries([...(t ?? '').toUpperCase().matchAll(/([A-Z]{2})(\d+)/g)].filter(([, k, n]) => LAB[k]?.opts.some((o) => o.c === Number(n))).map(([, k, n]) => [k, Number(n)]))
   const lab = { ...Object.fromEntries(Object.entries(LAB).map(([k, a]) => [k, a.def ?? a.opts[0].c])), ...labRead((() => { try { return localStorage.getItem('nn-lab25') } catch { return '' } })()), ...LAB_LOCK, ...labRead(q.get('lab')) }
   const labCode = () => Object.entries(lab).map(([k, n]) => k + n).join('-')
@@ -2154,15 +2165,15 @@ export async function build(root, api, U) {
   const howCommon = (ev, la) => { let n = 0; for (const r of pool.rows ?? []) if (Math.abs(r[0] - ev) <= 1 && Math.abs(r[1] - la) <= 1) n++; return n }
   // a clicked spot in words: a seat in the stands, the Cove, or the field
   const seatOf = (p) => { const h0 = api.toWorld([0, 0, 0]), b = (Math.atan2(p.x - h0.x, -(p.z - h0.z)) * 180) / Math.PI, d = Math.hypot(p.x - h0.x, p.z - h0.z), wall = (api.wallAt?.(b) ?? [400, 8])[0] * 0.3048; return se.seatAt(p, p.y < h0.y - 1.5 && b > 20 ? 'SPLASH' : d < wall - 0.1 ? 'FIELD' : Math.abs(b) > 47 ? 'FOUL' : 'STANDS') }
-  function shotAt(spot, seat = null) {
+  function shotAt(spot, seat = null, keepCam = false) {
     stopShot()
     { const hb = E('#c25hb'); hb._sc = hb._fr = null } // (red team: a render in the next 30 ms read the old chart)
     E('#c25hb').innerHTML = '<div class="lph">CALLING THE SHOT...</div>'
     setTimeout(() => {
       if (mode !== 'shot') return
-      const s0 = seat ?? seatOf(spot), r = sc.call(spot, { hand: youHand(), temp: 62 }, cs0().getPropertyValue('--acc').trim(), { weight: howCommon, label: s0.what === 'field' ? null : s0.line, cloud: lab.SA !== 2 })
+      const s0 = seat ?? seatOf(spot), r = sc.call(spot, { hand: youHand(), temp: 62 }, cs0().getPropertyValue('--acc').trim(), { weight: howCommon, label: s0.what === 'field' ? null : s0.line, cloud: lab.SA })
       r.seat = s0; scRes = r; scSel = 0
-      lookSeat(spot)
+      if (!keepCam) lookSeat(spot)
       pickWay(0)
     }, 30)
   }
@@ -2480,7 +2491,7 @@ export async function build(root, api, U) {
   const PLAIN = { GONE: 'HOME RUN', NUKE: 'HOME RUN', SCRAPER: 'HOME RUN', SPLASH: 'SPLASH HIT', CLOSE: 'OFF THE WALL', POLE: 'FOUL BALL' }
   const plainHead = (b) => (!b.last ? '. . .' : PLAIN[b.key] ?? b.state)
   function render(res) {
-    if (!burst) settled = snap()
+    if (!burst) { settled = snap(); settledT = performance.now() }
     last = res
     if (ctl3d) { ctl3d.visible = mode === 'whatif'; ctl3d.sync(api.state) }
     if (windFx) { const k = mode === 'whatif' ? `${api.state.wind},${api.state.xwind ?? 0}` : 'tonight'; if (k !== windKey) { windKey = k; if (mode === 'whatif') windFx.setField({ wind: api.state.wind, xwind: api.state.xwind ?? 0 }); else tonightWind() } } // the socks show the dojo's wind, or tonight's
@@ -2819,7 +2830,7 @@ export async function build(root, api, U) {
   // THE ORANGE, live (2 Nov, later: a reload on every switch was a bug): the family in place, the park's materials and cubes, the interface's accent, the arcs
   function switchOrange(n) { const map = setOrange(n); if (!map) return; recolor(api.NN.scene, map); THEMES.orange.acc = ORANGE.o; if (themeKey() === 'orange') root.style.setProperty('--acc', ORANGE.o); colC = null; if (!api.anim?.()) api.update() }
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
-  applyLab = (k) => { if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
+  applyLab = (k) => { if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
   window.__mix25 = { colors: () => colors(), impact: () => impact, touches: () => touches, sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,

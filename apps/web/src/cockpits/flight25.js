@@ -48,7 +48,7 @@ export function initFlight25(api, colors) {
   let flow = 1, landLook = 2, landCol = 1
   // 3 ON HOVER (2 Nov, later): a tag shows only while the pointer is on its cube (the dot at the top of the flight, the dot where it crossed the wall)
   let hov = null
-  function showTags(g, f) { if (!g) return; g.userData.f = f; const R = [...g.userData.reveal].sort((a, b) => a[0] - b[0]); let k = -1; R.forEach(([at], i) => { if (f >= at) k = i }); R.forEach(([, o], i) => { const t = o.children.find((c) => c.userData.isTag); if (t && !t.userData.landNumber) t.visible = flow === 3 ? o === hov : flow === 1 || i === k }) }
+  function showTags(g, f) { if (!g) return; g.userData.f = f; const R = [...g.userData.reveal].sort((a, b) => a[0] - b[0]); let k = -1; R.forEach(([at], i) => { if (f >= at) k = i }); R.forEach(([, o], i) => { const t = o.children.find((c) => c.userData.isTag); if (t && !t.userData.landNumber) { t.visible = flow === 3 ? o === hov : flow === 1 || i === k; if (t.userData.read) t.userData.read.fixed = flow === 3 && o === hov } }) } // (3 Nov: a tag you point at holds its place; the rest make way)
   // the hovered cube: the nearest dot on screen within 22 px of the pointer, among the posts already up
   const ptr = { x: -1e4, y: -1e4 }, pv = new THREE.Vector3()
   const dotsOnScreen = () => { const cv = api.NN.renderer?.domElement; if (!last || !cv) return []; const r = cv.getBoundingClientRect(); return last.userData.reveal.filter(([, o]) => o.userData.dot && o.visible).map(([, o]) => { pv.copy(o.userData.dot).project(camera); return { o, x: r.left + ((pv.x + 1) / 2) * r.width, y: r.top + ((1 - pv.y) / 2) * r.height, front: pv.z < 1 } }) }
