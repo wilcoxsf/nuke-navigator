@@ -128,8 +128,9 @@ export function witnessStore(o = {}) {
   const base = o.base ?? '', F = o.fetch ?? globalThis.fetch?.bind(globalThis), S = o.storage ?? globalThis.localStorage
   const read = (k, d) => { try { const v = S?.getItem(k); return v == null ? d : JSON.parse(v) } catch { return d } }
   const write = (k, v) => { try { S?.setItem(k, JSON.stringify(v)) } catch {} }
-  const local = () => ({ name: read('nn-witness-name', ''), days: read('nn-witness', []), seats: read('nn-witness-seats', {}) })
-  const keepLocal = (e) => { write('nn-witness', e.days ?? []); write('nn-witness-seats', e.seats ?? {}); if (e.name != null) write('nn-witness-name', e.name) }
+  // (2 Nov, night) and the calling card: a gamer tag (its case kept) and an emblem (emblem25.js, encoded)
+  const local = () => ({ name: read('nn-witness-name', ''), tag: read('nn-witness-tag', ''), emblem: read('nn-witness-emblem', ''), days: read('nn-witness', []), seats: read('nn-witness-seats', {}) })
+  const keepLocal = (e) => { write('nn-witness', e.days ?? []); write('nn-witness-seats', e.seats ?? {}); if (e.name != null) write('nn-witness-name', e.name); if (e.tag != null) write('nn-witness-tag', e.tag); if (e.emblem != null) write('nn-witness-emblem', e.emblem) }
   return {
     local,
     async load() {

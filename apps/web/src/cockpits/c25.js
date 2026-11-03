@@ -53,6 +53,7 @@ import { initShadow25 } from './shadow25.js'
 import { initMySeat25 } from './myseat25.js'
 import { initMoments25 } from './moments25.js'
 import { initImpact25, IMPACTS, COVES } from './impact25.js'
+import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
 import { initPitchArc, breakOf, feltBreak } from './pitchcam25.js'
@@ -438,6 +439,21 @@ const HDR_AX = OPEN // what is still open sits in the header
 // 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
 const DOCK = [...OPEN, ...Object.keys(LAB).filter((k) => !(k in LAB_LOCK))] // (31 Oct, later: only what is open, and the lab; 1 Nov, evening: the lab's open ones)
 const DEF = { ...Object.fromEntries(OPEN.map((k) => [k, AXES[k].opts[0].c])), ...LOCKED } // an open choice starts at its first option
+// the calling card in WALLOP WITNESS (2 Nov, night): the emblem in crisp pixels beside the tag, on YOUR GAMES and on every row of the stand
+const CARD_CSS = `
+#cp .c25 .wemb{image-rendering:pixelated;display:inline-block;vertical-align:middle;border:1px solid var(--tx);flex:none;box-shadow:2px 2px 0 var(--e)}
+#cp .c25 .wemb.none{border-style:dashed;border-color:var(--dim);box-shadow:none}
+#cp .c25 .ww .wcard{flex-wrap:wrap;row-gap:6px}
+#cp .c25 .ww .wcc{display:inline-flex;align-items:center;gap:10px;color:var(--tx)}
+#cp .c25 .ww .wcc b{font-family:var(--tf),monospace;font-weight:400;font-size:calc(22px * var(--ts));text-transform:none;color:var(--acc)}
+#cp .c25 .ww .wrn{display:flex;align-items:center;gap:8px;min-width:0}
+#cp .c25 .ww .wrn em{font-style:normal;text-transform:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cp .c25 .ww.wcd{display:flex;justify-content:center}
+`
+// 2 Nov, night (Andrew: "I looked at this on a small laptop screen and it absolutely fucking fried it ... for a small laptop screen we need SOMETHING better"): under
+// 1500 by 820 (and over the phone layout's 900 wide) the cockpit goes COMPACT (class cmp): the type scales down with the screen (to 0.8 at most), the rails narrow so
+// the park keeps its room, and the park's readout, the verdict chip, the ball chooser and NUKE IT shrink; under 700 tall (cmp2) the readout keeps one comparison
+const compactK = () => (innerWidth < 900 || (innerWidth >= 1500 && innerHeight >= 820) ? 1 : Math.max(0.8, Math.min(1, innerWidth / 1600, innerHeight / 880)))
 const optOf = (k, c) => AXES[k].opts.find((o) => o.c === c) ?? AXES[k].opts[0]
 export function parseMix(s) {
   const m = { ...DEF }
@@ -464,7 +480,8 @@ const LAYOUT_CSS = `
   // cell goes to the panel under it (or over it)
   const noBat = L.areas.map((row, r) => row.split(' ').map((a, c) => (a === 'batter' ? L.areas[r + 1]?.split(' ')[c] ?? L.areas[r - 1]?.split(' ')[c] ?? a : a)).join(' '))
   return `#cp .c25.L${n}{grid-template-columns:${L.cols};grid-template-rows:${L.rows.join(' ')} 84px;grid-template-areas:${q([...L.areas, strip])}}\n#cp .c25.L${n}.ns{grid-template-rows:${L.rows.join(' ')};grid-template-areas:${q(L.areas)}}\n@media (min-width:900px){#cp .c25.L${n}.wi:not(.ns){grid-template-areas:${q([...noBat, strip])}}#cp .c25.L${n}.wi.ns,#cp .c25.L${n}.shot{grid-template-areas:${q(noBat)}}}`
-}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi .pnl.batter,#cp .c25.shot .pnl.batter{display:none}}' // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
+}).join('\n') + '\n@media (min-width:900px){#cp .c25.wi .pnl.batter,#cp .c25.shot .pnl.batter{display:none}}'
+  + `\n@media (min-width:900px){#cp .c25.cmp.L1{grid-template-columns:clamp(226px,17.5vw,380px) minmax(0,1fr) clamp(240px,18.5vw,420px)}#cp .c25.cmp.L2{grid-template-columns:clamp(240px,18.5vw,420px) minmax(0,1fr) clamp(226px,17.5vw,380px)}#cp .c25.c25.cmp{inset:6px;gap:8px}}` // (2 Nov, night: COMPACT) // (desktop only: the phone keeps its card tabs; 31 Oct, Andrew: "no stand in batter - kill that whole area completely for dojo": the dojo with its controls top left as well)
 const FRAME_CSS = `
 #cp .c25 .pnl{overflow:visible}
 #cp .c25.P1 .pnl>.t{top:-6px}
@@ -620,6 +637,17 @@ export async function build(root, api, U) {
 #cp .c25 .chip .sb{font-size:15px;color:var(--dim);margin-top:3px}
 #cp .c25 .chip .st{display:inline-block;margin-top:8px;font-family:PS2P,monospace;font-size:12px;letter-spacing:.04em;background:var(--acc);color:var(--k);padding:5px 7px;transform:rotate(-3deg)}
 #cp .c25 .rd .sit{color:var(--tx);font-size:15px;margin-top:6px}
+@media (min-width:900px){
+#cp .c25.cmp .rd{left:12px;top:10px;max-width:calc(100% - 250px)}
+#cp .c25.cmp .rd .big{font-size:50px}#cp .c25.cmp .rd .big i{font-size:19px}
+#cp .c25.cmp .rd .lbl{font-size:13px}#cp .c25.cmp .rd .sub,#cp .c25.cmp .rd .gn{font-size:14px;margin-top:3px}#cp .c25.cmp .rd .sit{font-size:13px;margin-top:4px}
+#cp .c25.cmp .rd .fun{font-size:13px;max-width:460px;margin-top:3px}#cp .c25.cmp2 .rd .fun span+span{display:none}
+#cp .c25.cmp .rd .meter{margin-top:5px}#cp .c25.cmp .rd .meter s{width:8px;height:11px}#cp .c25.cmp .rd .meter em{font-size:16px;margin-left:8px}
+#cp .c25.cmp .chip{right:10px;top:10px;padding:5px 9px;max-width:230px}#cp .c25.cmp .chip .hd{font-size:19px}#cp .c25.cmp .chip .sb{font-size:12px}#cp .c25.cmp .chip .st{font-size:10px;margin-top:5px}
+#cp .c25.cmp .bug{right:10px;transform:scale(.86);transform-origin:top right}
+#cp .c25.cmp .bsel,#cp .c25.cmp.ns .bsel{left:12px;bottom:8px;right:180px;font-size:13px;gap:3px}#cp .c25.cmp .bsel .bt{padding:2px 6px}
+#cp .c25.cmp .nuke{right:10px;bottom:8px;height:44px;min-width:160px;padding:0 10px 0 8px;gap:8px}#cp .c25.cmp .nuke b{font-size:13px}#cp .c25.cmp .nuke .nkw{width:30px;height:32px}#cp .c25.cmp .nuke .nkw svg{height:26px;width:auto}#cp .c25.cmp .nuke i{margin-bottom:5px}
+}
 #cp .c25 .bsel{position:absolute;left:18px;bottom:12px;right:236px;display:grid;gap:4px;font-size:17px}
 #cp .c25.ns .bsel{right:236px}
 #cp .c25 .nuke{position:absolute;right:16px;bottom:12px;height:58px;min-width:204px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px 0 12px;background:var(--nkbg,var(--nk,#dee000));color:var(--nktx,#0b0b0b);--nki:var(--nktx,#0b0b0b);cursor:pointer;pointer-events:auto;z-index:3;user-select:none;box-shadow:inset 0 0 0 var(--nkb,0px) var(--nkc,transparent),4px 4px 0 color-mix(in srgb,var(--nk,#dee000) var(--nksh,35%),#000);transition:transform .08s,box-shadow .08s}
@@ -936,7 +964,7 @@ export async function build(root, api, U) {
 #cp .c25 .rgl{color:var(--dim);font-size:calc(11px * var(--ts));letter-spacing:.12em;margin-top:3px}
 #cp .c25 .rg{display:grid;grid-template-columns:minmax(0,1fr);gap:1px}
 #cp .c25 .pitch:has(.sfx .rgs) .sfo{display:none} /* (2 Nov, night) once a seat is called its ranges have the room the how-to took */
-#cp .c25 .rg span{color:var(--tx);font-size:calc(15px * var(--ts));line-height:1.1}
+#cp .c25 .rg span{color:var(--tx);font-size:calc(15px * var(--ts));line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#cp .c25 .rg span i{font-style:normal;color:var(--dim);font-size:.78em;letter-spacing:.08em;margin-right:4px}
 #cp .c25 .rg em{font-style:normal;color:var(--dim);font-size:calc(11px * var(--ts))}
 #cp .c25 .rgb{position:relative;display:flex;gap:1px;height:9px}
 #cp .c25 .rgb i{flex:1;background:var(--acc)}
@@ -979,7 +1007,7 @@ export async function build(root, api, U) {
 `
   // every px font size in this study scales with the type set (T); labels in the label face keep their own size
   const scaled = (s) => s.replace(/font-size:(\d+(?:\.\d+)?)px/g, 'font-size:calc($1px * var(--ts))')
-  css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PIXCTL_CSS + PHONE_CSS)
+  css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PIXCTL_CSS + PHONE_CSS + EMBLEM_CSS + CARD_CSS)
   root.classList.add('skel')
   window.__cpBead = 3.4
   window.__cpHold = 110 // the hit-stop: the ball waits at the plate for 110 ms before it leaves
@@ -1170,7 +1198,8 @@ export async function build(root, api, U) {
     if (['X', 'Y'].includes(changed) && !api.anim?.()) api.update() // the arc's dots take the new color
     paintTitles(); slotLabels?.(); pixStyle?.()
     menu?.setLogo(mix.M)
-    for (const [k, v] of Object.entries(typeVars(optOf('T', mix.T).T))) grid.style.setProperty('--' + k, v)
+    for (const [k, v] of Object.entries(typeVars(optOf('T', mix.T).T))) grid.style.setProperty('--' + k, k === 'ts' ? String(Number(v) * compactK()) : v)
+    grid.classList.toggle('cmp', compactK() < 1); grid.classList.toggle('cmp2', innerWidth >= 900 && innerHeight < 700)
     if (!changed) { applyTheme(root, api, themeKey(), { park: true }); showWire() }
     root.querySelectorAll('.mx[data-ax]').forEach((b) => { const k = b.dataset.ax, o = optOf(k, mix[k]); b.textContent = k + mix[k]; b.title = `${AXES[k].name}: ${o.name}`; b.setAttribute('aria-label', b.title) })
     store('nn-mix25', mixCode(mix).replace(/ /g, ''))
@@ -1193,6 +1222,7 @@ export async function build(root, api, U) {
     }
   }
   const relayout = () => requestAnimationFrame(() => { syncCam?.(); camTo(bird ? 'top' : 'home') })
+  { let k0 = compactK(), t = 0; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { const k = compactK(); grid.classList.toggle('cmp2', innerWidth >= 900 && innerHeight < 700); if (k === k0) return; k0 = k; grid.style.setProperty('--ts', String(Number(typeVars(optOf('T', mix.T).T).ts) * k)); grid.classList.toggle('cmp', k < 1); if (last) render(last) }, 150) }) } // (2 Nov, night: COMPACT follows the window)
   const stepAx = (k, d) => { const os = dockOpts(k), n = os.length, i = os.findIndex((o) => o.c === kVal(k)); kSet(k, os[(i + d + n) % n].c); const b = root.querySelector(`.mx[data-ax="${k}"]`); b?.classList.add('ch'); setTimeout(() => b?.classList.remove('ch'), 500) }
   root.querySelectorAll('.mx[data-ax]').forEach((b) => {
     b.addEventListener('click', (e) => { pressEl(b); sound.play('move'); stepAx(b.dataset.ax, e.shiftKey ? -1 : 1) })
@@ -1433,7 +1463,7 @@ export async function build(root, api, U) {
   // (1 Nov, later; an audit) the focus goes into an open window and back where it was when it closes, so Tab and Enter never reach a button behind it
   let modFrom = null
   const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) { sound.play('modal-open'); modFrom = document.activeElement } modal = k; E('#c25m').classList.add('open'); E('#c25m').classList.toggle('wwm', k === 'witness'); paintModal(); E('#c25cl')?.focus?.({ preventScroll: true }); if (k === 'moon') life?.play('moon', {}, 0, true); if (uiReady) paintTabs() }
-  const closeMod = () => { if (modal) sound.play('modal-close'); modal = null; E('#c25m').classList.remove('open', 'wwm'); iniCancel?.(); iniCancel = null; if (modFrom?.isConnected) modFrom.focus?.({ preventScroll: true }); modFrom = null; if (uiReady) paintTabs() }
+  const closeMod = () => { if (modal) sound.play('modal-close'); if (wEd) { wEd.destroy(); wEd = null } if (wTab === 'card') wTab = 'mine'; modal = null; E('#c25m').classList.remove('open', 'wwm'); iniCancel?.(); iniCancel = null; if (modFrom?.isConnected) modFrom.focus?.({ preventScroll: true }); modFrom = null; if (uiReady) paintTabs() }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
   function paintModal() {
@@ -1648,7 +1678,7 @@ export async function build(root, api, U) {
   let lib = null
   loadLibrary().then((l) => { lib = l }).catch(() => {})
   const wstore = witnessStore()
-  let wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
+  let wEd = null, wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
   const G = (gamesJ?.games ?? [])
   const wNow = () => (q.get('now') ? Date.parse(q.get('now')) : Date.now())
   const wOpen = (k) => windowOpen(k, G, wNow())
@@ -1669,7 +1699,23 @@ export async function build(root, api, U) {
     const me = { name: '', days: [], seats: {}, ...wData.me }
     if (!wPicked) wTab = !(me.days?.length) && !openKeys(G, wNow()).length ? 'stand' : 'mine' // (home stretch: nothing logged and no game open to log opens on the Stand, YOUR GAMES a click away)
     const tabs = `<div class="wtabs"><span class="bt${wTab === 'mine' ? ' on' : ''}" data-wt="mine">YOUR GAMES</span><span class="bt${wTab === 'stand' ? ' on' : ''}" data-wt="stand">THE WITNESS STAND</span></div>`
+    // THE CALLING CARD (2 Nov, night, Andrew: "People should also be able to make like gamer tags like old COD for their wallop witness name, can we get some ridiculous
+    // art maker that's hard?"): MAKE YOUR CALLING CARD opens the emblem maker (emblem25.js) in the panel; SAVE keeps the tag (the name on the stand) and the emblem
+    if (wEd) return
+    if (wTab === 'card') {
+      body.innerHTML = '<div class="bul ww wcd"></div>'
+      const done = () => { wEd?.destroy(); wEd = null; wTab = 'mine'; if (modal === 'witness') paintWitness(body) }
+      wEd = emblemEditor(body.querySelector('.wcd'), { value: me.emblem || encodeEmblem(DEFAULT_EMBLEM), tag: me.tag || '', sound: { play: (k) => sound.play(k) }, onCancel: done,
+        onSave: async (enc, tag) => {
+          wEd?.destroy(); wEd = null; wTab = 'mine'; wMsg = 'SAVING...'; paintWitness(body)
+          const next = { ...me, tag, emblem: enc, name: me.name || tag.replace(/^\[[^\]]*\]/, '').toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').slice(0, 20) }, r = await wstore.save(next)
+          if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = 'ON THE STAND AS ' + tag } else wMsg = 'NOT SAVED. TRY AGAIN.'
+          if (modal === 'witness') paintWitness(E('#c25mb'))
+        } })
+      return
+    }
     body.innerHTML = `<div class="bul ww">${tabs}${wTab === 'stand' ? standHTML(me) : mineHTML(me)}</div>`
+    body.querySelector('#c25wcard')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); wTab = 'card'; paintWitness(body) })
     // (2 Nov, night) a seat asked for comes filled in: the one I'M REALLY THERE sent, or else the one MY SEAT keeps
     if (wAsk) { let pf = wPrefill; if (!pf) try { pf = JSON.parse(store('nn-myseat25') || 'null') } catch { pf = null } if (pf) for (const [id, v] of [['#c25wsec', pf.sec], ['#c25wrow', pf.row], ['#c25wst', pf.seat]]) { const x = body.querySelector(id); if (x && !x.value) x.value = v ?? '' } }
     body.querySelectorAll('[data-wt]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wTab = x.dataset.wt; wPicked = true; wMsg = ''; paintWitness(body) }))
@@ -1729,20 +1775,25 @@ export async function build(root, api, U) {
     for (const g of [...G].filter(keep).sort((a, b) => b.d.localeCompare(a.d) || b.dh - a.dh)) (byMonth[g.d.slice(0, 7)] ??= []).push(g)
     const cal = Object.entries(byMonth).map(([m, gs]) => `<div class="wm"><span>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</span><div>${gs.map((g) => { const k = gameKey(g), n = hrsAt.get(String(g.pk)) ?? 0, on = me.days.includes(k) || me.days.includes(g.d), op = wOpen(k); return `<span class="bt wd${on ? ' on' : ''}${op ? ' open' : ' shut'}${wAsk === k ? ' ask' : ''}" data-d="${k}" title="${g.win ? 'W' : 'L'} ${g.sf}-${g.opp_r} V ${g.opp}${g.dh ? ' (GAME ' + g.dh + ')' : ''}${n ? ` · ${n} HOME RUN${n === 1 ? '' : 'S'}` : ''}${op ? ' · OPEN NOW' : ''}">${Number(g.d.slice(8))}${g.dh ? '<u>' + g.dh + '</u>' : ''}${n ? `<sup>${n}</sup>` : ''}</span>` }).join('')}</div></div>`).join('')
     return `<div class="bulh">LOG A GAME WITHIN 72 HOURS OF FIRST PITCH. ${openNow.length ? `OPEN NOW: ${openNow.map(shortDate).join(', ')}.` : 'NOTHING IS OPEN. THE NEXT HOME GAME OPENS AT FIRST PITCH.'}</div>
-      <div class="wme"><label>YOUR NAME ON THE STAND <input id="c25wnm" maxlength="20" value="${(me.name ?? '').replace(/"/g, '')}" placeholder="NAME"></label>${wData.shared ? '' : '<i>KEPT IN THIS BROWSER FOR NOW</i>'}</div>
+      <div class="wme wcard">${cardHTML(me, 48)}<span class="bt" id="c25wcard" role="button" tabindex="0">${me.tag || me.emblem ? 'EDIT YOUR CALLING CARD' : 'MAKE YOUR CALLING CARD'}</span><label>OR JUST A NAME <input id="c25wnm" maxlength="20" value="${(me.name ?? '').replace(/"/g, '')}" placeholder="NAME"></label>${wData.shared ? '' : '<i>KEPT IN THIS BROWSER FOR NOW</i>'}</div>
       ${ask}${wMsg ? `<div class="wmsg">${wMsg}</div>` : ''}${stats}<div class="wkey">EVERY HOME GAME. THE SMALL NUMBER IS ITS HOME RUNS. OUTLINED: OPEN NOW.</div><div class="wgrid">${cal}</div><span class="bt" id="c25wold">${wAll ? 'THIS SEASON ONLY' : 'SHOW OLDER SEASONS'}</span>`
   }
   // THE WITNESS STAND: one board at a time, everyone on it; the season's titles across the top (who holds each right now; Andrew hands them out at the end)
+  // a calling card: the emblem (or an empty frame) and the tag, or the plain name, or nothing yet
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const embImg = (code, px) => { const u = code ? emblemDataURL(code, 2) : ''; return u ? `<img class="wemb" src="${u}" width="${px}" height="${px}" alt="">` : `<span class="wemb none" style="width:${px}px;height:${px}px"></span>` }
+  const cardHTML = (me, px) => `<span class="wcc">${embImg(me.emblem, px)}<b>${esc(me.tag || me.name || 'NO TAG YET')}</b></span>`
   function standHTML(me) {
     const season = wSeason()
-    const people = (wData.all?.length ? wData.all : [{ ...me, name: me.name || 'YOU' }]).map((p) => ({ name: (p.name || 'NO NAME').toUpperCase(), entry: p }))
+    const people = (wData.all?.length ? wData.all : [{ ...me, name: me.name || 'YOU' }]).map((p) => ({ name: p.tag || (p.name || 'NO NAME').toUpperCase(), entry: p }))
+    const cardOf = new Map(people.map((p) => [p.name, p.entry])) // (2 Nov, night: a tag keeps its case; the emblem goes beside it)
     const all = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, wOpts) })), now = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, { ...wOpts, season }) }))
     const titles = TROPHIES.map((t) => { const b = BOARDS.find((x) => x.key === t.board), top = rankBoard(b, now).find((r) => r.value > 0); return `<div class="wtt"><b>${t.names[0]}</b><span>${top ? `${top.name} · ${wFmt(top.value)}${b.unit ? ' ' + b.unit : ''}` : 'UP FOR GRABS'}</span></div>` }).join('')
     const board = BOARDS.find((b) => b.key === wBoard) ?? BOARDS[0], ranked = rankBoard(board, all)
     const val = (v) => (board.pct ? `${v >= 0 ? '+' : ''}${Math.round(v * 100)}` : board.key === 'altitude' ? v.toFixed(1) : wFmt(v)) + (board.unit ? ' ' + board.unit : board.pct ? ' POINTS' : '')
     return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts">${titles}</div>
       <div class="wbds">${BOARDS.filter((b) => b.key !== 'hours' || all.some((p) => p.stats.hours != null)).map((b) => `<span class="bt${b.key === board.key ? ' on' : ''}" data-bd="${b.key}">${b.title}</span>`).join('')}</div>
-      <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b>${r.name}</b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
+      <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b class="wrn">${embImg(cardOf.get(r.name)?.emblem, 22)}<em>${esc(r.name)}</em></b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
       ${wData.shared ? '' : '<div class="dds">ONLY YOU UP THERE UNTIL THE STAND GOES LIVE.</div>'}`
   }
   function statCols(res) {
@@ -2243,15 +2294,15 @@ export async function build(root, api, U) {
   // 2 Nov, night (Andrew: "What I want is the LHS to show the range of values that COULD make up that HR"): every exit speed, launch angle and aim that gets a ball to
   // the seat, as a bar across the whole range Shot Caller tries: lit from the lowest to the highest that gets there, brightest at the most common, a tick at the one picked
   function rangesHTML(r, sel) {
-    const W = r.ways, bar = (k, lo, hi, st, fmt, unit) => {
+    const W = r.ways, bar = (lab, k, lo, hi, st, fmt, unit) => {
       const v = W.map((w) => w[k]), a = Math.min(...v), b = Math.max(...v), top = W[0][k], N = Math.round((hi - lo) / st) + 1, by = new Map()
       for (const w of W) { const i = Math.round((Math.min(hi, Math.max(lo, w[k])) - lo) / st); by.set(i, (by.get(i) ?? 0) + w.w) }
       const mx = Math.max(1, ...by.values()), cells = Array.from({ length: N }, (_, i) => { const n = by.get(i) ?? 0; return `<i style="opacity:${n ? (0.25 + 0.75 * Math.sqrt(n / mx)).toFixed(2) : 0.08}"></i>` }).join('')
       const at = (x) => ((Math.min(hi, Math.max(lo, x)) - lo) / (hi - lo)) * 100
-      return `<div class="rg"><span>${fmt(a) === fmt(b) ? fmt(a) : fmt(a) + ' TO ' + fmt(b)}${unit}</span><div class="rgb">${cells}<u style="left:${at(sel[k]).toFixed(1)}%"></u></div></div>`
+      return `<div class="rg"><span><i>${lab}</i> ${fmt(a) === fmt(b) ? fmt(a) : fmt(a) + ' TO ' + fmt(b)}${unit}</span><div class="rgb">${cells}<u style="left:${at(sel[k]).toFixed(1)}%"></u></div></div>`
     }
     const dirs = W.map((w) => w.dir), d0 = Math.floor(Math.min(...dirs)) - 2, d1 = Math.ceil(Math.max(...dirs)) + 2
-    return `<div class="lph rgh">WHAT GETS A BALL THERE · THE TICK IS THE WAY PICKED</div><div class="rgs"><div class="rgl">EXIT SPEED</div>${bar('ev', GRID.ev[0], GRID.ev[1], GRID.ev[2], (x) => Math.round(x), ' MPH')}<div class="rgl">LAUNCH ANGLE</div>${bar('la', GRID.la[0], GRID.la[1], GRID.la[2], (x) => Math.round(x), '°')}<div class="rgl">AIM</div>${bar('dir', d0, d1, 1, (x) => FIELD(x), '')}</div>`
+    return `<div class="lph rgh">WHAT GETS A BALL THERE · THE TICK IS THE WAY PICKED</div><div class="rgs">${bar('EXIT SPEED', 'ev', GRID.ev[0], GRID.ev[1], GRID.ev[2], (x) => Math.round(x), ' MPH')}${bar('LAUNCH ANGLE', 'la', GRID.la[0], GRID.la[1], GRID.la[2], (x) => Math.round(x), '°')}${bar('AIM', 'dir', d0, d1, 1, (x) => FIELD(x), '')}</div>`
   }
   // I'M REALLY THERE (2 Nov, night, Andrew: "an 'I'm really there' or something like that for the shot caller that goes straight into wallop witness if you enter your
   // seat"): the seat becomes yours (MY SEAT keeps it too), and WALLOP WITNESS opens on YOUR GAMES with it filled in for the game open now, if there is one
@@ -2294,7 +2345,7 @@ export async function build(root, api, U) {
       // a short panel drops the real home runs first, then the ways from the bottom
       const pl = E('#c25pl'), over = () => pl.scrollHeight > pl.clientHeight + 1
       const drop = (q) => { for (const x of [...side.querySelectorAll(q)].reverse()) { if (!over()) return; x.remove() } }
-      drop('.lpr2'); if (over()) side.querySelector('.lph.cl')?.remove(); drop('.swy'); if (over()) side.querySelector('.lph:not(.rgh)')?.remove()
+      drop('.lpr2'); if (over()) side.querySelector('.lph.cl')?.remove(); drop('.swy'); if (over()) side.querySelector('.lph:not(.rgh)')?.remove(); if (over()) side.querySelector('.rgh')?.remove()
     }
     frontierWire(hb); frontierPick()
     const rt = hb.querySelector('#c25rt'), goThere = (e) => { pressEl(rt); sound.play('pick'); stopShot(); reallyThere(r.seat) }
@@ -2736,7 +2787,7 @@ export async function build(root, api, U) {
   if (atOracle && q.get('karl') !== '0') Promise.resolve(getBay()).then(() => { if (bay && !bay.error && bay.hourly && karlIn(bay)) toggleKarl(true) }).catch(() => {})
 
   finishUI(root, { minW: 320, minH: 480 })
-  syncCam = windowSync(api, hero, { zoom: 0.95 })
+  syncCam = windowSync(api, hero, { get zoom() { return compactK() < 1 ? 1.08 : 0.95 } }) // (2 Nov, night: COMPACT frames the park a little tighter; its window is small)
   applyMix()
   if (q.get('filter')) filter = q.get('filter')
   if (q.get('ball')) idx = Math.max(0, Number(q.get('ball')) || 0)

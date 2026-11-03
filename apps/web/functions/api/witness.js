@@ -40,6 +40,10 @@ async function idOf(token) {
   return [...h.slice(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 const cleanName = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME)
+// (2 Nov, night) the calling card (src/cockpits/emblem25.js): a gamer tag, its case kept ([CLAN] up to 4, then 3 to 18 of letters, digits, _ - .), and an emblem as
+// its URL-safe base64 code, kept only if it looks like one and is short
+const cleanTag = (s) => { const m = /^\s*(?:\[([A-Za-z0-9]{1,4})\])?\s*([A-Za-z0-9_.-]{3,18})/.exec(String(s ?? '').replace(/[^A-Za-z0-9_.\[\]-]/g, '')); return m ? (m[1] ? '[' + m[1] + ']' : '') + m[2] : '' }
+const cleanEmblem = (s) => (typeof s === 'string' && s.length <= 1400 && /^[A-Za-z0-9_-]*$/.test(s) ? s : '')
 const cleanSeat = (s) => ({ sec: String(s?.sec ?? '').replace(/[^0-9A-Z]/gi, '').slice(0, 6), row: String(s?.row ?? '').replace(/[^0-9A-Z]/gi, '').slice(0, 4), seat: String(s?.seat ?? '').replace(/[^0-9]/g, '').slice(0, 4) })
 
 export async function onRequest({ request, env }) {
@@ -59,7 +63,7 @@ export async function onRequest({ request, env }) {
         let e = null
         try { e = JSON.parse((await env.WITNESS.get(k.name)) ?? 'null') } catch {}
         if (!e) continue
-        all.push({ id: k.name.slice(2, 10), me: k.name === key, name: e.name, days: e.days ?? [], seats: Object.fromEntries(Object.entries(e.seats ?? {}).map(([d, s]) => [d, { sec: s.sec }])) })
+        all.push({ id: k.name.slice(2, 10), me: k.name === key, name: e.name, tag: e.tag ?? '', emblem: e.emblem ?? '', days: e.days ?? [], seats: Object.fromEntries(Object.entries(e.seats ?? {}).map(([d, s]) => [d, { sec: s.sec }])) })
       }
       if (l.list_complete || !l.cursor) break
       cursor = l.cursor
@@ -78,7 +82,7 @@ export async function onRequest({ request, env }) {
     if (refused.length) return json({ error: 'a game can be logged only within 72 hours of first pitch', refused }, 422)
     const seats = {}
     for (const d of days) if (body.seats?.[d]) seats[d] = cleanSeat(body.seats[d])
-    const entry = { name: cleanName(body.name) || cleanName(who.name.split(' ')[0]) || 'A FRIEND', days, seats, updated: new Date(now).toISOString() }
+    const entry = { name: cleanName(body.name) || cleanName(who.name.split(' ')[0]) || 'A FRIEND', tag: cleanTag(body.tag), emblem: cleanEmblem(body.emblem), days, seats, updated: new Date(now).toISOString() }
     await env.WITNESS.put(key, JSON.stringify(entry))
     return json({ me: entry })
   }
