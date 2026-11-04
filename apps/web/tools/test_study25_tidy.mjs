@@ -42,10 +42,10 @@ const page = await open(1827, 992)
   // (31 Oct, later: the side menu holds THE LAB as well; a lab choice is kept on the device)
   await page.click('#c25dk .dx [data-ax="BG"]'); await page.waitForTimeout(300)
   await page.click('#c25dk .do[data-c="3"]'); await page.waitForTimeout(400)
-  check('a lab choice can be picked in the side menu (BG3 SUNSET)', (await page.evaluate(() => window.__mix25.lab().BG)) === 3)
+  check('a lab choice can be picked in the side menu (BG3 FOG AND FLAME)', (await page.evaluate(() => window.__mix25.lab().BG)) === 3)
   await page.reload(); await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 }); await page.waitForTimeout(1500)
   check('a reload keeps the lab choice (BG3)', (await page.evaluate(() => window.__mix25.lab().BG)) === 3)
-  await page.evaluate(() => window.__mix25.lab('BG', 1))
+  await page.evaluate(() => window.__mix25.lab('BG', 4))
 }
 // ---- GAG REEL ----
 {

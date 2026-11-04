@@ -403,8 +403,8 @@ export const LAB = {
   ] },
   // 1 Nov, evening (Andrew: no LANDED, the feet alone as a chunky voxel number over the spot, "give me like 5 options"): landnum25.js
   // BLAST RADIUS (heat25.js; 3 Nov, later: "Give me a ton of options on this, gradient colors, how to visualize it, you name it")
-  BG: { name: 'BLAST RADIUS: COLORS', def: 1, opts: GRADS },
-  FV: { name: 'BLAST RADIUS: THE FIELD', def: 2, opts: FIELDS },
+  BG: { name: 'BLAST RADIUS: COLORS', def: 4, opts: GRADS }, // (4 Nov: ICE AND FIRE, his favorite, keeps its number so a pick already made stays)
+  FV: { name: 'BLAST RADIUS: THE FIELD', def: 4, opts: FIELDS }, // (4 Nov: "I like the wall line and warning track")
   SV: { name: 'BLAST RADIUS: THE SEATS', def: 1, opts: SEATS },
   // 2 Nov, night (Andrew: "We can do better on voxel effects when it lands. I'd like the option for a scuba diver ... some oomph"): impact25.js
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
@@ -2725,7 +2725,7 @@ export async function build(root, api, U) {
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
   // (2 Nov, later: no words when the ball lands, "we don't need that set dressing"; the moments still play)
   const impact = initImpact25(api, colors)
-  heat = initHeat25(api, { pool, balls: R.balls, gone: () => colors().nk, look: () => ({ g: lab.BG, f: lab.FV, s: lab.SV }), giants: (b) => !!b && (b.tb === 'Bot' ? b.ht === 'SF' : b.at === 'SF') })
+  heat = initHeat25(api, { pool, balls: R.balls, sections: se.SECTIONS, gone: () => colors().nk, look: () => ({ g: lab.BG, f: lab.FV, s: lab.SV }), giants: (b) => !!b && (b.tb === 'Bot' ? b.ht === 'SF' : b.at === 'SF') })
   touches = initTouches25(api, { sound: (k, a) => sound.play(k, a), makeGull: () => life?.makeGull?.() })
   // POINTING AT A SEAT: Shot Caller's pointer, a raycast at most every 70 ms
   { let pT = 0; addEventListener('pointermove', (e) => { if (mode !== 'shot' || !onPark(e)) { touches.hoverSeat(null); return } const n = performance.now(); if (n - pT < 70) return; pT = n; const p = sc.pick(e.clientX, e.clientY); touches.hoverSeat(p, p && seatOf(p), cs0().getPropertyValue('--acc').trim()) }) }
