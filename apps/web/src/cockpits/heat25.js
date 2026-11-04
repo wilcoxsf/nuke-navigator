@@ -19,6 +19,8 @@
 // No numbers in the park: point at a wedge or a seat for what it means (cellAt), click one to keep it and compare (the study's panel says it in words).
 import { voxCells } from './vox25.js'
 import { NUKE_MARKS, GREEN } from '../landing.js'
+import { parkHit } from '../seance.js'
+const DOWN = { x: 0, y: -1, z: 0 }
 
 export const STEPS_HARD = ['#2b211b', '#53311a', '#86461c', '#c25f18', '#ff7a00'] // hard (dark) to easy (safety orange)
 export const STEPS_MANY = ['#0f2a33', '#15475a', '#1d7189', '#35a7c4', '#5ce1ff'] // few (dark) to most (ICE)
@@ -31,22 +33,44 @@ export const BANDS = [98, 102, 106, 110]
 // just be a dense color at the warning track (or maybe the orange line at the current HR threshold changes to it) and then the seat heatmap. Give me a ton of options on
 // this, gradient colors, how to visualize it, you name it"): three switches in the side menu (c25.js LAB: BG, FV, SV)
 //   BLAST COLORS: a smooth three-color run, hard to easy (for HOW MANY, few to most); none of them green, which is for gone
-// 4 Nov (Andrew: "I like ice and fire the most but I want more options for 3 color gradients - one color then white then the third. Like ice and fire. Gimme a ton of
-// options"): each runs hard (or few) through white to easy (or most); none of them green, which is for gone
-const W = '#f4f3ee'
+// 4 Nov (Andrew: "I like ice and fire the most but I want more options for 3 color gradients - one color then white then the third"); later ("I think it's either ice and
+// fire or dodgers - I want a cool / hot heatmap. Give me 10 options like that, with the orange always being the orange we're using everywhere else"): cool, white, then
+// SAFETY ORANGE (#ff7a00, the study's one orange, orange25.js ORANGE_LOCK 3); only the cool end changes. None is green, which is for gone
+const W = '#f4f3ee', HOT = '#ff7a00'
 export const GRADS = [
-  { c: 4, name: 'ICE AND FIRE', stops: ['#1b5f8c', W, '#ff7a00'], desc: 'cold blue, white, safety orange' },
-  { c: 2, name: 'DODGERS AND GIANTS', stops: ['#005a9c', W, '#fd5a1e'], desc: 'Dodger blue where it is hard, Giants orange where it is easy' },
-  { c: 3, name: 'FOG AND FLAME', stops: ['#7f93ad', W, '#ff4d00'], desc: "Karl's grey-blue, white, a hot red-orange" },
-  { c: 1, name: 'NAVY AND GIANTS', stops: ['#14213d', W, '#fd5a1e'], desc: 'deep navy, white, Giants orange' },
-  { c: 5, name: 'BAY AND SUNSET', stops: ['#2a6f97', W, '#f4a259'], desc: 'bay blue, white, a soft sunset orange' },
-  { c: 6, name: 'TEAL AND CORAL', stops: ['#0f6e6e', W, '#ff6f59'], desc: 'teal, white, coral' },
-  { c: 7, name: 'PURPLE AND GOLD', stops: ['#4b2a7b', W, '#f2b705'], desc: 'purple, white, gold' },
-  { c: 8, name: 'STEEL AND RED', stops: ['#43506b', W, '#d1342f'], desc: 'steel, white, red' },
-  { c: 9, name: 'PLUM AND MANGO', stops: ['#5b2a5e', W, '#ffa62b'], desc: 'plum, white, mango' },
-  { c: 10, name: 'MIDNIGHT AND MAGENTA', stops: ['#1d2a6d', W, '#e0457b'], desc: 'midnight blue, white, magenta' },
-  { c: 11, name: 'GRAPHITE AND ORANGE', stops: ['#2b2b2b', W, '#ff7a00'], desc: 'graphite, white, safety orange' },
-  { c: 12, name: 'COBALT AND CRIMSON', stops: ['#1f3fbf', W, '#b3122e'], desc: 'cobalt, white, crimson' },
+  { c: 4, name: 'ICE AND FIRE', stops: ['#1b5f8c', W, HOT], desc: 'deep ice blue' },
+  { c: 2, name: 'DODGERS', stops: ['#005a9c', W, HOT], desc: 'Dodger blue' },
+  { c: 24, name: 'GLACIER', stops: ['#2c7fb8', W, HOT], desc: 'a brighter glacier blue' },
+  { c: 25, name: 'COBALT', stops: ['#1f3fbf', W, HOT], desc: 'cobalt' },
+  { c: 26, name: 'INDIGO', stops: ['#3a3f9e', W, HOT], desc: 'blue going violet' },
+  { c: 27, name: 'NAVY', stops: ['#14213d', W, HOT], desc: 'near-black navy: the hard end almost disappears' },
+  { c: 28, name: 'TEAL', stops: ['#0f6e6e', W, HOT], desc: 'cold sea teal' },
+  { c: 29, name: 'STEEL', stops: ['#43506b', W, HOT], desc: 'steel blue-grey' },
+  { c: 30, name: 'ARCTIC', stops: ['#5f9fd6', W, HOT], desc: 'pale arctic blue: the softest cold' },
+  { c: 31, name: 'BAY AT NIGHT', stops: ['#0b2545', W, HOT], desc: 'the bay after dark' },
+]
+//   THE PILLARS (4 Nov, Andrew: "Def pillars for the seats - give me more options on how far they go up and down, how smooth they are, etc."): three switches
+export const PILLAR_HEIGHTS = [
+  { c: 2, name: 'MEDIUM', m: 5, desc: 'up to 5 m: a skyline you can read from the broadcast seat' },
+  { c: 1, name: 'LOW', m: 2.2, desc: 'up to 2 m: a relief, close to the seats' },
+  { c: 3, name: 'TALL', m: 9, desc: 'up to 9 m: towers' },
+  { c: 4, name: 'TOWERING', m: 14, desc: 'up to 14 m: a city' },
+]
+export const PILLAR_SHAPES = [
+  { c: 1, name: 'BLOCKY', desc: 'every tile at its own cell\'s height: steps between cells' },
+  { c: 2, name: 'SMOOTH', desc: 'heights and colors slide between the cells, so the skyline rolls' },
+  { c: 3, name: 'TERRACES', desc: 'five heights only, like contour terraces' },
+  { c: 4, name: 'NEEDLES', desc: 'thin pillars with gaps between: a bed of nails' },
+]
+export const PILLAR_WAYS = [
+  { c: 1, name: 'EASY STANDS TALL', desc: 'the easier to reach, the taller' },
+  { c: 2, name: 'HARD STANDS TALL', desc: 'the harder to reach, the taller: walls of difficulty' },
+]
+//   BLAST CONTRAST (4 Nov, Andrew: "let me see what it looks like with more contrast"): how the mph become colors
+export const CONTRASTS = [
+  { c: 2, name: 'STRETCHED', desc: 'the field and the seats each stretched over their own easiest to hardest, so both use the whole run of color' },
+  { c: 1, name: 'ONE SCALE', desc: 'one scale for everything, 96 to 118 mph: the field stays warm, the blue is up the back of the seats' },
+  { c: 3, name: 'RANKED', desc: 'each part ranked against the rest: the most contrast, an even spread of every color' },
 ]
 //   BLAST FIELD: what the field shows
 // 4 Nov (Andrew: "can we literally just recolor the currently orange wall line to this color? Not like a voxel grid, just a thicker and more colored wall line in this
@@ -91,7 +115,7 @@ export function initHeat25(api, o = {}) {
   const covePt = (x, y) => x > 25 && Math.hypot(x, y) > 126 && (Math.atan2(x, y) * 180) / Math.PI > 26 // (fx25.js's own test: plate frame, metres)
   function seatGrid() {
     if (grid) return grid
-    const h0 = home().y, water = api.toWorld([0, 0, -1.6]).y
+    const h = home(), h0 = h.y, water = api.toWorld([0, 0, -1.6]).y
     api.NN.stadium?.updateMatrixWorld(true)
     grid = []
     for (let i = 0; i < N; i++) {
@@ -102,10 +126,12 @@ export function initHeat25(api, o = {}) {
           const bm = mid(i), r0 = wallOf(bm)[0] + 2 + ROW_FT * (j + (rr + 0.5) / 2), arc = ((STEP * Math.PI) / 180) * r0 * FT, nb = Math.max(1, Math.round(arc / SAMPLE))
           for (let k = 0; k < nb; k++) {
             const b = B0 + STEP * (i + (k + 0.5) / nb), rFt = wallOf(b)[0] + 2 + ROW_FT * (j + (rr + 0.5) / 2), a = (b * Math.PI) / 180, x = rFt * FT * Math.sin(a), y = rFt * FT * Math.cos(a), w = api.toWorld([x, y, 0])
-            ray.set(new THREE.Vector3(w.x, h0 + 40, w.z), new THREE.Vector3(0, -1, 0))
-            const hit = api.NN.stadium ? ray.intersectObject(api.NN.stadium, true).find((h) => h.point.y < h0 + 34 && h.point.y > h0 - 4) : null
-            if (hit) pts.push(new THREE.Vector3(w.x, hit.point.y, w.z))
-            else if (covePt(x, y)) pts.push(new THREE.Vector3(w.x, water, w.z))
+            const past = (rFt - wallOf(b)[0]) * FT, cap = h0 + wallOf(b)[1] * FT + 0.62 * past + 3.5 // (the stands rise about 0.6 m a metre back; nothing much above that is a place a ball lands: not a ledge of the board)
+            const hit = parkHit(api.NN, new THREE.Vector3(w.x, cap, w.z), DOWN, cap - h0 + 6)
+            let at = hit && hit.point.y > h0 - 4 ? hit.point.clone() : covePt(x, y) ? new THREE.Vector3(w.x, water, w.z) : null
+            // a ball comes down from the plate's side at 30 to 50 degrees: where the sky that way is shut (under an overhang, behind the board) it cannot land
+            if (at) { const back = new THREE.Vector3(h.x - at.x, 0, h.z - at.z).normalize(), open = [30, 45, 60].some((e) => { const r = (e * Math.PI) / 180, d = back.clone().multiplyScalar(Math.cos(r)).setY(Math.sin(r)); return !parkHit(api.NN, at.clone().add(new THREE.Vector3(0, 0.4, 0)), d, 90) }); if (!open) at = null }
+            if (at) pts.push(new THREE.Vector3(w.x, at.y, w.z))
           }
         }
         row.push(pts.length ? { pts, y: pts.reduce((t, v) => t + v.y, 0) / pts.length, c: pts.reduce((t, v) => t.add(v), new THREE.Vector3()).multiplyScalar(1 / pts.length) } : null)
@@ -199,16 +225,28 @@ export function initHeat25(api, o = {}) {
     cacheP.set(key, s)
     return s
   }
+  // 4 Nov (Andrew: "For each player I want only their home runs not all of their deep balls, and I want some description for what type of hitter they are in histograms
+  // (pull / push, where are they hitting it to, at what launch angle, at what exit velo?)"): their home runs (any park, July 2023 on) flown here in this air; the field is
+  // how many of them go each way, the seats where they come down; prof: what kind of hitter the home runs say they are
   function player(id) {
-    const a = air(), mine = (o.balls ?? []).filter((b) => String(b.b) === String(id))
-    const deep = mine.filter((b) => b.ft >= DEEP || b.hr).map((b) => ({ ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'L' ? -1 : 1, dws: b.dws ?? 0, ref: b }))
-    const s = shares(deep, a), hrs = shares(deep.filter((x) => x.ref.hr), a, true), L = leagueDeep()
-    return { id, air: a, n: deep.length, hr: hrs.pts.length, hrOut: hrs.pts.filter((p) => p.gone).length, rate: s.rate, n5: s.n, league: L.rate, leagueN: L.n, pts: hrs.pts, seat: hrs.seat, outAll: s.out.reduce((t, x) => t + x, 0) }
+    const a = air(), hrB = (o.balls ?? []).filter((b) => String(b.b) === String(id) && b.hr).map((b) => ({ ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'L' ? -1 : 1, dws: b.dws ?? 0, ft: b.ft, ref: b }))
+    const s = shares(hrB, a, true)
+    return { id, air: a, hr: hrB.length, hrOut: s.pts.filter((p) => p.gone).length, n5: s.n, out5: s.out, rate: s.rate, pts: s.pts, seat: s.seat, prof: profile(hrB) }
   }
+  // pulled (to their own side: left for a righty, right for a lefty, more than 15 degrees), up the middle, or the other way; the middle half of their speeds and angles
+  function profile(hrs) {
+    if (!hrs.length) return null
+    const q = (v, k) => { const x = [...v].sort((p, r) => p - r); return x[Math.min(x.length - 1, Math.floor(k * x.length))] }
+    const pull = hrs.filter((b) => (b.hand > 0 ? b.dir < -15 : b.dir > 15)).length, oppo = hrs.filter((b) => (b.hand > 0 ? b.dir > 15 : b.dir < -15)).length, mid = hrs.length - pull - oppo
+    const ev = hrs.map((b) => b.ev), la = hrs.map((b) => b.la), ft = hrs.map((b) => b.ft), spray = hrs.map((b) => b.dir * b.hand) // spray: negative pulled, positive the other way
+    const sides = new Set(hrs.map((b) => b.ref.s))
+    return { n: hrs.length, pull: pull / hrs.length, mid: mid / hrs.length, oppo: oppo / hrs.length, ev, la, spray, ft, ev25: q(ev, 0.25), ev75: q(ev, 0.75), la25: q(la, 0.25), la75: q(la, 0.75), ftMid: q(ft, 0.5), ftMax: Math.max(...ft), side: sides.size > 1 ? 'S' : [...sides][0] }
+  }
+
   // ---- drawing: a carpet of flat voxel tiles, one InstancedMesh per layer, each tile knowing its cell (for pointing) ----
   const clear = () => { if (!group) return; { const h = api.NN.hideForNormal; for (const m of [group.userData.soft, ...(group.userData.sheets ?? [])]) { const i = h?.indexOf(m) ?? -1; if (i >= 0) h.splice(i, 1) } } scene.remove(group); group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose?.(); x.material?.dispose?.() }); group = null; cells = []; meshes = []; hi = null }
   const stepOf = (S, v) => S[Math.max(0, Math.min(S.length - 1, Math.floor(v * S.length - 1e-9)))]
-  const look = () => ({ g: 4, f: 4, s: 1, ...(o.look?.() ?? {}) })
+  const look = () => ({ g: 4, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, ...(o.look?.() ?? {}) })
   const gradOf = (g) => (GRADS.find((x) => x.c === g) ?? GRADS[0]).stops
   const colorAt = (stops, v) => { const t = Math.max(0, Math.min(1, v)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)); return '#' + new THREE.Color(stops[i]).lerp(new THREE.Color(stops[i + 1]), t - i).getHexString() }
   // a solid sheet of colored triangles; tri: the cell of each triangle (for pointing). Kept out of the ink pass, so the color runs clean
@@ -236,10 +274,25 @@ export function initHeat25(api, o = {}) {
     group = new THREE.Group(); group.userData.heat = view.metric
     const ground = home().y + 0.05, G = seatGrid(), fan = [], seats = [], soft = [], d = view.data
     const L = look(), stops = gradOf(L.g), col = (v) => colorAt(stops, v)
-    const ease = (ev) => (ev == null ? 0 : 1 - (ev - HARD_RUN[0]) / (HARD_RUN[1] - HARD_RUN[0]))
-    const fanVal = (i) => (view.metric === 'hard' ? ease(d.wall[i]?.ev) : view.metric === 'many' ? (d.wedge[i] ? Math.sqrt(d.wedge[i] / Math.max(1, ...d.wedge)) : null) : d.n5[i] >= 3 ? d.rate[i] : null)
+    // the scale: one for all, each layer over its own range, or ranked (an ease 0..1, 1 easy)
+    const wallEv = d.wall ? d.wall.map((x) => x?.ev ?? null) : [], seatEv = d.seat && view.metric === 'hard' ? d.seat.flat().map((x) => x?.ev ?? null) : []
+    const scaler = (list) => {
+      const v = list.filter((x) => x != null).sort((a, b) => a - b)
+      if (L.k === 1 || !v.length) return (ev) => (ev == null ? 0 : 1 - (ev - HARD_RUN[0]) / (HARD_RUN[1] - HARD_RUN[0]))
+      if (L.k === 3) return (ev) => (ev == null ? 0 : 1 - v.filter((x) => x < ev).length / Math.max(1, v.length - 1))
+      const lo = v[0], hi = v[v.length - 1]; return (ev) => (ev == null ? 0 : hi > lo ? 1 - (ev - lo) / (hi - lo) : 1)
+    }
+    const easeW = scaler(wallEv), easeS = scaler(seatEv), ease = easeS
+    const fanVal = (i) => (view.metric === 'hard' ? easeW(d.wall[i]?.ev) : view.metric === 'many' ? (d.wedge[i] ? Math.sqrt(d.wedge[i] / Math.max(1, ...d.wedge)) : null) : d.n5[i] ? Math.sqrt(d.n5[i] / Math.max(1, ...d.n5)) : null) // (a player: how many of their home runs go each way)
     const seatVal = (i, j) => { if (view.metric === 'hard') return ease(d.seat[i][j]?.ev); const mx = Math.max(1, ...d.seat.flat()); return d.seat[i][j] ? Math.sqrt(d.seat[i][j] / mx) : null }
     const fieldV = Array(N).fill(null), wedgeId = Array(N).fill(-1)
+    // SMOOTH pillars: a value at any point, slid between the middles of the cells round it (bearing across, depth back); cells with nothing say nothing
+    const smoothAt = (p) => {
+      const w = where(p), fi = (w.b - B0) / STEP - 0.5, fj = (w.ft - wallOf(Math.max(-45, Math.min(45, w.b)))[0] - 2) / ROW_FT - 0.5, i0 = Math.floor(fi), j0 = Math.floor(fj)
+      let t = 0, wt = 0
+      for (const [di, dj] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const ii = i0 + di, jj = j0 + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= ROWS || !G[ii]?.[jj]) continue; const v = seatVal(ii, jj); if (v == null) continue; const k = (1 - Math.abs(fi - ii)) * (1 - Math.abs(fj - jj)); if (k <= 0) continue; t += v * k; wt += k }
+      return wt ? t / wt : null
+    }
     for (let i = 0; i < N; i++) {
       const v = fanVal(i), id = (wedgeId[i] = cells.push({ kind: 'wedge', i, b: mid(i) }) - 1), [wft, wh] = wallOf(mid(i)), w0 = wft - 4
       fieldV[i] = v; void w0; void wh
@@ -249,7 +302,13 @@ export function initHeat25(api, o = {}) {
         const sv = seatVal(i, j), sid = cells.push({ kind: 'seat', i, j, b: mid(i) }) - 1
         if (sv == null) continue
         if (L.s === 4) { seats.push({ p: g.c.clone().add(new THREE.Vector3(0, 0.3, 0)), col: col(sv), cell: sid, size: 0.5 + 1.9 * sv, h: 0.5 + 1.9 * sv }); continue }
-        for (const p of g.pts) (L.s === 3 ? soft : seats).push({ p: p.clone().add(new THREE.Vector3(0, 0.25, 0)), col: col(sv), cell: sid, size: SAMPLE * 0.86, h: L.s === 2 ? 0.3 + 5 * sv : 0.3 })
+        for (const p of g.pts) {
+          let v = sv
+          if (L.s === 2 && L.ps === 2) v = smoothAt(p) ?? sv // SMOOTH: slid between the cells round it
+          if (L.s === 2 && L.ps === 3) v = Math.round(v * 4) / 4 // TERRACES: five heights
+          const up = L.pd === 2 ? 1 - v : v, H = (PILLAR_HEIGHTS.find((x) => x.c === L.ph) ?? PILLAR_HEIGHTS[0]).m
+          ;(L.s === 3 ? soft : seats).push({ p: p.clone().add(new THREE.Vector3(0, 0.25, 0)), col: col(v), cell: sid, size: SAMPLE * (L.s === 2 && L.ps === 4 ? 0.45 : 0.86), h: L.s === 2 ? 0.3 + H * up : 0.3 })
+        }
       }
     }
     carpet(seats, 0.3); carpet(soft, 0.12, SAMPLE * 0.86, 0.6) // (SOFT: thin see-through tiles, no ink)
