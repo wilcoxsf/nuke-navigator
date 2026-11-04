@@ -17,6 +17,7 @@
 //   A PLAYER: their deep balls (335 ft and more, and every home run) flown here in this air; a wedge is the share aimed there that would go out, a seat how many of
 //     their home runs would come down in it
 // No numbers in the park: point at a wedge or a seat for what it means (cellAt), click one to keep it and compare (the study's panel says it in words).
+import { readHitter, cutsOf, typeOf } from './hitter25.js'
 import { voxCells } from './vox25.js'
 import { NUKE_MARKS, GREEN } from '../landing.js'
 import { parkHit } from '../seance.js'
@@ -66,6 +67,23 @@ export const PILLAR_WAYS = [
   { c: 1, name: 'EASY STANDS TALL', desc: 'the easier to reach, the taller' },
   { c: 2, name: 'HARD STANDS TALL', desc: 'the harder to reach, the taller: walls of difficulty' },
 ]
+//   PILLAR PAINT (4 Nov, evening; GPT's red team: the pillars wear the same white, peach and blue as the real seats and melt into them; Andrew: "9a but give me
+//   options"): where the gradient goes on a pillar
+export const PILLAR_PAINTS = [
+  { c: 1, name: 'FULL COLOR', desc: 'the whole pillar in the gradient' },
+  { c: 2, name: 'TOPS ONLY', desc: 'near-black pillars, the color only on a cap at the top' },
+  { c: 3, name: 'TOP BAND', desc: 'near-black pillars with a deep band of color at the top' },
+  { c: 4, name: 'SHADED SIDES', desc: 'sides in a dark version of the color, the cap in the full color' },
+]
+export const DARK = '#1d2024'
+//   THE BLAST CAMERA (4 Nov, evening; the red team: from straight down the middle the front rows hide the back ones; Andrew: "10a sure but give me options")
+//   [where it sits, what it looks at], plate frame in metres: x toward right field, y out to center, z up
+export const BLAST_CAMS = [
+  { c: 1, name: 'DOWN THE MIDDLE', at: [0, 12, 118], to: [0, 98, 0], desc: 'high over the shallow infield, looking straight out' },
+  { c: 2, name: 'THIRD-BASE SIDE', at: [-38, 4, 104], to: [10, 100, 0], desc: 'off to the left, so right field and the arcade open up' },
+  { c: 3, name: 'FIRST-BASE SIDE', at: [38, 4, 104], to: [-10, 100, 0], desc: 'off to the right, so left field and the bleachers open up' },
+  { c: 4, name: 'STRAIGHT DOWN', at: [0, 70, 175], to: [0, 104, 0], desc: 'nearly overhead: nothing hides anything, the park reads like a map' },
+]
 //   BLAST CONTRAST (4 Nov, Andrew: "let me see what it looks like with more contrast"): how the mph become colors
 export const CONTRASTS = [
   { c: 2, name: 'STRETCHED', desc: 'the field and the seats each stretched over their own easiest to hardest, so both use the whole run of color' },
@@ -112,10 +130,11 @@ export function initHeat25(api, o = {}) {
   // its own tile at its own height, so nothing is stretched up a wall between two levels; a cell's height for HOW HARD is the middle of its points
   let grid = null
   const ray = new THREE.Raycaster(), SAMPLE = 2.1
+  const put = (m, k, v) => { m.set(k, v); while (m.size > 12) m.delete(m.keys().next().value); return v } // (the last 12 airs only)
   const covePt = (x, y) => x > 25 && Math.hypot(x, y) > 126 && (Math.atan2(x, y) * 180) / Math.PI > 26 // (fx25.js's own test: plate frame, metres)
   function seatGrid() {
     if (grid) return grid
-    const h = home(), h0 = h.y, water = api.toWorld([0, 0, -1.6]).y
+    const h = home(), h0 = h.y, water = api.toWorld([0, 0, -1.6]).y, blockers = (o.blockers?.() ?? []).filter(Boolean)
     api.NN.stadium?.updateMatrixWorld(true)
     grid = []
     for (let i = 0; i < N; i++) {
@@ -130,13 +149,25 @@ export function initHeat25(api, o = {}) {
             const hit = parkHit(api.NN, new THREE.Vector3(w.x, cap, w.z), DOWN, cap - h0 + 6)
             let at = hit && hit.point.y > h0 - 4 ? hit.point.clone() : covePt(x, y) ? new THREE.Vector3(w.x, water, w.z) : null
             // a ball comes down from the plate's side at 30 to 50 degrees: where the sky that way is shut (under an overhang, behind the board) it cannot land
-            if (at) { const back = new THREE.Vector3(h.x - at.x, 0, h.z - at.z).normalize(), open = [30, 45, 60].some((e) => { const r = (e * Math.PI) / 180, d = back.clone().multiplyScalar(Math.cos(r)).setY(Math.sin(r)); return !parkHit(api.NN, at.clone().add(new THREE.Vector3(0, 0.4, 0)), d, 90) }); if (!open) at = null }
+            // (4 Nov, later; Andrew's screengrabs: tiles behind and under the board) the scoreboard and its sign are not part of the park's model, so they are asked too; and
+            // nothing may be straight over the point (under a deck, under the board)
+            if (at) {
+              const from = at.clone().add(new THREE.Vector3(0, 0.4, 0)), back = new THREE.Vector3(h.x - at.x, 0, h.z - at.z).normalize()
+              const shut = (d, far) => !!parkHit(api.NN, from, d, far) || (blockers.length && (ray.set(from, d), (ray.far = far), ray.intersectObjects(blockers, true).length > 0))
+              const open = !shut(new THREE.Vector3(0, 1, 0), 40) && [30, 45, 60].some((e) => { const r = (e * Math.PI) / 180; return !shut(back.clone().multiplyScalar(Math.cos(r)).setY(Math.sin(r)), 120) })
+              ray.far = Infinity
+              if (!open) at = null
+            }
             if (at) pts.push(new THREE.Vector3(w.x, at.y, w.z))
           }
         }
-        row.push(pts.length ? { pts, y: pts.reduce((t, v) => t + v.y, 0) / pts.length, c: pts.reduce((t, v) => t.add(v), new THREE.Vector3()).multiplyScalar(1 / pts.length) } : null)
+        // (4 Nov, later: "still some shit in the stand") walking out from the wall, the stands rise steadily; a point far over the row before it, or over its own cell's
+        // middle, is something standing on the stands (a light tower's platform, a sign), not a place a ball comes down
+        const prev = row[j - 1], base = prev ? prev.y : h0 + wallOf(mid(i))[1] * FT, med = pts.length ? [...pts].sort((a, b) => a.y - b.y)[Math.floor(pts.length / 2)].y : 0
+        const keep = pts.filter((v) => v.y <= base + 0.9 * ROW_FT * FT + 2.5 && v.y <= med + 3.5)
+        row.push(keep.length ? { pts: keep, y: keep.reduce((t, v) => t + v.y, 0) / keep.length, c: keep.reduce((t, v) => t.add(v), new THREE.Vector3()).multiplyScalar(1 / keep.length) } : prev ? { ...prev, pts: [], gap: true } : null)
       }
-      grid.push(row)
+      grid.push(row.map((x) => (x?.gap ? null : x)))
     }
     return grid
   }
@@ -156,34 +187,39 @@ export function initHeat25(api, o = {}) {
     return null
   }
   const ready = () => cacheH.get(JSON.stringify(air())) ?? null
-  const start = (a) => ({ a, i: 0, G: seatGrid(), h0: home().y, wall: [], seat: [] })
-  const finish = (job) => { const out = { air: job.a, wall: job.wall, seat: job.seat }; cacheH.set(JSON.stringify(job.a), out); return out }
+  // 4 Nov, evening (GPT's red team: "Seat threshold is clearance, not a landing solution", and the wall's aim was set once, at 108 mph and 28 degrees; our own check
+  // agreed: a third of the seat numbers came down a row or more off, and many in the next wedge over). Now every flight is credited to where it really comes down:
+  // for each wedge and four launch angles (24, 28, 32, 36), aimed so a 110 mph ball comes down on that bearing, the softest speed that leaves the park (halving, to the
+  // mph), then every mph up from there until it lands past the last row. Each flight that leaves goes into the wall of the wedge it comes down in, and the seat cell it
+  // first touches (findLanding: the first thing in the park it hits), keeping the softest. A cell no flight came down in, with flights on both sides of it, takes
+  // the middle of its two neighbors (marked).
+  const LAS = [24, 28, 32, 36]
+  const start = (a) => ({ a, i: 0, G: seatGrid(), wall: Array(N).fill(null), seat: Array.from({ length: N }, () => Array(ROWS).fill(null)) })
+  const finish = (job) => {
+    const { G, wall, seat } = job
+    for (let i = 0; i < N; i++) if (!wall[i]) { const p = wall[i - 1], q = wall[i + 1]; if (p && q) wall[i] = { ev: Math.round((p.ev + q.ev) / 2), la: p.la, dir: mid(i), fill: true } }
+    for (let i = 0; i < N; i++) for (let j = 0; j < ROWS; j++) {
+      if (seat[i][j] || !G[i][j]) continue
+      const pairs = [[seat[i][j - 1], seat[i][j + 1]], [seat[i - 1]?.[j], seat[i + 1]?.[j]]].find(([p, q]) => p && q && !p.fill && !q.fill)
+      if (pairs) seat[i][j] = { ev: Math.round((pairs[0].ev + pairs[1].ev) / 2), la: pairs[0].la, dir: mid(i), fill: true }
+    }
+    const out = { air: job.a, wall, seat }; put(cacheH, JSON.stringify(job.a), out); return out
+  }
   function step(job) {
-    const { a, G, h0, wall, seat } = job, i = job.i++
-    {
-      const b = mid(i), [wft] = wallOf(b)
+    const { a, G, wall, seat } = job, i = job.i++, b = mid(i)
+    for (const la of LAS) {
       let dir = b
-      for (let k = 0; k < 3; k++) { const r = api.fly(st(a, 108, 28, dir), { floor: -8 }); if (r.landB == null) break; dir += b - r.landB }
-      // over the wall there: a halving search at each of five angles, to the mph
-      let w = null
-      for (const la of [24, 27, 30, 33, 36]) { if (!goes(a, 132, la, dir)) continue; let lo = 80, hi = 132; while (hi - lo > 0.5) { const m = (lo + hi) / 2; if (goes(a, m, la, dir)) hi = m; else lo = m } if (!w || hi < w.ev) w = { ev: Math.round(hi), la } }
-      wall.push(w)
-      // each seat: its middle (how far out, how high); a ladder of speeds 2 mph apart at each angle, the first that is still that high that far out
-      const T = []
-      for (let j = 0; j < ROWS; j++) { const g = G[i][j]; T.push(g ? { ft: wft + 2 + ROW_FT * (j + 0.5), z: g.y - h0 } : null) }
-      const best = T.map(() => null)
-      for (const la of [25, 30, 35]) for (let ev = 84; ev <= 132; ev += 2) {
-        if (T.every((t, k) => !t || (best[k] && best[k].ev <= ev))) break
-        const path = api.fly(st(a, ev, la, dir), { floor: -8 }).path
-        T.forEach((t, k) => {
-          if (!t || (best[k] && best[k].ev <= ev)) return
-          const D = t.ft * FT, q = path.findIndex((s) => Math.hypot(s.p[0], s.p[1]) >= D)
-          if (q < 1) return
-          const s0 = path[q - 1].p, s1 = path[q].p, d0 = Math.hypot(s0[0], s0[1]), d1 = Math.hypot(s1[0], s1[1]), z = s0[2] + ((s1[2] - s0[2]) * (D - d0)) / Math.max(1e-6, d1 - d0)
-          if (z >= t.z) best[k] = { ev, la }
-        })
+      for (let k = 0; k < 2; k++) { const r = api.fly(st(a, 110, la, dir), { floor: -8 }); if (r.landB == null) break; dir += b - r.landB }
+      if (!goes(a, 132, la, dir)) continue
+      let lo = 80, hi = 132
+      while (hi - lo > 0.5) { const m = (lo + hi) / 2; if (goes(a, m, la, dir)) hi = m; else lo = m }
+      for (let ev = Math.floor(lo) + 1; ev <= 132; ev++) { // (every whole mph above the last one that stayed in)
+        const res = api.fly(st(a, ev, la, dir), { floor: -8 }); if (res.verdict.kind !== 'GONE') continue
+        const w = where(api.findLanding(res.path).point); if (w.i < 0) continue
+        if (!wall[w.i] || ev < wall[w.i].ev) wall[w.i] = { ev, la, dir }
+        if (w.j >= ROWS) break // (past the last row: harder only goes farther)
+        if (w.j >= 0 && G[w.i][w.j] && (!seat[w.i][w.j] || ev < seat[w.i][w.j].ev)) seat[w.i][w.j] = { ev, la, dir }
       }
-      seat.push(best)
     }
   }
   // ---- HOW MANY ----
@@ -194,15 +230,19 @@ export function initHeat25(api, o = {}) {
   }
   function many() {
     if (record) return record
+    // (4 Nov, evening; GPT's red team: "The 463 recorded Oracle home runs do not reconcile to the 396 shown in the seven zones"): each one is counted once, in one of
+    // these: came down in the map (in the seats, or past the last row), the physics keeps it in the park (the flight as recorded, flown again, falls short), or it
+    // wraps round a pole (comes down outside the lines)
     const wedge = Array(N).fill(0), seat = Array.from({ length: N }, () => Array(ROWS).fill(0)), hrs = (o.balls ?? []).filter((b) => b.park === 'SF' && b.hr)
+    const tally = { n: hrs.length, mapped: 0, seated: 0, past: 0, short: 0, wrap: 0, kinds: {} }
     for (const b of hrs) {
       const res = api.fly({ ...api.state, ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false }, { floor: -8 })
-      if (res.verdict.kind !== 'GONE') continue
+      if (res.verdict.kind !== 'GONE') { tally.short++; tally.kinds[res.verdict.kind] = (tally.kinds[res.verdict.kind] ?? 0) + 1; continue }
       const w = where(api.findLanding(res.path).point)
-      if (w.i < 0) continue
-      wedge[w.i]++; if (w.j >= 0 && w.j < ROWS) seat[w.i][w.j]++
+      if (w.i < 0) { tally.wrap++; continue }
+      tally.mapped++; wedge[w.i]++; if (w.j >= 0 && w.j < ROWS) { seat[w.i][w.j]++; tally.seated++ } else tally.past++
     }
-    record = { n: hrs.length, wedge, seat }
+    record = { n: hrs.length, wedge, seat, tally }
     return record
   }
   // ---- A PLAYER ----
@@ -212,7 +252,7 @@ export function initHeat25(api, o = {}) {
       if (Math.abs(b.dir) > 45) continue
       const res = api.fly(st({ ...a, hand: b.hand ?? a.hand }, b.ev, b.la, b.dir, { dws: b.dws ?? 0 }), { floor: -8 }), gone = res.verdict.kind === 'GONE', i = sectorOf(b.dir)
       n[i]++; if (gone) out[i]++
-      if (keep) { const at = gone ? api.findLanding(res.path).point : api.toWorld(res.path[res.path.length - 1].p); pts.push({ at, gone, b: b.ref }); if (gone) { const w = where(at); if (w.i >= 0 && w.j >= 0 && w.j < ROWS) seat[w.i][w.j]++ } }
+      if (keep) { const L = gone ? api.findLanding(res.path) : null, at = gone ? L.point : api.toWorld(res.path[res.path.length - 1].p); pts.push({ at, gone, b: b.ref, kind: L?.kind ?? null, spray: b.dir * (b.hand ?? 1) }); if (gone) { const w = where(at); if (w.i >= 0 && w.j >= 0 && w.j < ROWS) seat[w.i][w.j]++ } }
     }
     return { n, out, pts, seat, rate: n.map((k, i) => (k ? out[i] / k : null)) }
   }
@@ -222,16 +262,53 @@ export function initHeat25(api, o = {}) {
     if (cacheP.has(key)) return cacheP.get(key)
     const rows = (o.pool?.rows ?? []).filter((r) => r[3] >= DEEP).map((r) => ({ ev: r[0], la: r[1], dir: r[2], hand: r[5] === 'L' ? -1 : 1 }))
     const s = shares(rows, a)
-    cacheP.set(key, s)
+    put(cacheP, key, s)
     return s
   }
   // 4 Nov (Andrew: "For each player I want only their home runs not all of their deep balls, and I want some description for what type of hitter they are in histograms
   // (pull / push, where are they hitting it to, at what launch angle, at what exit velo?)"): their home runs (any park, July 2023 on) flown here in this air; the field is
   // how many of them go each way, the seats where they come down; prof: what kind of hitter the home runs say they are
+  // 4 Nov, later (Andrew: "For each player I want like a 'customized heatmap' ... we should have a profile of where they hit like all of their balls as a proxy for
+  // where they're likely to hit a home run, and then we only show the actual nuke diagrams for the home runs"): the map is built from every ball of theirs in the set
+  // (335 ft and more, and the home runs). The field: the share of them going each way (each ball spread over the wedges round it, 4 degrees wide). The seats: each
+  // ball flown here at its own speed and angle, and at 4 and 8 degrees either side of where it went (weighted 1, 0.7, 0.35), so a 400 ft fly to center also says
+  // what it would have done a little to the side; where the ones that go out come down. The Little Boys are only their real home runs.
+  const SPREAD = [[0, 1], [-4, 0.7], [4, 0.7], [-8, 0.35], [8, 0.35]]
+  const ballsOf = (id) => (o.balls ?? []).filter((b) => String(b.b) === String(id) && (b.ft >= DEEP || b.hr)).map((b) => ({ ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'L' ? -1 : 1, dws: b.dws ?? 0, ft: b.ft, hr: !!b.hr, s: b.s, ref: b }))
+  const outsOf = (pts) => pts.map((p) => { const w = where(p.at); return { gone: p.gone, b: w.b, spray: p.spray, area: p.kind === 'SPLASH' ? 'cove' : w.b < -7 ? 'bleachers' : w.b >= 22 ? 'arcade' : 'center' } }) // (the left-field bleachers; the arcade along right)
+  const cacheY = new Map()
   function player(id) {
-    const a = air(), hrB = (o.balls ?? []).filter((b) => String(b.b) === String(id) && b.hr).map((b) => ({ ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'L' ? -1 : 1, dws: b.dws ?? 0, ft: b.ft, ref: b }))
-    const s = shares(hrB, a, true)
-    return { id, air: a, hr: hrB.length, hrOut: s.pts.filter((p) => p.gone).length, n5: s.n, out5: s.out, rate: s.rate, pts: s.pts, seat: s.seat, prof: profile(hrB) }
+    const a = air(), key = id + JSON.stringify(a)
+    if (cacheY.has(key)) return cacheY.get(key)
+    const mine = ballsOf(id), hrB = mine.filter((b) => b.hr), s = shares(hrB, a, true)
+    const field = Array(N).fill(0), seat = Array.from({ length: N }, () => Array(ROWS).fill(0))
+    for (const b of mine) {
+      for (let i = 0; i < N; i++) { const d = mid(i) - b.dir; field[i] += Math.exp((-d * d) / 32) }
+      for (const [off, w] of SPREAD) {
+        const dir = b.dir + off; if (Math.abs(dir) > 45) continue
+        const res = api.fly(st({ ...a, hand: b.hand }, b.ev, b.la, dir, { dws: b.dws }), { floor: -8 }); if (res.verdict.kind !== 'GONE') continue
+        const wh = where(api.findLanding(res.path).point); if (wh.i >= 0 && wh.j >= 0 && wh.j < ROWS) seat[wh.i][wh.j] += w
+      }
+    }
+    const fTot = field.reduce((t, x) => t + x, 0) || 1, sTot = seat.flat().reduce((t, x) => t + x, 0) || 1
+    const out = { id, air: a, n: mine.length, hr: hrB.length, hrOut: s.pts.filter((p) => p.gone).length, n5: s.n, out5: s.out, rate: s.rate, pts: s.pts, hrSeat: s.seat,
+      field: field.map((x) => x / fTot), seat: seat.map((r) => r.map((x) => x / sTot)), prof: profile(hrB), read: readHitter(mine, outsOf(s.pts)) }
+    const T = hitters(); out.type = typeOf(out.read, T.cuts); out.rank = T
+    put(cacheY, key, out)
+    return out
+  }
+  // every hitter with 12 or more balls in the set, read and typed (their home runs flown here for the badges; the cuts are thirds over all of them)
+  const cacheT = new Map()
+  function hitters() {
+    const a = air(), key = JSON.stringify(a)
+    if (cacheT.has(key)) return cacheT.get(key)
+    const n = new Map(); for (const b of o.balls ?? []) if (b.ft >= DEEP || b.hr) n.set(String(b.b), (n.get(String(b.b)) ?? 0) + 1)
+    const list = [...n.entries()].filter(([, k]) => k >= 12).map(([id]) => { const mine = ballsOf(id), hrB = mine.filter((b) => b.hr); return { id, read: readHitter(mine, outsOf(shares(hrB, a, true).pts)) } })
+    const cuts = cutsOf(list.map((x) => x.read))
+    for (const x of list) x.type = typeOf(x.read, cuts)
+    const T = { cuts, list }
+    put(cacheT, key, T)
+    return T
   }
   // pulled (to their own side: left for a righty, right for a lefty, more than 15 degrees), up the middle, or the other way; the middle half of their speeds and angles
   function profile(hrs) {
@@ -246,7 +323,7 @@ export function initHeat25(api, o = {}) {
   // ---- drawing: a carpet of flat voxel tiles, one InstancedMesh per layer, each tile knowing its cell (for pointing) ----
   const clear = () => { if (!group) return; { const h = api.NN.hideForNormal; for (const m of [group.userData.soft, ...(group.userData.sheets ?? [])]) { const i = h?.indexOf(m) ?? -1; if (i >= 0) h.splice(i, 1) } } scene.remove(group); group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose?.(); x.material?.dispose?.() }); group = null; cells = []; meshes = []; hi = null }
   const stepOf = (S, v) => S[Math.max(0, Math.min(S.length - 1, Math.floor(v * S.length - 1e-9)))]
-  const look = () => ({ g: 4, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, ...(o.look?.() ?? {}) })
+  const look = () => ({ g: 30, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, pp: 1, ...(o.look?.() ?? {}) })
   const gradOf = (g) => (GRADS.find((x) => x.c === g) ?? GRADS[0]).stops
   const colorAt = (stops, v) => { const t = Math.max(0, Math.min(1, v)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)); return '#' + new THREE.Color(stops[i]).lerp(new THREE.Color(stops[i + 1]), t - i).getHexString() }
   // a solid sheet of colored triangles; tri: the cell of each triangle (for pointing). Kept out of the ink pass, so the color runs clean
@@ -283,8 +360,19 @@ export function initHeat25(api, o = {}) {
       const lo = v[0], hi = v[v.length - 1]; return (ev) => (ev == null ? 0 : hi > lo ? 1 - (ev - lo) / (hi - lo) : 1)
     }
     const easeW = scaler(wallEv), easeS = scaler(seatEv), ease = easeS
-    const fanVal = (i) => (view.metric === 'hard' ? easeW(d.wall[i]?.ev) : view.metric === 'many' ? (d.wedge[i] ? Math.sqrt(d.wedge[i] / Math.max(1, ...d.wedge)) : null) : d.n5[i] ? Math.sqrt(d.n5[i] / Math.max(1, ...d.n5)) : null) // (a player: how many of their home runs go each way)
-    const seatVal = (i, j) => { if (view.metric === 'hard') return ease(d.seat[i][j]?.ev); const mx = Math.max(1, ...d.seat.flat()); return d.seat[i][j] ? Math.sqrt(d.seat[i][j] / mx) : null }
+    // (4 Nov, evening; the red team: "Zero is an observed value, not missing data", and HOW MANY is under one home run a cell, so single ones read as hot spots;
+    // Andrew: 11a) the counts are colored smoothed over the cells round each (a wedge either side, a row either side, half weight, only over cells that exist), a
+    // zero is the cold end, and a gap is only where there is nothing to land on. Pointing still gives the exact count.
+    const sm = view.metric === 'hard' ? null : (() => {
+      const raw = d.seat, out = raw.map((r) => r.map(() => 0))
+      for (let i = 0; i < N; i++) for (let j = 0; j < ROWS; j++) { if (!G[i][j]) continue; let t = 0, w = 0; for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= ROWS || !G[ii][jj]) continue; const k = (di ? 0.5 : 1) * (dj ? 0.5 : 1); t += k * (raw[ii][jj] ?? 0); w += k } out[i][j] = w ? t / w : 0 }
+      return out
+    })()
+    const smW = view.metric === 'many' ? d.wedge.map((_, i) => { let t = 0, w = 0; for (let di = -1; di <= 1; di++) { const ii = i + di; if (ii < 0 || ii >= N) continue; const k = di ? 0.5 : 1; t += k * d.wedge[ii]; w += k } return t / w }) : null
+    const smMax = sm ? Math.max(1e-9, ...sm.flat()) : 1, smWMax = smW ? Math.max(1e-9, ...smW) : 1, fMax = d.field ? Math.max(1e-9, ...d.field) : 1
+    const fanVal = (i) => (view.metric === 'hard' ? easeW(d.wall[i]?.ev) : view.metric === 'many' ? Math.sqrt(smW[i] / smWMax) : Math.sqrt(d.field[i] / fMax)) // (a player: the share of all their balls going each way)
+    const seatVal = (i, j) => (view.metric === 'hard' ? ease(d.seat[i][j]?.ev) : Math.sqrt(sm[i][j] / smMax))
+    const tops = new Map() // cell -> the tops of its tiles (the outline sits on them)
     const fieldV = Array(N).fill(null), wedgeId = Array(N).fill(-1)
     // SMOOTH pillars: a value at any point, slid between the middles of the cells round it (bearing across, depth back); cells with nothing say nothing
     const smoothAt = (p) => {
@@ -307,11 +395,25 @@ export function initHeat25(api, o = {}) {
           if (L.s === 2 && L.ps === 2) v = smoothAt(p) ?? sv // SMOOTH: slid between the cells round it
           if (L.s === 2 && L.ps === 3) v = Math.round(v * 4) / 4 // TERRACES: five heights
           const up = L.pd === 2 ? 1 - v : v, H = (PILLAR_HEIGHTS.find((x) => x.c === L.ph) ?? PILLAR_HEIGHTS[0]).m
-          ;(L.s === 3 ? soft : seats).push({ p: p.clone().add(new THREE.Vector3(0, 0.25, 0)), col: col(v), cell: sid, size: SAMPLE * (L.s === 2 && L.ps === 4 ? 0.45 : 0.86), h: L.s === 2 ? 0.3 + H * up : 0.3 })
+          const t = { p: p.clone().add(new THREE.Vector3(0, 0.25, 0)), col: col(v), cell: sid, size: SAMPLE * (L.s === 2 && L.ps === 4 ? 0.45 : 0.86), h: L.s === 2 ? 0.3 + H * up : 0.3 }
+          ;(L.s === 3 ? soft : seats).push(t)
+          if (!tops.has(sid)) tops.set(sid, []); tops.get(sid).push({ x: t.p.x, y: t.p.y + t.h, z: t.p.z, r: t.size / 2 })
         }
       }
     }
-    carpet(seats, 0.3); carpet(soft, 0.12, SAMPLE * 0.86, 0.6) // (SOFT: thin see-through tiles, no ink)
+    // the pillar paint: FULL COLOR as they are; otherwise a dark body and a colored cap (TOPS ONLY a thin one, TOP BAND a deep one, SHADED SIDES a dark version of
+    // the color below a full-color cap)
+    if (L.s === 2 && L.pp > 1) {
+      const body = [], caps = [], c = new THREE.Color()
+      for (const t of seats) {
+        const capH = Math.min(t.h, L.pp === 3 ? Math.max(0.3, Math.min(1.4, t.h * 0.4)) : 0.24), bh = t.h - capH
+        if (bh > 0.02) body.push({ ...t, h: bh, col: L.pp === 4 ? '#' + c.set(t.col).multiplyScalar(0.42).getHexString() : DARK })
+        caps.push({ ...t, p: t.p.clone().setY(t.p.y + bh), h: capH })
+      }
+      carpet(body, 0.3); carpet(caps, 0.3)
+    } else carpet(seats, 0.3)
+    carpet(soft, 0.12, SAMPLE * 0.86, 0.6) // (SOFT: thin see-through tiles, no ink)
+    group.userData.tops = tops
     // the field, solid: a value at every bearing, slid smoothly between the wedges' middles
     const vAt = (b) => { const t = (b - B0) / STEP - 0.5, i0 = Math.max(0, Math.min(N - 1, Math.floor(t))), i1 = Math.min(N - 1, i0 + 1), f = Math.max(0, Math.min(1, t - i0)); const a0 = fieldV[i0], a1 = fieldV[i1]; return a0 == null ? a1 : a1 == null ? a0 : a0 + (a1 - a0) * f }
     const K = 6, bs = Array.from({ length: N * K + 1 }, (_, k) => B0 + (k * STEP) / K)
@@ -336,7 +438,7 @@ export function initHeat25(api, o = {}) {
       const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })); m.userData.tri = Array.from({ length: g.index.count / 3 }, (_, t) => wedgeId[sectorOf(B0 + (Math.floor(t / (rad * 2)) / segs) * (N * STEP))])
       group.add(m); meshes.push(m)
     }
-    if (view.metric === 'player') for (const pt of d.pts) { // their home runs as Little Boys: green when gone here, bone when not
+    if (view.metric === 'player') for (const pt of d.pts) { // their real home runs (only those) as Little Boys: green when gone here, bone when not
       const cellsLB = NUKE_MARKS[16](false, { giants: o.giants?.(pt.b) }).map((c) => (pt.gone ? [c[0], c[1], c[2], GREEN[c[3]] ?? c[3]] : c)), m = voxCells(THREE, cellsLB, 0.22)
       m.position.copy(pt.at).add(new THREE.Vector3(0, 0.15, 0)); group.add(m)
     }
@@ -359,8 +461,36 @@ export function initHeat25(api, o = {}) {
     if (!cell || !group) return
     const ground = home().y + 0.5, G = seatGrid(), i = cell.i, b0 = B0 + STEP * i, b1 = B0 + STEP * (i + 1)
     const pts = cell.kind === 'wedge' ? [P(b0, INFIELD_FT), P(b1, INFIELD_FT), P(b1, wallOf(mid(i))[0] - 4), P(b0, wallOf(mid(i))[0] - 4)].map((p) => p.setY(ground)) : (() => { const y = (G[i][cell.j]?.y ?? ground) + 0.7, r0 = (b) => wallOf(b)[0] + 2 + ROW_FT * cell.j, r1 = (b) => r0(b) + ROW_FT; return [P(b0, r0(b0)), P(b1, r0(b1)), P(b1, r1(b1)), P(b0, r1(b0))].map((p) => p.setY(y)) })()
-    hi = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: '#e8e1c9', transparent: true, depthTest: false }))
+    // (4 Nov, evening; the red team: "The selected polygon can float through a stair-step stand"): a seat cell is outlined on the tops of its own tiles
+    const sid = cells.indexOf(cell), T = cell.kind === 'seat' ? group.userData.tops?.get(sid) : null
+    if (T?.length) {
+      const seg = []
+      for (const t of T) { const y = t.y + 0.06, a = [t.x - t.r, t.z - t.r], b = [t.x + t.r, t.z + t.r]; seg.push(new THREE.Vector3(a[0], y, a[1]), new THREE.Vector3(b[0], y, a[1]), new THREE.Vector3(b[0], y, a[1]), new THREE.Vector3(b[0], y, b[1]), new THREE.Vector3(b[0], y, b[1]), new THREE.Vector3(a[0], y, b[1]), new THREE.Vector3(a[0], y, b[1]), new THREE.Vector3(a[0], y, a[1])) }
+      hi = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg), new THREE.LineBasicMaterial({ color: '#e8e1c9', transparent: true, depthTest: false }))
+    } else hi = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: '#e8e1c9', transparent: true, depthTest: false }))
     hi.renderOrder = 30; group.add(hi)
   }
-  return { hard, hardAsync, ready, many, player, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
+  // (4 Nov, evening; GPT's red team: does the softest swing for a seat really come down in that seat, and does the wall's really cross the wall in its own wedge?)
+  // each answer flown again: where it first comes down (the cell), and 2 mph softer (it should not get there)
+  function verify() {
+    const H = ready(); if (!H) return null
+    const a = H.air, seatRes = { n: 0, filled: 0, same: 0, row1: 0, other: 0, side: 0, softer: 0, bad: [] }, wallRes = { n: 0, filled: 0, same: 0, off: [], softerOut: 0 }
+    const land = (ev, la, dir) => { const r = api.fly(st(a, ev, la, dir), { floor: -8 }); return r.verdict.kind === 'GONE' ? where(api.findLanding(r.path).point) : null }
+    for (let i = 0; i < N; i++) {
+      const w = H.wall[i]
+      if (w) { wallRes.n++; if (w.fill) wallRes.filled++; else { const L = land(w.ev, w.la, w.dir); if (L?.i === i) wallRes.same++; else wallRes.off.push([i, L?.i ?? 'in']); const L2 = land(w.ev - 1, w.la, w.dir); if (L2?.i === i) wallRes.softerOut++ } }
+      for (let j = 0; j < ROWS; j++) {
+        const x = H.seat[i][j]; if (!x) continue
+        seatRes.n++
+        if (x.fill) { seatRes.filled++; continue }
+        const L = land(x.ev, x.la, x.dir)
+        if (!L) { seatRes.other++; seatRes.bad.push([i, j, 'in']); continue }
+        if (L.i !== i) seatRes.side++
+        if (L.i === i && L.j === j) seatRes.same++; else if (L.i === i && Math.abs(L.j - j) === 1) seatRes.row1++; else { seatRes.other++; seatRes.bad.push([i, j, L.i, L.j]) }
+        const L2 = land(x.ev - 1, x.la, x.dir); if (L2 && L2.i === i && L2.j === j) seatRes.softer++
+      }
+    }
+    return { seat: seatRes, wall: wallRes }
+  }
+  return { hard, hardAsync, ready, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
 }

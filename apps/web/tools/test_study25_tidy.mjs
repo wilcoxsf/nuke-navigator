@@ -38,14 +38,14 @@ const page = await open(1827, 992)
 {
   await page.keyboard.press('?'); await page.waitForTimeout(500)
   const d = await page.evaluate(() => ({ chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, lk: document.querySelectorAll('#c25dk .dx .lk').length }))
-  check('? opens the side menu with only what is still open: the four BLAST RADIUS switches (4 Nov, later: COLORS and the three PILLAR ones; the rest locked)', d.chips === 4 && d.lk === 0, JSON.stringify(d))
+  check('? opens the side menu with only what is still open: the one switch still open: BLAST RADIUS PILLAR HEIGHT (4 Nov, later: the rest locked)', d.chips === 4 && d.lk === 0, JSON.stringify(d))
   // (31 Oct, later: the side menu holds THE LAB as well; a lab choice is kept on the device)
-  await page.click('#c25dk .dx [data-ax="BG"]'); await page.waitForTimeout(300)
-  await page.click('#c25dk .do[data-c="24"]'); await page.waitForTimeout(400)
-  check('a lab choice can be picked in the side menu (BG24 GLACIER)', (await page.evaluate(() => window.__mix25.lab().BG)) === 24)
+  await page.click('#c25dk .dx [data-ax="PH"]'); await page.waitForTimeout(300)
+  await page.click('#c25dk .do[data-c="3"]'); await page.waitForTimeout(400)
+  check('a lab choice can be picked in the side menu (PH3 TALL)', (await page.evaluate(() => window.__mix25.lab().PH)) === 3)
   await page.reload(); await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 }); await page.waitForTimeout(1500)
-  check('a reload keeps the lab choice (BG24)', (await page.evaluate(() => window.__mix25.lab().BG)) === 24)
-  await page.evaluate(() => window.__mix25.lab('BG', 4))
+  check('a reload keeps the lab choice (PH3)', (await page.evaluate(() => window.__mix25.lab().PH)) === 3)
+  await page.evaluate(() => window.__mix25.lab('PH', 2))
 }
 // ---- GAG REEL ----
 {
