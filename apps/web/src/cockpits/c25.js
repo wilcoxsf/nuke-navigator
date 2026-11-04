@@ -990,6 +990,7 @@ export async function build(root, api, U) {
 #cp .c25 .sfx .swy{font-size:calc(13px * var(--ts))}
 #cp .c25 .hm .hmp{display:flex;gap:8px;align-items:center;margin-bottom:8px;color:var(--dim);font-size:calc(12px * var(--ts))}
 #cp .c25 .hm .hmt{display:flex;gap:6px;margin-bottom:8px}
+#cp .c25.blast .rd,#cp .c25.blast .bsel,#cp .c25.blast .tly{display:none} /* (4 Nov: BLAST RADIUS is the park and its map; the dojo's swing readout and ball buttons stand aside) */
 #cp .c25 .hm .hmt .bt{pointer-events:auto;cursor:pointer;padding:2px 8px}
 #cp .c25 .hm .hmt .bt.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .hm .hmo{display:grid;gap:2px;border:1px solid var(--tx);padding:6px 8px;margin-bottom:8px;min-height:58px}
@@ -1109,7 +1110,7 @@ export async function build(root, api, U) {
   // no hover tilt on buttons or panels (28 Oct, Andrew: 'super distracting'); a press still sinks the button
   let syncCam = null
   const CAM = { home: [[0.3, 150, 170], [0.3, 0, -85]], top: [[0.3, 300, -50], [0.3, 0, -62]] }
-  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); E('#c25b').textContent = k === 'top' ? "BIRD'S EYE: ON" : "BIRD'S EYE"; if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req?.seat) lookSeat(req.seat); else if (req?.pts) lookAt(req.pts, req.rad) } // (2 Nov, night: the seat look, Shot Caller) // a look under way starts again from the new seat
+  const camTo = (k) => { push = null; const req = look && !look.out ? look.req : null; look = null; const [p, t] = CAM[k]; api.NN.camera.position.set(...p); api.NN.controls.target.set(...t); api.NN.controls.update(); E('#c25b').classList.toggle('on', k === 'top'); E('#c25b').textContent = k === 'top' ? "BIRD'S EYE: ON" : "BIRD'S EYE"; if (req?.there) lookThere(req.there); else if (req?.side) lookSide(req.side); else if (req?.seat) lookSeat(req.seat); else if (req?.blast) lookBlast(); else if (req?.pts) lookAt(req.pts, req.rad) } // (2 Nov, night: the seat look, Shot Caller) // a look under way starts again from the new seat
   setTimeout(() => camTo(bird ? 'top' : 'home'), 60)
   const flipBird = () => { bird = !bird; camTo(bird ? 'top' : 'home') }
   E('#c25b').addEventListener('click', () => { pressEl(E('#c25b')); flipBird() })
@@ -2137,7 +2138,7 @@ export async function build(root, api, U) {
     hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmKey = ''; paintHeat() }))
     if (hmOver) heat.outline(hmPin ?? hmOver)
     paintHmOver()
-    if (!hmLooked || !look) { hmLooked = true; lookAt([-44, -22, 0, 22, 44].flatMap((b) => { const w = (api.wallAt?.(b) ?? [380])[0] * 0.3048, r = (b * Math.PI) / 180; return [api.toWorld([w * Math.sin(r), w * Math.cos(r), 0]), api.toWorld([(w + 30) * Math.sin(r), (w + 30) * Math.cos(r), 8])] }), 36) }
+    if (!hmLooked || !look) { hmLooked = true; lookBlast() }
   }
   // pointing at the park while the heat map is on: the cell under the pointer in words; a click keeps it for comparing
   { let pT = 0, dn = null
@@ -2770,6 +2771,15 @@ export async function build(root, api, U) {
     const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() })
     push = null
     look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1, base, out: false, req: { seat: spot.clone() } }
+  }
+  // BLAST RADIUS's camera (4 Nov): high over the shallow infield, looking down and out at the whole outfield and its seats, so the seats' cells read (the broadcast seat sees them small)
+  function lookBlast() {
+    if (bird || reduced) return
+    const C = api.NN.camera, T = api.NN.controls.target
+    const p1 = api.toWorld([0, 12, 118]), t1 = api.toWorld([0, 98, 0])
+    const base = look?.base ?? (push ? { p: push.p0.clone(), t: push.t0.clone() } : { p: C.position.clone(), t: T.clone() })
+    push = null
+    look = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1, t1, base, out: false, req: { blast: true } }
   }
   function lookSide(spot) {
     if (bird || reduced) return
