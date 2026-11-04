@@ -29,7 +29,9 @@ export const LAND_LOOKS = [
 // steps aside for other pieces), with a dotted line in its color down to where the ball came down
 // Home stretch (GPT red team III, A1 and A3: the number tangled with a Cove landing, its debris and the scoreboard): it settles 12 m toward the camera from the spot,
 // so whatever happens at the landing is behind it. (Drawing it over the park with no depth test fails: the park's ink pass outlines what is behind it on top.)
-const DEEP = 3, RIDE = 5, LIFT = 4, FRONT = 12 // a deep digit; how far over the ball it rides, how far up and toward the camera it settles (m)
+// 3 Nov (Andrew: "I still don't like the dotted line behind the full distance number and the actual distance. I think we have that number closer to the actual spot it
+// landed"): no stake; it settles 3 m in front of the spot and 3 m up, and its other spots are a short step away
+const DEEP = 3, RIDE = 5, LIFT = 3, FRONT = 3 // a deep digit; how far over the ball it rides, how far up and toward the camera it settles (m)
 const WET = '#5fd3ff' // the Cove's spray (fx25.js)
 const live = new Set(), hover = new Set(), chips = []
 let hooked = false
@@ -85,17 +87,17 @@ export function landNumber(api, o) {
   let stake = null, plan = null
   const staked = (top) => {
     if (stake) { stake.parent?.remove(stake); stake = null }
-    if (!outer.parent) return
+    if (!outer.parent || !o.stake) return // (3 Nov: no stake unless asked for)
     stake = voxPost(THREE, at, top.clone().add(new THREE.Vector3(0, -0.4, 0)), { px: 0.35, gap: 0.8, color: hex(hotC()) }); stake.userData.stake = true; outer.parent.add(stake)
   }
   // the spots it may settle on: in front of the landing (toward the camera, a little up), then a step to either side, up, and both
   const spots = () => {
     const cam = api.NN.camera, toward = new THREE.Vector3(cam.position.x - at.x, 0, cam.position.z - at.z)
     const base = at.clone().addScaledVector(toward.lengthSq() > 1 ? toward.normalize() : toward, FRONT).add(new THREE.Vector3(0, LIFT, 0))
-    const R = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion).setY(0).normalize(), U = new THREE.Vector3(0, 1, 0), d = Math.max(8, base.distanceTo(cam.position) * 0.06)
+    const R = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion).setY(0).normalize(), U = new THREE.Vector3(0, 1, 0), d = Math.max(5, base.distanceTo(cam.position) * 0.035)
     // and further out over the field in front of the wall, clear of a board or a sign right behind the landing
     return [[0, 0], [1, 0], [-1, 0], [0, 1], [2, 0], [-2, 0], [1, 1], [-1, 1], [0, 2], [2, 1], [-2, 1]].map(([r, u]) => base.clone().addScaledVector(R, r * d * 1.4).addScaledVector(U, u * d))
-      .concat([2.5, 5, 8].flatMap((k) => [0, 1, -1, 2, -2].map((r) => base.clone().addScaledVector(toward, FRONT * k).addScaledVector(R, r * d * 1.4))))
+      .concat([3, 6, 10].flatMap((k) => [0, 1, -1, 2, -2].map((r) => base.clone().addScaledVector(toward, FRONT * k).addScaledVector(R, r * d * 1.4))))
   }
   // how many of the flight's points fall inside the number's box on the screen (keepReadable's rect, -1..1 both ways); the scoreboard and the signs (the fixed pieces
   // that hold their place, prio 8 and up) count as a lot of points: 519 over a board that already says 519 FT is a tangle (2 Nov, night)

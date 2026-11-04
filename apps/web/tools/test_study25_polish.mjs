@@ -113,7 +113,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300)
 // ---- THE LAB has today's choices ----
 await page.keyboard.press('?'); await page.waitForTimeout(400)
 const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .dx [data-ax]')].map((b) => b.dataset.ax))
-check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'SL,LP,LI,CV,SA', JSON.stringify(chips))
+check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'BG,FV,SV', JSON.stringify(chips))
 await page.keyboard.press('Escape')
 
 // ---- PASS IT ON: a link opens on its swing ----
@@ -155,7 +155,7 @@ await page.keyboard.press('Escape')
   await p3.evaluate(() => window.__mix25.menu.show()); await p3.waitForTimeout(500)
   const hdr = await p3.evaluate(() => ({ dd: !!document.querySelector('#c25dd'), mix: getComputedStyle(document.querySelector('#c25mx')).display, tabs: [...document.querySelectorAll('#c25tabs [data-tab]')].map((t) => t.dataset.tab), menu: [...document.querySelectorAll('.c25 .sm .smi b')].map((b) => b.textContent) }))
   await p3.evaluate(() => window.__mix25.menu.close()); await p3.waitForTimeout(300)
-  check('no DAILY DINGER, no MIX in the header; four tabs; the menu is the four modes and nothing else', !hdr.dd && hdr.mix === 'none' && hdr.tabs.join() === 'replay,whatif,shot,witness' && hdr.menu.length === 4 && !hdr.menu.some((t) => /DAILY|GAG|OPTIONS|NEW|SOUND/.test(t)), JSON.stringify(hdr))
+  check('no DAILY DINGER, no MIX in the header; five tabs (3 Nov, later: BLAST RADIUS); the menu is the five modes and nothing else', !hdr.dd && hdr.mix === 'none' && hdr.tabs.join() === 'replay,whatif,shot,witness,blast' && hdr.menu.length === 5 && !hdr.menu.some((t) => /DAILY|GAG|OPTIONS|NEW|SOUND/.test(t)), JSON.stringify(hdr))
   // the Seance: a point well behind the left-center bleachers is past the seats, not ROW 26
   const se = await p3.evaluate(() => { const S = window.__mix25, toW = window.__cp.toWorld, a = (-30 * Math.PI) / 180, r = 480 * 0.3048; const h = toW([0, 0, 0]), p = { x: h.x + r * Math.sin(a), y: h.y + 10, z: h.z - r * Math.cos(a) }; return S.seatOf(p) })
   check('SEAT SEANCE: a ball past the last row is called past the seats (the Fan Lot), not a seat', se && se.what === 'beyond' && /PAST/.test(se.line) && /FAN LOT/.test(se.short), JSON.stringify(se))

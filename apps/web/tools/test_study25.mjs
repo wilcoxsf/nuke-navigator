@@ -120,7 +120,7 @@ for (const [w, h] of SIZES) {
     // TWEAK THE TATER: into the dojo with the ball's own numbers, and back to the same ball
     const before = await page.evaluate(() => ({ ev: window.__cp?.state?.ev ?? null, ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
     const ev0 = await page.evaluate(() => Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]))
-    await page.click('#c25tw'); await page.waitForTimeout(1200)
+    await page.click('#c25tw'); await page.waitForTimeout(2600) // (4 Nov: the panels fit themselves to the dojo's numbers after the first draw; a loaded machine takes a couple of seconds)
     const tw = await page.evaluate(() => ({ mode: window.__mix25.mode(), strip: getComputedStyle(document.querySelector('.c25>.strip')).display, ch: document.querySelector('#c25ch').textContent, title: document.querySelector('#c25ti').textContent, ball: Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]), rd: Number(document.querySelector('#c25d').dataset.v) }))
     check('TWEAK THE TATER carries the home run into the dojo, flying the real distance until you change something', tw.mode === 'whatif' && tw.strip !== 'none' && /REAL BALL/.test(tw.ch) && /RESET TO THE REAL BALL/.test(tw.ch) && /TWEAK THE TATER/.test(tw.title) && Math.abs(tw.ball - ev0) <= 1 && Number(tw.ch.match(/: (\d+) FT/)?.[1]) === tw.rd, JSON.stringify(tw).slice(0, 260))
     X = await layout(page); check('the dojo with the strip fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 5 && !dk.ride, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 3 && !dk.ride, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -510,7 +510,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with four lines: the four modes (1 Nov, night: nothing else)', m0.open && m0.n === 4 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with five lines: the modes (3 Nov, later: BLAST RADIUS is the fifth; nothing else)', m0.open && m0.n === 5 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -771,7 +771,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
   await page.waitForFunction(() => window.__mix25.shot(), null, { timeout: 60000 })
   await page.waitForTimeout(800)
   const s1 = await page.evaluate(() => { const r = window.__mix25.shot(); return { mode: window.__mix25.mode(), seat: r.seat?.line, n: r.ways.length, sorted: r.ways.every((w, i, a) => !i || a[i - 1].w >= w.w), top: r.ways[0], st: [window.__cp.state.ev, window.__cp.state.la], bar: document.querySelector('#c25ch').textContent, panel: document.querySelector('#c25hb').textContent, rows: document.querySelectorAll('#c25pl .swy').length, recipe: document.querySelectorAll('#c25hb .sfr rect[data-k]').length, look: !!window.__mix25.look() } })
-  check('typing SEC 140 ROW 12 SEAT 8 and Enter calls it: the ways in, most common first, the first one set up to fly', s1.mode === 'shot' && s1.seat === 'SEC 140 ROW 12 SEAT 8' && s1.n >= 5 && s1.sorted && s1.st[0] === s1.top.ev && s1.st[1] === s1.top.la && /WAY 1 OF/.test(s1.bar) && /SEC 140/.test(s1.panel) && /1 IN [\d,]+/.test(s1.panel) && s1.rows >= 1 && s1.recipe === s1.n && s1.look, JSON.stringify(s1).slice(0, 400))
+  check('typing SEC 140 ROW 12 SEAT 8 and Enter calls it: the ways in, most common first, the first one set up to fly', s1.mode === 'shot' && s1.seat === 'SEC 140 ROW 12 SEAT 8' && s1.n >= 5 && s1.sorted && s1.st[0] === s1.top.evx && s1.st[1] === s1.top.la /* (3 Nov, later: the swing set up is the one solved onto the seat, to the hundredth) */ && /WAY 1 OF/.test(s1.bar) && /SEC 140/.test(s1.panel) && /1 IN [\d,]+/.test(s1.panel) && s1.rows >= 1 && s1.recipe === s1.n && s1.look, JSON.stringify(s1).slice(0, 400))
   let X = await layout(page); check('Shot Caller fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   // the next way, and a click on a listed way
   await page.click('#c25ch [data-sw="1"]'); await page.waitForTimeout(500)
@@ -781,7 +781,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
   check('> steps to the next way, and a listed way can be picked', nx.sel === 1 && /WAY 2 OF/.test(nx.bar) && cl === 2, JSON.stringify({ nx, cl }))
   // the frontier: the arrow keys walk it (right: a steeper angle; up: a harder hit at the same angle), a drag goes to the way under the pointer, and the park flies it
   {
-    const way = () => page.evaluate(() => { const r = window.__mix25.shot(), w = r.ways[r.sel]; return { sel: r.sel, ev: w.ev, la: w.la, st: [window.__cp.state.ev, window.__cp.state.la], cells: document.querySelectorAll('#c25hb .sfr rect[data-k]').length, bl: [+document.querySelector('#c25hb .sfr .bl').getAttribute('x'), +document.querySelector('#c25hb .sfr .bl').getAttribute('y')], ro: document.querySelector('#c25hb .sfro').textContent } })
+    const way = () => page.evaluate(() => { const r = window.__mix25.shot(), w = r.ways[r.sel]; return { sel: r.sel, ev: w.ev, evx: w.evx, la: w.la, st: [window.__cp.state.ev, window.__cp.state.la], cells: document.querySelectorAll('#c25hb .sfr rect[data-k]').length, bl: [+document.querySelector('#c25hb .sfr .bl').getAttribute('x'), +document.querySelector('#c25hb .sfr .bl').getAttribute('y')], ro: document.querySelector('#c25hb .sfro').textContent } })
     await page.focus('#c25hb .sfr')
     const w0 = await way()
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400)
@@ -792,7 +792,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
     const b0 = (await way()).bl
     await page.mouse.move(tgt.x, tgt.y); await page.mouse.down(); await page.waitForTimeout(300); await page.mouse.up(); await page.waitForTimeout(400)
     const w3 = await way()
-    check('the frontier: right arrow goes to a steeper angle, left back past it, a press on a square picks that way; the ball moves, the readout and the park follow, the chart is not rebuilt', w1.la > w0.la && w2.la < w1.la && w3.sel === tgt.i && w3.st[0] === w3.ev && w3.st[1] === w3.la && (w3.bl[0] !== b0[0] || w3.bl[1] !== b0[1]) && new RegExp(w3.ev + 'MPH' + w3.la).test(w3.ro.replace(/\s|°/g, '')) && w3.cells === w0.cells, JSON.stringify({ w0, w1, w2, w3, tgt }))
+    check('the frontier: right arrow goes to a steeper angle, left back past it, a press on a square picks that way; the ball moves, the readout and the park follow, the chart is not rebuilt', w1.la > w0.la && w2.la < w1.la && w3.sel === tgt.i && w3.st[0] === w3.evx && w3.st[1] === w3.la && (w3.bl[0] !== b0[0] || w3.bl[1] !== b0[1]) && new RegExp(Math.round(w3.evx) + 'MPH' + w3.la).test(w3.ro.replace(/\s|°/g, '')) && w3.cells === w0.cells, JSON.stringify({ w0, w1, w2, w3, tgt }))
     for (const N of [2, 3, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'N' + N); await page.waitForTimeout(300) }
     X = await layout(page); check('Shot Caller still fits after the frontier looks', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   }
@@ -822,7 +822,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone (the four modes)', sm.open && sm.n === 4 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone (the five modes)', sm.open && sm.n === 5 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()

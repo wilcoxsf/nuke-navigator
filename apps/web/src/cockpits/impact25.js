@@ -173,7 +173,7 @@ export function initImpact25(api, col) {
       if (!ev?.at) return
       const big = o.impact === 2
       if (ev.key === 'SPLASH') { if (big) cove(ev.at); if (o.diver) diver(ev.at); return }
-      if (big && ['GONE', 'NUKE', 'SCRAPER', 'POLE'].includes(ev.key)) seats(ev.at, ev.key === 'NUKE')
+      if (big && ['GONE', 'NUKE', 'SCRAPER'].includes(ev.key)) seats(ev.at, ev.key === 'NUKE') // (3 Nov, the color audit: POLE is a foul off the pole; GEIGER rings are for gone)
       else if (big && (ev.key === 'WALL' || ev.key === 'CLOSE')) for (let i = 0; i < 8; i++) puff('#b9b4a5', ev.at.clone().add(V(rnd(-1, 1), 0.5, rnd(-1, 1))), V(rnd(-1, 1), rnd(1, 2.5), rnd(-1, 1)), 1.4, 1, 1.2)
     },
     diver, mushroom, count: () => ({ ...count, live: runs.length }), diverShown: () => !!diverG?.visible,

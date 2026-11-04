@@ -24,7 +24,7 @@ import { THEME_CSS, JUICE_CSS, THEMES, applyTheme, pressEl, makeControls, makeSe
 import { BTN_TILT_CSS, tiltButtons, loadReplay, loadPool, ballsLike, rollTo } from './skel3.js'
 import { ART_CSS, STYLES, renderArt, faceSource, drawBust, artMetrics } from './art.js'
 import { loadGenericFaces, genericFace } from './batter3d.js'
-import { landingParty } from '../landing.js'
+import { landingParty, NUKE_MARK_LOOKS } from '../landing.js'
 import { seatSeance25 } from '../seance25.js'
 import { shotCaller, GRID } from '../shotcaller.js'
 import { loadWhatIf, whatIfP } from '../whatif.js'
@@ -54,6 +54,7 @@ import { initMySeat25 } from './myseat25.js'
 import { initMoments25 } from './moments25.js'
 import { initImpact25, IMPACTS, COVES } from './impact25.js'
 import { initTouches25 } from './touches25.js'
+import { initHeat25, ZONES, GRADS, FIELDS, SEATS } from './heat25.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
@@ -389,9 +390,9 @@ export const LAB = {
     { c: 4, name: 'NEITHER', desc: 'as it was' },
   ] },
   // LANDING PARTY in the park (landing.js; 31 Oct, later: "show the top 5 other ones as like points on the map")
-  LP: { name: 'LANDING PARTY MARKS', def: 8, opts: [ // (1 Nov, later: "I like numbered pins for landing party the most"; 3 Nov: "that one should be loud and then the rest ... just points")
+  LP: { name: 'LANDING PARTY MARKS', def: 16, opts: [ // (3 Nov, later: "Atom bomb little boy it is") // (1 Nov, later: "I like numbered pins for landing party the most"; 3 Nov: "I now don't want numbers at all")
+    ...NUKE_MARK_LOOKS,
     { c: 8, name: 'LOUD PIN, POINTS', desc: 'the one in focus a tall orange stake with its number big; the other five a point where each came down (3 Nov)' },
-    { c: 9, name: 'LOUD PIN, MUSHROOMS', desc: 'the one in focus a tall orange stake with its number big; the other five little voxel mushroom clouds on their spots (3 Nov)' },
     { c: 6, name: 'NUMBERED FLAGS', desc: 'the six on stakes with numbered flags; the one in focus orange and taller (1 Nov, his pick)' },
     { c: 1, name: 'DOTS', desc: 'the next five as dots where they came down; the one in focus lit, with its tag' },
     { c: 2, name: 'NUMBERED PINS', desc: 'the six on short stakes with their numbers in voxels; the one in focus orange' },
@@ -401,6 +402,10 @@ export const LAB = {
     { c: 5, name: 'HALO', desc: 'a faint ring round where all six came down, and a dot for each' },
   ] },
   // 1 Nov, evening (Andrew: no LANDED, the feet alone as a chunky voxel number over the spot, "give me like 5 options"): landnum25.js
+  // BLAST RADIUS (heat25.js; 3 Nov, later: "Give me a ton of options on this, gradient colors, how to visualize it, you name it")
+  BG: { name: 'BLAST RADIUS: COLORS', def: 1, opts: GRADS },
+  FV: { name: 'BLAST RADIUS: THE FIELD', def: 2, opts: FIELDS },
+  SV: { name: 'BLAST RADIUS: THE SEATS', def: 1, opts: SEATS },
   // 2 Nov, night (Andrew: "We can do better on voxel effects when it lands. I'd like the option for a scuba diver ... some oomph"): impact25.js
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
   CV: { name: 'THE COVE', def: 3, opts: COVES },
@@ -440,11 +445,15 @@ const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z
 // and the lab's settled ones (1 Nov, evening: "falling atom bomb fucking spectacular", GEIGER, OUTLINE FILLS ON HOVER, STRAIGHT DOWN, ONE AT A TIME, LIVING BOTTLE,
 // COLOR ONLY, NUMBERED PINS, MERCURY TOWER, GIANTS PENNANT, QUIET BOARD, his dojo drawings): they win over a stored lab; a ?lab= code still loads another (the tests)
 // 2 Nov: FP4, ORANGE AND WHITE foul poles ("Orange and white foul poles")
-const LAB_LOCK = { OR: 3 /* 2 Nov: SAFETY ORANGE ("giants orange is reading as too red") */, LN: 2 /* OVER THE BALL ("that shit is sick") */, LC: 2 /* GEIGER */, FP: 4, BI: 3, BC: 2, BS: 2, SH: 1, TF: 3 /* 2 Nov, later: "zenith and cleared the wall show up when you hover over that cube and that's it" */, CB: 2, TT: 2, /* LP open again (2 Nov, home stretch: SHORT PINS to try; NUMBERED PINS stays the default) */ TH: 1, SK: 4, TG: 5, CS: 4, CA: 1, CD: 2, CT: 4, CW: 1 }
+const LAB_LOCK = { OR: 3 /* 2 Nov: SAFETY ORANGE ("giants orange is reading as too red") */, LN: 2 /* OVER THE BALL ("that shit is sick") */, LC: 2 /* GEIGER */, FP: 4, BI: 3, BC: 2, BS: 2, SH: 1, TF: 3 /* 2 Nov, later: "zenith and cleared the wall show up when you hover over that cube and that's it" */, CB: 2, TT: 2, /* LP open again (2 Nov, home stretch: SHORT PINS to try; NUMBERED PINS stays the default) */ TH: 1, SK: 4, TG: 5, CS: 4, CA: 1, CD: 2, CT: 4, CW: 1,
+  // 3 Nov, later (Andrew: "You can lock everything else now that we've already decided on and take those out of options"): the slingshot, LITTLE BOY, BIG IMPACT, the Cove
+  // either way, Shot Caller's RIBBONS
+  SL: 5, LP: 16 /* "Atom bomb little boy it is" */, LI: 2, CV: 3, SA: 1 /* "I like ribbons" */ }
 const OPEN = ORDER.filter((k) => !(k in LOCKED))
 // 1 Nov, night (Andrew: "dinger deja vu, dinger dojo, shot caller, wallop witness. I think those are the 4 marquee modes and everything else slots within those"; "keys 1-4
 // more modes and esc still pulls the menu up"): the four, in order, as tabs across the header; Wallop Witness is a panel over the park, the other three are modes
-const TABS = [['replay', 'DINGER DÉJÀ-VU'], ['whatif', 'DINGER DOJO'], ['shot', 'SHOT CALLER'], ['witness', 'WALLOP WITNESS']]
+// 3 Nov, later (Andrew: "we need more fun names than heatmap - this now feels to me like its whole own mode"): BLAST RADIUS, the fifth, is the dojo's air with the heat map on
+const TABS = [['replay', 'DINGER DÉJÀ-VU'], ['whatif', 'DINGER DOJO'], ['shot', 'SHOT CALLER'], ['witness', 'WALLOP WITNESS'], ['blast', 'BLAST RADIUS']]
 const HDR_AX = OPEN // what is still open sits in the header
 // 30 Oct (Andrew: "how do I tweak options now"): the dock lists every choice, open ones first, then the locked ones (marked); trying a locked one lasts until a reload
 const DOCK = [...OPEN, ...Object.keys(LAB).filter((k) => !(k in LAB_LOCK))] // (31 Oct, later: only what is open, and the lab; 1 Nov, evening: the lab's open ones)
@@ -531,6 +540,7 @@ const PHONE_CSS = `
 #cp .c25 .rd .gn{font-size:calc(14px * var(--ts))}
 #cp .c25 .rd .meter s{width:7px;height:12px}
 #cp .c25 .chip{right:8px;top:10px;max-width:36%;padding:5px 8px}
+#cp .c25 .rd .vd{display:none}#cp .c25 .chip .hd,#cp .c25 .chip .sb{display:block}#cp .c25 .chip:not(.has),#cp .c25 .chip.has{display:block;border:1px solid var(--tx);background:var(--k);padding:5px 8px} /* (3 Nov: phones keep the verdict in its chip; the readout has no room for it) */
 #cp .c25 .chip .hd{font-size:calc(17px * var(--ts))}
 #cp .c25 .chip .sb{font-size:calc(12px * var(--ts))}
 #cp .c25 .bsel,#cp .c25.c25.ns .bsel{left:8px;right:8px;bottom:52px;font-size:calc(13px * var(--ts))} /* (phones: the chooser over the button, full width) */
@@ -647,6 +657,15 @@ export async function build(root, api, U) {
 #cp .c25 .chip .sb{font-size:15px;color:var(--dim);margin-top:3px}
 #cp .c25 .chip .st{display:inline-block;margin-top:8px;font-family:PS2P,monospace;font-size:12px;letter-spacing:.04em;background:var(--acc);color:var(--k);padding:5px 7px;transform:rotate(-3deg)}
 #cp .c25 .rd .sit{color:var(--tx);font-size:15px;margin-top:6px}
+#cp .c25 .rd .vd{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+#cp .c25 .rd .vd .vh{font-weight:400;font-size:calc(26px * var(--ts));line-height:1;color:var(--tx)}
+#cp .c25 .rd .vd.hr .vh{color:var(--acc)}
+#cp .c25 .rd .vd.hr.done .vh{color:var(--nk)}
+#cp .c25 .rd .vd .vs{font-style:normal;font-size:calc(14px * var(--ts));color:var(--dim)}
+#cp .c25 .chip .hd,#cp .c25 .chip .sb{display:none}
+#cp .c25 .chip:not(.has){display:none}
+#cp .c25 .chip.has{border:0;background:transparent;padding:0}
+#cp .c25 .chip .st{margin-top:0}
 @media (min-width:900px){
 #cp .c25.cmp .rd{left:12px;top:10px;max-width:calc(100% - 250px)}
 #cp .c25.cmp .rd .big{font-size:50px}#cp .c25.cmp .rd .big i{font-size:19px}
@@ -969,6 +988,20 @@ export async function build(root, api, U) {
 #cp .c25 .sfhd span{color:var(--dim);font-size:calc(14px * var(--ts));line-height:1.2}
 #cp .c25 .sfx{margin-top:10px;grid-column:1/-1;min-width:0} /* the pitch list's two columns (portrait) must not split it */
 #cp .c25 .sfx .swy{font-size:calc(13px * var(--ts))}
+#cp .c25 .hm .hmp{display:flex;gap:8px;align-items:center;margin-bottom:8px;color:var(--dim);font-size:calc(12px * var(--ts))}
+#cp .c25 .hm .hmt{display:flex;gap:6px;margin-bottom:8px}
+#cp .c25 .hm .hmt .bt{pointer-events:auto;cursor:pointer;padding:2px 8px}
+#cp .c25 .hm .hmt .bt.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
+#cp .c25 .hm .hmo{display:grid;gap:2px;border:1px solid var(--tx);padding:6px 8px;margin-bottom:8px;min-height:58px}
+#cp .c25 .hm .hmo b{font-weight:400;color:var(--tx);font-size:calc(13px * var(--ts))}
+#cp .c25 .hm .hmo em{font-style:normal;color:var(--acc);font-size:calc(20px * var(--ts));line-height:1}
+#cp .c25 .hm .hmo i{font-style:normal;color:var(--dim);font-size:calc(11px * var(--ts))}
+#cp .c25 .hm .hmo .hpin{color:var(--tx);font-size:calc(11px * var(--ts));border-top:1px solid var(--ln);padding-top:3px;margin-top:2px}
+#cp .c25 .hm .hmp select{flex:1;min-width:0;pointer-events:auto}
+#cp .c25 .hm .hmk{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin-top:10px;color:var(--dim);font-size:calc(11px * var(--ts))}
+#cp .c25 .hm .hmk i{display:block;height:10px}
+#cp .c25 .hm .lpr2 b i{font-style:normal;color:var(--dim);margin-left:6px}
+#cp .c25 .hm .lpr2.hmup b i{color:var(--tx)}
 #cp .c25 .sfhd #c25rt{justify-self:end;grid-row:1;grid-column:1;position:relative;z-index:1;pointer-events:auto;cursor:pointer;font-size:calc(12px * var(--ts));padding:2px 8px;margin-bottom:-22px}
 #cp .c25 .rgs{display:grid;gap:2px;margin:0 0 8px}
 #cp .c25 .rgl{color:var(--dim);font-size:calc(11px * var(--ts));letter-spacing:.12em;margin-top:3px}
@@ -1092,7 +1125,7 @@ export async function build(root, api, U) {
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
   // the star map is. I don't care about the odds receipt"); KARL comes in only when the forecast says fog, no button
   for (const id of ['#c25sc', '#c25rc', '#c25sm', '#c25kl']) E(id).style.display = 'none'
-  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last) }
+  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel', 'hm'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'hm') { heat?.clear(); hmKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last); paintTabs() } // (3 Nov: the tabs follow, BLAST RADIUS lit only while its map is on)
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
@@ -1130,8 +1163,8 @@ export async function build(root, api, U) {
   const goPark = (abbr) => { const u = new URL(location.href); if (abbr === 'SF') u.searchParams.delete('park'); else u.searchParams.set('park', abbr); u.searchParams.set('mix', mixCode(mix).replace(/ /g, '')); u.searchParams.set('mode25', mode); u.searchParams.set('menu', '0'); if (mode === 'replay') { u.searchParams.set('ball', String(idx)); u.searchParams.set('filter', filter) } else { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) u.searchParams.set('w' + k, String(api.state[k])) } location.href = u.toString() }
   E('#c25bl').addEventListener('click', () => { pressEl(E('#c25bl')); openMod('bulletin') })
   E('#c25ww').addEventListener('click', () => { pressEl(E('#c25ww')); openMod('witness') })
-  const goTab = (m) => { if (!uiReady) return; sound.play('move'); if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (modal) closeMod(); if (m !== mode) setMode(m); paintTabs() }
-  function paintTabs() { const on = modal === 'witness' ? 'witness' : mode; root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
+  const goTab = (m) => { if (!uiReady) return; sound.play('move'); if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (modal) closeMod(); if (m === 'blast') { if (mode !== 'whatif') setMode('whatif'); if (show !== 'hm') setShow('hm'); paintTabs(); return } if (show === 'hm') setShow('hm'); if (m !== mode) setMode(m); paintTabs() }
+  function paintTabs() { const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; grid.classList.toggle('blast', show === 'hm'); root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
   root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
   // OFF THE MENU: the pitch was outside the zone (by the ball's edge, so a pitch touching the zone is a strike); where it missed names it
@@ -1234,6 +1267,8 @@ export async function build(root, api, U) {
     }
   }
   const relayout = () => requestAnimationFrame(() => { syncCam?.(); camTo(bird ? 'top' : 'home') })
+  // (3 Nov, Andrew, on a screengrab: "viewing from below cuts off the ribbons"): the camera stays over the park; orbiting down stops just above level with the field
+  api.NN.controls.maxPolarAngle = Math.PI * 0.47
   { let k0 = compactK(), t = 0; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { const k = compactK(); grid.classList.toggle('cmp2', innerWidth >= 900 && innerHeight < 700); if (k === k0) return; k0 = k; grid.style.setProperty('--ts', String(Number(typeVars(optOf('T', mix.T).T).ts) * k)); grid.classList.toggle('cmp', k < 1); if (last) render(last) }, 150) }) } // (2 Nov, night: COMPACT follows the window)
   const stepAx = (k, d) => { const os = dockOpts(k), n = os.length, i = os.findIndex((o) => o.c === kVal(k)); kSet(k, os[(i + d + n) % n].c); const b = root.querySelector(`.mx[data-ax="${k}"]`); b?.classList.add('ch'); setTimeout(() => b?.classList.remove('ch'), 500) }
   root.querySelectorAll('.mx[data-ax]').forEach((b) => {
@@ -1345,12 +1380,13 @@ export async function build(root, api, U) {
   function backToReplay() { const s = stepped; filter = s.filter; idx = s.idx; setMode('replay'); sound.play('back') }
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser(); sound.play('move') }
   // the ball's buttons (1 Nov, night: "landing party and seat seance are buttons on specific balls - both in deja vu and dojo")
-  const BALL_WHY = { lp: 'the real Oracle home runs most like this one, as pins where they came down', se: 'hundreds of ghosts of this flight, and the seat they come down in', my: 'your seat, and the real home runs that came down near it' }
+  const BALL_WHY = { lp: 'the real Oracle home runs most like this one, as pins where they came down', se: 'hundreds of ghosts of this flight, and the seat they come down in', my: 'your seat, and the real home runs that came down near it', hm: 'how hard it is to get a ball out to each part of Oracle tonight, or how a hitter of your choosing would do here' }
   const ballBtns = () => atOracle ? [['lp', 'LANDING PARTY', 'L'], ['se', 'SEAT SEANCE', 'G'], ...(mode === 'replay' ? [] : [['my', 'MY SEAT', '']])].map(([k, l, key]) => `<span class="bt ball${show === k ? ' on' : ''}" data-show="${k}" title="${l}${key ? ` (${key})` : ''}: ${BALL_WHY[k]}">${l}</span>`).join('') : ''
   const wireBall = (el) => el.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => { if (!uiReady) return; pressEl(b); sound.play('move'); setShow(b.dataset.show); paintChooser() }))
   const nightName = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
   function paintChooser() {
     const el = E('#c25ch')
+    { const nk = E('#c25nk'), w = nk?.offsetWidth ?? 0; if (w && innerWidth >= 900) { const r = w + (compactK() < 1 ? 22 : 30) + 'px'; if (el.style.right !== r) el.style.right = r } } // (3 Nov: the buttons wrap short of NUKE IT, however wide it is)
     grid.classList.toggle('called', !!scRes) // (1 Nov, night; playtest: before a seat is picked, Shot Caller showed the dojo's leftover numbers)
     if (mode === 'shot') { paintShotBar(el); return }
     if (mode !== 'replay') {
@@ -1842,9 +1878,10 @@ export async function build(root, api, U) {
     { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT ONE YOURSELF: PICK THE SPEED, THE ANGLE AND THE AIM, THEN NUKE IT', run: () => setMode('whatif') },
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, CLICKED OR TYPED: EVERY SWING THAT PUTS A BALL THERE', run: () => setMode('shot'), off: () => !atOracle },
     { k: 'witness', name: NAMES.witness, blurb: 'LOG THE GAMES YOU WERE AT, THEN SEE WHERE YOU RANK ON THE WITNESS STAND', run: () => goTab('witness') },
+    { k: 'blast', name: 'BLAST RADIUS', blurb: 'HOW HARD IT IS TO GET ONE OUT TO EVERY PART OF THE PARK TONIGHT, WHERE THEY HAVE COME DOWN, AND WHERE A HITTER OF YOURS WOULD', run: () => goTab('blast'), off: () => !atOracle },
   ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { unAttract(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
-  const menuKey = () => (modal === 'witness' ? 'witness' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
+  const menuKey = () => (modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
   const openMenu = (el) => { if (el) pressEl(el); sound.play('pick'); menu.show(menuKey()) }
   E('#c25mn').addEventListener('click', () => openMenu(E('#c25mn')))
   // (1 Nov, later; an audit) each button with a key says it when you point at it
@@ -1857,7 +1894,7 @@ export async function build(root, api, U) {
     if (e.repeat && !'[],.'.includes(e.key)) return // (1 Nov, later) a held key is one press, except stepping through the balls
     if (!atOracle && e.key === '3') { banner('SHOT CALLER IS ORACLE ONLY', 'IT KNOWS THE SEATS THERE'); return }
     if (!atOracle && 'lgcnwkLGCNWK'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
-    if (/^[1-4]$/.test(e.key) && modal && !e.repeat) { goTab(TABS[Number(e.key) - 1][0]); return }
+    if (/^[1-5]$/.test(e.key) && modal && !e.repeat) { goTab(TABS[Number(e.key) - 1][0]); return }
     if (e.key === 'Escape') { if (modal) closeMod(); else if (grid.classList.contains('dk')) toggleDock(false); else { sound.play('back'); menu.show(menuKey()) } } // (the side menu closes before the menu opens)
     else if (modal) return
     else if (e.key === 'Backspace' && mode !== 'replay' && mode !== 'shot') { e.preventDefault(); const s0 = undo.pop(); if (!s0) { banner('NOTHING TO UNDO', 'BACKSPACE STEPS BACK THROUGH YOUR CHANGES'); return } undoing = true; Object.assign(api.state, s0); api.update(); ctl.onChange(); undoing = false; settled = snap(); banner('UNDONE', undo.length ? `${undo.length} MORE TO GO BACK` : 'BACK TO WHERE YOU STARTED') }
@@ -1869,7 +1906,7 @@ export async function build(root, api, U) {
     else if (e.key === 't' || e.key === 'T') openMod('type')
     else if (e.key === 'l' || e.key === 'L') { if (mode === 'shot') setMode('replay'); setShow('lp') } // (as the header buttons do: Shot Caller has no panels of its own)
     else if (e.key === 'g' || e.key === 'G') { if (mode === 'shot') setMode('replay'); setShow('se') }
-    else if (/^[1-4]$/.test(e.key)) goTab(TABS[Number(e.key) - 1][0])
+    else if (/^[1-5]$/.test(e.key)) goTab(TABS[Number(e.key) - 1][0])
     else if (e.key === 'c' || e.key === 'C') setMode(mode === 'shot' ? 'replay' : 'shot')
     else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); sound.play('move'); banner(sound.on() ? 'SOUND ON' : 'SOUND OFF', 'S TO SWITCH') }
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
@@ -2029,14 +2066,93 @@ export async function build(root, api, U) {
     for (let n = rs.length; n > 2 && pl.scrollHeight > pl.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
   }
   // LANDING PARTY in the shared panel: the real Oracle home runs most like this ball, numbered as in the park
+  // HEAT MAP (heat25.js; 3 Nov, Andrew: "A live heatmap of how hard it is to hit home runs to different parts of oracle park. Pick a player and see how their specific
+  // batter profile lends itself to oracle park - their own heatmap, every home run they've hit, what's easier and harder in different areas"): the fan in the park; here
+  // the hitter to show (THE LEAGUE, or one of the replay set's), the air it is flown in, the seven parts of the park in words and a key
+  let heat = null, hmKey = '', hmWho = '', hmLooked = false, hmMetric = 'hard', hmPin = null, hmOver = null
+  const hmPeople = (() => { let L = null; return () => { if (L) return L; const n = new Map(); for (const b of R.balls) if (b.ft >= 335 || b.hr) n.set(String(b.b), (n.get(String(b.b)) ?? 0) + 1); L = [...n.entries()].filter(([, k]) => k >= 12).map(([id, k]) => ({ id, k, name: (pname(id)?.[0] ?? 'BATTER ' + id).toUpperCase() })).sort((a, b) => b.k - a.k).slice(0, 60); return L } })()
+  const airWords = (a) => `${a.temp}°F, ${a.wind ? `${Math.abs(a.wind)} MPH ${a.wind > 0 ? 'OUT' : 'IN'}` : 'CALM'}${a.xwind ? `, ${Math.abs(a.xwind)} ACROSS` : ''}, ${a.hand > 0 ? 'A RIGHTY' : 'A LEFTY'}`
+  const zoneOf = (vals, wts) => ZONES.map(([a, b, name]) => { let v = 0, w = 0; for (let i = 0; i < heat.N; i++) { const m = heat.mid(i); if (m >= a && m < b && vals[i] != null) { const k = wts ? wts[i] : 1; v += vals[i] * k; w += k } } return { name, v: w ? v / w : null, w } })
+  // a piece of the park in words: where it is, and what it says in the view on
+  const hmData = () => (hmWho ? heat.player(hmWho) : hmMetric === 'hard' ? heat.ready() : heat.many()) // (pointing never works out a new night on the spot)
+  const placeOf = (c) => `${zoneOf0(c.b)}${c.kind === 'wedge' ? ', IN FRONT OF THE WALL' : c.j === 0 ? ', THE FIRST 20 FT OF SEATS' : `, ${c.j * heat.ROW_FT} TO ${(c.j + 1) * heat.ROW_FT} FT BACK`}`
+  const zoneOf0 = (b) => (ZONES.find(([a, c]) => b >= a && b < c) ?? ZONES[3])[2]
+  function cellWords(c) {
+    if (!c) return null
+    const d = hmData(), M = hmWho ? 'player' : hmMetric
+    if (!d) return null
+    if (M === 'hard') { const x = c.kind === 'wedge' ? d.wall[c.i] : d.seat[c.i][c.j]; return { place: placeOf(c), main: x ? `${x.ev} MPH` : 'OUT OF REACH', sub: x ? `THE SOFTEST SWING THAT GETS ${c.kind === 'wedge' ? 'OVER THE WALL THERE' : 'THERE'}: ${x.ev} MPH OFF THE BAT AT ${x.la}°` : 'NO SWING UP TO 132 MPH GETS THERE', ev: x?.ev ?? null } }
+    if (M === 'many') { const n = c.kind === 'wedge' ? d.wedge[c.i] : d.seat[c.i][c.j]; return { place: placeOf(c), main: `${n} HOME RUN${n === 1 ? '' : 'S'}`, sub: c.kind === 'wedge' ? 'CAME DOWN SOMEWHERE OUT THIS WAY, SINCE JULY 2023' : 'CAME DOWN IN THESE SEATS, SINCE JULY 2023', n } }
+    const r = d.rate[c.i], n = c.kind === 'wedge' ? d.n5[c.i] : d.seat[c.i][c.j]
+    return c.kind === 'wedge' ? { place: placeOf(c), main: r == null ? '--' : `${Math.round(r * 100)}% GO OUT`, sub: `OF THEIR ${d.n5[c.i]} DEEP BALLS AIMED THIS WAY, FLOWN HERE TONIGHT` } : { place: placeOf(c), main: `${n} HOME RUN${n === 1 ? '' : 'S'}`, sub: 'OF THEIRS WOULD COME DOWN IN THESE SEATS TONIGHT' }
+  }
+  // the pointed-at box: what is under the pointer, and against the one kept (a click keeps one; a click on it again lets it go)
+  function paintHmOver() {
+    const box = E('#c25hb .hmo'); if (!box) return
+    const w = cellWords(hmOver), p = cellWords(hmPin)
+    let html = w ? `<b>${w.place}</b><em>${w.main}</em><i>${w.sub}</i>` : `<i>POINT AT THE FIELD OR THE SEATS. CLICK ONE TO KEEP IT AND COMPARE.</i>`
+    if (p) { const diff = w && p.ev != null && w.ev != null && hmOver !== hmPin ? w.ev - p.ev : null; html += `<span class="hpin">KEPT: ${p.place}, ${p.main}${diff != null ? ` · THIS ONE TAKES ${Math.abs(diff)} MPH ${diff > 0 ? 'MORE' : diff < 0 ? 'LESS' : ''}${diff === 0 ? 'THE SAME' : ''}` : ''}</span>` }
+    if (box.innerHTML !== html) box.innerHTML = html
+  }
+  function paintHeat() {
+    const el = E('#c25hi'), hb = E('#c25hb'), s = api.state
+    wordTitle(el, '/ B L A S T &nbsp; R A D I U S /', 'landing')
+    const key = [hmWho, hmMetric, Math.round(s.temp), Math.round(s.wind), Math.round(s.xwind ?? 0), s.hand].join()
+    if (key === hmKey && hb.querySelector('.hm')) return
+    hmKey = key
+    const who = hmWho, people = hmPeople()
+    const pick = `<label class="hmp">WHO <select id="c25hmw"><option value="">EVERYONE</option>${people.map((p) => `<option value="${p.id}"${p.id === who ? ' selected' : ''}>${p.name} (${p.k})</option>`).join('')}</select></label>`
+    const tabs = who ? '' : `<div class="hmt"><span class="bt${hmMetric === 'hard' ? ' on' : ''}" data-hm="hard">HOW HARD</span><span class="bt${hmMetric === 'many' ? ' on' : ''}" data-hm="many">HOW MANY</span></div>`
+    const stops = (GRADS.find((g) => g.c === lab.BG) ?? GRADS[0]).stops
+    const key2 = (_, lo, hi) => `<div class="hmk"><span>${lo}</span><i style="background:linear-gradient(90deg,${stops.join(',')})"></i><span>${hi}</span></div>`
+    let body = ''
+    if (!who && hmMetric === 'hard' && !heat.ready()) { // (worked out a few wedges at a time; the panel says so and fills in when it is done)
+      heat.hardAsync(() => { if (show === 'hm') { hmKey = ''; paintHeat() } })
+      hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="lph">WORKING OUT TONIGHT'S AIR ACROSS THE PARK...</div></div>`; hmKey = ''
+      return
+    }
+    if (!who && hmMetric === 'hard') {
+      const H = heat.hard(); heat.show({ metric: 'hard', data: H })
+      const z = zoneOf(H.wall.map((m) => m?.ev ?? null))
+      body = `<div class="lph">THE SOFTEST SWING THAT GETS A BALL THERE TONIGHT, AT ITS BEST LAUNCH ANGLE. BRIGHTER IS EASIER. LIVE WITH THE AIR: ${airWords(H.air)}.</div>` +
+        `<div class="lph" style="margin-top:4px">OVER THE WALL, BY PART OF THE PARK</div>` + z.map((r) => `<div class="lpr2"><span>${r.name}</span><b>${r.v == null ? '--' : Math.round(r.v) + ' MPH'}</b></div>`).join('') + key2(null, '118 MPH OR MORE', '96 MPH OR LESS')
+    } else if (!who) {
+      const M = heat.many(); heat.show({ metric: 'many', data: M })
+      const tot = M.wedge.reduce((t, x) => t + x, 0)
+      body = `<div class="lph">WHERE THE ${M.n} HOME RUNS HIT AT ORACLE SINCE JULY 2023 CAME DOWN. BRIGHTER IS MORE.</div>` +
+        ZONES.map(([a, b, name]) => { let n = 0; for (let i = 0; i < heat.N; i++) { const m = heat.mid(i); if (m >= a && m < b) n += M.wedge[i] } return `<div class="lpr2"><span>${name}</span><b>${n} <i>${Math.round((100 * n) / Math.max(1, tot))}%</i></b></div>` }).join('') + key2(null, 'FEW', 'MOST')
+    } else {
+      const P = heat.player(who), nm = people.find((p) => p.id === who)?.name ?? who
+      heat.show({ metric: 'player', data: P })
+      const z = zoneOf(P.rate, P.n5), zl = zoneOf(P.league, P.leagueN)
+      body = `<div class="lph">${nm}: ${P.n} DEEP BALLS SINCE JULY 2023 (335 FT AND MORE, AND EVERY HOME RUN), FLOWN HERE TONIGHT: ${Math.round((100 * P.outAll) / Math.max(1, P.n))}% GO OUT. THE FIELD: THE SHARE THAT GOES OUT EACH WAY, BRIGHTER IS MORE. THE SEATS: WHERE THEIR HOME RUNS COME DOWN.</div>` +
+        `<div class="lpr2"><span>HOME RUNS, ANY PARK</span><b>${P.hr}</b></div><div class="lpr2"><span>THAT GO OUT HERE (THE GREEN BOMBS)</span><b>${P.hrOut}</b></div>` +
+        `<div class="lph" style="margin-top:6px">WHERE IT IS EASIER AND HARDER, AGAINST THE LEAGUE'S DEEP BALLS</div>` +
+        z.map((r, i) => { const l = zl[i].v, d = r.v != null && l != null && r.w >= 10 && zl[i].w >= 20 ? Math.round((r.v - l) * 100) : null; return `<div class="lpr2${d != null && d > 0 ? ' hmup' : ''}"><span>${r.name}${r.w ? ` (${r.w})` : ''}</span><b>${r.v == null ? '--' : Math.round(r.v * 100) + '%'}${d == null ? '' : ` <i>${d > 0 ? '+' : ''}${d}</i>`}</b></div>` }).join('') + key2(null, 'NONE OUT', 'ALL OUT')
+    }
+    hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="hmo"></div>${body}</div>`
+    const sel = hb.querySelector('#c25hmw')
+    sel?.addEventListener('change', () => { hmWho = sel.value; hmKey = ''; hmPin = null; sound.play('pick'); paintHeat() })
+    sel?.addEventListener('keydown', (e) => e.stopPropagation())
+    hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmKey = ''; paintHeat() }))
+    if (hmOver) heat.outline(hmPin ?? hmOver)
+    paintHmOver()
+    if (!hmLooked || !look) { hmLooked = true; lookAt([-44, -22, 0, 22, 44].flatMap((b) => { const w = (api.wallAt?.(b) ?? [380])[0] * 0.3048, r = (b * Math.PI) / 180; return [api.toWorld([w * Math.sin(r), w * Math.cos(r), 0]), api.toWorld([(w + 30) * Math.sin(r), (w + 30) * Math.cos(r), 8])] }), 36) }
+  }
+  // pointing at the park while the heat map is on: the cell under the pointer in words; a click keeps it for comparing
+  { let pT = 0, dn = null
+    addEventListener('pointermove', (e) => { if (show !== 'hm' || !heat || !onPark(e)) return; const n = performance.now(); if (n - pT < 60) return; pT = n; const c = heat.cellAt(e.clientX, e.clientY); if (c !== hmOver) { hmOver = c; heat.outline(c ?? hmPin); paintHmOver() } })
+    addEventListener('pointerdown', (e) => { dn = show === 'hm' && onPark(e) ? [e.clientX, e.clientY] : null })
+    addEventListener('pointerup', (e) => { if (!dn || Math.hypot(e.clientX - dn[0], e.clientY - dn[1]) > 5) return; const c = heat.cellAt(e.clientX, e.clientY); if (!c) return; hmPin = hmPin === c ? null : c; sound.play(hmPin ? 'pick' : 'back'); paintHmOver() }) }
   function paintLanding(res) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb'), bear = res.landB ?? s.dir
     wordTitle(el, '/ L A N D I N G &nbsp; P A R T Y /', 'landing')
     const key = [Math.round(s.ev * 2), Math.round(s.la * 2), Math.round(bear * 2), cur ? cur.d + cur.b : 'w'].join()
-    if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur ?? stepped?.b }, getComputedStyle(root).getPropertyValue('--acc').trim()); lookAt(lpList.map((x) => x.at).filter(Boolean), 18) }
+    const at = res.landing?.point ?? (res.path?.length ? api.toWorld(res.path[res.path.length - 1].p) : null) // (3 Nov: this one's own landing, so the party is the ones that came down closest)
+    if (key !== lpKey) { lpKey = key; lpList = lp.show({ ev: s.ev, la: s.la, bear, self: cur ?? stepped?.b, at }, getComputedStyle(root).getPropertyValue('--acc').trim()); lookAt(lpList.map((x) => x.at).filter(Boolean).concat(at ? [at] : []), 18) }
     // 31 Oct (Andrew: "we should be able to click into any landing party HR and then see it as a tweak the tater"): point at a row for its flight in the park, click
     // it to carry that home run into TWEAK THE TATER
-    hb.innerHTML = `<div class="lpl"><div class="lph">THE ${lpList.length} ORACLE HOME RUNS MOST LIKE THIS ONE (OF ${lp.count()} SINCE JULY 2023). POINT AT ONE FOR ITS FLIGHT, CLICK TO TWEAK IT</div>` + lpList.map((x) => { const n = pname(x.b.b); return `<div class="lpr" data-n="${x.n}" role="button" tabindex="0" title="tweak this one"><b>${x.n}</b><span class="nm">${(n ? n[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d}</span><span>${x.b.ft} FT</span><span class="wh">${x.where}</span></div>` }).join('') + '</div>'
+    hb.innerHTML = `<div class="lpl"><div class="lph">THE ${lpList.length} ORACLE HOME RUNS (OF ${lp.count()} SINCE JULY 2023) THAT CAME DOWN CLOSEST TO WHERE THIS ONE DOES, NEAREST FIRST. POINT AT ONE FOR ITS FLIGHT, CLICK TO TWEAK IT</div>` + lpList.map((x) => { const n = pname(x.b.b); return `<div class="lpr" data-n="${x.n}" role="button" tabindex="0" title="tweak this one"><b>${x.n}</b><span class="nm">${(n ? n[0] : 'BATTER ' + x.b.b).toUpperCase()}</span><span>${x.b.d} · ${x.b.ft} FT</span><span>${x.away != null ? x.away + ' FT AWAY' : x.b.ft + ' FT'}</span><span class="wh">${x.where}</span></div>` }).join('') + '</div>'
     const rs = [...hb.querySelectorAll('.lpr')]
     rs.forEach((r) => { const k = Number(r.dataset.n), x = lpList[k - 1]; r.addEventListener('pointerenter', () => lp.focus(k)); r.addEventListener('focus', () => lp.focus(k)); r.addEventListener('pointerleave', () => lp.focus(null)); r.addEventListener('blur', () => lp.focus(null)); r.addEventListener('click', () => { pressEl(r); tweakBall(x.b) }); r.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); tweakBall(x.b) } }) })
     for (let n = rs.length; n > 1 && hb.scrollHeight > hb.clientHeight + 1; n--) rs[n - 1].style.display = 'none'
@@ -2183,7 +2299,7 @@ export async function build(root, api, U) {
     if (!r?.ways?.length) { if (last) render(last); paintChooser(); return }
     scSel = (i + r.ways.length) % r.ways.length
     const w = r.ways[scSel]
-    Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true })
+    Object.assign(api.state, { ev: w.evx ?? w.ev, la: w.la, dir: w.dirx ?? w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }) /* (3 Nov: the swing solved onto the seat exactly) */
     api.setPreview(true); api.update(); paintChooser()
   }
   // PLAY IT: the three most common ways, flown one after another
@@ -2196,9 +2312,9 @@ export async function build(root, api, U) {
     const p = shotPlayS
     if (!p || mode !== 'shot') { stopShot(); return }
     const w = p.list[p.i]; scSel = scRes.ways.indexOf(w)
-    Object.assign(api.state, { ev: w.ev, la: w.la, dir: w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true })
+    Object.assign(api.state, { ev: w.evx ?? w.ev, la: w.la, dir: w.dirx ?? w.dir, hand: youHand(), temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }) /* (3 Nov: the swing solved onto the seat exactly) */
     api.setPreview(true); api.update(); paintChooser()
-    banner(p.i === 0 ? 'THE MOST COMMON WAY' : p.i === 1 ? 'THE SECOND MOST COMMON' : 'THE THIRD MOST COMMON', `${w.ev} MPH AT ${w.la}°`)
+    banner(p.i === 0 ? 'THE MOST COMMON WAY' : p.i === 1 ? 'THE SECOND MOST COMMON' : 'THE THIRD MOST COMMON', `${Math.round(w.evx ?? w.ev)} MPH AT ${w.la}°`)
     p.t.push(setTimeout(() => { if (shotPlayS === p) { p.wait = true; ses.fire() } }, 700))
   }
   function stopShot() { if (shotPlayS) for (const t of shotPlayS.t) clearTimeout(t); shotPlayS = null }
@@ -2206,7 +2322,7 @@ export async function build(root, api, U) {
   function paintShotBar(el) {
     const r = scRes, w = r?.ways?.[scSel]
     E('#c25nk')?.classList.toggle('dorm', !w) // (home stretch: nothing to fly until a seat has a way in)
-    el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}, MOST COMMON FIRST</div><div class="r2"><b>${shotName(r)}</b>: ${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
+    el.innerHTML = r && w ? `<div class="r1"><span class="bt" data-sw="-1" aria-label="previous way">&lt;</span><span class="bt" data-sw="1" aria-label="next way">&gt;</span> WAY ${scSel + 1} OF ${r.ways.length}, MOST COMMON FIRST</div><div class="r2"><b>${shotName(r)}</b>: ${Math.round(w.evx ?? w.ev)} MPH AT ${w.la}°, ${FIELD(w.dir)}</div>`
       : `<div class="r2">${r ? (r.seat?.what === 'field' ? 'THAT SPOT IS IN PLAY: PICK A SEAT' : `NO SWING GETS A BALL TO ${shotName(r)}`) : 'CLICK A SEAT IN THE PARK, OR TYPE ONE TOP LEFT'}</div>`
     el.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); stopShot(); pickWay(scSel + Number(b.dataset.sw)) }))
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
@@ -2274,7 +2390,7 @@ export async function build(root, api, U) {
     const gy = pk.querySelector('.gy'); gy.setAttribute('x1', x); gy.setAttribute('x2', x); gy.setAttribute('y2', y + f.bs / 2)
     hb.querySelector('.sfr').setAttribute('aria-valuetext', `${w.ev} mph at ${w.la} degrees`)
     const one = (n) => (n ? `1 IN ${bigN(POOL_N / n)}` : 'ALMOST NEVER')
-    hb.querySelector('.sfro').innerHTML = `<b>${w.ev}</b><span>MPH</span><b>${w.la}°</b><span>UP</span><i>${scSel === 0 ? 'THE MOST COMMON WAY · ' : ''}${one(w.w)} BALLS IN PLAY · AIMED ${FIELD(w.dir)}</i>`
+    hb.querySelector('.sfro').innerHTML = `<b>${Math.round(w.evx ?? w.ev)}</b><span>MPH</span><b>${w.la}°</b><span>UP</span><i>${scSel === 0 ? 'THE MOST COMMON WAY · ' : ''}${one(w.w)} BALLS IN PLAY · AIMED ${FIELD(w.dir)}</i>`
     root.querySelectorAll('#c25pl .swy').forEach((x) => x.classList.toggle('on', Number(x.dataset.w) === scSel))
     return true
   }
@@ -2352,7 +2468,7 @@ export async function build(root, api, U) {
     box.innerHTML = f.svg; box.firstElementChild.classList.add('sfr')
     hb._fr = f; hb._sc = r; hb._n = mix.N
     if (side) {
-      side.innerHTML = rangesHTML(r, sel) + '<div class="lph">THE MOST COMMON WAYS IN. DRAG ALONG THE CHART ON THE RIGHT, CLICK A SQUARE, OR USE THE ARROW KEYS ON IT.</div>' + r.ways.slice(0, 4).map((w, i) => `<div class="swy${w === sel ? ' on' : ''}" data-w="${i}" role="button"><b>${i + 1}</b><span>${w.ev} MPH AT ${w.la}°, ${FIELD(w.dir)}</span><i>${one(w.w)}</i></div>`).join('') +
+      side.innerHTML = rangesHTML(r, sel) + '<div class="lph">THE MOST COMMON WAYS IN. DRAG ALONG THE CHART ON THE RIGHT, CLICK A SQUARE, OR USE THE ARROW KEYS ON IT.</div>' + r.ways.slice(0, 4).map((w, i) => `<div class="swy${w === sel ? ' on' : ''}" data-w="${i}" role="button"><b>${i + 1}</b><span>${Math.round(w.evx ?? w.ev)} MPH AT ${w.la}°, ${FIELD(w.dir)}</span><i>${one(w.w)}</i></div>`).join('') +
         '<div class="lph cl" style="margin-top:6px">CLOSEST REAL ORACLE HOME RUNS</div>' + r.near.slice(0, 3).map((n, i) => { const nm = pname(n.b.b); return `<div class="lpr2 go" data-near="${i}" role="button" tabindex="0" title="PLAY IT IN ${NAMES.replay}"><span>${(nm ? nm[0] : 'BATTER ' + n.b.b).toUpperCase()} ${n.b.d}</span><b>${Math.round(n.d / 0.3048)} FT AWAY</b></div>` }).join('')
       side.querySelectorAll('.swy').forEach((x) => x.addEventListener('click', () => { sound.play('move'); stopShot(); pickWay(Number(x.dataset.w)) }))
       // (1 Nov, later; an audit) a real home run near your seat plays in DEJA-VU, as the ones in MY SEAT do
@@ -2441,6 +2557,7 @@ export async function build(root, api, U) {
     if (mode === 'shot') { paintShot(); return }
     if (show === 'sm') { paintStars(); return }
     if (moving() && (show === 'hist' || show === 'lp')) return // (the histograms and the party catch up when the numbers stop)
+    if (show === 'hm') { if (!moving() || !E('#c25hb .hm')) paintHeat(); return } // (3 Nov: the heat map is worked out again when the numbers stop, not on every step of a drag)
     if (show === 'lp') paintLanding(res); else if (show === 'se') paintSeance(res); else if (show === 'my') paintMySeat(); else if (show === 'reel') paintGagReel(); else if (show === 'rc') paintReceipt(res); else paintHists(res)
   }
   // THE FUN LINE (28 Oct, night, Andrew: bring back the distance and speed similes). 29 Oct, evening (Andrew: "the thing keeps cycling through different speed and
@@ -2470,7 +2587,7 @@ export async function build(root, api, U) {
   function paintHead(res) {
     E('#c25rd').classList.toggle('pick', mode === 'shot' && !scRes); E('#c25v').classList.toggle('pick', mode === 'shot' && !scRes); { const fl = flight?.last(); if (fl) fl.visible = !(mode === 'shot' && !scRes) } // (and no old flight in the park)
     const o = odds(), rd = E('#c25rd'), d = Math.round(res.landFt), pv = !!ses.beat?.preview
-    if (!rd.dataset.v) { rd.dataset.v = '3'; rd.innerHTML = `<span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn" role="button" title="every park"></div><div class="fun"></div><span class="sub sit"></span>`; rd.querySelector('.gn').addEventListener('click', () => { pressEl(rd.querySelector('.gn')); openMod('parks') }) }
+    if (!rd.dataset.v) { rd.dataset.v = '4'; rd.innerHTML = `<span class="vd"><b class="vh"></b><i class="vs"></i></span><span class="big num"><span id="c25d">0</span><i> FT</i></span><span class="sub sx"></span><div class="meter">${'<s></s>'.repeat(20)}<em class="num"><span class="op"></span>%</em></div><span class="lbl osrc"></span><div class="gn" role="button" title="every park"></div><div class="fun"></div><span class="sub sit"></span>`; rd.querySelector('.gn').addEventListener('click', () => { pressEl(rd.querySelector('.gn')); openMod('parks') }) }
     const set = (sel, html) => rd.querySelectorAll(sel).forEach((e) => { if (e.innerHTML !== html) e.innerHTML = html })
     set('.sx', `APEX ${Math.round(res.peakFt)} FT &nbsp; HANG ${res.hang.toFixed(1)} S${res.verdict.wallFt ? ` &nbsp; WALL ${Math.round(res.verdict.wallFt)} FT, ${res.verdict.wallH.toFixed(0)} HIGH` : ''}`)
     if (!moving() || !rd.querySelector('.gn')?.textContent) set('.gn', parks.parks.length ? goneLine(U.goneWord(parks, api, evalParks(parks, api), goneReady)) : '') // (30 parks: when the numbers stop)
@@ -2530,6 +2647,20 @@ export async function build(root, api, U) {
     if (se.textContent !== (stp ?? '')) { se.textContent = stp ?? ''; if (stp) restamp(se) }
     se.style.display = stp ? '' : 'none'
     if (stampIt) restamp(chip.querySelector('.hd'))
+    // 3 Nov (Andrew: "multiple times we're telling people how far it went (top left, top right, far right, voxel) - let's have the outcome be on the top left, and then
+    // the top right is just game situation, and the full right is just the stats"): the verdict and its line sit over the distance in the readout (the line says how
+    // much it beat the wall by, not the feet again); the top-right chip shows only the stamp (GRAND SLAM, WALK-OFF ...), over the game's bug
+    const vd = E('#c25rd .vd')
+    if (vd) {
+      vd.classList.toggle('hr', chip.classList.contains('hr')); vd.classList.toggle('done', chip.classList.contains('done'))
+      const vh = vd.querySelector('.vh'), vs = vd.querySelector('.vs'), head = chip.querySelector('.hd').textContent
+      const beat = committed && v ? (v.kind === 'GONE' ? `${Math.round(v.clearBy ?? 0)} FT OVER THE WALL` : v.kind === 'WALL' ? `SHORT OF THE TOP BY ${Math.round(v.short ?? 0)} FT` : '') : ''
+      const line = staysHere ? chip.querySelector('.sb').textContent : committed ? beat : realSub
+      if (vh.textContent !== head) vh.textContent = head
+      if (vs.textContent !== line) vs.textContent = line
+      if (stampIt) restamp(vh)
+    }
+    chip.classList.toggle('has', !!stp)
   }
 
   // ---- effects and sound: hit-stop, contact spark and flash, trail, fireworks on a home run, the Cove splash and its kayaks, Karl's fog ----
@@ -2593,6 +2724,7 @@ export async function build(root, api, U) {
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
   // (2 Nov, later: no words when the ball lands, "we don't need that set dressing"; the moments still play)
   const impact = initImpact25(api, colors)
+  heat = initHeat25(api, { pool, balls: R.balls, gone: () => colors().nk, look: () => ({ g: lab.BG, f: lab.FV, s: lab.SV }), giants: (b) => !!b && (b.tb === 'Bot' ? b.ht === 'SF' : b.at === 'SF') })
   touches = initTouches25(api, { sound: (k, a) => sound.play(k, a), makeGull: () => life?.makeGull?.() })
   // POINTING AT A SEAT: Shot Caller's pointer, a raycast at most every 70 ms
   { let pT = 0; addEventListener('pointermove', (e) => { if (mode !== 'shot' || !onPark(e)) { touches.hoverSeat(null); return } const n = performance.now(); if (n - pT < 70) return; pT = n; const p = sc.pick(e.clientX, e.clientY); touches.hoverSeat(p, p && seatOf(p), cs0().getPropertyValue('--acc').trim()) }) }
@@ -2830,9 +2962,9 @@ export async function build(root, api, U) {
   // THE ORANGE, live (2 Nov, later: a reload on every switch was a bug): the family in place, the park's materials and cubes, the interface's accent, the arcs
   function switchOrange(n) { const map = setOrange(n); if (!map) return; recolor(api.NN.scene, map); THEMES.orange.acc = ORANGE.o; if (themeKey() === 'orange') root.style.setProperty('--acc', ORANGE.o); colC = null; if (!api.anim?.()) api.update() }
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
-  applyLab = (k) => { if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
+  applyLab = (k) => { if (['BG', 'FV', 'SV'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { colors: () => colors(), impact: () => impact, touches: () => touches, sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+  window.__mix25 = { colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }

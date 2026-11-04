@@ -24,8 +24,8 @@ export function shotCaller(api, balls, o = {}) {
   const land = (st) => {
     const res = api.fly(st, { floor: -8 })
     const k = res.verdict.kind
-    const at = k === 'GONE' || k === 'FOUL' ? api.findLanding(res.path).point : api.toWorld(res.path[res.path.length - 1].p)
-    return { res, at, kind: k }
+    const h = k === 'GONE' || k === 'FOUL' ? api.findLanding(res.path) : null, at = h ? h.point : api.toWorld(res.path[res.path.length - 1].p)
+    return { res, at, kind: k, idx: h?.index ?? res.path.length - 1 } // (3 Nov: where it meets the seats, so a drawn way stops there)
   }
   function realLandings() {
     if (real) return real
@@ -50,6 +50,36 @@ export function shotCaller(api, balls, o = {}) {
       if (pastWall && L.kind !== 'GONE') continue // a seat needs a home run: a ball on the track under the front row is close but not there (playtest)
       if (miss <= R_OK) found.push({ ev, la, dir: Math.round(dir * 10) / 10, miss, L })
     }
+    // 3 Nov (Andrew, on two screengrabs: "Where it actually lands is a function of height and distance, and the model right now is not getting the grey line or ribbons
+    // right on where the selected seat is. Insofar as we're reverse solving it should land right the fuck there right?"): the grid above only finds the swings that
+    // come down within a few metres; each is then solved exactly, so its flight passes through the seat itself (its distance out from the plate and its height):
+    // the aim is turned until the ball is on the seat's bearing when it gets that far out, and the exit speed (to the hundredth of a mph, the launch angle held) until
+    // it is at the seat's height there. The drawn way and the swing flown both end on the seat
+    const D = Math.hypot(spot.x - home.x, spot.z - home.z), zs = spot.y - home.y
+    const atD = (ev, la, dir) => {
+      const res = api.fly({ ...api.state, ev, la, dir, hand, temp, wind: 0, xwind: 0, dws: 0, carry: 1, tab: true, carryOverride: null }, { floor: -8 }), P = res.path
+      const q = P.findIndex((s) => Math.hypot(s.p[0], s.p[1]) >= D)
+      if (q < 1) return null
+      const s0 = P[q - 1].p, s1 = P[q].p, d0 = Math.hypot(s0[0], s0[1]), d1 = Math.hypot(s1[0], s1[1]), k = (D - d0) / Math.max(1e-6, d1 - d0)
+      const p = [s0[0] + (s1[0] - s0[0]) * k, s0[1] + (s1[1] - s0[1]) * k, s0[2] + (s1[2] - s0[2]) * k]
+      return { res, q, p, z: p[2], b: (Math.atan2(p[0], p[1]) * 180) / Math.PI }
+    }
+    for (const f of found) {
+      let ev = f.ev, dir = f.dir, a = atD(ev, f.la, dir)
+      for (let it = 0; it < 10 && a; it++) {
+        const eb = tb - a.b, ez = a.z - zs
+        if (Math.abs(eb) < 0.02 && Math.abs(ez) < 0.05) break
+        dir += eb
+        const b = atD(ev + 0.3, f.la, dir), a2 = atD(ev, f.la, dir)
+        if (!b || !a2) break
+        const slope = (b.z - a2.z) / 0.3
+        if (Math.abs(slope) > 1e-3) ev -= Math.max(-3, Math.min(3, (a2.z - zs) / slope))
+        a = atD(ev, f.la, dir)
+      }
+      if (!a) continue
+      f.evx = Math.round(ev * 100) / 100; f.dirx = dir; f.miss = Math.hypot(a.b - tb, a.z - zs)
+      f.L = { res: a.res, idx: a.q - 1, at: api.toWorld(a.p), kind: 'GONE' } // the way drawn ends on the seat
+    }
     // ranked by how common (Study 25), or the softest, a typical and the hardest (Study 24, no weight)
     for (const f of found) f.w = opt.weight ? opt.weight(f.ev, f.la) : 1
     if (opt.weight) found.sort((a, b) => b.w - a.w || a.miss - b.miss); else found.sort((a, b) => a.ev - b.ev || a.miss - b.miss)
@@ -69,10 +99,10 @@ export function shotCaller(api, balls, o = {}) {
       //   5 CORE AND RIM: the most common half of the swings as one strong band, the rest as faint threads round it
       if (found.length) {
         const look = opt.cloud ?? 1, mx = Math.max(...found.map((f) => f.w)), K = (f) => Math.sqrt(f.w / mx), A = (k) => 0.22 + 0.78 * k
-        const pathOf = (f, n = 48) => { const P = f.L.res.path.map((q) => api.toWorld(q.p)), c = new THREE.CatmullRomCurve3(P); return c.getSpacedPoints(n) }
+        const pathOf = (f, n = 160) => { const P = f.L.res.path.slice(0, (f.L.idx ?? f.L.res.path.length - 1) + 1).map((q) => api.toWorld(q.p)).concat([f.L.at]) /* (3 Nov, Andrew, on a screengrab: the ways ran on past the seat down to the field's level; each now ends where it meets the seat) */, c = new THREE.CatmullRomCurve3(P, false, 'centripetal'); return c.getSpacedPoints(n) }
         const mat = (a) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: a, depthWrite: false, fog: false, side: THREE.DoubleSide })
         const cloud = new THREE.Group(); cloud.renderOrder = 24
-        if (look === 1) for (const f of found) { const k = K(f); cloud.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pathOf(f)), 64, 0.18 + 0.5 * k, 6, false), mat(A(k) * 0.13))) }
+        if (look === 1) for (const f of found) { const k = K(f); cloud.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pathOf(f)), 220, 0.18 + 0.5 * k, 12, false), mat(A(k) * 0.13))) /* (3 Nov: "a little smoother": 160 points a way, 220 rings, 12 round) */ }
         else if (look === 2) {
           const CELL = 2.4, cells = new Map()
           for (const f of found) { const seen = new Set(); for (const w of pathOf(f, 90)) { const key = Math.round(w.x / CELL) + ',' + Math.round(w.y / CELL) + ',' + Math.round(w.z / CELL); if (seen.has(key)) continue; seen.add(key); const c = cells.get(key) ?? { w: 0, x: 0, y: 0, z: 0, n: 0 }; c.w += f.w; c.x += w.x; c.y += w.y; c.z += w.z; c.n++; cells.set(key, c) } }
@@ -90,7 +120,7 @@ export function shotCaller(api, balls, o = {}) {
           // the core: the most common swings until they hold half the weight, as wide faint tubes over each other (one band); the rest as threads
           const ord = found.slice().sort((a, b) => b.w - a.w), tot = ord.reduce((t, f) => t + f.w, 0)
           let run = 0
-          for (const f of ord) { const core = run < tot / 2; run += f.w; cloud.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pathOf(f)), 64, core ? 1.1 : 0.12, core ? 8 : 4, false), mat(core ? 0.07 : 0.14 * A(K(f))))) }
+          for (const f of ord) { const core = run < tot / 2; run += f.w; cloud.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pathOf(f)), 220, core ? 1.1 : 0.12, core ? 12 : 6, false), mat(core ? 0.07 : 0.14 * A(K(f))))) }
         }
         group.add(cloud); NN.hideForNormal?.push(cloud); group.userData.cloudG = cloud // (the ink pass reads normals: a see-through cloud stays out of it)
         group.userData.cloud = cloud.children.length; group.userData.cloudLook = look

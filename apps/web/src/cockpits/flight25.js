@@ -103,7 +103,7 @@ export function initFlight25(api, colors) {
       if (ci > 0) {
         const q = src[ci].p, b = toWorld([q[0], q[1], v.wallH * FT]), ball = toWorld([q[0], q[1], v.cross * FT]), lo = Math.min(b.y, ball.y), hi = Math.max(b.y, ball.y)
         const cl = new THREE.Group()
-        const gc = c.nk || c.mk || c.pc || c.acc // (2 Nov, later: "the cleared the wall cube / line let's also make it geiger")
+        const gc = v.kind === 'GONE' ? c.nk || c.mk || c.pc || c.acc : c.mk || c.pc || c.tx // (2 Nov, later: "the cleared the wall cube / line let's also make it geiger"; 3 Nov, the color audit: GEIGER means gone, so off the wall it stays ICE)
         cl.add(cubes(geo, lam(gc), column(b.x, b.z, lo, hi, 0.8), 0.5))
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
         cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : ''}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, gc))
