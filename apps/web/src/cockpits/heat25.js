@@ -85,11 +85,13 @@ export const SIDE_SHADES = [
 ]
 //   THE BLAST CAMERA (4 Nov, evening; the red team: from straight down the middle the front rows hide the back ones; Andrew: "10a sure but give me options")
 //   [where it sits, what it looks at], plate frame in metres: x toward right field, y out to center, z up
+// 5 Nov (Andrew: "Blast radius needs to go further back still - see screengrab you can't see the left field arcade and the controls are in the way. Give me different
+// viewpoint options, each of which where you can see the whole field"): each at its own fixed zoom (z), whatever the window's size, the park framed clear of AIR and WIND
 export const BLAST_CAMS = [
-  { c: 1, name: 'DOWN THE MIDDLE', at: [0, -48, 150], to: [0, 104, 0], desc: 'high behind the plate, looking straight out: the whole outfield and the stands (4 Nov, night: "way more zoomed out")' },
-  { c: 2, name: 'THIRD-BASE SIDE', at: [-38, 4, 104], to: [10, 100, 0], desc: 'off to the left, so right field and the arcade open up' },
-  { c: 3, name: 'FIRST-BASE SIDE', at: [38, 4, 104], to: [-10, 100, 0], desc: 'off to the right, so left field and the bleachers open up' },
-  { c: 4, name: 'STRAIGHT DOWN', at: [0, 70, 175], to: [0, 104, 0], desc: 'nearly overhead: nothing hides anything, the park reads like a map' },
+  { c: 1, name: 'HIGH BEHIND HOME', at: [0, -80, 178], to: [0, 112, 0], z: 1.12, desc: 'high behind the plate, looking straight out: the whole park, foul pole to foul pole' },
+  { c: 2, name: 'BLIMP', at: [0, 52, 300], to: [0, 106, 0], z: 1.14, desc: 'almost straight down from over the infield: the park as a map, nothing hiding anything' },
+  { c: 3, name: 'THIRD-BASE SIDE', at: [-120, -40, 175], to: [12, 102, 0], z: 1.03, desc: 'high over the third-base seats, looking across: right field and the arcade face you' },
+  { c: 4, name: 'FIRST-BASE SIDE', at: [120, -40, 175], to: [-12, 102, 0], z: 1.03, desc: 'high over the first-base seats, looking across: left field and the bleachers face you' },
 ]
 //   THE BOMBS ARRIVE (4 Nov, evening, the surprise round): how a player's Little Boys get to where their home runs come down
 export const BOMB_DROPS = [
@@ -375,14 +377,15 @@ export function initHeat25(api, o = {}) {
     if (opacity < 1) { api.NN.hideForNormal?.push(m); (group.userData.sheets ??= []).push(m) }
     tiles.forEach((t, k) => { const hh = t.h ?? h; m4.makeScale(t.size ?? size, hh, t.size ?? size).setPosition(t.p.x, t.p.y + hh / 2, t.p.z); m.setMatrixAt(k, m4); m.setColorAt(k, c.set(t.col)) })
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true
-    m.userData.cell = tiles.map((t) => t.cell)
+    m.userData.cell = tiles.map((t) => t.cell); m.userData.tiles = tiles; m.userData.h = h
     group.add(m); meshes.push(m)
+    return m
   }
   // view: { metric: 'hard' | 'many' | 'player', data }
   function show(view) {
     clear()
     group = new THREE.Group(); group.userData.heat = view.metric
-    const ground = home().y + 0.05, G = seatGrid(), fan = [], seats = [], soft = [], d = view.data
+    const ground = home().y + 0.05, G = seatGrid(), fan = [], seats = [], soft = [], d = view.data, risers = []
     const L = look(), stops = gradOf(L.g), col = (v) => colorAt(stops, v)
     // the scale: one for all, each layer over its own range, or ranked (an ease 0..1, 1 easy)
     const wallEv = d.wall ? d.wall.map((x) => x?.ev ?? null) : [], seatEv = d.seat && view.metric === 'hard' ? d.seat.flat().map((x) => x?.ev ?? null) : []
@@ -442,10 +445,10 @@ export function initHeat25(api, o = {}) {
       for (const t of seats) {
         const capH = Math.min(t.h, L.pp === 3 ? Math.max(0.3, Math.min(1.4, t.h * 0.4)) : 0.24), bh = t.h - capH
         if (bh > 0.02) body.push({ ...t, h: bh, col: L.pp === 4 ? '#' + c.set(t.col).multiplyScalar((SIDE_SHADES.find((x) => x.c === L.pk) ?? SIDE_SHADES[1]).keep).getHexString() : DARK })
-        caps.push({ ...t, p: t.p.clone().setY(t.p.y + bh), h: capH })
+        caps.push({ ...t, p: t.p.clone().setY(t.p.y + bh), h: capH, rb: { y0: t.p.y, bh } })
       }
-      carpet(body, 0.3); carpet(caps, 0.3)
-    } else carpet(seats, 0.3)
+      risers.push(carpet(body, 0.3), carpet(caps, 0.3))
+    } else risers.push(carpet(seats, 0.3))
     carpet(soft, 0.12, SAMPLE * 0.86, 0.6) // (SOFT: thin see-through tiles, no ink)
     group.userData.tops = tops
     // the field, solid: a value at every bearing, slid smoothly between the wedges' middles
@@ -472,7 +475,7 @@ export function initHeat25(api, o = {}) {
       const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })); m.userData.tri = Array.from({ length: g.index.count / 3 }, (_, t) => wedgeId[sectorOf(B0 + (Math.floor(t / (rad * 2)) / segs) * (N * STEP))])
       group.add(m); meshes.push(m)
     }
-    const drops = [], topOf = new Map() // (the bombs stand on the pillars, not inside them: the tallest tile top in their cell)
+    const drops = [], topOf = new Map(); void 0 // (the bombs stand on the pillars, not inside them: the tallest tile top in their cell)
     for (const [sid, T] of tops) { const c = cells[sid]; topOf.set(c.i + ',' + c.j, Math.max(...T.map((t) => t.y))) }
     if (view.metric === 'player') for (const pt of d.pts) { // their real home runs (only those) as Little Boys: green when gone here, bone when not
       const cellsLB = NUKE_MARKS[16](false, { giants: o.giants?.(pt.b) }).map((c) => (pt.gone ? [c[0], c[1], c[2], GREEN[c[3]] ?? c[3]] : c)), m = voxCells(THREE, cellsLB, 0.22)
@@ -487,7 +490,7 @@ export function initHeat25(api, o = {}) {
         line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: pt.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: pt.gone ? 0.15 : 0.07, depthWrite: false, fog: false }))
         line.renderOrder = 21; group.add(line); api.NN.hideForNormal?.push(line); (group.userData.sheets ??= []).push(line)
       }
-      drops.push({ m, line, n: pt.trail?.length ?? 0, at: m.position.clone(), gone: pt.gone, d: String(pt.b?.d ?? ''), b: where(pt.at).b })
+      drops.push({ m, line, n: pt.trail?.length ?? 0, at: m.position.clone(), gone: pt.gone, ref: pt.b, d: String(pt.b?.d ?? ''), b: where(pt.at).b })
     }
     // the best seat to catch one of theirs (the surprise round): a bone beam over the cell where the most of their likely landings come down, a slow orange diamond on it
     if (view.metric === 'player' && d.best) {
@@ -496,13 +499,14 @@ export function initHeat25(api, o = {}) {
       const gem = new THREE.Mesh(new THREE.OctahedronGeometry(1.5, 0), new THREE.MeshLambertMaterial({ color: '#ff7a00', flatShading: true, fog: false }))
       gem.position.set(at.x, at.y + 17.5, at.z); group.add(gem); group.userData.gem = gem
     }
+    group.userData.drops = drops
     scene.add(group)
-    arrive(drops, view.metric === 'player' ? L.bd : 4)
+    arrive(drops, view.metric === 'player' ? L.bd : 4, view.metric === 'player' ? risers.filter(Boolean) : [])
     return group
   }
   // the bombs arriving (BOMB_DROPS); the gem turning. Nothing moves under reduced motion or a fixed test clock
   let anim = 0
-  function arrive(drops, way) {
+  function arrive(drops, way, risers = []) {
     cancelAnimationFrame(anim)
     const still = way === 4 || window.__fixedTime !== undefined || matchMedia?.('(prefers-reduced-motion: reduce)').matches
     const g0 = group, rings = [], puffs = []
@@ -511,11 +515,16 @@ export function initHeat25(api, o = {}) {
       order.forEach((x, k) => { x.t0 = way === 2 ? 120 + k * 14 : 160 + k * Math.min(70, 2600 / Math.max(1, order.length)); x.done = false; x.line?.geometry.setDrawRange(0, 0); if (way === 3) x.m.scale.setScalar(0.001); else x.m.position.y = x.at.y + 46 })
     }
     const t0 = performance.now(), FALL = 520
+    // (5 Nov, Andrew: "let's also have the blast radius map like rise out of the ground when we pick a new player")
+    const rise = still ? [] : risers.map((m) => ({ m, T: m.userData.tiles, d: m.userData.tiles.map((x) => { const c = cells[x.cell]; return 60 + 34 * (c?.j ?? 0) + 5 * Math.abs((c?.i ?? N / 2) - N / 2) + Math.random() * 40 }) }))
+    const m4r = new THREE.Matrix4(), qr = new THREE.Quaternion(), vr = new THREE.Vector3(), sr = new THREE.Vector3(), up = (x) => { const k = 1.70158; return 1 + (k + 1) * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2) }
+    const lift = (t) => { let busy = false; for (const R of rise) { if (R.done) continue; let left = false; R.T.forEach((x, k) => { const f = Math.max(0, Math.min(1, (t - R.d[k]) / 420)); if (f < 1) left = true; const e = f <= 0 ? 0.001 : up(f), hh = (x.h ?? R.m.userData.h) * e, sz = x.size ?? TILE * 0.82, y = x.rb ? x.rb.y0 + x.rb.bh * e : x.p.y; m4r.compose(vr.set(x.p.x, y + hh / 2, x.p.z), qr, sr.set(sz, Math.max(0.001, hh), sz)); R.m.setMatrixAt(k, m4r) }); R.m.instanceMatrix.needsUpdate = true; if (!left) R.done = true; else busy = true } return busy }
+    if (rise.length) lift(0)
     const tick = () => {
       if (group !== g0 || !group) return
       const t = performance.now() - t0
       if (group.userData.gem) { group.userData.gem.rotation.y = t / 900; group.userData.gem.position.y = group.userData.gem.userData.y0 ??= group.userData.gem.position.y; group.userData.gem.position.y += Math.sin(t / 500) * 0.35 }
-      let busy = false
+      let busy = rise.length ? lift(t) : false
       if (!still) for (const x of drops) {
         if (x.done) continue
         const f = Math.max(0, Math.min(1, (t - x.t0) / FALL))
@@ -536,6 +545,17 @@ export function initHeat25(api, o = {}) {
     const ring = (x) => { const r = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), new THREE.MeshBasicMaterial({ color: x.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: 0.8, depthWrite: false, fog: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.copy(x.at).add(new THREE.Vector3(0, 0.2, 0)); r.userData.t = performance.now() - t0; group.add(r); api.NN.hideForNormal?.push(r); (group.userData.sheets ??= []).push(r); return r }
     anim = requestAnimationFrame(tick)
   }
+  // (5 Nov, Andrew: "Hovering over particular nukes in the blast radius should show the date and allow me to click on them to bring to dinger deja vu"): the bomb
+  // nearest a screen point, within 18 px of its middle; the one pointed at swells
+  const pb = new THREE.Vector3()
+  function bombAt(cx, cy) {
+    const D = group?.userData.drops; if (!D?.length) return null
+    const cv = api.NN.renderer?.domElement; if (!cv) return null
+    const r = cv.getBoundingClientRect(); let best = null, bd = 18
+    D.forEach((x, k) => { pb.copy(x.at).add(new THREE.Vector3(0, 1.4, 0)).project(api.NN.camera); if (pb.z > 1) return; const sx = r.left + ((pb.x + 1) / 2) * r.width, sy = r.top + ((1 - pb.y) / 2) * r.height, e = Math.hypot(sx - cx, sy - cy); if (e < bd) { bd = e; best = { k, b: x.ref, gone: x.gone } } })
+    return best
+  }
+  function bombFocus(k) { const D = group?.userData.drops; if (!D) return; D.forEach((x, i) => { if (x.done !== false) x.m.scale.setScalar(i === k ? 1.9 : 1) }) }
   // pointing: the cell under a screen point, and an outline round it (bone)
   const ndc = new THREE.Vector2()
   function cellAt(cx, cy) {
@@ -583,5 +603,5 @@ export function initHeat25(api, o = {}) {
     }
     return { seat: seatRes, wall: wallRes }
   }
-  return { gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
+  return { bombAt, bombFocus, gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
 }
