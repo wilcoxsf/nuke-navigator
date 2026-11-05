@@ -84,6 +84,13 @@ export const BLAST_CAMS = [
   { c: 3, name: 'FIRST-BASE SIDE', at: [38, 4, 104], to: [-10, 100, 0], desc: 'off to the right, so left field and the bleachers open up' },
   { c: 4, name: 'STRAIGHT DOWN', at: [0, 70, 175], to: [0, 104, 0], desc: 'nearly overhead: nothing hides anything, the park reads like a map' },
 ]
+//   THE BOMBS ARRIVE (4 Nov, evening, the surprise round): how a player's Little Boys get to where their home runs come down
+export const BOMB_DROPS = [
+  { c: 1, name: 'BOMBING RUN', desc: 'one after another out of the sky, oldest first, a ring on the ground as each lands' },
+  { c: 2, name: 'CARPET', desc: 'a sweep from the left-field line to the right-field line, all falling in a wave' },
+  { c: 3, name: 'POP UP', desc: 'each grows up out of the spot it came down on' },
+  { c: 4, name: 'JUST THERE', desc: 'no motion: they are simply there' },
+]
 //   BLAST CONTRAST (4 Nov, Andrew: "let me see what it looks like with more contrast"): how the mph become colors
 export const CONTRASTS = [
   { c: 2, name: 'STRETCHED', desc: 'the field and the seats each stretched over their own easiest to hardest, so both use the whole run of color' },
@@ -294,6 +301,7 @@ export function initHeat25(api, o = {}) {
     const out = { id, air: a, n: mine.length, hr: hrB.length, hrOut: s.pts.filter((p) => p.gone).length, n5: s.n, out5: s.out, rate: s.rate, pts: s.pts, hrSeat: s.seat,
       field: field.map((x) => x / fTot), seat: seat.map((r) => r.map((x) => x / sTot)), prof: profile(hrB), read: readHitter(mine, outsOf(s.pts)) }
     const T = hitters(); out.type = typeOf(out.read, T.cuts); out.rank = T
+    { const G = seatGrid(), water = api.toWorld([0, 0, -1.6]).y; let best = null; for (let i = 0; i < N; i++) for (let j = 0; j < ROWS; j++) { const v = out.seat[i][j]; if (v > 0 && G[i][j] && (!best || v > best.v)) best = { i, j, v, c: G[i][j].c.clone(), cove: G[i][j].y < water + 1 } } out.best = best }
     put(cacheY, key, out)
     return out
   }
@@ -323,7 +331,7 @@ export function initHeat25(api, o = {}) {
   // ---- drawing: a carpet of flat voxel tiles, one InstancedMesh per layer, each tile knowing its cell (for pointing) ----
   const clear = () => { if (!group) return; { const h = api.NN.hideForNormal; for (const m of [group.userData.soft, ...(group.userData.sheets ?? [])]) { const i = h?.indexOf(m) ?? -1; if (i >= 0) h.splice(i, 1) } } scene.remove(group); group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose?.(); x.material?.dispose?.() }); group = null; cells = []; meshes = []; hi = null }
   const stepOf = (S, v) => S[Math.max(0, Math.min(S.length - 1, Math.floor(v * S.length - 1e-9)))]
-  const look = () => ({ g: 30, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, pp: 1, ...(o.look?.() ?? {}) })
+  const look = () => ({ g: 30, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, pp: 1, bd: 1, ...(o.look?.() ?? {}) })
   const gradOf = (g) => (GRADS.find((x) => x.c === g) ?? GRADS[0]).stops
   const colorAt = (stops, v) => { const t = Math.max(0, Math.min(1, v)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)); return '#' + new THREE.Color(stops[i]).lerp(new THREE.Color(stops[i + 1]), t - i).getHexString() }
   // a solid sheet of colored triangles; tri: the cell of each triangle (for pointing). Kept out of the ink pass, so the color runs clean
@@ -438,12 +446,55 @@ export function initHeat25(api, o = {}) {
       const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })); m.userData.tri = Array.from({ length: g.index.count / 3 }, (_, t) => wedgeId[sectorOf(B0 + (Math.floor(t / (rad * 2)) / segs) * (N * STEP))])
       group.add(m); meshes.push(m)
     }
+    const drops = [], topOf = new Map() // (the bombs stand on the pillars, not inside them: the tallest tile top in their cell)
+    for (const [sid, T] of tops) { const c = cells[sid]; topOf.set(c.i + ',' + c.j, Math.max(...T.map((t) => t.y))) }
     if (view.metric === 'player') for (const pt of d.pts) { // their real home runs (only those) as Little Boys: green when gone here, bone when not
       const cellsLB = NUKE_MARKS[16](false, { giants: o.giants?.(pt.b) }).map((c) => (pt.gone ? [c[0], c[1], c[2], GREEN[c[3]] ?? c[3]] : c)), m = voxCells(THREE, cellsLB, 0.22)
-      m.position.copy(pt.at).add(new THREE.Vector3(0, 0.15, 0)); group.add(m)
+      const wc = where(pt.at), top = topOf.get(wc.i + ',' + wc.j)
+      m.position.copy(pt.at).add(new THREE.Vector3(0, 0.15, 0)); if (top != null && top > m.position.y) m.position.y = top + 0.1
+      group.add(m)
+      drops.push({ m, at: m.position.clone(), gone: pt.gone, d: String(pt.b?.d ?? ''), b: where(pt.at).b })
+    }
+    // the best seat to catch one of theirs (the surprise round): a bone beam over the cell where the most of their likely landings come down, a slow orange diamond on it
+    if (view.metric === 'player' && d.best) {
+      const at = d.best.c, beam = new THREE.Mesh(new THREE.BoxGeometry(0.3, 16, 0.3), new THREE.MeshBasicMaterial({ color: '#e8e1c9', transparent: true, opacity: 0.85, fog: false }))
+      beam.position.set(at.x, at.y + 8, at.z); group.add(beam); api.NN.hideForNormal?.push(beam); (group.userData.sheets ??= []).push(beam)
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(1.5, 0), new THREE.MeshLambertMaterial({ color: '#ff7a00', flatShading: true, fog: false }))
+      gem.position.set(at.x, at.y + 17.5, at.z); group.add(gem); group.userData.gem = gem
     }
     scene.add(group)
+    arrive(drops, view.metric === 'player' ? L.bd : 4)
     return group
+  }
+  // the bombs arriving (BOMB_DROPS); the gem turning. Nothing moves under reduced motion or a fixed test clock
+  let anim = 0
+  function arrive(drops, way) {
+    cancelAnimationFrame(anim)
+    const still = way === 4 || window.__fixedTime !== undefined || matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const g0 = group, rings = []
+    if (!still) {
+      const order = way === 2 ? [...drops].sort((a, b) => a.b - b.b) : [...drops].sort((a, b) => a.d.localeCompare(b.d))
+      order.forEach((x, k) => { x.t0 = way === 2 ? 120 + k * 14 : 160 + k * Math.min(70, 2600 / Math.max(1, order.length)); x.done = false; if (way === 3) x.m.scale.setScalar(0.001); else x.m.position.y = x.at.y + 46 })
+    }
+    const t0 = performance.now(), FALL = 520
+    const tick = () => {
+      if (group !== g0 || !group) return
+      const t = performance.now() - t0
+      if (group.userData.gem) { group.userData.gem.rotation.y = t / 900; group.userData.gem.position.y = group.userData.gem.userData.y0 ??= group.userData.gem.position.y; group.userData.gem.position.y += Math.sin(t / 500) * 0.35 }
+      let busy = false
+      if (!still) for (const x of drops) {
+        if (x.done) continue
+        const f = Math.max(0, Math.min(1, (t - x.t0) / FALL))
+        if (f < 1) busy = true
+        if (way === 3) x.m.scale.setScalar(Math.max(0.001, f < 1 ? 1 - Math.pow(1 - f, 3) * (1 - 0.15 * Math.sin(f * 9)) : 1))
+        else x.m.position.y = x.at.y + 46 * (1 - f * f)
+        if (f >= 1) { x.done = true; x.m.position.y = x.at.y; x.m.scale.setScalar(1); rings.push(ring(x)); o.onDrop?.(x.gone) }
+      }
+      for (const r of rings) { const k = (t - r.userData.t) / 420; if (k >= 1) { r.visible = false; continue } busy = true; r.scale.setScalar(0.3 + 2.6 * k); r.material.opacity = 0.8 * (1 - k) }
+      if (busy || group.userData.gem) anim = requestAnimationFrame(tick)
+    }
+    const ring = (x) => { const r = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), new THREE.MeshBasicMaterial({ color: x.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: 0.8, depthWrite: false, fog: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.copy(x.at).add(new THREE.Vector3(0, 0.2, 0)); r.userData.t = performance.now() - t0; group.add(r); api.NN.hideForNormal?.push(r); (group.userData.sheets ??= []).push(r); return r }
+    anim = requestAnimationFrame(tick)
   }
   // pointing: the cell under a screen point, and an outline round it (bone)
   const ndc = new THREE.Vector2()

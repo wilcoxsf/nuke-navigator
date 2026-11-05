@@ -54,7 +54,7 @@ import { initMySeat25 } from './myseat25.js'
 import { initMoments25 } from './moments25.js'
 import { initImpact25, IMPACTS, COVES } from './impact25.js'
 import { initTouches25 } from './touches25.js'
-import { initHeat25, ZONES, GRADS, FIELDS, SEATS, CONTRASTS, PILLAR_HEIGHTS, PILLAR_SHAPES, PILLAR_WAYS, PILLAR_PAINTS, BLAST_CAMS } from './heat25.js'
+import { initHeat25, ZONES, GRADS, FIELDS, SEATS, CONTRASTS, PILLAR_HEIGHTS, PILLAR_SHAPES, PILLAR_WAYS, PILLAR_PAINTS, BLAST_CAMS, BOMB_DROPS } from './heat25.js'
 import { TYPES as HIT_TYPES, BADGES as HIT_BADGES } from './hitter25.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
@@ -417,6 +417,7 @@ export const LAB = {
   // 10a sure but give me options again")
   PP: { name: 'BLAST RADIUS: PILLAR PAINT', def: 1, opts: PILLAR_PAINTS },
   CM: { name: 'BLAST RADIUS: CAMERA', def: 1, opts: BLAST_CAMS },
+  BD: { name: 'BLAST RADIUS: THE BOMBS ARRIVE', def: 1, opts: BOMB_DROPS }, // (4 Nov, evening: the surprise round)
   // 2 Nov, night (Andrew: "We can do better on voxel effects when it lands. I'd like the option for a scuba diver ... some oomph"): impact25.js
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
   CV: { name: 'THE COVE', def: 3, opts: COVES },
@@ -1029,6 +1030,8 @@ export async function build(root, api, U) {
 #cp .c25 .hm .htr b{font-weight:400;color:var(--tx);font-size:calc(11px * var(--ts))}#cp .c25 .hm .htr span{color:var(--dim);font-size:calc(10px * var(--ts));line-height:1.4}#cp .c25 .hm .htr.nb b{color:var(--dim)}#cp .c25 .hm .htr.me b{color:var(--acc)}
 #cp .c25 .hm .hwho{color:var(--tx);cursor:pointer;pointer-events:auto;text-decoration:underline;text-decoration-color:var(--dim)}#cp .c25 .hm .hwho:hover,#cp .c25 .hm .hwho:focus-visible{color:var(--acc)}
 #cp .c25 .hm .hall{margin-top:8px;display:inline-block}
+#cp .c25 .hm .hbg.one{border-color:var(--acc);color:var(--acc)}#cp .c25 .hm .lpr2 b i.up{color:var(--tx)}
+#cp .c25 .hm .hseat{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin:2px 0 6px;font-size:calc(11px * var(--ts))}#cp .c25 .hm .hseat span:first-child{color:var(--dim)}#cp .c25 .hm .hseat b{font-weight:400;color:var(--acc)}#cp .c25 .hm .hseat .bt{pointer-events:auto;cursor:pointer;padding:1px 6px}
 #cp .c25 .sfhd #c25rt{justify-self:end;grid-row:1;grid-column:1;position:relative;z-index:1;pointer-events:auto;cursor:pointer;font-size:calc(12px * var(--ts));padding:2px 8px;margin-bottom:-22px}
 #cp .c25 .rgs{display:grid;gap:2px;margin:0 0 8px}
 #cp .c25 .rgl{color:var(--dim);font-size:calc(11px * var(--ts));letter-spacing:.12em;margin-top:3px}
@@ -2102,7 +2105,7 @@ export async function build(root, api, U) {
   // the ball: across 4,073 fly balls the reported wind moved them 2 percent of what the physics says it should (science/mlb_wind_test.md, asos_wind_test.md), the bowl
   // keeps it off. So a normal night is 61 F and calm at the ball, and BLAST RADIUS opens on it; the AIR and WIND controls still change it, live
   const NORMAL_NIGHT = { temp: 61, wind: 0, xwind: 0 }
-  let heat = null, hmKey = '', hmWho = '', hmLooked = false, hmMetric = 'hard', hmPin = null, hmOver = null
+  let heat = null, hmKey = '', hmWho = '', hmLooked = false, hmMetric = 'hard', hmPin = null, hmOver = null, hmTick = 0, hmSeat = null
   const hmPeople = (() => { let L = null; return () => { if (L) return L; const n = new Map(), h = new Map(); for (const b of R.balls) if (b.ft >= 335 || b.hr) { n.set(String(b.b), (n.get(String(b.b)) ?? 0) + 1); if (b.hr) h.set(String(b.b), (h.get(String(b.b)) ?? 0) + 1) } L = [...n.entries()].filter(([, k]) => k >= 12).map(([id, k]) => ({ id, k, hr: h.get(id) ?? 0, name: hmName(id) })).sort((a, b) => b.k - a.k).slice(0, 60); return L } })()
   const hmName = (id) => (pname(id)?.[0] ?? 'BATTER ' + id).toUpperCase()
   const airWords = (a) => `${a.temp}°F, ${a.wind ? `${Math.abs(a.wind)} MPH ${a.wind > 0 ? 'OUT' : 'IN'}` : 'CALM'}${a.xwind ? `, ${Math.abs(a.xwind)} ACROSS` : ''}, ${a.hand > 0 ? 'A RIGHTY' : 'A LEFTY'}`
@@ -2157,7 +2160,9 @@ export async function build(root, api, U) {
     const key2 = (_, lo, hi) => `<div class="hmk"><span>${lo}</span><i style="background:linear-gradient(90deg,${stops.join(',')})"></i><span>${hi}</span></div>`
     let body = ''
     if (!who && hmMetric !== 'many' && !heat.ready()) { // (worked out a few wedges at a time; the panel says so and fills in when it is done)
-      heat.hardAsync(() => { if (show === 'hm') { hmKey = ''; paintHeat() } })
+      // (the surprise round: a Geiger counter clicks, unevenly, while it works)
+      clearTimeout(hmTick); const click = () => { if (heat.ready() || show !== 'hm') return; sound.play('geiger', { vol: 0.22 }); hmTick = setTimeout(click, 40 + Math.random() * 160) }; click()
+      heat.hardAsync(() => { clearTimeout(hmTick); if (show === 'hm') { hmKey = ''; paintHeat() } })
       hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="lph">WORKING OUT TONIGHT'S AIR ACROSS THE PARK...</div></div>`; hmKey = ''
       return
     }
@@ -2206,14 +2211,19 @@ export async function build(root, api, U) {
       }
       const sideL = Rd.side === 'R' ? `<em>PULL ${pc(Rd.pull)}</em>` : Rd.side === 'L' ? `<em>OPPO ${pc(Rd.oppo)}</em>` : '', sideR = Rd.side === 'L' ? `<em>PULL ${pc(Rd.pull)}</em>` : Rd.side === 'R' ? `<em>OPPO ${pc(Rd.oppo)}</em>` : ''
       const zs = zoneRows((r, i) => { r.f += P.field[i]; r.n += P.n5[i]; r.out += P.out5[i] })
-      const badgeDesc = Object.fromEntries(HIT_BADGES)
-      body = `<div class="hpl"><canvas class="hpf"></canvas><div><b class="t1">${Ty.name}</b><i>${Ty.say}</i>${Ty.badges.map((x) => `<span class="hbg" title="${badgeDesc[x] ?? ''}">${x}</span>`).join('')}</div></div>` +
-        `<div class="lph">${Rd.n} BALLS OF 335 FT AND UP SINCE JULY 2023, ANY PARK; ${P.hr} WENT OUT. THE MAP IS ALL ${Rd.n} FLOWN HERE TONIGHT: WHERE THEY GO, AND WHERE THEY'D COME DOWN. THE BOMBS ARE THE ${P.hr} HOME RUNS, GREEN FOR THE ${P.hrOut} THAT GO OUT HERE. MOSTLY ${Math.round(Rd.ev25)} TO ${Math.round(Rd.ev75)} MPH, ${Math.round(Rd.la25)}° TO ${Math.round(Rd.la75)}°${P.hr ? `; HOME RUNS ${Math.round(Rd.hrFt)} FT TYPICAL, ${Math.round(Rd.hrMax)} THE LONGEST` : ''}.</div>` +
-        `<div class="lph" style="margin-top:6px">WHERE THEY HIT IT <span class="lg">· GREY EVERY BALL, BONE THE HOME RUNS</span></div>` + bars(Rd.dirs, Rd.hrDirs, -45, 45, 5, `LEFT FIELD${sideL}`, `${sideR}RIGHT FIELD`) +
+      { const lg = (pool?.rows ?? []).filter((x) => x[3] >= 335 && Math.abs(x[2]) <= 45), L = ZONES.map(([a, b]) => lg.filter((x) => x[2] >= a && x[2] < b).length / Math.max(1, lg.length)); zs.forEach((r, k) => { r.vs = Math.round((r.f - L[k]) * 100) }) }
+      const badgeDesc = Object.fromEntries(HIT_BADGES), alone = (P.rank?.list ?? []).filter((x) => x.type.name === Ty.name).length === 1
+      // the best seat to catch one (the surprise round): the cell the most of their likely landings come down in, as a seat; SIT THERE takes it to SHOT CALLER
+      hmSeat = null
+      if (P.best) { const c = P.best.cove ? { what: 'cove', line: 'MCCOVEY COVE', short: 'THE COVE' } : se.seatAt(P.best.c, 'STANDS'); hmSeat = { at: P.best.c, call: c } }
+      const seatLine = hmSeat ? `<div class="hseat"><span>BEST SEAT TO CATCH ONE</span><b>${hmSeat.call.what === 'seat' ? `SEC ${hmSeat.call.sec} · ROW ${hmSeat.call.row}` : hmSeat.call.what === 'cove' ? 'IN A KAYAK IN THE COVE' : hmSeat.call.line}</b>${hmSeat.call.what === 'seat' ? '<span class="bt" data-sit="1">SIT THERE</span>' : ''}</div>` : ''
+      body = `<div class="hpl"><canvas class="hpf"></canvas><div><b class="t1">${Ty.name}</b><i>${Ty.say}</i>${alone ? '<span class="hbg one" title="nobody else in the set is this type">THE ONLY ONE</span>' : ''}${Ty.badges.map((x) => `<span class="hbg" title="${badgeDesc[x] ?? ''}">${x}</span>`).join('')}</div></div>` + seatLine +
+        `<div class="lph">${Rd.n} BALLS OF 335 FT AND UP SINCE JULY 2023, ANY PARK; ${P.hr} WENT OUT. THE MAP: ALL ${Rd.n} FLOWN HERE TONIGHT. THE BOMBS: THE ${P.hr} HOME RUNS, GREEN FOR THE ${P.hrOut} THAT GO OUT HERE. MOSTLY ${Math.round(Rd.ev25)} TO ${Math.round(Rd.ev75)} MPH, ${Math.round(Rd.la25)}° TO ${Math.round(Rd.la75)}°${P.hr ? `; HOME RUNS ${Math.round(Rd.hrFt)} FT TYPICAL, ${Math.round(Rd.hrMax)} THE LONGEST` : ''}.</div>` +
+        `<div class="lph" style="margin-top:6px">WHERE THEY HIT IT <span class="lg">· GREY ALL, BONE HR</span></div>` + bars(Rd.dirs, Rd.hrDirs, -45, 45, 5, `LEFT FIELD${sideL}`, `${sideR}RIGHT FIELD`) +
         `<div class="lph">EXIT SPEED</div>` + bars(Rd.evs, Rd.hrEvs, 88, 120, 2, '88 MPH', '120') +
         `<div class="lph">LAUNCH ANGLE</div>` + bars(Rd.las, Rd.hrLas, 10, 50, 2.5, '10°', '50°') +
-        `<div class="lph" style="margin-top:6px">BY PART OF THE PARK: THEIR BALLS THAT WAY, AND THEIR HOME RUNS THAT WOULD GO OUT HERE</div>` +
-        zs.map((r) => `<div class="lpr2"><span>${r.name}</span><b>${pc(r.f)} <i>${r.n ? `${r.out} OF ${r.n} HR` : 'NO HR'}</i></b></div>`).join('') + key2(null, 'FEWEST', 'MOST') +
+        `<div class="lph" style="margin-top:6px">THEIR SHARE · AGAINST THE LEAGUE · HR OUT HERE</div>` +
+        zs.map((r) => `<div class="lpr2"><span>${r.name}</span><b>${pc(r.f)} <i class="${r.vs > 0 ? 'up' : ''}">${r.vs > 0 ? '+' : r.vs < 0 ? '-' : ''}${Math.abs(r.vs)}</i> <i>${r.n ? `${r.out} OF ${r.n} HR` : 'NO HR'}</i></b></div>`).join('') + key2(null, 'FEWEST', 'MOST') +
         `<span class="bt hall" data-hm="types">ALL THE HITTER TYPES</span>`
     }
     hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="hmo"></div>${body}</div>`
@@ -2222,6 +2232,7 @@ export async function build(root, api, U) {
     sel?.addEventListener('keydown', (e) => e.stopPropagation())
     hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmWho = ''; hmPin = null; hmKey = ''; paintHeat() }))
     hb.querySelectorAll('[data-who]').forEach((b) => { const go = () => { sound.play('pick'); hmWho = b.dataset.who; hmPin = null; hmKey = ''; paintHeat() }; b.addEventListener('click', go); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } }) })
+    hb.querySelector('[data-sit]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); const S = hmSeat; if (!S) return; goTab('shot'); setTimeout(() => shotAt(S.at.clone(), { sec: S.call.sec, row: S.call.row, seat: S.call.seat }), 80) })
     // the portrait (the same faces as the batter box: the real photo, else the generated one), in the page's art style
     const pf = hb.querySelector('.hpf')
     if (pf && who) { try { const rec = facesRaw[who], gen = !rec && hasGen ? genericFace('composite', who) : null, src = rec ? faceSource(rec) : gen ? gen.src : drawBust(160), cs = cs0(); drawFace(pf, src, optOf('A', mix.A).canvas ?? 'hedcut', 76, 76, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }) } catch (err) { void err } }
@@ -2814,7 +2825,7 @@ export async function build(root, api, U) {
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
   // (2 Nov, later: no words when the ball lands, "we don't need that set dressing"; the moments still play)
   const impact = initImpact25(api, colors)
-  heat = initHeat25(api, { pool, balls: R.balls, sections: se.SECTIONS, blockers: () => [life?.board, life?.vboard, life?.vsign], gone: () => colors().nk, look: () => ({ g: lab.BG, f: lab.FV, s: lab.SV, k: lab.BK, ph: lab.PH, ps: lab.PS, pd: lab.PD, pp: lab.PP }), giants: (b) => !!b && (b.tb === 'Bot' ? b.ht === 'SF' : b.at === 'SF') })
+  heat = initHeat25(api, { pool, balls: R.balls, sections: se.SECTIONS, blockers: () => [life?.board, life?.vboard, life?.vsign], gone: () => colors().nk, look: () => ({ g: lab.BG, f: lab.FV, s: lab.SV, k: lab.BK, ph: lab.PH, ps: lab.PS, pd: lab.PD, pp: lab.PP, bd: lab.BD }), onDrop: (gone) => sound.play(gone ? 'geiger' : 'chip', { vol: gone ? 0.5 : 0.25 }), giants: (b) => !!b && (b.tb === 'Bot' ? b.ht === 'SF' : b.at === 'SF') })
   touches = initTouches25(api, { sound: (k, a) => sound.play(k, a), makeGull: () => life?.makeGull?.() })
   // POINTING AT A SEAT: Shot Caller's pointer, a raycast at most every 70 ms
   { let pT = 0; addEventListener('pointermove', (e) => { if (mode !== 'shot' || !onPark(e)) { touches.hoverSeat(null); return } const n = performance.now(); if (n - pT < 70) return; pT = n; const p = sc.pick(e.clientX, e.clientY); touches.hoverSeat(p, p && seatOf(p), cs0().getPropertyValue('--acc').trim()) }) }
@@ -3061,7 +3072,7 @@ export async function build(root, api, U) {
   // THE ORANGE, live (2 Nov, later: a reload on every switch was a bug): the family in place, the park's materials and cubes, the interface's accent, the arcs
   function switchOrange(n) { const map = setOrange(n); if (!map) return; recolor(api.NN.scene, map); THEMES.orange.acc = ORANGE.o; if (themeKey() === 'orange') root.style.setProperty('--acc', ORANGE.o); colC = null; if (!api.anim?.()) api.update() }
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
-  applyLab = (k) => { if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
+  applyLab = (k) => { if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'BD' && show === 'hm' && hmWho) { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
   window.__mix25 = { colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
