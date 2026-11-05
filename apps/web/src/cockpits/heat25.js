@@ -76,10 +76,17 @@ export const PILLAR_PAINTS = [
   { c: 4, name: 'SHADED SIDES', desc: 'sides in a dark version of the color, the cap in the full color' },
 ]
 export const DARK = '#1d2024'
+// SIDE SHADE (4 Nov, night, Andrew: "Shaded sides great pick I love it, give me options for levels of shading"): how much of the color the sides keep
+export const SIDE_SHADES = [
+  { c: 1, name: 'LIGHT', keep: 0.7, desc: 'the sides keep seven tenths of the color' },
+  { c: 2, name: 'AS FIRST SHOWN', keep: 0.42, desc: 'the sides keep four tenths: the one he liked' },
+  { c: 3, name: 'DEEP', keep: 0.25, desc: 'a quarter of the color: the caps glow' },
+  { c: 4, name: 'NEAR BLACK', keep: 0.12, desc: 'almost black sides, only the caps carry the map' },
+]
 //   THE BLAST CAMERA (4 Nov, evening; the red team: from straight down the middle the front rows hide the back ones; Andrew: "10a sure but give me options")
 //   [where it sits, what it looks at], plate frame in metres: x toward right field, y out to center, z up
 export const BLAST_CAMS = [
-  { c: 1, name: 'DOWN THE MIDDLE', at: [0, 12, 118], to: [0, 98, 0], desc: 'high over the shallow infield, looking straight out' },
+  { c: 1, name: 'DOWN THE MIDDLE', at: [0, -48, 150], to: [0, 104, 0], desc: 'high behind the plate, looking straight out: the whole outfield and the stands (4 Nov, night: "way more zoomed out")' },
   { c: 2, name: 'THIRD-BASE SIDE', at: [-38, 4, 104], to: [10, 100, 0], desc: 'off to the left, so right field and the arcade open up' },
   { c: 3, name: 'FIRST-BASE SIDE', at: [38, 4, 104], to: [-10, 100, 0], desc: 'off to the right, so left field and the bleachers open up' },
   { c: 4, name: 'STRAIGHT DOWN', at: [0, 70, 175], to: [0, 104, 0], desc: 'nearly overhead: nothing hides anything, the park reads like a map' },
@@ -139,12 +146,11 @@ export function initHeat25(api, o = {}) {
   const ray = new THREE.Raycaster(), SAMPLE = 2.1
   const put = (m, k, v) => { m.set(k, v); while (m.size > 12) m.delete(m.keys().next().value); return v } // (the last 12 airs only)
   const covePt = (x, y) => x > 25 && Math.hypot(x, y) > 126 && (Math.atan2(x, y) * 180) / Math.PI > 26 // (fx25.js's own test: plate frame, metres)
-  function seatGrid() {
-    if (grid) return grid
-    const h = home(), h0 = h.y, water = api.toWorld([0, 0, -1.6]).y, blockers = (o.blockers?.() ?? []).filter(Boolean)
-    api.NN.stadium?.updateMatrixWorld(true)
-    grid = []
-    for (let i = 0; i < N; i++) {
+  // (4 Nov, night: building this grid was most of BLAST RADIUS's wait once the mph came off the device; it is built a wedge at a time, in the background too)
+  let gridPart = null
+  const gridCtx = () => { const h = home(); return { h, h0: h.y, water: api.toWorld([0, 0, -1.6]).y, blockers: (o.blockers?.() ?? []).filter(Boolean) } }
+  function gridRow(i, C) {
+    const { h, h0, water, blockers } = C
       const row = []
       for (let j = 0; j < ROWS; j++) {
         const pts = []
@@ -174,26 +180,45 @@ export function initHeat25(api, o = {}) {
         const keep = pts.filter((v) => v.y <= base + 0.9 * ROW_FT * FT + 2.5 && v.y <= med + 3.5)
         row.push(keep.length ? { pts: keep, y: keep.reduce((t, v) => t + v.y, 0) / keep.length, c: keep.reduce((t, v) => t.add(v), new THREE.Vector3()).multiplyScalar(1 / keep.length) } : prev ? { ...prev, pts: [], gap: true } : null)
       }
-      grid.push(row.map((x) => (x?.gap ? null : x)))
-    }
+      return row.map((x) => (x?.gap ? null : x))
+  }
+  function seatGrid() {
+    if (grid) return grid
+    api.NN.stadium?.updateMatrixWorld(true)
+    const P = gridPart ?? { rows: [], C: gridCtx() }
+    for (let i = P.rows.length; i < N; i++) P.rows.push(gridRow(i, P.C))
+    grid = P.rows; gridPart = null
     return grid
+  }
+  function seatGridAsync(done, slice = 8) {
+    if (grid) { done?.(grid); return }
+    if (!gridPart) { api.NN.stadium?.updateMatrixWorld(true); gridPart = { rows: [], C: gridCtx() } }
+    const P = gridPart
+    const tick = () => { if (grid) { done?.(grid); return } if (gridPart !== P) return; const t = performance.now(); while (P.rows.length < N && performance.now() - t < slice) P.rows.push(gridRow(P.rows.length, P.C)); if (P.rows.length < N) setTimeout(tick, 16); else { grid = P.rows; gridPart = null; done?.(grid) } }
+    setTimeout(tick, 0)
   }
   // ---- HOW HARD ----
   const cacheH = new Map()
   const goes = (a, ev, la, dir) => api.fly(st(a, ev, la, dir), { floor: -8 }).verdict.kind === 'GONE'
   // worked out a few wedges at a time (hardAsync) so the page keeps drawing while it goes; hard() does it all at once (the tests, a warm cache)
-  function hard() { const a = air(), key = JSON.stringify(a); if (cacheH.has(key)) return cacheH.get(key); const job = start(a); while (job.i < N) step(job); return finish(job) }
+  // 4 Nov, night (Andrew: "When I click blast radius it take 3-4 seconds to load FYI, can we shorten that?"): each air's answer is also kept on the device (a few KB),
+  // and warm() works a normal night out quietly in the background, in thin slices, a few seconds after the page is up; opening BLAST RADIUS then has it at once
+  const HARD_V = 'nn25.hard.v2.'
+  const stored = (key) => { if (cacheH.has(key)) return cacheH.get(key); try { const j = JSON.parse(localStorage.getItem(HARD_V + key) ?? 'null'); if (j?.wall?.length === N && j.seat?.length === N) { const out = { air: JSON.parse(key), wall: j.wall, seat: j.seat }; put(cacheH, key, out); return out } } catch (err) { void err } return null }
+  function hard() { const a = air(), key = JSON.stringify(a), had = stored(key); if (had) return had; const job = start(a); while (job.i < N) step(job); return finish(job) }
   const jobs = new Map()
-  function hardAsync(done) {
-    const a = air(), key = JSON.stringify(a)
-    if (cacheH.has(key)) return cacheH.get(key)
-    if (jobs.has(key)) { jobs.get(key).done.push(done); return null }
-    const job = start(a); job.done = [done]; jobs.set(key, job)
-    const tick = () => { const t = performance.now(); while (job.i < N && performance.now() - t < 24) step(job); if (job.i < N) setTimeout(tick, 0); else { jobs.delete(key); const out = finish(job); for (const f of job.done) f?.(out) } }
+  function hardAsync(done, a = air(), slice = 24) {
+    const key = JSON.stringify(a), had = stored(key)
+    if (had) return had
+    if (jobs.has(key)) { const j = jobs.get(key); j.done.push(done); j.slice = Math.max(j.slice, slice); return null }
+    const job = start(a); job.done = [done]; job.slice = slice; jobs.set(key, job)
+    const tick = () => { const t = performance.now(); while (job.i < N && performance.now() - t < job.slice) step(job); if (job.i < N) setTimeout(tick, job.slice < 24 ? 16 : 0); else { jobs.delete(key); const out = finish(job); for (const f of job.done) f?.(out) } }
     setTimeout(tick, 0)
     return null
   }
-  const ready = () => cacheH.get(JSON.stringify(air())) ?? null
+  const ready = () => stored(JSON.stringify(air()))
+  // the warm-up: this air (a normal night), then the hitter list, in 10 ms slices with 16 ms rests between
+  function warm(a) { const b = { ...a, hand: -a.hand }; seatGridAsync(() => hardAsync(() => hardAsync(() => setTimeout(() => { try { hitters() } catch (err) { void err } }, 400), b, 10), a, 10)) } // (both sides of the plate: the dojo's batter may be either)
   // 4 Nov, evening (GPT's red team: "Seat threshold is clearance, not a landing solution", and the wall's aim was set once, at 108 mph and 28 degrees; our own check
   // agreed: a third of the seat numbers came down a row or more off, and many in the next wedge over). Now every flight is credited to where it really comes down:
   // for each wedge and four launch angles (24, 28, 32, 36), aimed so a 110 mph ball comes down on that bearing, the softest speed that leaves the park (halving, to the
@@ -210,7 +235,7 @@ export function initHeat25(api, o = {}) {
       const pairs = [[seat[i][j - 1], seat[i][j + 1]], [seat[i - 1]?.[j], seat[i + 1]?.[j]]].find(([p, q]) => p && q && !p.fill && !q.fill)
       if (pairs) seat[i][j] = { ev: Math.round((pairs[0].ev + pairs[1].ev) / 2), la: pairs[0].la, dir: mid(i), fill: true }
     }
-    const out = { air: job.a, wall, seat }; put(cacheH, JSON.stringify(job.a), out); return out
+    const out = { air: job.a, wall, seat }, key = JSON.stringify(job.a); put(cacheH, key, out); try { localStorage.setItem(HARD_V + key, JSON.stringify({ wall, seat })) } catch (err) { void err } return out
   }
   function step(job) {
     const { a, G, wall, seat } = job, i = job.i++, b = mid(i)
@@ -259,7 +284,7 @@ export function initHeat25(api, o = {}) {
       if (Math.abs(b.dir) > 45) continue
       const res = api.fly(st({ ...a, hand: b.hand ?? a.hand }, b.ev, b.la, b.dir, { dws: b.dws ?? 0 }), { floor: -8 }), gone = res.verdict.kind === 'GONE', i = sectorOf(b.dir)
       n[i]++; if (gone) out[i]++
-      if (keep) { const L = gone ? api.findLanding(res.path) : null, at = gone ? L.point : api.toWorld(res.path[res.path.length - 1].p); pts.push({ at, gone, b: b.ref, kind: L?.kind ?? null, spray: b.dir * (b.hand ?? 1) }); if (gone) { const w = where(at); if (w.i >= 0 && w.j >= 0 && w.j < ROWS) seat[w.i][w.j]++ } }
+      if (keep) { const L = gone ? api.findLanding(res.path) : null, at = gone ? L.point : api.toWorld(res.path[res.path.length - 1].p), end = Math.min(res.path.length, (L?.index ?? res.path.length - 1) + 1), step = Math.max(1, Math.floor(end / 36)), trail = []; for (let q = 0; q < end; q += step) trail.push(api.toWorld(res.path[q].p)); trail.push(at.clone()); pts.push({ at, gone, trail, b: b.ref, kind: L?.kind ?? null, spray: b.dir * (b.hand ?? 1) }); if (gone) { const w = where(at); if (w.i >= 0 && w.j >= 0 && w.j < ROWS) seat[w.i][w.j]++ } }
     }
     return { n, out, pts, seat, rate: n.map((k, i) => (k ? out[i] / k : null)) }
   }
@@ -280,7 +305,7 @@ export function initHeat25(api, o = {}) {
   // (335 ft and more, and the home runs). The field: the share of them going each way (each ball spread over the wedges round it, 4 degrees wide). The seats: each
   // ball flown here at its own speed and angle, and at 4 and 8 degrees either side of where it went (weighted 1, 0.7, 0.35), so a 400 ft fly to center also says
   // what it would have done a little to the side; where the ones that go out come down. The Little Boys are only their real home runs.
-  const SPREAD = [[0, 1], [-4, 0.7], [4, 0.7], [-8, 0.35], [8, 0.35]]
+  const SPREAD = [[0, 1]] // (4 Nov, night: one flight a ball, picking a player was the other wait; the spread to each side is now the wider blend in show())
   const ballsOf = (id) => (o.balls ?? []).filter((b) => String(b.b) === String(id) && (b.ft >= DEEP || b.hr)).map((b) => ({ ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'L' ? -1 : 1, dws: b.dws ?? 0, ft: b.ft, hr: !!b.hr, s: b.s, ref: b }))
   const outsOf = (pts) => pts.map((p) => { const w = where(p.at); return { gone: p.gone, b: w.b, spray: p.spray, area: p.kind === 'SPLASH' ? 'cove' : w.b < -7 ? 'bleachers' : w.b >= 22 ? 'arcade' : 'center' } }) // (the left-field bleachers; the arcade along right)
   const cacheY = new Map()
@@ -331,7 +356,7 @@ export function initHeat25(api, o = {}) {
   // ---- drawing: a carpet of flat voxel tiles, one InstancedMesh per layer, each tile knowing its cell (for pointing) ----
   const clear = () => { if (!group) return; { const h = api.NN.hideForNormal; for (const m of [group.userData.soft, ...(group.userData.sheets ?? [])]) { const i = h?.indexOf(m) ?? -1; if (i >= 0) h.splice(i, 1) } } scene.remove(group); group.traverse((x) => { if (x.userData.vox) return; x.geometry?.dispose?.(); x.material?.dispose?.() }); group = null; cells = []; meshes = []; hi = null }
   const stepOf = (S, v) => S[Math.max(0, Math.min(S.length - 1, Math.floor(v * S.length - 1e-9)))]
-  const look = () => ({ g: 30, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, pp: 1, bd: 1, ...(o.look?.() ?? {}) })
+  const look = () => ({ g: 30, f: 4, s: 2, k: 2, ph: 2, ps: 1, pd: 1, pp: 4, bd: 1, pk: 2, ct: 1, ...(o.look?.() ?? {}) })
   const gradOf = (g) => (GRADS.find((x) => x.c === g) ?? GRADS[0]).stops
   const colorAt = (stops, v) => { const t = Math.max(0, Math.min(1, v)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)); return '#' + new THREE.Color(stops[i]).lerp(new THREE.Color(stops[i + 1]), t - i).getHexString() }
   // a solid sheet of colored triangles; tri: the cell of each triangle (for pointing). Kept out of the ink pass, so the color runs clean
@@ -373,7 +398,8 @@ export function initHeat25(api, o = {}) {
     // zero is the cold end, and a gap is only where there is nothing to land on. Pointing still gives the exact count.
     const sm = view.metric === 'hard' ? null : (() => {
       const raw = d.seat, out = raw.map((r) => r.map(() => 0))
-      for (let i = 0; i < N; i++) for (let j = 0; j < ROWS; j++) { if (!G[i][j]) continue; let t = 0, w = 0; for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= ROWS || !G[ii][jj]) continue; const k = (di ? 0.5 : 1) * (dj ? 0.5 : 1); t += k * (raw[ii][jj] ?? 0); w += k } out[i][j] = w ? t / w : 0 }
+      const R = view.metric === 'player' ? 2 : 1, KW = [1, 0.5, 0.25] // (a player: two wedges either side, as their balls would spread)
+      for (let i = 0; i < N; i++) for (let j = 0; j < ROWS; j++) { if (!G[i][j]) continue; let t = 0, w = 0; for (let di = -R; di <= R; di++) for (let dj = -1; dj <= 1; dj++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= ROWS || !G[ii][jj]) continue; const k = KW[Math.abs(di)] * (dj ? 0.5 : 1); t += k * (raw[ii][jj] ?? 0); w += k } out[i][j] = w ? t / w : 0 }
       return out
     })()
     const smW = view.metric === 'many' ? d.wedge.map((_, i) => { let t = 0, w = 0; for (let di = -1; di <= 1; di++) { const ii = i + di; if (ii < 0 || ii >= N) continue; const k = di ? 0.5 : 1; t += k * d.wedge[ii]; w += k } return t / w }) : null
@@ -415,7 +441,7 @@ export function initHeat25(api, o = {}) {
       const body = [], caps = [], c = new THREE.Color()
       for (const t of seats) {
         const capH = Math.min(t.h, L.pp === 3 ? Math.max(0.3, Math.min(1.4, t.h * 0.4)) : 0.24), bh = t.h - capH
-        if (bh > 0.02) body.push({ ...t, h: bh, col: L.pp === 4 ? '#' + c.set(t.col).multiplyScalar(0.42).getHexString() : DARK })
+        if (bh > 0.02) body.push({ ...t, h: bh, col: L.pp === 4 ? '#' + c.set(t.col).multiplyScalar((SIDE_SHADES.find((x) => x.c === L.pk) ?? SIDE_SHADES[1]).keep).getHexString() : DARK })
         caps.push({ ...t, p: t.p.clone().setY(t.p.y + bh), h: capH })
       }
       carpet(body, 0.3); carpet(caps, 0.3)
@@ -453,7 +479,15 @@ export function initHeat25(api, o = {}) {
       const wc = where(pt.at), top = topOf.get(wc.i + ',' + wc.j)
       m.position.copy(pt.at).add(new THREE.Vector3(0, 0.15, 0)); if (top != null && top > m.position.y) m.position.y = top + 0.1
       group.add(m)
-      drops.push({ m, at: m.position.clone(), gone: pt.gone, d: String(pt.b?.d ?? ''), b: where(pt.at).b })
+      // CONTRAILS (4 Nov, night, Andrew: "Yes to 1 for when you click on a player, as long as it's not way too loud"): its flight from the plate, a hairline, faint bone,
+      // a little less faint and green for the ones that go out here; drawn in as the bomb falls. CT: 1 FAINT, 2 ONLY THE GONE ONES, 3 OFF
+      let line = null
+      if (L.ct !== 3 && pt.trail?.length > 1 && (L.ct !== 2 || pt.gone)) {
+        const g = new THREE.BufferGeometry().setFromPoints(pt.trail)
+        line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: pt.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: pt.gone ? 0.15 : 0.07, depthWrite: false, fog: false }))
+        line.renderOrder = 21; group.add(line); api.NN.hideForNormal?.push(line); (group.userData.sheets ??= []).push(line)
+      }
+      drops.push({ m, line, n: pt.trail?.length ?? 0, at: m.position.clone(), gone: pt.gone, d: String(pt.b?.d ?? ''), b: where(pt.at).b })
     }
     // the best seat to catch one of theirs (the surprise round): a bone beam over the cell where the most of their likely landings come down, a slow orange diamond on it
     if (view.metric === 'player' && d.best) {
@@ -471,10 +505,10 @@ export function initHeat25(api, o = {}) {
   function arrive(drops, way) {
     cancelAnimationFrame(anim)
     const still = way === 4 || window.__fixedTime !== undefined || matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const g0 = group, rings = []
+    const g0 = group, rings = [], puffs = []
     if (!still) {
       const order = way === 2 ? [...drops].sort((a, b) => a.b - b.b) : [...drops].sort((a, b) => a.d.localeCompare(b.d))
-      order.forEach((x, k) => { x.t0 = way === 2 ? 120 + k * 14 : 160 + k * Math.min(70, 2600 / Math.max(1, order.length)); x.done = false; if (way === 3) x.m.scale.setScalar(0.001); else x.m.position.y = x.at.y + 46 })
+      order.forEach((x, k) => { x.t0 = way === 2 ? 120 + k * 14 : 160 + k * Math.min(70, 2600 / Math.max(1, order.length)); x.done = false; x.line?.geometry.setDrawRange(0, 0); if (way === 3) x.m.scale.setScalar(0.001); else x.m.position.y = x.at.y + 46 })
     }
     const t0 = performance.now(), FALL = 520
     const tick = () => {
@@ -486,13 +520,19 @@ export function initHeat25(api, o = {}) {
         if (x.done) continue
         const f = Math.max(0, Math.min(1, (t - x.t0) / FALL))
         if (f < 1) busy = true
+        if (x.line) x.line.geometry.setDrawRange(0, Math.max(0, Math.ceil(x.n * Math.max(0, (t - x.t0 + FALL * 0.6) / (FALL * 1.6)))))
         if (way === 3) x.m.scale.setScalar(Math.max(0.001, f < 1 ? 1 - Math.pow(1 - f, 3) * (1 - 0.15 * Math.sin(f * 9)) : 1))
         else x.m.position.y = x.at.y + 46 * (1 - f * f)
-        if (f >= 1) { x.done = true; x.m.position.y = x.at.y; x.m.scale.setScalar(1); rings.push(ring(x)); o.onDrop?.(x.gone) }
+        if (f >= 1) { x.done = true; x.m.position.y = x.at.y; x.m.scale.setScalar(1); x.line?.geometry.setDrawRange(0, x.n); rings.push(ring(x)); if (x.gone) puffs.push(puff(x)); o.onDrop?.(x.gone) }
       }
+      for (const q of puffs) { const k = (t - q.userData.t) / 750; if (k >= 1) { q.visible = false; continue } busy = true; const grow = Math.min(1, k / 0.22), fall = k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45; q.scale.setScalar(Math.max(0.001, grow * fall)); q.position.y = q.userData.y0 + 2.2 * Math.sqrt(k) }
       for (const r of rings) { const k = (t - r.userData.t) / 420; if (k >= 1) { r.visible = false; continue } busy = true; r.scale.setScalar(0.3 + 2.6 * k); r.material.opacity = 0.8 * (1 - k) }
       if (busy || group.userData.gem) anim = requestAnimationFrame(tick)
     }
+    // (4 Nov, night, Andrew: "can we have the nukes make just a teensy explosion when they land and are a HR?"): a stem and a flared cap of GEIGER cubes that rise,
+    // swell and shrink away in under a second
+    const PUFF = (() => { const c = []; for (let y = 0; y < 3; y++) c.push([0, y, 0, '#9dff00']); for (const [x, z] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]]) c.push([x, 3, z, '#9dff00']); for (const [x, z] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) c.push([x, 4, z, '#c8ff6a']); return c })()
+    const puff = (x) => { const m = voxCells(THREE, PUFF, 0.34); m.position.copy(x.at); m.userData.y0 = x.at.y; m.userData.t = performance.now() - t0; m.scale.setScalar(0.001); group.add(m); return m }
     const ring = (x) => { const r = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), new THREE.MeshBasicMaterial({ color: x.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: 0.8, depthWrite: false, fog: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.copy(x.at).add(new THREE.Vector3(0, 0.2, 0)); r.userData.t = performance.now() - t0; group.add(r); api.NN.hideForNormal?.push(r); (group.userData.sheets ??= []).push(r); return r }
     anim = requestAnimationFrame(tick)
   }
@@ -543,5 +583,5 @@ export function initHeat25(api, o = {}) {
     }
     return { seat: seatRes, wall: wallRes }
   }
-  return { hard, hardAsync, ready, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
+  return { gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
 }

@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 5 && !dk.ride /* (4 Nov, evening: BLAST RADIUS's COLORS, PILLAR HEIGHT, PILLAR PAINT, CAMERA and THE BOMBS ARRIVE open) */, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 6 && !dk.ride /* (4 Nov, night: SIDE SHADE, THE LIGHT TOWERS, GHOST RUNNERS, THE ZONE GHOST, FLIGHT TRAILS, CONTRAILS open) */, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
