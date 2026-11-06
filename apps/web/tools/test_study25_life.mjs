@@ -19,7 +19,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 
 // ---- 1. a moment from the last flight never hides the next ball ----
 {
-  await page.evaluate(() => { window.__mix25.lab('MO', 11) }) // CLAW MACHINE: it hides the engine ball at its grab, 1.15 s in
+  await page.evaluate(() => { window.__mix25.lab('MO', 10) }) // CLAW MACHINE (10 since 6 Nov, when three went): it hides the engine ball at its grab, 1.15 s in
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 390 && b.ft < 430 && b.dir < -10))
   await page.keyboard.press('Space'); await landed()
   await page.waitForTimeout(150)

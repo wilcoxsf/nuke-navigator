@@ -214,7 +214,7 @@ for (const [w, h] of SIZES) {
     X = await layout(page); check('after the effects the dojo still fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
     // the scoreboard reports the last landing, and the gulls scattered on the home run
     const sb = await page.evaluate(() => ({ t: window.__mix25.life.text(), g: window.__mix25.life.gulls() }))
-    check('the scoreboard shows the result and the gulls are out', /FT|SPLASH|HOME RUN/.test(sb.t) && sb.g === 10, JSON.stringify(sb))
+    check('the scoreboard never says TRACKING, HOME RUN or the distance (6 Nov: the Dodger gags and the batter only) and the gulls are out', !/TRACKING|HOME RUN|SPLASH!| FT/.test(sb.t) && sb.g === 10, JSON.stringify(sb))
     // the landing styles: confetti, and the quiet style hides the gulls
     await page.evaluate(() => window.__mix25.set('L1P5A3T1F2')); await page.waitForTimeout(500)
     await page.evaluate(() => { const s = window.__cp.state; Object.assign(s, { ev: 112, la: 28, dir: -4, hand: 1, temp: 70 }); window.__cp.update() }); await page.waitForTimeout(600)

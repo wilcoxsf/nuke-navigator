@@ -298,36 +298,6 @@ export function initMoments25(api, col, fx, o = {}) {
   // ---- 5 Nov (Andrew, on the list of ten: "crater, dogpile, let's have an earthquake fault line split it, let's have it hit a dodger fan in the head and then he's
   // carried off on a stretcher, like pinball, like black hole too. Let's have one where it enters a portal too and then pops out somewhere else") ----
   const camSide = () => V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize()
-  const SHIRTS = ['#ff7a00', '#16181b', '#efe6cf', '#ff7a00', '#8a8f99', '#16181b'], SKIN = ['#e0b48a', '#c68e62', '#8d5a3b', '#f1c9a5']
-  // a little fan, two cubes wide: shoes, pants, shirt, head, cap
-  const fanCells = (shirt, skin, cap = '#16181b', pants = '#2a2d33') => { const c = []; for (const x of [0, 1]) { c.push([x, 0, 0, '#16181b'], [x, 1, 0, pants], [x, 2, 0, pants]); for (let y = 3; y <= 5; y++) c.push([x, y, 0, shirt]); c.push([x, 6, 0, skin], [x, 7, 0, skin], [x, 8, 0, cap]) } c.push([-1, 4, 0, shirt], [2, 4, 0, shirt], [0, 8, 1, cap], [1, 8, 1, cap]); return c }
-  // BONK: it comes down on a Dodger fan's head, bounces off, stars go round, he keels over, and two medics carry him off on a stretcher
-  function bonk(at) {
-    log.push('bonk'); hideBall(true)
-    const BLUE = '#005a9c', side = camSide(), fan = vox(fanCells(BLUE, '#f1c9a5', BLUE, '#d9dde3'), 1.25, at.clone())
-    const medics = [-1, 1].map((s) => vox(fanCells('#f4f2ea', SKIN[(s + 3) % 4], '#d62a2a', '#f4f2ea'), 1.25, at.clone().addScaledVector(side, s * 30)))
-    const strC = []; box(strC, -3, 3, 0, 0, 0, 1, '#f4f2ea'); box(strC, -4, -4, 0, 0, 0, 1, '#8a8f99'); box(strC, 4, 4, 0, 0, 0, 1, '#8a8f99'); box(strC, 0, 0, 1, 1, 0, 0, '#d62a2a')
-    const str = vox(strC, 1.25, at.clone()); str.visible = false
-    const ball = piece('ball', ['ball'], at.clone().add(V(0, 11.6, 0)))
-    const stars = []; for (let i = 0; i < 5; i++) { const s = vox([[0, 0, 0, '#ffd23f']], 1, at.clone()); stars.push(s) }
-    run((t) => {
-      // the ball: off the head and away
-      if (t < 1.2) { const k = t / 1.2; ball.position.copy(at).add(V(0, 11.6, 0)).addScaledVector(side, k * 18); ball.position.y += 12 * k - 18 * k * k; ball.rotation.x = t * 10 } else ball.visible = false
-      // stars round his head while he wobbles, then he goes over
-      const wob = t < 1.8 ? Math.sin(t * 12) * 0.18 : 0, fall = t < 1.8 ? 0 : Math.min(1, (t - 1.8) / 0.35)
-      fan.rotation.z = wob + fall * (Math.PI / 2)
-      stars.forEach((s, i) => { const a = t * 6 + (i / 5) * Math.PI * 2; s.visible = t > 0.2 && t < 2.6; s.position.copy(at).add(V(Math.cos(a) * 3.2, 12.4 + fall * -8, Math.sin(a) * 3.2)) })
-      // the medics come in from each side with the stretcher between them, he goes on it, and they carry him off
-      if (t > 2.1) {
-        const inK = ease((t - 2.1) / 1.0), outK = t > 3.6 ? ease((t - 3.6) / 1.6) : 0, off = side.clone().multiplyScalar(outK * 50)
-        medics.forEach((m, j) => { const s = j ? 1 : -1; m.position.copy(at).addScaledVector(side, s * (30 - 27 * inK)).add(off); m.position.y = at.y + Math.abs(Math.sin(t * 10 + j)) * 0.6 })
-        if (t > 3.1) { str.visible = true; str.position.copy(at).add(off).add(V(0, 4.4, 0)); fan.position.copy(str.position).add(V(0, 1.2, 0)); fan.rotation.z = Math.PI / 2 }
-      }
-      if (t > 5.4) { kill(fan); kill(str); medics.forEach(kill); stars.forEach(kill); kill(ball); return false }
-      return true
-    })
-    o.sound?.('thud')
-  }
   // PINBALL: bumpers pop up out of the seats round the spot and the ball pings between them, each lighting up as it is hit, then it drops out of sight
   function pinball(at) {
     log.push('pinball'); hideBall(true)
@@ -396,7 +366,19 @@ export function initMoments25(api, col, fx, o = {}) {
     })
     o.sound?.('whoosh'); later(800, () => o.sound?.('whoosh'))
   }
-  // WHACK-A-MOLE: a mole pops up out of the seat and the ball bonks it; it ducks, and comes back up in a little Giants batting helmet
+  // ---- 6 Nov, afternoon (Andrew, looking at each one: rocket launch, the ghost of the ball and bonk out; the hand of God from a cloud down a ray of light; the mole
+  // hit by the ball coming back down from high up; the ball plainly in the jack's mouth; the egg waits for the dust and a gull comes out; a whiter cloud on the rod;
+  // the toilet seat on a real hinge and a louder swirl; a wider claw) ----
+  // cubes inside another group, freed with it: for parts that move on their own, like a gull's wings or a toilet lid on its hinge
+  const voxIn = (parent, cells, size, x = 0, y = 0, z = 0) => {
+    const g = new THREE.Group(), byC = {}
+    for (const [cx, cy, cz, c] of cells) (byC[c] ??= []).push([cx, cy, cz])
+    for (const [c, list] of Object.entries(byC)) { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshLambertMaterial({ color: c, flatShading: true }), list.length); list.forEach(([a, b, d], i) => m.setMatrixAt(i, new THREE.Matrix4().makeTranslation(a * size, b * size, d * size))); m.frustumCulled = false; g.add(m) }
+    g.position.set(x, y, z); parent.add(g); return g
+  }
+  const Y_AXIS = V(0, 1, 0)
+  // WHACK-A-MOLE: the ball bounces high off the seat, a mole pops up under it, and it comes straight back down on his head; he ducks, and comes back up in a little
+  // Giants batting helmet
   function mole(at) {
     log.push('mole'); hideBall(true)
     const C = [], B = '#6b4a2b'
@@ -405,102 +387,142 @@ export function initMoments25(api, col, fx, o = {}) {
     const H = []; for (let x = -2; x <= 2; x++) for (let z = -2; z <= 1; z++) H.push([x, 7, z, '#16181b']); for (let x = -1; x <= 1; x++) H.push([x, 8, 0, '#16181b'], [x, 8, -1, '#16181b']); H.push([0, 7, 2, '#16181b'], [1, 7, 2, '#16181b'], [-1, 7, 2, '#16181b'], [0, 8, 1, '#ff7a00'], [2, 6, 0, '#16181b'], [2, 5, 0, '#16181b'])
     const hole = []; ring2(hole, 3, 0, '#16181b')
     const hg = vox(hole, 1.6, at.clone().add(V(0, 0.1, 0))), m = vox(C, 1.6, at.clone()), helmet = vox(H, 1.6, at.clone()); helmet.visible = false
-    const ball = ballAt(at.clone().add(V(0, 20, 0)))
+    const face0 = m.rotation.y, side = camSide(), ball = ballAt(at.clone().add(V(0, 1.3, 0)))
+    // the ball goes up to 37 m at 0.9 s and meets the top of his head (11 m) on the way down
+    const UP = 80, G = 88.9, HEAD = 11.4, T = (UP + Math.sqrt(UP * UP - 2 * G * (HEAD - 1.3))) / G
     run((t) => {
-      // up (0 to 0.3), the ball comes down on it (0.3 to 0.6), squashed and down (to 1.0), up again in the helmet (1.5 to 1.8), a look round, down (3.1 to 3.4)
-      const up = t < 0.3 ? ease(t / 0.3) : t < 0.6 ? 1 : t < 1.0 ? 1 - ease((t - 0.6) / 0.4) : t < 1.5 ? 0 : t < 1.8 ? ease((t - 1.5) / 0.3) : t < 3.1 ? 1 : 1 - ease((t - 3.1) / 0.3)
-      m.position.y = at.y - 11 + up * 11; helmet.position.y = m.position.y; helmet.visible = t > 1.5
-      m.scale.y = t > 0.6 && t < 0.8 ? 0.6 : 1; m.rotation.y = t > 2 && t < 3 ? Math.sin(t * 6) * 0.4 : m.rotation.y
-      helmet.rotation.y = m.rotation.y
-      if (t < 0.6) ball.position.copy(at).add(V(0, 26 - 14 * ease(t / 0.6), 0)); else if (t < 1.4) { const k = (t - 0.6) / 0.8; ball.position.copy(at).add(V(k * 12, 12 + 8 * k - 14 * k * k, 0)) } else ball.visible = false
-      if (t > 3.5) { kill(m); kill(helmet); kill(hg); kill(ball); return false }
+      const up = t < 0.7 ? 0 : t < 1.0 ? ease((t - 0.7) / 0.3) : t < T ? 1 : t < T + 0.4 ? 1 - ease((t - T) / 0.4) : t < T + 0.9 ? 0 : t < T + 1.2 ? ease((t - T - 0.9) / 0.3) : t < T + 2.5 ? 1 : 1 - ease((t - T - 2.5) / 0.3)
+      m.position.y = at.y - 11 + up * 11; helmet.position.y = m.position.y; helmet.visible = t > T + 0.9
+      m.scale.y = t > T && t < T + 0.2 ? 0.6 : 1
+      m.rotation.y = face0 + (t > T + 1.4 && t < T + 2.3 ? Math.sin((t - T) * 6) * 0.4 : 0); helmet.rotation.y = m.rotation.y
+      if (t < T) { ball.position.set(at.x, at.y + 1.3 + UP * t - 0.5 * G * t * t, at.z); ball.rotation.x = t * 8 }
+      else if (t < T + 0.9) { const k = (t - T) / 0.9; ball.position.copy(at).addScaledVector(side, k * 12); ball.position.y = at.y + HEAD + 8 * k - 14 * k * k }
+      else ball.visible = false
+      if (t > T + 3) { kill(m); kill(helmet); kill(hg); kill(ball); return false }
       return true
     })
-    later(600, () => o.sound?.('thud'))
+    o.sound?.('pop'); later(T * 1000, () => o.sound?.('thud'))
   }
-  // JACK-IN-THE-BOX: a box comes up out of the seat, the lid flips, a clown head springs out on a coil with the ball in its teeth
+  // JACK-IN-THE-BOX: a box comes up out of the seat, the lid flips, and a clown head springs out on a coil with the ball held in its open mouth
   function jack(at) {
     log.push('jack'); hideBall(true)
     const BX = []; for (let x = -3; x <= 3; x++) for (let y = 0; y <= 5; y++) for (const z of [-3, 3]) BX.push([x, y, z, (x + y) % 2 ? '#ff7a00' : '#16181b']); for (let z = -2; z <= 2; z++) for (let y = 0; y <= 5; y++) for (const x of [-3, 3]) BX.push([x, y, z, (z + y) % 2 ? '#ffd23f' : '#16181b'])
     const LID = []; for (let x = -3; x <= 3; x++) for (let z = 0; z <= 6; z++) LID.push([x, 0, z, '#ffd23f'])
-    const HEAD = []; for (let x = -2; x <= 2; x++) for (let y = 0; y <= 4; y++) HEAD.push([x, y, 0, '#f4f2ea']); HEAD.push([-1, 3, 1, '#16181b'], [1, 3, 1, '#16181b'], [0, 2, 1, '#e4002b'], [-1, 1, 1, '#e4002b'], [0, 1, 1, '#e4002b'], [1, 1, 1, '#e4002b']); for (let x = -3; x <= 3; x++) HEAD.push([x, 5, 0, ['#ff3b6b', '#ffd23f', '#9dff00', '#5fd3ff', '#9a5cff', '#ff7a00', '#ff3b6b'][x + 3]]); HEAD.push([-3, 4, 0, '#ffd23f'], [3, 4, 0, '#5fd3ff'])
+    // the head: a white face with a wide open mouth (dark inside, red lips, teeth top and bottom), two eyes, a red nose and a fringe of hair (no green: green means gone)
+    const HEAD = []
+    // (the mouth is a big dark hole, so the white ball shows against it and not against the white face)
+    for (let x = -3; x <= 3; x++) for (let y = 0; y <= 8; y++) {
+      const ax = Math.abs(x)
+      if (y >= 1 && y <= 4 && ax <= 2) { HEAD.push([x, y, -1, '#2a0509']); continue } // the open mouth
+      HEAD.push([x, y, 0, (y === 0 || y === 5) && ax <= 2 ? '#e4002b' : '#f4f2ea'])
+    }
+    HEAD.push([-2, 4, 0, '#ffffff'], [2, 4, 0, '#ffffff'], [-2, 1, 0, '#ffffff'], [2, 1, 0, '#ffffff']) // teeth at the corners
+    HEAD.push([-2, 7, 1, '#16181b'], [2, 7, 1, '#16181b'], [0, 6, 1, '#e4002b']) // eyes and the nose
+    for (let x = -4; x <= 4; x++) HEAD.push([x, 9, 0, ['#ff3b6b', '#ffd23f', '#ff6fb5', '#5fd3ff', '#9a5cff', '#ff7a00', '#ff3b6b', '#ffd23f', '#5fd3ff'][x + 4]]); HEAD.push([-4, 8, 0, '#ffd23f'], [4, 8, 0, '#5fd3ff'], [-4, 7, 0, '#ff6fb5'], [4, 7, 0, '#9a5cff'])
     const box0 = vox(BX, 1, at.clone().add(V(0, -6, 0))), lid = vox(LID, 1, at.clone()), head = vox(HEAD, 1, at.clone()), coils = []
     for (let i = 0; i < 10; i++) coils.push(vox([[-1, 0, 0, '#b9bcc2'], [0, 0, 0, '#b9bcc2'], [1, 0, 0, '#b9bcc2']], 0.9, at.clone()))
-    const ball = ballAt(at.clone()); ball.visible = false
+    const ball = ballAt(at.clone().add(V(0, 1.3, 0)))
+    const mouth = V(0, 2.5, 0.3) // the ball's center in the head's frame: in the mouth, a little proud of the face
     run((t) => {
-      const rise = t < 0.4 ? ease(t / 0.4) : t < 3.2 ? 1 : 1 - ease((t - 3.2) / 0.4)
+      const rise = t < 0.4 ? ease(t / 0.4) : t < 3.4 ? 1 : 1 - ease((t - 3.4) / 0.4)
       box0.position.y = at.y - 6 + rise * 6
       lid.position.copy(at); lid.position.y = box0.position.y + 6; lid.rotation.x = t > 0.45 ? -Math.min(1, (t - 0.45) / 0.15) * 2 : 0
-      const spring = t < 0.5 ? 0 : t < 3.0 ? 1 + Math.sin((t - 0.5) * 12) * 0.35 * Math.exp(-(t - 0.5) * 1.6) : Math.max(0, 1 - (t - 3.0) / 0.25), top = box0.position.y + 6 + spring * 11
+      const spring = t < 0.5 ? 0 : t < 3.2 ? 1 + Math.sin((t - 0.5) * 12) * 0.35 * Math.exp(-(t - 0.5) * 1.6) : Math.max(0, 1 - (t - 3.2) / 0.25), top = box0.position.y + 6 + spring * 11
       coils.forEach((c, i) => { c.position.set(at.x + (i % 2 ? 0.6 : -0.6), box0.position.y + 6 + (i / 10) * spring * 11, at.z); c.visible = spring > 0.05 })
       head.position.set(at.x, top, at.z); head.visible = spring > 0.05; head.rotation.z = Math.sin(t * 7) * 0.12 * spring
-      ball.visible = spring > 0.3; ball.position.copy(head.position).add(V(0, 1.4, 1.2)).applyAxisAngle(V(0, 1, 0), 0)
-      if (t > 3.7) { kill(box0); kill(lid); kill(head); coils.forEach(kill); kill(ball); return false }
+      // the ball sits on the spot until the box comes up round it, then rides out in the mouth
+      if (t < 0.3) ball.visible = true
+      else { ball.visible = spring > 0.05; head.updateMatrixWorld(); ball.position.copy(head.localToWorld(mouth.clone())); ball.rotation.y = head.rotation.y }
+      if (t > 3.9) { kill(box0); kill(lid); kill(head); coils.forEach(kill); kill(ball); return false }
       return true
     })
     later(450, () => o.sound?.('chip'))
   }
-  // ROCKET LAUNCH: three lamps go out one by one beside the ball, then it lifts off on a plume and climbs until it is a dot
-  function rocket(at) {
-    log.push('rocket'); hideBall(true)
-    const side = camSide(), lamps = [0, 1, 2].map((i) => vox([[0, 0, 0, '#ff3b30']], 2, at.clone().addScaledVector(side, -7).add(V(0, 2 + i * 2.8, 0))))
-    const pad = []; ring2(pad, 3, 0, '#3a3f47'); const pg = vox(pad, 1.8, at.clone().add(V(0, 0.1, 0)))
-    const ball = ballAt(at.clone().add(V(0, 1.4, 0))), plume = []; ball.scale.setScalar(2)
-    run((t) => {
-      lamps.forEach((l, i) => { l.visible = t < 0.6 + i * 0.5 })
-      if (t > 1.9) { const k = t - 1.9, y = 1.4 + 6 * k * k * k + 8 * k; ball.position.copy(at).add(V(0, y, 0)); ball.rotation.y = t * 14; ball.visible = y < 220
-        if (t < 4.2 && Math.random() < 0.9) for (let i = 0; i < 3; i++) plume.push({ at: ball.position.clone().add(V(rnd(-0.6, 0.6), -1.4, rnd(-0.6, 0.6))), v: V(rnd(-1.5, 1.5), rnd(-9, -4), rnd(-1.5, 1.5)), s: rnd(0.8, 1.6), life: rnd(0.4, 0.8), grow: 1.2, c: ['#fff3c4', '#ffd23f', '#ff7a00', '#8a8f99'][i + (Math.random() < 0.4 ? 1 : 0)] }) }
-      if (plume.length > 20) { cubes(plume.splice(0, plume.length)) }
-      if (t > 1.9 && t < 2.1) for (let i = 0; i < 6; i++) plume.push({ at: at.clone().add(V(rnd(-2, 2), 0.6, rnd(-2, 2))), v: V(rnd(-5, 5), rnd(0.5, 2), rnd(-5, 5)), s: rnd(1.4, 2.4), life: 2, grow: 1.4, c: '#b9b4a5' })
-      if (t > 5) { lamps.forEach(kill); kill(pg); kill(ball); return false }
-      return true
-    })
-    later(1900, () => o.sound?.('ufo'))
-  }
-  // HAND OF GOD: a giant hand reaches down out of a cloud, takes the ball between finger and thumb, and goes back up
+  // HAND OF GOD: a white cloud gathers over the spot, a ray of light comes down out of it, and a giant hand (four fingers and a thumb, in a white sleeve) reaches
+  // down the ray, pinches the ball between finger and thumb and takes it back up into the cloud
   function hand(at) {
-    log.push('hand')
-    const SK = '#f1c9a5', SH = '#d9a27a', C = []
-    for (let x = -3; x <= 3; x++) for (let y = 8; y <= 14; y++) for (let z = -1; z <= 0; z++) C.push([x, y, z, z ? SK : SH]) // the palm and the back
-    for (let y = 0; y <= 7; y++) C.push([-2, y, 0, SK], [-2, y, -1, SK]) // the index finger, pointing down
-    for (let y = 3; y <= 7; y++) C.push([3, y, 0, SK], [3, y, -1, SK]); C.push([2, 3, 0, SK]) // the thumb
-    for (const x of [-1, 0, 1]) for (let y = 6; y <= 8; y++) C.push([x, y, -1, SH]) // the curled fingers
-    for (let x = -3; x <= 3; x++) for (let y = 15; y <= 19; y++) C.push([x, y, -1, '#efe6cf']) // the sleeve
-    const hi = at.clone().add(V(0, 70, 0)), g = vox(C, 1.2, hi.clone()), clouds = []
-    for (let i = 0; i < 26; i++) clouds.push({ at: hi.clone().add(V(rnd(-14, 14), rnd(26, 32), rnd(-8, 8))), v: V(rnd(-0.5, 0.5), 0, rnd(-0.5, 0.5)), s: rnd(3, 6), life: 4.4, c: i % 3 ? '#f4f2ea' : '#d5ddf5' })
-    cubes(clouds)
-    const ball = ballAt(at.clone().add(V(0, 1, 0))); let took = false
+    log.push('hand'); hideBall(true)
+    const SK = '#e8b48c', SH = '#c98e62', NAIL = '#fbe3d3', ROBE = '#f4f2ea', CUFF = '#d9b44a', C = [], S = 1.1
+    for (let x = -5; x <= 4; x++) for (let y = 22; y <= 32; y++) for (const z of [-1, 0]) C.push([x, y, z, y <= 23 ? CUFF : ROBE]) // the sleeve with a gold cuff, up into the cloud
+    for (let x = -3; x <= 2; x++) for (let y = 18; y <= 21; y++) for (const z of [-1, 0]) C.push([x, y, z, SK]) // the wrist
+    for (let x = -4; x <= 2; x++) for (let y = 11; y <= 17; y++) for (const z of [-1, 0]) C.push([x, y, z, y === 11 ? SH : SK]) // the back of the hand, knuckles along the bottom
+    for (const [x, len] of [[-4, 5], [-2, 6], [0, 7], [2, 6]]) for (let k = 1; k <= len; k++) for (const z of [-1, 0]) C.push([x, 11 - k, z, k === len ? NAIL : k === 2 ? SH : SK]) // four fingers, a cube apart
+    for (const [x, y] of [[3, 16], [4, 15], [4, 14], [5, 13], [5, 12], [5, 11], [5, 10], [5, 9], [4, 8], [4, 7], [4, 6]]) for (const z of [-1, 0]) C.push([x, y, z, x === 4 && y === 6 ? NAIL : SK]) // the thumb, out and down to the index finger's tip
+    const g = vox(C, S, at.clone()), pinch = V(3 * S, 5.5 * S, -0.5 * S).applyAxisAngle(Y_AXIS, g.rotation.y)
+    g.traverse((c) => { if (c.isMesh) { c.material.transparent = true; c.renderOrder = 5 } }) // drawn after the light, so the ray does not wash it out
+    const low = at.clone().add(V(0, 1.3, 0)).sub(pinch), hi = low.clone().add(V(0, 40, 0)), CB = at.y + 46 // CB: the cloud's underside
+    g.position.copy(hi)
+    const cl = []; for (let i = 0; i < 64; i++) cl.push({ at: V(hi.x + rnd(-15, 15), CB + rnd(1, 30) * (i < 20 ? 0.35 : 1), hi.z + rnd(-7, 7)), v: V(rnd(-0.3, 0.3), 0, rnd(-0.3, 0.3)), s: rnd(4, 7.5), life: 4.6, delay: rnd(0, 0.35), c: i % 4 ? '#ffffff' : '#e9ecf2' })
+    cubes(cl)
+    // the ray: two soft see-through cones, narrow at the cloud and wide at the seat, a faint wide one and a brighter core (slabs read as a solid tower and hid the hand)
+    const ray = new THREE.Group(), RH = CB - at.y; ray.userData.owned = true; ray.userData.at = at.clone()
+    for (const [r0, r1, peak] of [[4, 10, 0.12], [1.6, 4.5, 0.2]]) { const sl = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, RH, 28, 1, true), new THREE.MeshBasicMaterial({ color: '#fff8d6', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); sl.position.set(at.x, at.y + RH / 2, at.z); sl.renderOrder = 2; sl.userData.peak = peak; ray.add(sl) }
+    scene.add(ray); live.add(ray)
+    const ball = ballAt(at.clone().add(V(0, 1.3, 0))); let took = false
     run((t) => {
-      const down = t < 1.2 ? ease(t / 1.2) : t < 1.7 ? 1 : 1 - ease((t - 1.7) / 1.4)
-      g.position.copy(hi).lerp(at.clone().add(V(0.4 * 1.2 * 2, -0.6, 0)), down)
-      if (!took && t > 1.25) { took = true; hideBall(true) }
-      if (took) ball.position.copy(g.position).add(V(0.3, 0.2, 0.4)); ball.visible = took || t > 0.2
-      if (t > 3.3) { kill(g); kill(ball); return false }
+      const lit = Math.min(1, Math.max(0, (t - 0.3) / 0.5)) * (1 - Math.min(1, Math.max(0, (t - 3.6) / 0.6)))
+      ray.children.forEach((sl) => { sl.material.opacity = lit * sl.userData.peak })
+      const down = t < 0.8 ? 0 : t < 1.9 ? ease((t - 0.8) / 1.1) : t < 2.4 ? 1 : 1 - ease((t - 2.4) / 1.2)
+      g.position.lerpVectors(hi, low, down)
+      if (!took && t > 1.95) { took = true; o.sound?.('pop') }
+      if (took) ball.position.copy(g.position).add(pinch)
+      if (t > 4.4) { kill(g); kill(ray); kill(ball); return false }
       return true
     })
     o.sound?.('whoosh')
   }
-  // THE BALL HATCHES: it cracks like an egg, the halves fall apart, and a chick in a Giants cap climbs out and looks round
+  // THE BALL HATCHES: it sits on the spot while the dust settles, swells into an egg, wobbles, cracks, and a gull pokes its head out, looks round, spreads its wings
+  // and flies off
   function hatch(at) {
     log.push('hatch'); hideBall(true)
-    const W = '#f4f2ea', R = '#d62a2a', top = [], bot = []
-    for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) { if (Math.hypot(x, z) > 2.4) continue; for (let y = 0; y <= 2; y++) bot.push([x, y, z, (x === 0 && y === 1) ? R : W]); for (let y = 3; y <= 4; y++) if (Math.hypot(x, z) < 2.2 - (y - 3) * 0.6) top.push([x, y, z, (z === 0 && y === 3) ? R : W]) }
-    const Y = '#ffd23f', chick = []; for (let x = -1; x <= 1; x++) for (let y = 0; y <= 2; y++) chick.push([x, y, 0, Y]); for (let x = -1; x <= 1; x++) for (let y = 3; y <= 4; y++) chick.push([x, y, 0, Y]); chick.push([-1, 4, 1, '#16181b'], [1, 4, 1, '#16181b'], [0, 3, 1, '#ff7a00'], [-2, 1, 0, Y], [2, 1, 0, Y]); for (let x = -1; x <= 1; x++) chick.push([x, 5, 0, '#16181b']); chick.push([0, 5, 1, '#16181b'], [0, 6, 0, '#ff7a00'])
-    const eB = vox(bot, 1, at.clone()), eT = vox(top, 1, at.clone()), ch = vox(chick, 0.9, at.clone().add(V(0, 0.5, 0))); ch.visible = false
+    const W = '#f4f2ea', R = '#d62a2a', top = [], bot = [], RAD = [1.6, 2.4, 2.6, 2.6, 2.4, 1.9, 1.2]
+    for (let y = 0; y <= 6; y++) for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) { if (Math.hypot(x, z) > RAD[y]) continue; (y <= 3 ? bot : top).push([x, y, z, (x === 0 && (y === 2 || y === 5)) || (z === 0 && y === 1) ? R : W]) }
+    const crack = []; for (let x = -2; x <= 2; x++) crack.push([x, 3 + (x % 2 ? 1 : 0), 3, '#3a3f47'])
+    const ES = 1.4, eB = vox(bot, ES, at.clone()), eT = vox(top, ES, at.clone()), cr = voxIn(eT, crack, ES); cr.visible = false
+    eB.scale.setScalar(0.01); eT.scale.setScalar(0.01)
+    // the gull, upright in the egg: an outer group facing the camera, a tilt group inside it, the body and two wings on their shoulders
+    const gO = vox([], 1, at.clone()), tilt = new THREE.Group(), face0 = gO.rotation.y; gO.add(tilt); gO.visible = false
+    const GW = '#f2f0ea', GS = 0.9, body = []
+    box(body, -1, 1, 0, 1, -3, 3, GW); box(body, -1, 1, 1, 2, 3, 4, GW); body.push([0, 1, 5, '#f2c230'], [0, 1, 6, '#f2c230'], [0, 0, 6, '#d8262c'], [-1, 2, 4, '#111111'], [1, 2, 4, '#111111'])
+    voxIn(tilt, body, GS)
+    const wing = (s) => { const c = []; for (let k = 0; k <= 6; k++) for (let z = -1; z <= 1; z++) c.push([s * k, 0, z, k > 4 ? '#3a3f47' : GW]); return c }
+    const wings = [-1, 1].map((s) => ({ s, g: voxIn(tilt, wing(s), GS, s * 1.5 * GS, GS, 0) }))
+    const ball = ballAt(at.clone().add(V(0, 1.3, 0))), side = camSide()
+    let cracked = false
     run((t) => {
-      if (t < 0.9) { eT.rotation.z = Math.sin(t * 40) * 0.06 * (t > 0.3 ? 1 : 0); eB.rotation.z = -eT.rotation.z }
-      else { const k = Math.min(1, (t - 0.9) / 0.5); eT.position.copy(at).add(V(-3 * k, 3 * k - 4 * k * k, 0)); eT.rotation.z = k * 1.4; eB.rotation.z = -k * 0.3 }
-      if (t > 1.1) { ch.visible = true; const hop = t > 2 && t < 2.8 ? Math.abs(Math.sin((t - 2) * 8)) * 1.2 : 0, k = Math.min(1, (t - 1.1) / 0.4); ch.position.copy(at).add(V(0, 0.5 + 2 * k + hop, 0)); ch.rotation.y += t > 1.6 && t < 2 ? 0.08 : t > 2.8 && t < 3.2 ? -0.08 : 0 }
-      if (t > 4) { kill(eB); kill(eT); kill(ch); return false }
+      // 0 to 1.3: the ball on the spot while the dust settles; 1.3 to 1.8 it swells into the egg
+      const sw = Math.min(1, Math.max(0, (t - 1.3) / 0.5)), es = sw < 1 ? 0.25 + 0.75 * pop(sw) : 1
+      ball.visible = t < 1.5; ball.scale.setScalar(1 + sw * 0.8)
+      if (t >= 1.3) { eB.scale.setScalar(es); eT.scale.setScalar(es) }
+      // 1.8 to 3.2: it wobbles, harder and harder, and the crack shows
+      if (t > 1.8 && t < 3.2) { const w = Math.sin(t * 34) * 0.1 * Math.min(1, (t - 1.8) / 1.2); eT.rotation.z = w; eB.rotation.z = w }
+      cr.visible = t > 2.5
+      // 3.2: the top flies off
+      if (t >= 3.2) { if (!cracked) { cracked = true; o.sound?.('chip'); eB.rotation.z = 0 } const k = Math.min(1, (t - 3.2) / 0.6); eT.position.copy(at).addScaledVector(side, -6 * k).add(V(0, 7 * k - 9 * k * k, 0)); eT.rotation.z = k * 1.6 }
+      // the gull: the head up out of the egg, a look round, the wings out, and away
+      if (t > 3.3) {
+        gO.visible = true
+        const up = ease((t - 3.3) / 0.5), fly = t > 4.9 ? t - 4.9 : 0
+        gO.position.copy(at).add(V(0, 1.5 + up * 3.4, 0)).addScaledVector(side, fly * fly * 7 + fly * 6); gO.position.y += fly * fly * 8 + fly * 10
+        tilt.rotation.x = fly ? -1.25 + Math.min(1, fly / 0.5) * 0.95 : -1.25
+        tilt.rotation.y = t > 3.9 && t < 4.6 ? Math.sin((t - 3.9) * 9) * 0.5 : 0
+        if (fly) { let d = Math.atan2(side.x, side.z) - face0; d = Math.atan2(Math.sin(d), Math.cos(d)); gO.rotation.y = face0 + d * ease(fly / 0.4) } // turns to the way it flies
+        const flap = t < 4.5 ? -1.3 : t < 4.9 ? -1.3 + ease((t - 4.5) / 0.4) * 1.3 : Math.sin(t * 15) * 0.7
+        wings.forEach((w) => { w.g.rotation.z = w.s * flap })
+      }
+      // the shell sinks away once it is empty
+      if (t > 5.6) { const k = Math.min(1, (t - 5.6) / 0.6); eB.scale.setScalar(Math.max(0.01, 1 - k)); eT.scale.setScalar(Math.max(0.01, 1 - k)) }
+      if (t > 6.6) { kill(eB); kill(eT); kill(gO); kill(ball); return false }
       return true
     })
-    later(900, () => o.sound?.('chip'))
+    later(4900, () => o.sound?.('whoosh'))
   }
-  // LIGHTNING ROD: a rod shoots up out of the seat, a dark cloud gathers, a bolt comes down onto it twice, and the ball is left smoking and glowing
+  const pop = (x) => { const c = 1.70158 * 1.525, k = Math.min(Math.max(x, 0), 1) - 1; return 1 + (c + 1) * k ** 3 + c * k ** 2 } // overshoot
+  // LIGHTNING ROD: a rod shoots up out of the seat, a white cloud gathers, a bolt comes down onto it twice, and the ball is left smoking and glowing
   function zap(at) {
     log.push('zap'); hideBall(true)
     const rod = vox(Array.from({ length: 16 }, (_, i) => [0, i, 0, i === 15 ? '#ffd23f' : '#8a8f99']), 0.9, at.clone()); rod.scale.y = 0.01
-    const cloud = []; for (let i = 0; i < 30; i++) cloud.push({ at: at.clone().add(V(rnd(-10, 10), rnd(34, 40), rnd(-6, 6))), v: V(0, 0, 0), s: rnd(3, 5.5), life: 3.6, delay: rnd(0, 0.4), c: i % 2 ? '#3a3f47' : '#4b4f57' }); cubes(cloud)
+    const cloud = []; for (let i = 0; i < 30; i++) cloud.push({ at: at.clone().add(V(rnd(-10, 10), rnd(34, 40), rnd(-6, 6))), v: V(0, 0, 0), s: rnd(3, 5.5), life: 3.6, delay: rnd(0, 0.4), c: i % 3 ? '#ffffff' : '#e3e6ec' }); cubes(cloud)
     const tip = at.clone().add(V(0, 14, 0)), boltC = []; let x = 0
     for (let y = 22; y >= 0; y--) { x += Math.round(rnd(-1, 1)); boltC.push([x, y, 0, y % 3 ? '#ffffff' : '#fff36b']); if (y % 5 === 0) boltC.push([x + 1, y, 0, '#fff36b']) }
     const bolt = vox(boltC, 1, tip.clone()); bolt.visible = false
@@ -514,71 +536,66 @@ export function initMoments25(api, col, fx, o = {}) {
     })
     later(1000, () => o.sound?.('kaboom')); later(1350, () => o.sound?.('kaboom'))
   }
-  // TOILET FLUSH: a toilet comes up out of the seat, the ball goes round the bowl in the swirl and down, the lid drops, the toilet sinks
+  // TOILET FLUSH: a toilet comes up out of the seat with its lid up against the tank, a big three-armed swirl spins in the bowl throwing up spray, the ball goes round
+  // and down, the lid drops shut on its hinge, and the toilet sinks
   function flush(at) {
     log.push('flush'); hideBall(true)
-    const W = '#f4f2ea', C = []
-    for (let y = 0; y <= 2; y++) ring2(C, 2 + y * 0.6, y, W)
-    ring2(C, 3.4, 3, W); for (let x = -3; x <= 3; x++) for (let y = 3; y <= 8; y++) C.push([x, y, -4, W]); C.push([2, 8, -3, '#b9bcc2'])
-    const water = []; ring2(water, 2.4, 2.6, '#5fd3ff'); ring2(water, 1.4, 2.6, '#5fd3ff')
-    const lidC = []; for (let x = -3; x <= 3; x++) for (let z = 0; z <= 6; z++) lidC.push([x, 0, z, W])
-    const g = vox(C, 1, at.clone().add(V(0, -9, 0))), wg = vox(water, 1, at.clone()), lid = vox(lidC, 1, at.clone())
+    const W = '#f4f2ea', SHD = '#d9dde3', C = []
+    for (let y = 0; y <= 2; y++) ring2(C, 2 + y * 0.6, y, y === 0 ? SHD : W) // the bowl
+    ring2(C, 3.4, 3, W); ring2(C, 2.8, 3, W) // the rim, two cubes thick
+    for (let x = -3; x <= 3; x++) for (let y = 3; y <= 8; y++) C.push([x, y, -4, W], [x, y, -5, W]) // the tank
+    C.push([2, 8, -3, '#b9bcc2'], [3, 8, -3, '#b9bcc2']) // the handle
+    const g = vox(C, 1, at.clone().add(V(0, -9, 0)))
+    // the lid on a hinge at the back of the rim: shut, it lies over the bowl; up, it stands against the tank
+    const hinge = new THREE.Group(); hinge.position.set(0, 3.6, -3.4); g.add(hinge)
+    const lidC = []; for (let x = -3; x <= 3; x++) for (let z = 0; z <= 6; z++) if (Math.hypot(x, (z - 3) * 0.95) <= 3.5) lidC.push([x, 0, z, W]); lidC.push([0, 0.6, 5.5, SHD])
+    voxIn(hinge, lidC, 1)
+    // the swirl: three arms of water and foam, spun hard, just under the rim
+    const swC = []; for (let arm = 0; arm < 3; arm++) for (let i = 0; i < 14; i++) { const a = arm * 2.094 + i * 0.42, r = 0.5 + i * 0.19; swC.push([Math.cos(a) * r / 0.7, 0, Math.sin(a) * r / 0.7, i % 3 === 0 ? '#ffffff' : arm % 2 ? '#2a9fd6' : '#5fd3ff']) }
+    const swirl = voxIn(g, swC, 0.7, 0, 2.8, 0)
+    const spray = []; for (let i = 0; i < 70; i++) { const a = rnd(0, Math.PI * 2), sp = rnd(3, 7); spray.push({ at: at.clone().add(V(Math.cos(a) * 2.4, 3.6, Math.sin(a) * 2.4)), v: V(-Math.sin(a) * sp + Math.cos(a) * 2, rnd(6, 13), Math.cos(a) * sp + Math.sin(a) * 2), s: rnd(0.45, 0.85), life: rnd(0.6, 0.9), delay: rnd(0.6, 2.3), c: i % 3 ? '#5fd3ff' : '#ffffff' }) }
+    cubes(spray, { g: 30 })
     const ball = ballAt(at.clone()); ball.visible = false
     run((t) => {
       const rise = t < 0.5 ? ease(t / 0.5) : t < 3.3 ? 1 : 1 - ease((t - 3.3) / 0.5), y0 = at.y - 9 + rise * 9
-      g.position.y = y0; wg.position.set(at.x, y0, at.z); wg.rotation.y = t * 5; wg.visible = t > 0.5 && t < 2.6
-      lid.position.set(at.x, y0 + 3.5, at.z); lid.rotation.x = t < 2.6 ? -1.7 : -1.7 + Math.min(1, (t - 2.6) / 0.25) * 1.7
-      if (t > 0.6 && t < 2.4) { const k = (t - 0.6) / 1.8, a = t * 10, r = 2.6 * (1 - k); ball.visible = true; ball.position.set(at.x + Math.cos(a) * r, y0 + 3 - 2.5 * k, at.z + Math.sin(a) * r); ball.scale.setScalar(1 - 0.6 * k) } else ball.visible = false
-      if (t > 3.9) { kill(g); kill(wg); kill(lid); kill(ball); return false }
+      g.position.y = y0
+      swirl.visible = t > 0.5 && t < 2.7; swirl.rotation.y = -t * 11; swirl.scale.setScalar(1 + Math.sin(t * 13) * 0.06)
+      hinge.rotation.x = t < 2.6 ? -1.5 : -1.5 + ease((t - 2.6) / 0.25) * 1.5
+      if (t > 0.6 && t < 2.4) { const k = (t - 0.6) / 1.8, a = -t * 13, r = 2.4 * (1 - k); ball.visible = true; ball.position.set(at.x + Math.cos(a) * r, y0 + 3.2 - 2.6 * k, at.z + Math.sin(a) * r); ball.scale.setScalar(1 - 0.6 * k) } else ball.visible = false
+      if (t > 3.9) { kill(g); kill(ball); return false }
       return true
     })
-    later(700, () => o.sound?.('splash'))
+    later(600, () => o.sound?.('splash')); later(1500, () => o.sound?.('whoosh')); later(2300, () => o.sound?.('splash'))
   }
-  // CLAW MACHINE: an arcade claw comes down on a cable, grabs the ball, drops it, grabs it again and hauls it up out of sight
+  // CLAW MACHINE: an arcade claw (three wide prongs) comes down on a cable, grabs the ball, drops it, grabs it again and hauls it up out of sight
   function claw(at) {
     log.push('claw')
-    const G = '#b9bcc2', D = '#6b7079', head = [], prong = (s) => { const c = []; for (let y = 0; y < 4; y++) c.push([0, -y, 0, y === 3 ? D : G]); c.push([s, -4, 0, D]); return c }
-    for (let x = -1; x <= 1; x++) for (let y = 0; y <= 1; y++) head.push([x, y, 0, D]); head.push([0, 2, 0, '#ffd23f'])
+    const G = '#b9bcc2', D = '#6b7079', head = []
+    for (let x = -2; x <= 2; x++) for (let y = 0; y <= 1; y++) for (let z = -2; z <= 2; z++) if (Math.abs(x) + Math.abs(z) <= 3) head.push([x, y, z, D]); head.push([0, 2, 0, '#ffd23f'])
+    const prong = () => { const c = [[1, 0, 0, G], [2, 0, 0, G], [3, 0, 0, G]]; for (let y = 1; y <= 4; y++) c.push([3, -y, 0, y === 4 ? D : G]); c.push([2, -5, 0, D]); return c } // out along the arm, down, and a tip turned in
     const hi = at.clone().add(V(0, 60, 0)), H = vox(head, 1, hi.clone()), cable = vox(Array.from({ length: 70 }, (_, i) => [0, i, 0, '#e8e1c9']), 0.3, hi.clone())
-    const P = [-1, 1, 0].map((s, i) => { const g = vox(prong(s === 0 ? 1 : s), 1, hi.clone()); g.userData.side = i; return g })
-    const ball = ballAt(at.clone().add(V(0, 1, 0)))
+    const P = [0, 1, 2].map(() => vox(prong(), 1, hi.clone()))
+    const ball = ballAt(at.clone().add(V(0, 1.3, 0))), HOLD = 5.0 // the ball's center under the head when the prongs are shut on it
     let state = 0
     run((t) => {
       // down (0 to 1), grab (1 to 1.3), up a bit (1.3 to 1.8), drop it (1.8), down again (1.8 to 2.4), grab (2.4 to 2.7), up and away (2.7 to 4)
-      const low = at.y + 5.5, hiY = at.y + 60
-      let y = t < 1 ? hiY - (hiY - low) * ease(t) : t < 1.3 ? low : t < 1.8 ? low + 6 * ease((t - 1.3) / 0.5) : t < 2.4 ? low + 6 - 6 * ease((t - 1.8) / 0.6) : t < 2.7 ? low : low + (hiY - low + 20) * ease((t - 2.7) / 1.3)
+      const low = at.y + 1.3 + HOLD, hiY = at.y + 60
+      const y = t < 1 ? hiY - (hiY - low) * ease(t) : t < 1.3 ? low : t < 1.8 ? low + 6 * ease((t - 1.3) / 0.5) : t < 2.4 ? low + 6 - 6 * ease((t - 1.8) / 0.6) : t < 2.7 ? low : low + (hiY - low + 20) * ease((t - 2.7) / 1.3)
       H.position.set(at.x, y, at.z); cable.position.set(at.x, y + 2, at.z)
       const shut = (t > 1.15 && t < 1.8) || t > 2.55
-      P.forEach((p, i) => { p.position.set(at.x, y, at.z); p.rotation.y = (i / 3) * Math.PI * 2; p.rotation.z = shut ? 0.35 : -0.25 })
-      if (t > 1.15 && t < 1.8) { hideBall(true); ball.position.set(at.x, y - 4.2, at.z) }
-      else if (t >= 1.8 && t < 2.55) { const k = t - 1.8, from = low + 6 - 4.2; ball.position.set(at.x, Math.max(at.y + 1, from - 0.5 * 40 * k * k), at.z) }
-      else if (t >= 2.55) ball.position.set(at.x, y - 4.2, at.z)
+      P.forEach((p, i) => { p.position.set(at.x, y, at.z); p.rotation.y = (i / 3) * Math.PI * 2 + 0.5; p.rotation.z = shut ? -0.22 : 0.18 })
+      if (t > 1.15 && t < 1.8) { hideBall(true); ball.position.set(at.x, y - HOLD, at.z) }
+      else if (t >= 1.8 && t < 2.55) { const k = t - 1.8, from = low + 6 - HOLD; ball.position.set(at.x, Math.max(at.y + 1.3, from - 0.5 * 40 * k * k), at.z) }
+      else if (t >= 2.55) ball.position.set(at.x, y - HOLD, at.z)
       if (state === 0 && t > 1.8) { state = 1; o.sound?.('thud') }
       if (t > 4.1) { kill(H); kill(cable); P.forEach(kill); kill(ball); return false }
       return true
     })
     o.sound?.('chip')
   }
-  // THE GHOST OF THE BALL: a see-through ghost of the ball floats up out of it, takes a slow lap round the spot, and drifts off into the sky
-  function spirit(at) {
-    log.push('spirit')
-    const C = []
-    for (let x = -2; x <= 2; x++) for (let y = 0; y <= 4; y++) for (let z = -2; z <= 2; z++) if (Math.hypot(x, y - 2, z) <= 2.5) C.push([x, y + 2, z, '#f4f2ea'])
-    C.push([-1, 5, 3, '#16181b'], [1, 5, 3, '#16181b'], [0, 1, 0, '#e6ecff'], [-1, 0, 0, '#d5ddf5'], [1, -1, 0, '#d5ddf5'], [0, -2, 0, '#d5ddf5'])
-    const g = vox(C, 0.9, at.clone())
-    g.traverse((c) => { if (c.material) { c.material.transparent = true; c.material.opacity = 0.5; c.material.depthWrite = false } })
-    run((t) => {
-      const up = ease(t / 0.8), a = t < 0.8 ? 0 : (t - 0.8) * 2.2, r = t < 0.8 ? 0 : Math.min(7, (t - 0.8) * 9)
-      g.position.set(at.x + Math.sin(a) * r, at.y + 1 + up * 7 + Math.sin(t * 3) * 0.5 + Math.max(0, t - 3.2) * 25, at.z + Math.cos(a) * r - r)
-      const op = t < 3.2 ? 0.5 : Math.max(0, 0.5 * (1 - (t - 3.2) / 1.2)); g.traverse((c) => { if (c.material) c.material.opacity = op })
-      if (t > 4.5) { kill(g); return false }
-      return true
-    })
-    o.sound?.('ufo')
-  }
   // the seat moments as a deck: shuffled, each played once before any comes round again
-  const SEAT_DECK = ['glove', 'gull', 'dog', 'beer', 'mushroom', 'crater', 'ufo', 'hotdog', 'fries', 'bonk', 'pinball', 'pinata', 'tornado', 'mole', 'jack', 'rocket', 'hand', 'hatch', 'zap', 'flush', 'claw', 'spirit']
-  const PLAY = { glove: seatsGlove, gull: gullGrab, dog, beer, mushroom: (at) => mushroom(at), crater, ufo, hotdog, fries, bonk, pinball, pinata, tornado, mole, jack, rocket, hand, hatch, zap, flush, claw, spirit }
+  const SEAT_DECK = ['glove', 'gull', 'dog', 'beer', 'mushroom', 'crater', 'ufo', 'hotdog', 'fries', 'pinball', 'pinata', 'tornado', 'mole', 'jack', 'hand', 'hatch', 'zap', 'flush', 'claw'] // (6 Nov: bonk, rocket and the ghost out)
+  const PLAY = { glove: seatsGlove, gull: gullGrab, dog, beer, mushroom: (at) => mushroom(at), crater, ufo, hotdog, fries, pinball, pinata, tornado, mole, jack, hand, hatch, zap, flush, claw }
   let deck = []
   const deal = () => { if (!deck.length) { deck = SEAT_DECK.slice(); for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]] } } return deck.pop() }
   // a new landing clears the last one's pieces, so two never play on top of each other

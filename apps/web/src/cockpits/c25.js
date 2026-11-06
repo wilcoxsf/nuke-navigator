@@ -429,7 +429,7 @@ export const LAB = {
   LF: { name: 'THE FLIGHT LINE: FILL', def: 2, opts: LINE_FILLS },
   // 5 Nov (Andrew picked crater, dogpile, a fault line, the Dodger fan on a stretcher, pinball, a black hole and a portal): the seat moments; the deck plays them all in
   // turn, a pick plays only that one so it can be looked at
-  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['PINATA', 'pinata', 'a donkey pinata swings down on a rope; the ball smashes it and candy rains down'], ['TINY TORNADO', 'tornado', 'a twister spins up out of the seat, carries the ball round and up, and throws it into the sky'], ['WHACK-A-MOLE', 'mole', 'a mole pops up and gets bonked; it comes back up in a little Giants batting helmet'], ['JACK-IN-THE-BOX', 'jack', 'a box comes up, the lid flips and a clown head springs out with the ball in its teeth'], ['ROCKET LAUNCH', 'rocket', 'three lamps go out, then the ball lifts off on a plume until it is a dot'], ['HAND OF GOD', 'hand', 'a giant hand reaches down out of a cloud and takes the ball'], ['THE BALL HATCHES', 'hatch', 'it cracks like an egg and a chick in a Giants cap climbs out'], ['LIGHTNING ROD', 'zap', 'a rod shoots up, a bolt comes down onto it twice, the ball left smoking and glowing'], ['TOILET FLUSH', 'flush', 'a toilet comes up; the ball goes round the bowl and down'], ['CLAW MACHINE', 'claw', 'an arcade claw grabs it, drops it, grabs it again and hauls it off'], ['GHOST OF THE BALL', 'spirit', 'a see-through ghost of the ball floats up, takes a lap and drifts off'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['BONK', 'bonk', 'it hits a Dodger fan on the head; stars, he keels over, two medics carry him off on a stretcher'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['UFO', 'ufo', 'a saucer drops in and beams it up']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) },
+  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['PINATA', 'pinata', 'a donkey pinata swings down on a rope; the ball smashes it and candy rains down'], ['TINY TORNADO', 'tornado', 'a twister spins up out of the seat, carries the ball round and up, and throws it into the sky'], ['WHACK-A-MOLE', 'mole', 'the ball bounces up high and comes back down on a mole; he comes back up in a little Giants batting helmet'], ['JACK-IN-THE-BOX', 'jack', 'a box comes up, the lid flips and a clown head springs out with the ball in its open mouth'], ['HAND OF GOD', 'hand', 'a ray of light comes down out of a white cloud and a giant hand reaches down it and takes the ball'], ['THE BALL HATCHES', 'hatch', 'once the dust settles it swells into an egg, cracks, and a gull climbs out and flies off'], ['LIGHTNING ROD', 'zap', 'a rod shoots up, a bolt comes down onto it twice, the ball left smoking and glowing'], ['TOILET FLUSH', 'flush', 'a toilet comes up; the ball goes round the bowl and down'], ['CLAW MACHINE', 'claw', 'an arcade claw grabs it, drops it, grabs it again and hauls it off'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['UFO', 'ufo', 'a saucer drops in and beams it up']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) },
   CN: { name: 'BLAST RADIUS: CONTRAILS', def: 1, opts: [{ c: 1, name: 'FAINT', desc: "a hairline for each of the player's home runs, bone, green and a touch brighter for the ones that go out here" }, { c: 2, name: 'ONLY THE GONE ONES', desc: 'only the ones that would go out here, in green' }, { c: 3, name: 'OFF', desc: 'no flights, only the bombs' }] },
   // 2 Nov, night (Andrew: "We can do better on voxel effects when it lands. I'd like the option for a scuba diver ... some oomph"): impact25.js
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
@@ -1173,7 +1173,7 @@ export async function build(root, api, U) {
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
   // the star map is. I don't care about the odds receipt"); KARL comes in only when the forecast says fog, no button
   for (const id of ['#c25sc', '#c25rc', '#c25sm', '#c25kl']) E(id).style.display = 'none'
-  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel', 'hm'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'hm') { heat?.clear(); hmKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last); paintTabs() } // (3 Nov: the tabs follow, BLAST RADIUS lit only while its map is on)
+  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel', 'hm'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'hm') { heat?.clear(); hmKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last); paintTabs() } // (3 Nov: the tabs follow, BLAST RADIUS lit only while its map is on)
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
@@ -1398,7 +1398,7 @@ export async function build(root, api, U) {
   function applyBall(b) {
     cur = b; edited = false
     cancelPlay(); pitchCam?.clear() // the last pitch arc belongs to the last ball, and a pitch still on its way is called off
-    if (life) { const n = pname(b.b); life.idle(`${(n ? n[0] : 'BATTER ' + b.b).toUpperCase()}  ·  ${b.d}  ·  ${b.ft} FT`); life.setClock(b.tm ? { hm: b.tm } : { live: true }) } // the clock: when it was hit, in that park's time
+    if (life) { const n = pname(b.b); life.idle(`${(n ? n[0] : 'BATTER ' + b.b).toUpperCase()}  ·  ${b.d}`); life.setClock(b.tm ? { hm: b.tm } : { live: true }) } // the clock: when it was hit, in that park's time
     Object.assign(api.state, { ev: b.ev, la: b.la, dir: b.dir, hand: b.s === 'R' ? 1 : -1, temp: b.temp, wind: 0, xwind: 0, carry: b.carry, dws: b.dws ?? 0, tab: false })
     api.setPreview(true); api.update()
   }
@@ -2870,7 +2870,7 @@ export async function build(root, api, U) {
   // (home stretch; GPT red team III, H: "let the stadium take over during the swing, the landed number take over at impact") the panels step back while the ball
   // flies and for 1.8 s after it lands, then come back
   api.NN.frames.push(() => { const q = flying || performance.now() < quietUntil; if (grid.classList.contains('quiet') !== q) grid.classList.toggle('quiet', q) })
-  window.__cpTrack = (pts, res, color, prev) => { if (prev && flying) { flying = false; shadow.hide(); sound.cancel(); if (/TRACKING/.test(life?.text?.() ?? '')) { if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) } else life?.idle('DINGER DOJO') } } return flight.track(pts, res, color, prev) }; window.__cpNoApex = true
+  window.__cpTrack = (pts, res, color, prev) => { if (prev && flying) { flying = false; shadow.hide(); sound.cancel(); { if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}`) } else life?.idle('DINGER DOJO') } } return flight.track(pts, res, color, prev) }; window.__cpNoApex = true
   loadPrivateSongs() // San Francisco lives in a git-ignored file
   addEventListener('pointerdown', (e) => { if (pitchCam.busy() && onPark(e)) pitchCam.finish() }) // skip to the hit
   // (2 Nov, later: no words when the ball lands, "we don't need that set dressing"; the moments still play)
@@ -2968,7 +2968,7 @@ export async function build(root, api, U) {
     if (k >= 1) { if (look.out) look = null; else look.settled = true }
   })
   if (life) life.gullsOn = mix.F !== 3
-  if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}  ·  ${cur.ft} FT`) }
+  if (cur) { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}`) }
   // PLAY IT: a new batter gets their walk-up jingle, the pitch flies into the zone, then the hit-stop and the crack
   function cancelPlay() { for (const t of playT) clearTimeout(t); playT = []; playing = false; pitchCam?.stop() }
   function play() {
@@ -3044,8 +3044,7 @@ export async function build(root, api, U) {
     // a glove or the sea lion may have taken the last one; and the engine's ball (a 2.4 m radius, so it shows from anywhere) is drawn at 0.42 of that (Andrew: "way too big")
     const bm = api.ballMesh?.(); if (bm) { bm.visible = true; bm.scale.setScalar(0.42); voxBall(bm) }
     fx.contact(ev)
-    life?.clear()
-    life?.show('TRACKING', '', cs0().getPropertyValue('--tx').trim())
+    // (6 Nov: no TRACKING on the board: it pushed the Dodger gags off and stopped the idle ones; a gag already playing plays on)
     const fl = E('#c25fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go')
     if (mode === 'replay' && !edited) sound.play('crack', { ev: api.state.ev }); else sound.nuke(api.state.ev) // a real ball has its real crack; your own come off the launch deck (1 Nov, night)
     sound.swing(api.state.ev) // the whoosh follows the ball; the crowd leans in
@@ -3072,7 +3071,7 @@ export async function build(root, api, U) {
     impact.land(ev, { impact: lab.LI, diver: diverNow })
     // THE GULL ON THE NUMBER: about one landing in three, a few seconds after it settles (with the gulls on)
     if (mix.F !== 3 && !diverNow) { const ld = flight.last()?.userData.ld; setTimeout(() => { if (ld && flight.last()?.userData.ld === ld && Math.random() < (window.__cpGullOdds ?? 0)) touches.gull(ld) }, 3200) }
-    if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
+    // (6 Nov, Andrew: "I don't want the screen to say home run 390 feet": the board keeps to the Dodger gags and the batter's marquee)
     if (hr && mix.F !== 3) life?.scatter()
     if (hap) moments.clear?.() // (1 Nov, night: one landing show at a time; a happening that came with the landing has the spot)
     lastMoment = mix.F === 1 && show !== 'se' && !hap ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
