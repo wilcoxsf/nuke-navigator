@@ -23,12 +23,6 @@ const dupes = () => page.evaluate(() => { const n = {}; for (const e of document
 
 // ---- ids ----
 check('every id on the page is used once', (await dupes()).length === 0, JSON.stringify(await dupes()))
-await page.evaluate(() => window.__mix25.setShow('my')); await page.waitForTimeout(1200)
-check('with the MY SEAT form open too', (await dupes()).length === 0, JSON.stringify(await dupes()))
-const mn0 = await page.evaluate(() => document.querySelector('#c25mn').textContent)
-await page.evaluate(() => document.querySelector('#c25mg')?.click()); await page.waitForTimeout(600)
-check('THAT\'S MY SEAT leaves the MENU button as it was', (await page.evaluate(() => document.querySelector('#c25mn').textContent)) === mn0, mn0)
-await page.evaluate(() => window.__mix25.setShow('my')); await page.waitForTimeout(600)
 
 // ---- the dojo: undo and the blank swing ----
 await page.evaluate(() => window.__mix25.setMode('whatif')); await page.waitForTimeout(2500)

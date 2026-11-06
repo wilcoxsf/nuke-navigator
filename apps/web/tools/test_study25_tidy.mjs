@@ -150,17 +150,10 @@ await page.close()
   await p.waitForTimeout(1500)
   const r = await p.evaluate(() => ({ x: window.__cp.state.xwind, w: window.__cp.state.wind, vis: window.__mix25.controls().visible }))
   check('back in DEJA-VU: no dojo wind on the real ball, and the controls are hidden', r.x === 0 && r.w === 0 && !r.vis, JSON.stringify(r))
-  // ---- MY SEAT ----
-  await p.evaluate(() => { localStorage.setItem('nn-myseat25', JSON.stringify({ sec: '142', row: '10', seat: '5' })); window.__mix25.setShow('my') })
-  const ok = await until(p, () => window.__mix25.mySeat().done() >= window.__mix25.mySeat().count() && !!document.querySelector('#c25hb [data-my]'), 120000)
-  const m = await p.evaluate(() => ({ rows: document.querySelectorAll('#c25hb [data-my]').length, t: document.querySelector('#c25hb').innerText.slice(0, 160), g: !!window.__mix25.mySeat().group() }))
-  check('MY SEAT: works out where every Oracle home run came down and lists the ones near the seat, with the seat in the park', ok && m.rows >= 1 && m.g && /SECTION 142/.test(m.t), JSON.stringify(m))
-  const before = await p.evaluate(() => window.__mix25.cur()?.d + window.__mix25.cur()?.b)
-  await p.click('#c25hb [data-my="0"]')
-  await p.waitForTimeout(1500)
-  check('MY SEAT: clicking a row flies that home run', (await p.evaluate(() => window.__mix25.mode())) === 'replay' && (await p.evaluate(() => window.__mix25.cur()?.d + window.__mix25.cur()?.b)) !== undefined, before)
-  await p.evaluate(() => window.__mix25.setShow('my'))
-  check('MY SEAT: closing it clears the seat from the park', !(await p.evaluate(() => window.__mix25.mySeat().group())))
+  // ---- MY SEAT (6 Nov: gone, Andrew: "'My seat' shouldn't matter we can kill that mode") ----
+  await p.evaluate(() => window.__mix25.setMode('whatif')); await p.waitForTimeout(800)
+  const mySeen = await p.evaluate(() => [...document.querySelectorAll('.bt')].filter((b) => b.offsetParent && /MY SEAT/.test(b.textContent)).map((b) => b.textContent))
+  check('no MY SEAT button anywhere in the dojo', mySeen.length === 0, JSON.stringify(mySeen))
   await p.close()
 }
 // ---- tonight's wind and the header at three sizes ----

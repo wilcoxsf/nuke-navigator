@@ -19,8 +19,17 @@
 // No numbers in the park: point at a wedge or a seat for what it means (cellAt), click one to keep it and compare (the study's panel says it in words).
 import { readHitter, cutsOf, typeOf } from './hitter25.js'
 import { voxCells } from './vox25.js'
-import { NUKE_MARKS, GREEN } from '../landing.js'
+import { NUKE_MARKS } from '../landing.js'
 import { parkHit } from '../seance.js'
+// (6 Nov, Andrew: "the missiles here were green and orange for ones hit at oracle and then the color of the ballpark they hit it out at if it's away - the bomb and fins
+// matching that color scheme"): a bomb's body and fins by the park its home run was hit in, the home team's colors brightened to read on the dark park
+const BOMB_HOME = ['#9dff00', '#ff7a00'], BOMB_NONE = ['#e8e1c9', '#8a8f99']
+const BOMB_TEAM = { ARI: ['#e0455a', '#e3d4ad'], AZ: ['#e0455a', '#e3d4ad'], ATL: ['#e8365a', '#eaaa00'], ATH: ['#efb21e', '#1f7a4d'], OAK: ['#efb21e', '#1f7a4d'], BAL: ['#f2691e', '#1b1c1f'],
+  BOS: ['#e24a55', '#3b5b9a'], CHC: ['#4a7dff', '#e8365a'], CWS: ['#c4ced4', '#1b1c1f'], CIN: ['#e8344c', '#f2f0ea'], CLE: ['#ef3e4a', '#3b5b9a'], COL: ['#9b6bff', '#c4ced4'],
+  DET: ['#3d6bb3', '#fa4616'], HOU: ['#eb6e1f', '#2b4a8c'], KC: ['#4a8fe0', '#bd9b60'], LAA: ['#e0263c', '#c4ced4'], LAD: ['#2f7fd1', '#f2f0ea'], MIA: ['#00a3e0', '#ef3340'],
+  MIL: ['#ffc52f', '#2b4a8c'], MIN: ['#d31145', '#3b5b9a'], NYM: ['#ff5910', '#2b5bb5'], NYY: ['#3d5a99', '#f2f0ea'], PHI: ['#e81828', '#3b5b9a'], PIT: ['#fdb827', '#1b1c1f'],
+  SD: ['#ffc425', '#6b4a2b'], SEA: ['#0aa3a3', '#3b5b9a'], STL: ['#c41e3a', '#fedb00'], TB: ['#8fbce6', '#2b4a8c'], TEX: ['#3d6bb3', '#e0263c'], TOR: ['#2f7fd1', '#e8365a'], WSH: ['#e0263c', '#f2f0ea'] }
+export const bombColors = (park) => (park === 'SF' ? BOMB_HOME : BOMB_TEAM[park] ?? BOMB_NONE)
 const DOWN = { x: 0, y: -1, z: 0 }
 
 export const STEPS_HARD = ['#2b211b', '#53311a', '#86461c', '#c25f18', '#ff7a00'] // hard (dark) to easy (safety orange)
@@ -482,8 +491,8 @@ export function initHeat25(api, o = {}) {
     }
     const drops = [], topOf = new Map(); void 0 // (the bombs stand on the pillars, not inside them: the tallest tile top in their cell)
     for (const [sid, T] of tops) { const c = cells[sid]; topOf.set(c.i + ',' + c.j, Math.max(...T.map((t) => t.y))) }
-    if (view.metric === 'player') for (const pt of d.pts) { // their real home runs (only those) as Little Boys: green when gone here, bone when not
-      const cellsLB = NUKE_MARKS[16](false, { giants: o.giants?.(pt.b) }).map((c) => (pt.gone ? [c[0], c[1], c[2], GREEN[c[3]] ?? c[3]] : c)), m = voxCells(THREE, cellsLB, 0.22)
+    if (view.metric === 'player') for (const pt of d.pts) { // their real home runs (only those) as Little Boys, in the colors of the park each was hit in (the contrail says if it goes out here)
+      const park = pt.b?.park ?? '', [bodyC, finC] = bombColors(park), cellsLB = NUKE_MARKS[16](false, {}).map((c) => (c[1] === 0 ? c : [c[0], c[1], c[2], c[3] === '#c9c2ad' ? bodyC : c[3] === '#8a8f99' || c[3] === '#7d8088' ? finC : c[3]])), m = voxCells(THREE, cellsLB, 0.22)
       const wc = where(pt.at), top = topOf.get(wc.i + ',' + wc.j)
       m.position.copy(pt.at).add(new THREE.Vector3(0, 0.15, 0)); if (top != null && top > m.position.y) m.position.y = top + 0.1
       group.add(m)
@@ -495,7 +504,7 @@ export function initHeat25(api, o = {}) {
         line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: pt.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: pt.gone ? 0.15 : 0.07, depthWrite: false, fog: false }))
         line.renderOrder = 21; group.add(line); api.NN.hideForNormal?.push(line); (group.userData.sheets ??= []).push(line)
       }
-      drops.push({ m, line, n: pt.trail?.length ?? 0, at: m.position.clone(), gone: pt.gone, ref: pt.b, d: String(pt.b?.d ?? ''), b: where(pt.at).b })
+      drops.push({ m, line, n: pt.trail?.length ?? 0, at: m.position.clone(), gone: pt.gone, ref: pt.b, home: park === 'SF', d: String(pt.b?.d ?? ''), b: where(pt.at).b })
     }
     // the best seat to catch one of theirs (the surprise round): a bone beam over the cell where the most of their likely landings come down, a slow orange diamond on it
     if (view.metric === 'player' && d.best) {
@@ -505,6 +514,7 @@ export function initHeat25(api, o = {}) {
       gem.position.set(at.x, at.y + 17.5, at.z); group.add(gem); group.userData.gem = gem
     }
     group.userData.drops = drops
+    applyWhere()
     scene.add(group)
     arrive(drops, view.metric === 'player' ? L.bd : 4, view.metric === 'player' ? risers.filter(Boolean) : [])
     return group
@@ -557,7 +567,7 @@ export function initHeat25(api, o = {}) {
     const D = group?.userData.drops; if (!D?.length) return null
     const cv = api.NN.renderer?.domElement; if (!cv) return null
     const r = cv.getBoundingClientRect(); let best = null, bd = 18
-    D.forEach((x, k) => { if (x.done === false) return; pb.copy(x.at).add(new THREE.Vector3(0, 1.4, 0)).project(api.NN.camera); if (pb.z > 1) return; const sx = r.left + ((pb.x + 1) / 2) * r.width, sy = r.top + ((1 - pb.y) / 2) * r.height, e = Math.hypot(sx - cx, sy - cy); if (e < bd) { bd = e; best = { k, b: x.ref, gone: x.gone } } })
+    D.forEach((x, k) => { if (x.done === false || !x.m.visible) return; pb.copy(x.at).add(new THREE.Vector3(0, 1.4, 0)).project(api.NN.camera); if (pb.z > 1) return; const sx = r.left + ((pb.x + 1) / 2) * r.width, sy = r.top + ((1 - pb.y) / 2) * r.height, e = Math.hypot(sx - cx, sy - cy); if (e < bd) { bd = e; best = { k, b: x.ref, gone: x.gone } } })
     return best
   }
   function bombFocus(k) { const D = group?.userData.drops; if (!D) return; D.forEach((x, i) => { if (x.done !== false) x.m.scale.setScalar(i === k ? 1.9 : 1) }) }
@@ -608,5 +618,9 @@ export function initHeat25(api, o = {}) {
     }
     return { seat: seatRes, wall: wallRes }
   }
-  return { cancel, bombAt, bombFocus, gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
+  // (6 Nov) the bombs by where they were hit: 'all', 'home' (at Oracle) or 'away'; kept across players
+  let whereOn = 'all'
+  function applyWhere() { for (const x of group?.userData.drops ?? []) { const on = whereOn === 'all' || (whereOn === 'home') === x.home; x.m.visible = on; if (x.line) x.line.visible = on } }
+  const bombsWhere = (w) => { whereOn = w; applyWhere() }
+  return { cancel, bombAt, bombFocus, bombsWhere, bombCounts: () => { const D = group?.userData.drops ?? []; return { all: D.length, home: D.filter((x) => x.home).length, away: D.filter((x) => !x.home).length, shown: D.filter((x) => x.m.visible).length } }, gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
 }

@@ -1047,7 +1047,7 @@ export async function build(root, api, U) {
 #cp .c25 .hm .htr b{font-weight:400;color:var(--tx);font-size:calc(11px * var(--ts))}#cp .c25 .hm .htr span{color:var(--dim);font-size:calc(10px * var(--ts));line-height:1.4}#cp .c25 .hm .htr.nb b{color:var(--dim)}#cp .c25 .hm .htr.me b{color:var(--acc)}
 #cp .c25 .hm .hwho{color:var(--tx);cursor:pointer;pointer-events:auto;text-decoration:underline;text-decoration-color:var(--dim)}#cp .c25 .hm .hwho:hover,#cp .c25 .hm .hwho:focus-visible{color:var(--acc)}
 #cp .c25 .hm .hws{flex:1 1 auto;min-width:0;display:flex;justify-content:space-between;align-items:center;gap:8px;pointer-events:auto;cursor:pointer;padding:4px 8px;font-size:calc(13px * var(--ts));color:var(--tx);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}#cp .c25 .hm .hws .cv{flex:none;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--acc)}#cp .c25 .hm .hws.on .cv{border-top:0;border-bottom:6px solid var(--acc)}
-#cp .c25 .hm .hwl[hidden]{display:none}#cp .c25 .hm .hwl{display:grid;max-height:46vh;overflow:auto;pointer-events:auto;border:1px solid var(--acc);margin:-4px 0 8px;background:var(--k)}#cp .c25 .hm .hwi{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .hm .hwi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts))}#cp .c25 .hm .hwi:hover,#cp .c25 .hm .hwi:focus-visible{background:color-mix(in srgb,var(--acc) 22%,transparent);outline:none}#cp .c25 .hm .hwi.on{color:var(--acc)}
+#cp .c25 .hm .hwl[hidden]{display:none}#cp .c25 .hm .hwi[hidden]{display:none}#cp .c25 .hm .hwq{position:sticky;top:0;z-index:1;font:inherit;font-size:12px;letter-spacing:.08em;background:var(--k);color:var(--tx);border:0;border-bottom:1px solid var(--acc);padding:7px 8px;outline:none;text-transform:uppercase}#cp .c25 .hm .hwq::placeholder{color:var(--dim,#8a8f99)}#cp .c25 .hm .hwl{display:grid;max-height:46vh;overflow:auto;pointer-events:auto;border:1px solid var(--acc);margin:-4px 0 8px;background:var(--k)}#cp .c25 .hm .hwi{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .hm .hwi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts))}#cp .c25 .hm .hwi:hover,#cp .c25 .hm .hwi:focus-visible{background:color-mix(in srgb,var(--acc) 22%,transparent);outline:none}#cp .c25 .hm .hwi.on{color:var(--acc)}
 #cp .c25 .hm .hbg.one{border-color:var(--acc);color:var(--acc)}#cp .c25 .hm .lpr2 b i.up{color:var(--tx)}
 #cp .c25 .hm .hseat{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin:2px 0 6px;font-size:calc(11px * var(--ts))}#cp .c25 .hm .hseat span:first-child{color:var(--dim)}#cp .c25 .hm .hseat b{font-weight:400;color:var(--acc)}#cp .c25 .hm .hseat .bt{pointer-events:auto;cursor:pointer;padding:1px 6px}
 #cp .c25 .sfhd #c25rt{justify-self:end;grid-row:1;grid-column:1;position:relative;z-index:1;pointer-events:auto;cursor:pointer;font-size:calc(12px * var(--ts));padding:2px 8px;margin-bottom:-22px}
@@ -1167,7 +1167,7 @@ export async function build(root, api, U) {
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
   const lp = landingParty(api, R.balls, { vox: true, dim: '#8a8f99', name: (b) => pname(b.b)?.[0]?.split(' ').slice(-1)[0] ?? '' }); lp.warm(); const se = seatSeance25(api), sc = shotCaller(api, R.balls, { vox: true, dim: '#8a8f99' })
-  let show = ['lp', 'se', 'rc', 'sm', 'my'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
+  let show = ['lp', 'se', 'rc', 'sm'].includes(q.get('show')) ? q.get('show') : 'hist', lpKey = '', lpList = [], seKey = '', seRes = null, scRes = null, scSel = 0, shotPlayS = null
   if (q.get('show') === 'sc') mode = 'shot'
   const FEAT = [['#c25lp', 'lp'], ['#c25se', 'se'], ['#c25my', 'my'], ['#c25rc', 'rc'], ['#c25sm', 'sm']]
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
@@ -1454,7 +1454,7 @@ export async function build(root, api, U) {
   const step = (d) => { if (mode !== 'replay' || !balls.length) return; idx = (idx + d + balls.length) % balls.length; applyBall(balls[idx]); paintChooser(); sound.play('move') }
   // the ball's buttons (1 Nov, night: "landing party and seat seance are buttons on specific balls - both in deja vu and dojo")
   const BALL_WHY = { lp: 'the real Oracle home runs most like this one, as pins where they came down', se: 'hundreds of ghosts of this flight, and the seat they come down in', my: 'your seat, and the real home runs that came down near it', hm: 'how hard it is to get a ball out to each part of Oracle tonight, or how a hitter of your choosing would do here' }
-  const ballBtns = () => atOracle ? [['lp', 'LANDING PARTY', 'L'], ['se', 'SEAT SEANCE', 'G'], ...(mode === 'replay' ? [] : [['my', 'MY SEAT', '']])].map(([k, l, key]) => `<span class="bt ball${show === k ? ' on' : ''}" data-show="${k}" title="${l}${key ? ` (${key})` : ''}: ${BALL_WHY[k]}">${l}</span>`).join('') : ''
+  const ballBtns = () => atOracle ? [['lp', 'LANDING PARTY', 'L'], ['se', 'SEAT SEANCE', 'G'], ].map(([k, l, key]) => `<span class="bt ball${show === k ? ' on' : ''}" data-show="${k}" title="${l}${key ? ` (${key})` : ''}: ${BALL_WHY[k]}">${l}</span>`).join('') : ''
   const wireBall = (el) => el.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => { if (!uiReady) return; pressEl(b); sound.play('move'); setShow(b.dataset.show); paintChooser() }))
   const nightName = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
   function paintChooser() {
@@ -2149,6 +2149,7 @@ export async function build(root, api, U) {
   // keeps it off. So a normal night is 61 F and calm at the ball, and BLAST RADIUS opens on it; the AIR and WIND controls still change it, live
   const NORMAL_NIGHT = { temp: 61, wind: 0, xwind: 0 }
   let stage = null, heat = null, hmKey = '', hmWho = '', hmLooked = false, hmMetric = 'hard', hmPin = null, hmOver = null, hmTick = 0, hmSeat = null, hmList = false
+  let hmHA = 'all' // (6 Nov) BLAST RADIUS with a player: the bombs ALL, AT ORACLE or AWAY
   const hmPeople = (() => { let L = null; return () => { if (L) return L; const n = new Map(), h = new Map(); for (const b of R.balls) if (b.ft >= 335 || b.hr) { n.set(String(b.b), (n.get(String(b.b)) ?? 0) + 1); if (b.hr) h.set(String(b.b), (h.get(String(b.b)) ?? 0) + 1) } L = [...n.entries()].filter(([, k]) => k >= 12).map(([id, k]) => ({ id, k, hr: h.get(id) ?? 0, name: hmName(id) })).sort((a, b) => b.k - a.k).slice(0, 60); return L } })()
   const hmName = (id) => (pname(id)?.[0] ?? 'BATTER ' + id).toUpperCase()
   const airWords = (a) => `${a.temp}°F, ${a.wind ? `${Math.abs(a.wind)} MPH ${a.wind > 0 ? 'OUT' : 'IN'}` : 'CALM'}${a.xwind ? `, ${Math.abs(a.xwind)} ACROSS` : ''}, ${a.hand > 0 ? 'A RIGHTY' : 'A LEFTY'}`
@@ -2167,7 +2168,7 @@ export async function build(root, api, U) {
     // a player (4 Nov, evening; the red team: say what the numbers are out of, and no percent from a handful)
     if (c.kind === 'wedge') { const n = d.n5[c.i], out = d.out5[c.i]; return { place: placeOf(c), main: `${pc1(d.field[c.i])} OF THEIR BALLS GO THIS WAY`, sub: n ? `${out} OF THE ${n} HOME RUN${n === 1 ? '' : 'S'} THEY HIT THIS WAY WOULD GO OUT HERE TONIGHT` : 'NONE OF THEIR HOME RUNS WENT THIS WAY' } }
     const sh = d.seat[c.i][c.j], k = d.hrSeat[c.i][c.j]
-    return { place: placeOf(c), main: sh ? `${pc1(sh)} OF THEIR LIKELY LANDINGS` : 'NOT WHERE THEY LAND THEM', sub: `FROM ALL ${d.n} OF THEIR DEEP BALLS, FLOWN HERE AND A LITTLE TO EACH SIDE. ${k ? `${k} OF THEIR REAL HOME RUNS COME${k === 1 ? 'S' : ''} DOWN HERE` : 'NONE OF THEIR REAL HOME RUNS COMES DOWN HERE'}.` }
+    return { place: placeOf(c), main: sh ? `${pc1(sh)} OF THEIR LIKELY LANDINGS` : '' /* (6 Nov: nothing said for a seat they do not land in) */, sub: `FROM ALL ${d.n} OF THEIR DEEP BALLS, FLOWN HERE AND A LITTLE TO EACH SIDE. ${k ? `${k} OF THEIR REAL HOME RUNS COME${k === 1 ? 'S' : ''} DOWN HERE` : 'NONE OF THEIR REAL HOME RUNS COMES DOWN HERE'}.` }
   }
   // the pointed-at box: what is under the pointer, and against the one kept (a click keeps one; a click on it again lets it go)
   const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], dayOf = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d ?? '')); return m ? `${MON[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : String(d ?? '') }
@@ -2177,7 +2178,7 @@ export async function build(root, api, U) {
     if (hmBomb?.b) { const B = hmBomb.b, html = `<b>${hmName(B.b)} · ${dayOf(B.d)}</b><em>${B.ft} FT${B.park && B.park !== 'SF' ? ` AT ${B.park}` : ' AT ORACLE'}</em><i>${hmBomb.gone ? 'IT GOES OUT HERE TONIGHT' : 'IT STAYS IN HERE TONIGHT'} · CLICK TO WATCH IT IN DINGER DÉJÀ-VU</i>`; if (box.innerHTML !== html) box.innerHTML = html; return }
     const w = cellWords(hmOver), p = cellWords(hmPin)
     let html = w ? `<b>${w.place}</b><em>${w.main}</em><i>${w.sub}</i>` : `<i>${hmWho ? 'POINT AT THE FIELD OR THE SEATS, OR AT A BOMB FOR ITS DAY. CLICK A BOMB TO WATCH IT IN DINGER DÉJÀ-VU.' : 'POINT AT THE FIELD OR THE SEATS.'}</i>`
-    if (p) { const diff = w && p.ev != null && w.ev != null && hmOver !== hmPin ? w.ev - p.ev : null; html += `<span class="hpin">KEPT: ${p.place}, ${p.main}${diff != null ? ` · THIS ONE TAKES ${Math.abs(diff)} MPH ${diff > 0 ? 'MORE' : diff < 0 ? 'LESS' : ''}${diff === 0 ? 'THE SAME' : ''}` : ''}</span>` }
+    if (p) { const diff = w && p.ev != null && w.ev != null && hmOver !== hmPin ? w.ev - p.ev : null; html += `<span class="hpin">KEPT: ${p.place}${p.main ? `, ${p.main}` : ""}${diff != null ? ` · THIS ONE TAKES ${Math.abs(diff)} MPH ${diff > 0 ? 'MORE' : diff < 0 ? 'LESS' : ''}${diff === 0 ? 'THE SAME' : ''}` : ''}</span>` }
     if (box.innerHTML !== html) box.innerHTML = html
   }
   function paintHeat() {
@@ -2190,22 +2191,22 @@ export async function build(root, api, U) {
     // (4 Nov, night, Andrew: "The 'who' selector feels way out of place vibes wise with this white drop down"): a pixel button that opens a list in the panel
     const cur0 = people.find((p) => p.id === who)
     const pick = `<div class="hmp">WHO <span class="bt hws${hmList ? ' on' : ''}" id="c25hmw" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="${hmList}">${cur0 ? cur0.name : 'EVERYONE'}<i class="cv"></i></span></div>` +
-      `<div class="hwl" role="listbox"${hmList ? '' : ' hidden'}>${[{ id: '', name: 'EVERYONE', k: null }, ...people].map((p) => `<span class="hwi${p.id === who ? ' on' : ''}" role="option" tabindex="0" data-who="${p.id}">${p.name}${p.k != null ? `<em>${p.k} BALLS · ${p.hr} HR</em>` : ''}</span>`).join('')}</div>`
-    const tabs = who ? '' : `<div class="hmt"><span class="bt${hmMetric === 'hard' ? ' on' : ''}" data-hm="hard">HOW HARD</span><span class="bt${hmMetric === 'many' ? ' on' : ''}" data-hm="many">HOW MANY</span></div>`
+      `<div class="hwl" role="listbox"${hmList ? '' : ' hidden'}><input class="hwq" placeholder="SEARCH PLAYERS" aria-label="search players" autocomplete="off" spellcheck="false">${[{ id: '', name: 'EVERYONE', k: null }, ...people].map((p) => `<span class="hwi${p.id === who ? ' on' : ''}" role="option" tabindex="0" data-who="${p.id}" data-name="${String(p.name).toUpperCase().replace(/"/g, '')}">${p.name}${p.k != null ? `<em>${p.k} BALLS · ${p.hr} HR</em>` : ''}</span>`).join('')}</div>`
+    const tabs = who ? `<div class="hmt hha">${[['all', 'ALL'], ['home', 'AT ORACLE'], ['away', 'AWAY']].map(([k, t]) => `<span class="bt${hmHA === k ? ' on' : ''}" data-ha="${k}" role="button" tabindex="0">${t}</span>`).join('')}</div>` : `<div class="hmt"><span class="bt${hmMetric === 'hard' ? ' on' : ''}" data-hm="hard">HOW HARD</span><span class="bt${hmMetric === 'many' ? ' on' : ''}" data-hm="many">HOW MANY</span></div>`
     const stops = (GRADS.find((g) => g.c === lab.BG) ?? GRADS[0]).stops
     const key2 = (_, lo, hi) => `<div class="hmk"><span>${lo}</span><i style="background:linear-gradient(90deg,${stops.join(',')})"></i><span>${hi}</span></div>`
     let body = ''
     if (!heat.gridReady()) { // (the landing grid first, a few wedges at a time, while the page keeps drawing)
       clearTimeout(hmTick); const click = () => { if (heat.gridReady() || show !== 'hm') return; sound.play('geiger', { vol: 0.22 }); hmTick = setTimeout(click, 40 + Math.random() * 160) }; click()
       heat.gridAsync(() => { clearTimeout(hmTick); if (show === 'hm') { hmKey = ''; paintHeat() } }, 24)
-      hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="lph">WORKING OUT TONIGHT'S AIR ACROSS THE PARK...</div></div>`; hmKey = ''
+      hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="lph">WORKING OUT TONIGHT'S AIR ACROSS THE PARK...</div></div>`; hmKey = ''; wireWho()
       return
     }
     if (!who && hmMetric !== 'many' && !heat.ready()) { // (worked out a few wedges at a time; the panel says so and fills in when it is done)
       // (the surprise round: a Geiger counter clicks, unevenly, while it works)
       clearTimeout(hmTick); const click = () => { if (heat.ready() || show !== 'hm') return; sound.play('geiger', { vol: 0.22 }); hmTick = setTimeout(click, 40 + Math.random() * 160) }; click()
       heat.hardAsync(() => { clearTimeout(hmTick); if (show === 'hm') { hmKey = ''; paintHeat() } setTimeout(() => heat.hitters(), 700) }) // (the hitter list too, so picking one is quick)
-      hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="lph">WORKING OUT TONIGHT'S AIR ACROSS THE PARK...</div></div>`; hmKey = ''
+      hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="lph">WORKING OUT TONIGHT'S AIR ACROSS THE PARK...</div></div>`; hmKey = ''; wireWho()
       return
     }
     const zoneRows = (fn) => ZONES.map(([a, b, name]) => { const r = { name, n: 0, out: 0, f: 0 }; for (let i = 0; i < heat.N; i++) { const m = heat.mid(i); if (m >= a && m < b) fn(r, i) } return r })
@@ -2259,7 +2260,7 @@ export async function build(root, api, U) {
       if (P.best) { const c = P.best.cove ? { what: 'cove', line: 'MCCOVEY COVE', short: 'THE COVE' } : se.seatAt(P.best.c, 'STANDS'); hmSeat = { at: P.best.c, call: c } }
       const seatLine = hmSeat ? `<div class="hseat"><span>BEST SEAT TO CATCH ONE</span><b>${hmSeat.call.what === 'seat' ? `SEC ${hmSeat.call.sec} · ROW ${hmSeat.call.row}` : hmSeat.call.what === 'cove' ? 'IN A KAYAK IN THE COVE' : hmSeat.call.line}</b></div>` : ''
       body = `<div class="hpl"><canvas class="hpf"></canvas><div><b class="t1">${Ty.name}</b><i>${Ty.say}</i>${alone ? '<span class="hbg one" title="nobody else in the set is this type">THE ONLY ONE</span>' : ''}${Ty.badges.map((x) => `<span class="hbg" title="${badgeDesc[x] ?? ''}">${x}</span>`).join('')}</div></div>` + seatLine +
-        `<div class="lph">${Rd.n} BALLS OF 335 FT AND UP SINCE JULY 2023, ANY PARK; ${P.hr} WENT OUT. THE MAP: ALL ${Rd.n} FLOWN HERE TONIGHT. THE BOMBS: THE ${P.hr} HOME RUNS, GREEN FOR THE ${P.hrOut} THAT GO OUT HERE. MOSTLY ${Math.round(Rd.ev25)} TO ${Math.round(Rd.ev75)} MPH, ${Math.round(Rd.la25)}° TO ${Math.round(Rd.la75)}°${P.hr ? `; HOME RUNS ${Math.round(Rd.hrFt)} FT TYPICAL, ${Math.round(Rd.hrMax)} THE LONGEST` : ''}.</div>` +
+        `<div class="lph">${Rd.n} BALLS OF 335 FT AND UP SINCE JULY 2023, ANY PARK; ${P.hr} WENT OUT. THE MAP: ALL ${Rd.n} FLOWN HERE TONIGHT. THE BOMBS: THE ${P.hr} HOME RUNS, GREEN AND ORANGE FOR THE ONES HIT AT ORACLE, THE HOME TEAM'S COLORS FOR THE REST; ${P.hrOut} GO OUT HERE (THEIR TRAILS ARE GREEN). MOSTLY ${Math.round(Rd.ev25)} TO ${Math.round(Rd.ev75)} MPH, ${Math.round(Rd.la25)}° TO ${Math.round(Rd.la75)}°${P.hr ? `; HOME RUNS ${Math.round(Rd.hrFt)} FT TYPICAL, ${Math.round(Rd.hrMax)} THE LONGEST` : ''}.</div>` +
         `<div class="lph" style="margin-top:6px">WHERE THEY HIT IT <span class="lg">· GREY ALL, BONE HR</span></div>` + bars(Rd.dirs, Rd.hrDirs, -45, 45, 5, `LEFT FIELD${sideL}`, `${sideR}RIGHT FIELD`) +
         `<div class="lph">EXIT SPEED</div>` + bars(Rd.evs, Rd.hrEvs, 88, 120, 2, '88 MPH', '120') +
         `<div class="lph">LAUNCH ANGLE</div>` + bars(Rd.las, Rd.hrLas, 10, 50, 2.5, '10°', '50°') +
@@ -2267,13 +2268,23 @@ export async function build(root, api, U) {
         zs.map((r) => `<div class="lpr2"><span>${r.name}</span><b>${pc(r.f)} <i class="${r.vs > 0 ? 'up' : ''}">${r.vs > 0 ? '+' : r.vs < 0 ? '-' : ''}${Math.abs(r.vs)}</i> <i>${r.n ? `${r.out} OF ${r.n} HR` : 'NO HR'}</i></b></div>`).join('') + key2(null, 'FEWEST', 'MOST')
     }
     hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="hmo"></div>${body}</div>`
-    const sel = hb.querySelector('#c25hmw'), flip = (open = !hmList) => { hmList = open; sound.play('move'); const L = hb.querySelector('.hwl'); if (L) L.hidden = !hmList; sel?.classList.toggle('on', hmList); sel?.setAttribute('aria-expanded', String(hmList)); if (hmList) hb.querySelector('.hwi.on, .hwi')?.focus(); else sel?.focus() }
-    sel?.addEventListener('click', () => { pressEl(sel); flip() })
-    sel?.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); flip() } })
-    hb.querySelectorAll('.hwi').forEach((it, k, all) => it.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); all[Math.max(0, Math.min(all.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1)))].focus() } if (e.key === 'Escape') { e.stopPropagation(); flip(false) } }))
-    const forget = () => { hmBomb = null; hmOver = null; hmPin = null; E('#c25h')?.style.setProperty('cursor', '') } // (red team 5)
-    hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmWho = ''; forget(); hmKey = ''; paintHeat() }))
-    hb.querySelectorAll('[data-who]').forEach((b) => { const go = () => { sound.play('pick'); hmList = false; hmWho = b.dataset.who; forget(); hmKey = ''; paintHeat() }; b.addEventListener('click', go); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } }) })
+    wireWho()
+    // the WHO button, its search and list, and the tabs: wired in every state of the panel (6 Nov: while the air was being worked out the panel showed them dead)
+    function wireWho() {
+      const sel = hb.querySelector('#c25hmw'), flip = (open = !hmList) => { hmList = open; sound.play('move'); const L = hb.querySelector('.hwl'); if (L) L.hidden = !hmList; sel?.classList.toggle('on', hmList); sel?.setAttribute('aria-expanded', String(hmList)); if (hmList) { const q = hb.querySelector('.hwq'); if (q) { q.value = ''; filt(''); q.focus() } else hb.querySelector('.hwi.on, .hwi')?.focus() } else sel?.focus() }
+      const rows = () => [...hb.querySelectorAll('.hwi')].filter((r) => !r.hidden), filt = (v) => { const q = v.trim().toUpperCase(); hb.querySelectorAll('.hwi').forEach((r) => { r.hidden = !!q && !(r.dataset.name ?? '').includes(q) }) }
+      sel?.addEventListener('click', () => { pressEl(sel); flip() })
+      sel?.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); flip() } })
+      // (6 Nov, Andrew: "you should be able to search for players"): typing narrows the list; Enter takes the first one left, Down walks into the list
+      const hq = hb.querySelector('.hwq')
+      hq?.addEventListener('input', () => filt(hq.value))
+      hq?.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); rows()[0]?.click() } else if (e.key === 'ArrowDown') { e.preventDefault(); rows()[0]?.focus() } else if (e.key === 'Escape') { e.preventDefault(); flip(false) } })
+      hb.querySelectorAll('.hwi').forEach((it) => it.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); const all = rows(), k = all.indexOf(it), n = k + (e.key === 'ArrowDown' ? 1 : -1); if (n < 0) hq?.focus(); else all[Math.min(all.length - 1, n)]?.focus() } if (e.key === 'Escape') { e.stopPropagation(); flip(false) } }))
+      const forget = () => { hmBomb = null; hmOver = null; hmPin = null; E('#c25h')?.style.setProperty('cursor', '') } // (red team 5)
+      hb.querySelectorAll('[data-ha]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmHA = b.dataset.ha; heat.bombsWhere(hmHA); hb.querySelectorAll('[data-ha]').forEach((x) => x.classList.toggle('on', x === b)) }))
+      hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmWho = ''; forget(); hmKey = ''; paintHeat() }))
+      hb.querySelectorAll('[data-who]').forEach((b) => { const go = () => { sound.play('pick'); hmList = false; hmWho = b.dataset.who; forget(); hmKey = ''; paintHeat() }; b.addEventListener('click', go); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } }) })
+    }
     // the portrait (the same faces as the batter box: the real photo, else the generated one), in the page's art style
     const pf = hb.querySelector('.hpf')
     if (pf && who) { try { const rec = facesRaw[who], gen = !rec && hasGen ? genericFace('composite', who) : null, src = rec ? faceSource(rec) : gen ? gen.src : drawBust(160), cs = cs0(); drawFace(pf, src, optOf('A', mix.A).canvas ?? 'hedcut', 76, 76, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }) } catch (err) { void err } }
