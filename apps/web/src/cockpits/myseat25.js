@@ -37,11 +37,12 @@ export function initMySeat25(api, balls, o = {}) {
     const inside = all.filter((x) => x.ft <= r)
     return { inside, closest: inside.length >= k ? inside : all.slice(0, Math.max(k, inside.length)) }
   }
-  function clear() { if (group) { scene.remove(group); group = null } }
+  function clear() { if (group) { scene.remove(group); for (const r of group.userData.own ?? []) r.dispose?.(); group = null } } // (red team 2.3)
   function show(at, list, color = ORANGE.o) {
     clear()
     group = new THREE.Group()
-    const cube = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), lam = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true })
+    const cube = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), own = [cube], lam = (c) => { const m = new THREE.MeshLambertMaterial({ color: c, flatShading: true }); own.push(m); return m }
+    group.userData.own = own
     const put = (cells, c, s) => { const m = new THREE.InstancedMesh(cube, lam(c), cells.length); cells.forEach((p, i) => m.setMatrixAt(i, m4.makeScale(s, s, s).setPosition(p))); group.add(m) }
     // the chair: a seat, a back and a flag on a pole
     const C = [], V = 0.25, home = window.__cp.toWorld([0, 0, 0]), face = Math.atan2(home.x - at.x, home.z - at.z), fx = Math.sin(face), fz = Math.cos(face), sx = fz, sz = -fx
@@ -53,11 +54,10 @@ export function initMySeat25(api, balls, o = {}) {
     const flag = voxText(THREE, 'YOU', { px: 0.22, color: '#141414', back: color }); flag.position.copy(P(2.6 * V, -2.5 * V, 0.5 + 15 * V)); keepReadable(api, flag, 120, 0.6, 2.2, { prio: 6 }); group.add(flag)
     // the ring, 10 ft round
     const ring = []; for (let a = 0; a < 360; a += 8) ring.push(new THREE.Vector3(at.x + Math.sin((a * Math.PI) / 180) * 10 * FT, at.y + 0.3, at.z + Math.cos((a * Math.PI) / 180) * 10 * FT)); put(ring, color, 0.22)
-    // a stake and a number where each came down
-    list.forEach((x, i) => {
-      const p = x.b._seatAt, top = new THREE.Vector3(p.x, p.y + 4, p.z), n = voxText(THREE, String(i + 1), { px: 0.5, color, back: '#141414' })
-      n.position.copy(top); keepReadable(api, n, 140, 0.5, 1.6, { prio: 2 }); group.add(n, voxPost(THREE, p, top, { px: 0.3, gap: 0.8, color }))
-    })
+    // a stake where each came down, topped with a plain block (6 Nov, red team: no numbers in the park; the panel lists them)
+    const caps = []
+    list.forEach((x) => { const p = x.b._seatAt, top = new THREE.Vector3(p.x, p.y + 4, p.z); caps.push(top.clone().add(new THREE.Vector3(0, 0.4, 0))); group.add(voxPost(THREE, p, top, { px: 0.3, gap: 0.8, color })) })
+    if (caps.length) put(caps, color, 0.8)
     scene.add(group)
   }
   return { landings, near, show, clear, count: () => oracle.length, done: () => done, group: () => group }

@@ -16,7 +16,7 @@ export const RUNNER_LOOKS = [
 const BONE = '#e8e1c9', FT = 0.3048
 // (5 Nov, Andrew: "I like ghosts on base but let's give them giants hats too"): a black cap, an orange SF patch on the front, the bill out over the eyes
 const WISP = '#e6ecff', WISP2 = '#d5ddf5'
-const GHOST = () => { const c = [], W = '#f4f3ee', K = '#16181b', O = '#fd5a1e'; for (let y = 2; y < 9; y++) { const r = y > 6 ? 1 : 2; for (let x = -r; x <= r; x++) for (let z = -1; z <= 1; z++) c.push([x, y, z, W]) }
+const GHOST = () => { const c = [], W = '#f4f3ee', K = '#16181b', O = '#ff7a00'; for (let y = 2; y < 9; y++) { const r = y > 6 ? 1 : 2; for (let x = -r; x <= r; x++) for (let z = -1; z <= 1; z++) c.push([x, y, z, W]) }
   // the hem: a ragged row, then three tails that thin out and drift
   for (let x = -2; x <= 2; x++) c.push([x, 1, 0, WISP]); c.push([-1, 1, 1, WISP], [1, 1, -1, WISP])
   for (const [x, z] of [[-2, 0], [0, 1], [2, -1]]) { c.push([x, 0, z, WISP2]); c.push([x + (x < 0 ? -1 : x > 0 ? 1 : 0), -1, z, WISP2]) }
@@ -56,7 +56,7 @@ export function initStage25(api, o = {}) {
   function sync({ ball, mode }) {
     const L = look()
     if (L.gr === 1 || !ball || mode !== 'replay') { if (crew || runs.length) clearCrew(); return }
-    const key = [ball.d, ball.b, ball.ev, L.gr].join()
+    const key = [ball.d, ball.b, ball.ev, ball.r1, ball.r2, ball.r3, L.gr].join() // (red team 2.8)
     if (key === crewKey) return
     clearCrew(); crewKey = key
     const on = [[1, ball.r1], [2, ball.r2], [3, ball.r3]].filter(([, x]) => x).map(([k]) => k)

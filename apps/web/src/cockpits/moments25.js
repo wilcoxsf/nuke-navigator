@@ -25,13 +25,13 @@ export function initMoments25(api, col, fx, o = {}) {
     if (looks[0]) looks[0].visible = true
     const cam = api.NN.camera.position
     g.rotation.y = Math.atan2(cam.x - at.x, cam.z - at.z) // the model's front (+z) toward the camera
-    g.position.copy(at); g.userData.at = at.clone(); g.userData.looks = looks
+    g.position.copy(at); g.userData.at = at.clone(); g.userData.looks = looks; g.userData.ownMat = true // (red team 2.4: the clone's own materials)
     scene.add(g); live.add(g)
     return g
   }
   const look = (g, i) => g.userData.looks.forEach((c, k) => { if (c) c.visible = k === i })
   // (red team 2: what a moment made is freed when it goes, played out or cut off; the glove, sea lion and ball models are clones of shared assets and are only removed)
-  const free = (g) => { if (!g?.userData?.owned) return; g.traverse((c) => { c.geometry?.dispose?.(); c.material?.dispose?.() }) }
+  const free = (g) => { if (g?.userData?.ownMat) { g.traverse((c) => { if (c.isMesh) [].concat(c.material).forEach((m) => m?.dispose?.()) }); return } if (!g?.userData?.owned) return; g.traverse((c) => { c.geometry?.dispose?.(); c.material?.dispose?.() }) }
   const kill = (g) => { scene.remove(g); live.delete(g); free(g) }
   // (red team 12: a sound due later only plays if its moment is still the one up)
   let gen = 0
@@ -166,14 +166,14 @@ export function initMoments25(api, col, fx, o = {}) {
     const base = toWorld([r * Math.sin(b), r * Math.cos(b), 0]), top = toWorld([r * Math.sin(b), r * Math.cos(b), 26])
     // the pole as a column of accent cubes (28 Oct, night: voxels everywhere) that bends like a tuning fork, more at the top
     const n = 30, ln = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: col().acc, flatShading: true, fog: false }), n), m4 = new THREE.Matrix4(), p = new THREE.Vector3()
-    scene.add(ln); live.add(ln)
+    ln.userData.owned = true; scene.add(ln); live.add(ln) // (red team 2.5: freed the same way when cut off)
     const side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion)
     o.sound?.('ring')
     run((t) => {
       const a = Math.sin(t * 34) * Math.exp(-2.2 * t) * 1.6
       for (let i = 0; i < n; i++) { const f = i / (n - 1); p.lerpVectors(base, top, f).addScaledVector(side, a * f * f); m4.makeScale(0.7, 0.9, 0.7).setPosition(p); ln.setMatrixAt(i, m4) }
       ln.instanceMatrix.needsUpdate = true
-      if (t > 2) { scene.remove(ln); ln.geometry.dispose(); ln.material.dispose(); live.delete(ln); return false }
+      if (t > 2) { kill(ln); return false }
       return true
     })
   }
@@ -298,7 +298,7 @@ export function initMoments25(api, col, fx, o = {}) {
   // ---- 5 Nov (Andrew, on the list of ten: "crater, dogpile, let's have an earthquake fault line split it, let's have it hit a dodger fan in the head and then he's
   // carried off on a stretcher, like pinball, like black hole too. Let's have one where it enters a portal too and then pops out somewhere else") ----
   const camSide = () => V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize()
-  const SHIRTS = ['#fd5a1e', '#16181b', '#efe6cf', '#fd5a1e', '#8a8f99', '#16181b'], SKIN = ['#e0b48a', '#c68e62', '#8d5a3b', '#f1c9a5']
+  const SHIRTS = ['#ff7a00', '#16181b', '#efe6cf', '#ff7a00', '#8a8f99', '#16181b'], SKIN = ['#e0b48a', '#c68e62', '#8d5a3b', '#f1c9a5']
   // a little fan, two cubes wide: shoes, pants, shirt, head, cap
   const fanCells = (shirt, skin, cap = '#16181b', pants = '#2a2d33') => { const c = []; for (const x of [0, 1]) { c.push([x, 0, 0, '#16181b'], [x, 1, 0, pants], [x, 2, 0, pants]); for (let y = 3; y <= 5; y++) c.push([x, y, 0, shirt]); c.push([x, 6, 0, skin], [x, 7, 0, skin], [x, 8, 0, cap]) } c.push([-1, 4, 0, shirt], [2, 4, 0, shirt], [0, 8, 1, cap], [1, 8, 1, cap]); return c }
   // BONK: it comes down on a Dodger fan's head, bounces off, stars go round, he keels over, and two medics carry him off on a stretcher
@@ -354,7 +354,7 @@ export function initMoments25(api, col, fx, o = {}) {
   // PINATA: a donkey pinata swings down on a rope, the ball comes back up and smashes it, candy rains down
   function pinata(at) {
     log.push('pinata'); hideBall(true)
-    const C = [], P = ['#fd5a1e', '#ffd23f', '#ff6fb5', '#5fd3ff', '#9a5cff']
+    const C = [], P = ['#ff7a00', '#ffd23f', '#ff6fb5', '#5fd3ff', '#9a5cff']
     for (let x = -4; x <= 3; x++) for (let y = 0; y <= 3; y++) C.push([x, y + 3, 0, P[(x + 4 + y) % 5]]) // the body, in fringe stripes
     for (const x of [-4, -3, 2, 3]) for (let y = 0; y < 3; y++) C.push([x, y, 0, P[(x + 9) % 5]]) // legs
     box(C, 3, 4, 7, 9, 0, 0, '#ffd23f'); box(C, 4, 6, 9, 10, 0, 0, '#ff6fb5'); C.push([6, 11, 0, '#ffd23f'], [4, 11, 0, '#ffd23f'], [5, 9, 1, '#16181b']) // neck, head, ears, eye
@@ -369,7 +369,7 @@ export function initMoments25(api, col, fx, o = {}) {
         smashed = true; g.visible = false; ball.visible = false; o.sound?.('kaboom')
         const L = []
         for (let i = 0; i < 40; i++) L.push({ at: top.clone().add(V(rnd(-3, 3), rnd(3, 8), rnd(-1, 1))), v: V(rnd(-7, 7), rnd(2, 9), rnd(-7, 7)), s: rnd(0.8, 1.5), life: 1.4, c: P[i % 5] })
-        for (let i = 0; i < 70; i++) L.push({ at: top.clone().add(V(rnd(-4, 4), rnd(4, 9), rnd(-4, 4))), v: V(rnd(-2, 2), rnd(-1, 3), rnd(-2, 2)), s: rnd(0.4, 0.7), life: rnd(1.8, 2.6), delay: rnd(0, 0.5), c: ['#ff3b6b', '#ffd23f', '#9dff00', '#5fd3ff', '#ffffff', '#ff8a00'][i % 6] })
+        for (let i = 0; i < 70; i++) L.push({ at: top.clone().add(V(rnd(-4, 4), rnd(4, 9), rnd(-4, 4))), v: V(rnd(-2, 2), rnd(-1, 3), rnd(-2, 2)), s: rnd(0.4, 0.7), life: rnd(1.8, 2.6), delay: rnd(0, 0.5), c: ['#ff3b6b', '#ffd23f', '#9a5cff', '#5fd3ff', '#ffffff', '#ff7a00'][i % 6] })
         cubes(L, { g: 14 })
       }
       if (smashed) rope.position.y += (t - 1.15) * 30 * 0.016
@@ -384,13 +384,13 @@ export function initMoments25(api, col, fx, o = {}) {
     const H = 26, LV = 14, rings = []
     for (let j = 0; j < LV; j++) { const y = (j / LV) * H, r = 1 + (j / LV) * 6.5, C = []; ring2(C, r, 0, j % 3 ? '#b9bcc2' : '#e8e1c9'); const g = vox(C, 0.9, at.clone().add(V(0, y, 0))); g.scale.setScalar(0.01); rings.push({ g, y }) }
     const ball = ballAt(at.clone().add(V(0, 1, 0))), deb = []
-    for (let i = 0; i < 18; i++) deb.push({ a: rnd(0, 6.3), y: rnd(0, H * 0.8), r: rnd(2, 7), g: vox([[0, 0, 0, ['#5a3a1e', '#8a8f99', '#c9b79a', '#fd5a1e'][i % 4]]], rnd(0.6, 1.1), at.clone()) })
+    for (let i = 0; i < 18; i++) deb.push({ a: rnd(0, 6.3), y: rnd(0, H * 0.8), r: rnd(2, 7), g: vox([[0, 0, 0, ['#5a3a1e', '#8a8f99', '#c9b79a', '#ff7a00'][i % 4]]], rnd(0.6, 1.1), at.clone()) })
     run((t) => {
       const up = ease(t / 0.6), down = t > 3.3 ? 1 - ease((t - 3.3) / 0.5) : 1
       rings.forEach((R, j) => { R.g.scale.setScalar(Math.max(0.01, up * down)); R.g.rotation.y = t * (6 + j * 0.4); R.g.position.x = at.x + Math.sin(t * 2 + j * 0.4) * 0.8 * j / LV * 3; R.g.position.y = at.y + R.y * up })
       deb.forEach((d) => { d.a += 0.12; const r = d.r * up * down; d.g.position.set(at.x + Math.cos(d.a) * r, at.y + d.y * up + Math.sin(t * 3 + d.a) * 1.5, at.z + Math.sin(d.a) * r); d.g.visible = down > 0.05 })
       if (t < 2.5) { const h = Math.min(1, t / 2.5), a = t * 9; ball.position.set(at.x + Math.cos(a) * (1 + h * 5), at.y + 1 + h * H * 0.85, at.z + Math.sin(a) * (1 + h * 5)) }
-      else { const k = (t - 2.5); ball.position.y += 70 * k * 0.016; ball.position.x += 25 * 0.016; if (k > 1) ball.visible = false }
+      else { const k = (t - 2.5), a = 2.5 * 9; ball.position.set(at.x + Math.cos(a) * 6 + 25 * k, at.y + 1 + H * 0.85 + 35 * k * k + 8 * k, at.z + Math.sin(a) * 6); if (k > 1) ball.visible = false }
       if (t > 3.9) { rings.forEach((R) => kill(R.g)); deb.forEach((d) => kill(d.g)); kill(ball); return false }
       return true
     })
@@ -402,7 +402,7 @@ export function initMoments25(api, col, fx, o = {}) {
     const C = [], B = '#6b4a2b'
     for (let y = 0; y <= 6; y++) { const r = y > 4 ? 1 : 2; for (let x = -r; x <= r; x++) C.push([x, y, 0, B], [x, y, -1, B]) }
     C.push([-1, 5, 1, '#16181b'], [1, 5, 1, '#16181b'], [0, 4, 1, '#ff8fb0'], [0, 3, 1, '#f4f2ea'], [-2, 2, 1, '#ff8fb0'], [2, 2, 1, '#ff8fb0'])
-    const H = []; for (let x = -2; x <= 2; x++) for (let z = -2; z <= 1; z++) H.push([x, 7, z, '#16181b']); for (let x = -1; x <= 1; x++) H.push([x, 8, 0, '#16181b'], [x, 8, -1, '#16181b']); H.push([0, 7, 2, '#16181b'], [1, 7, 2, '#16181b'], [-1, 7, 2, '#16181b'], [0, 8, 1, '#fd5a1e'], [2, 6, 0, '#16181b'], [2, 5, 0, '#16181b'])
+    const H = []; for (let x = -2; x <= 2; x++) for (let z = -2; z <= 1; z++) H.push([x, 7, z, '#16181b']); for (let x = -1; x <= 1; x++) H.push([x, 8, 0, '#16181b'], [x, 8, -1, '#16181b']); H.push([0, 7, 2, '#16181b'], [1, 7, 2, '#16181b'], [-1, 7, 2, '#16181b'], [0, 8, 1, '#ff7a00'], [2, 6, 0, '#16181b'], [2, 5, 0, '#16181b'])
     const hole = []; ring2(hole, 3, 0, '#16181b')
     const hg = vox(hole, 1.6, at.clone().add(V(0, 0.1, 0))), m = vox(C, 1.6, at.clone()), helmet = vox(H, 1.6, at.clone()); helmet.visible = false
     const ball = ballAt(at.clone().add(V(0, 20, 0)))
@@ -421,9 +421,9 @@ export function initMoments25(api, col, fx, o = {}) {
   // JACK-IN-THE-BOX: a box comes up out of the seat, the lid flips, a clown head springs out on a coil with the ball in its teeth
   function jack(at) {
     log.push('jack'); hideBall(true)
-    const BX = []; for (let x = -3; x <= 3; x++) for (let y = 0; y <= 5; y++) for (const z of [-3, 3]) BX.push([x, y, z, (x + y) % 2 ? '#fd5a1e' : '#16181b']); for (let z = -2; z <= 2; z++) for (let y = 0; y <= 5; y++) for (const x of [-3, 3]) BX.push([x, y, z, (z + y) % 2 ? '#ffd23f' : '#16181b'])
+    const BX = []; for (let x = -3; x <= 3; x++) for (let y = 0; y <= 5; y++) for (const z of [-3, 3]) BX.push([x, y, z, (x + y) % 2 ? '#ff7a00' : '#16181b']); for (let z = -2; z <= 2; z++) for (let y = 0; y <= 5; y++) for (const x of [-3, 3]) BX.push([x, y, z, (z + y) % 2 ? '#ffd23f' : '#16181b'])
     const LID = []; for (let x = -3; x <= 3; x++) for (let z = 0; z <= 6; z++) LID.push([x, 0, z, '#ffd23f'])
-    const HEAD = []; for (let x = -2; x <= 2; x++) for (let y = 0; y <= 4; y++) HEAD.push([x, y, 0, '#f4f2ea']); HEAD.push([-1, 3, 1, '#16181b'], [1, 3, 1, '#16181b'], [0, 2, 1, '#e4002b'], [-1, 1, 1, '#e4002b'], [0, 1, 1, '#e4002b'], [1, 1, 1, '#e4002b']); for (let x = -3; x <= 3; x++) HEAD.push([x, 5, 0, ['#ff3b6b', '#ffd23f', '#9dff00', '#5fd3ff', '#9a5cff', '#fd5a1e', '#ff3b6b'][x + 3]]); HEAD.push([-3, 4, 0, '#ffd23f'], [3, 4, 0, '#5fd3ff'])
+    const HEAD = []; for (let x = -2; x <= 2; x++) for (let y = 0; y <= 4; y++) HEAD.push([x, y, 0, '#f4f2ea']); HEAD.push([-1, 3, 1, '#16181b'], [1, 3, 1, '#16181b'], [0, 2, 1, '#e4002b'], [-1, 1, 1, '#e4002b'], [0, 1, 1, '#e4002b'], [1, 1, 1, '#e4002b']); for (let x = -3; x <= 3; x++) HEAD.push([x, 5, 0, ['#ff3b6b', '#ffd23f', '#9dff00', '#5fd3ff', '#9a5cff', '#ff7a00', '#ff3b6b'][x + 3]]); HEAD.push([-3, 4, 0, '#ffd23f'], [3, 4, 0, '#5fd3ff'])
     const box0 = vox(BX, 1, at.clone().add(V(0, -6, 0))), lid = vox(LID, 1, at.clone()), head = vox(HEAD, 1, at.clone()), coils = []
     for (let i = 0; i < 10; i++) coils.push(vox([[-1, 0, 0, '#b9bcc2'], [0, 0, 0, '#b9bcc2'], [1, 0, 0, '#b9bcc2']], 0.9, at.clone()))
     const ball = ballAt(at.clone()); ball.visible = false
@@ -449,7 +449,7 @@ export function initMoments25(api, col, fx, o = {}) {
     run((t) => {
       lamps.forEach((l, i) => { l.visible = t < 0.6 + i * 0.5 })
       if (t > 1.9) { const k = t - 1.9, y = 1.4 + 6 * k * k * k + 8 * k; ball.position.copy(at).add(V(0, y, 0)); ball.rotation.y = t * 14; ball.visible = y < 220
-        if (t < 4.2 && Math.random() < 0.9) for (let i = 0; i < 3; i++) plume.push({ at: ball.position.clone().add(V(rnd(-0.6, 0.6), -1.4, rnd(-0.6, 0.6))), v: V(rnd(-1.5, 1.5), rnd(-9, -4), rnd(-1.5, 1.5)), s: rnd(0.8, 1.6), life: rnd(0.4, 0.8), grow: 1.2, c: ['#fff3c4', '#ffd23f', '#fd5a1e', '#8a8f99'][i + (Math.random() < 0.4 ? 1 : 0)] }) }
+        if (t < 4.2 && Math.random() < 0.9) for (let i = 0; i < 3; i++) plume.push({ at: ball.position.clone().add(V(rnd(-0.6, 0.6), -1.4, rnd(-0.6, 0.6))), v: V(rnd(-1.5, 1.5), rnd(-9, -4), rnd(-1.5, 1.5)), s: rnd(0.8, 1.6), life: rnd(0.4, 0.8), grow: 1.2, c: ['#fff3c4', '#ffd23f', '#ff7a00', '#8a8f99'][i + (Math.random() < 0.4 ? 1 : 0)] }) }
       if (plume.length > 20) { cubes(plume.splice(0, plume.length)) }
       if (t > 1.9 && t < 2.1) for (let i = 0; i < 6; i++) plume.push({ at: at.clone().add(V(rnd(-2, 2), 0.6, rnd(-2, 2))), v: V(rnd(-5, 5), rnd(0.5, 2), rnd(-5, 5)), s: rnd(1.4, 2.4), life: 2, grow: 1.4, c: '#b9b4a5' })
       if (t > 5) { lamps.forEach(kill); kill(pg); kill(ball); return false }
@@ -485,7 +485,7 @@ export function initMoments25(api, col, fx, o = {}) {
     log.push('hatch'); hideBall(true)
     const W = '#f4f2ea', R = '#d62a2a', top = [], bot = []
     for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) { if (Math.hypot(x, z) > 2.4) continue; for (let y = 0; y <= 2; y++) bot.push([x, y, z, (x === 0 && y === 1) ? R : W]); for (let y = 3; y <= 4; y++) if (Math.hypot(x, z) < 2.2 - (y - 3) * 0.6) top.push([x, y, z, (z === 0 && y === 3) ? R : W]) }
-    const Y = '#ffd23f', chick = []; for (let x = -1; x <= 1; x++) for (let y = 0; y <= 2; y++) chick.push([x, y, 0, Y]); for (let x = -1; x <= 1; x++) for (let y = 3; y <= 4; y++) chick.push([x, y, 0, Y]); chick.push([-1, 4, 1, '#16181b'], [1, 4, 1, '#16181b'], [0, 3, 1, '#fd5a1e'], [-2, 1, 0, Y], [2, 1, 0, Y]); for (let x = -1; x <= 1; x++) chick.push([x, 5, 0, '#16181b']); chick.push([0, 5, 1, '#16181b'], [0, 6, 0, '#fd5a1e'])
+    const Y = '#ffd23f', chick = []; for (let x = -1; x <= 1; x++) for (let y = 0; y <= 2; y++) chick.push([x, y, 0, Y]); for (let x = -1; x <= 1; x++) for (let y = 3; y <= 4; y++) chick.push([x, y, 0, Y]); chick.push([-1, 4, 1, '#16181b'], [1, 4, 1, '#16181b'], [0, 3, 1, '#ff7a00'], [-2, 1, 0, Y], [2, 1, 0, Y]); for (let x = -1; x <= 1; x++) chick.push([x, 5, 0, '#16181b']); chick.push([0, 5, 1, '#16181b'], [0, 6, 0, '#ff7a00'])
     const eB = vox(bot, 1, at.clone()), eT = vox(top, 1, at.clone()), ch = vox(chick, 0.9, at.clone().add(V(0, 0.5, 0))); ch.visible = false
     run((t) => {
       if (t < 0.9) { eT.rotation.z = Math.sin(t * 40) * 0.06 * (t > 0.3 ? 1 : 0); eB.rotation.z = -eT.rotation.z }
@@ -551,7 +551,7 @@ export function initMoments25(api, col, fx, o = {}) {
       const shut = (t > 1.15 && t < 1.8) || t > 2.55
       P.forEach((p, i) => { p.position.set(at.x, y, at.z); p.rotation.y = (i / 3) * Math.PI * 2; p.rotation.z = shut ? 0.35 : -0.25 })
       if (t > 1.15 && t < 1.8) { hideBall(true); ball.position.set(at.x, y - 4.2, at.z) }
-      else if (t >= 1.8 && t < 2.55) { const k = Math.min(1, (t - 1.8) / 0.35); ball.position.y = Math.max(at.y + 1, ball.position.y - 30 * 0.016 * (1 + k * 2)) }
+      else if (t >= 1.8 && t < 2.55) { const k = t - 1.8, from = low + 6 - 4.2; ball.position.set(at.x, Math.max(at.y + 1, from - 0.5 * 40 * k * k), at.z) }
       else if (t >= 2.55) ball.position.set(at.x, y - 4.2, at.z)
       if (state === 0 && t > 1.8) { state = 1; o.sound?.('thud') }
       if (t > 4.1) { kill(H); kill(cable); P.forEach(kill); kill(ball); return false }

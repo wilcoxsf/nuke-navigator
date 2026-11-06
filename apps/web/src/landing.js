@@ -37,7 +37,7 @@ function numberSprite(n, color) {
 // pretty discrete points"): LP 10 to 13. Each is built round its own middle, stands on the spot; on (the one in focus) takes the orange, the others bone and grey
 const MK = { o: ORANGE.o, w: '#ffb347', b: '#e8e1c9', c: '#c9c2ad', g: '#8a8f99', s: '#5c5e5a', k: '#1b1c1f' }
 // the marks not pointed at, in GEIGER (gone): the light parts the full green, the grey parts a darker one so the shape still reads (3 Nov)
-const FIN_SF = '#fd5a1e', FIN_GREY = '#7d8088' // the fins: Giants orange, or grey (neither turns green with the body)
+const FIN_SF = '#ff7a00', FIN_GREY = '#7d8088' // the fins: SAFETY ORANGE for the Giants (6 Nov: "safety cone across"), or grey (neither turns green with the body)
 export const GREEN = { [MK.b]: '#9dff00', [MK.c]: '#9dff00', [MK.w]: '#9dff00', [MK.g]: '#5c9400', [MK.s]: '#3f6600' }
 const disk = (y, r, col, out, hollow = 0) => { for (let x = -Math.ceil(r); x <= Math.ceil(r); x++) for (let z = -Math.ceil(r); z <= Math.ceil(r); z++) { const d = Math.hypot(x, z); if (d <= r && d >= hollow) out.push([x, y, z, typeof col === 'function' ? col(d, x, z) : col]) } }
 const cross = (c, on) => { const k = on ? MK.o : MK.g; disk(0, 3, k, c, 2.3); for (let i = -4; i <= 4; i++) if (Math.abs(i) > 1) c.push([i, 0, 0, k], [0, 0, i, k]) } // a target on the ground under a falling bomb

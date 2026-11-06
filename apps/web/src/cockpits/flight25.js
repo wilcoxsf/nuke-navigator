@@ -38,6 +38,7 @@ export function initFlight25(api, colors) {
   const { THREE, camera } = api.NN
   const toWorld = window.__cp.toWorld
   let style = 2, last = null, ghost = null, fillLook = 1, postLook = 1
+  const forming = new Set() // (the zenith and wall cubes still growing)
   const box = () => new THREE.BoxGeometry(1, 1, 1) // its own cube per track: the engine disposes the track's geometry when the next ball comes
   const LAM = new Map(), lam = (c) => (LAM.has(c) ? LAM.get(c) : LAM.set(c, new THREE.MeshLambertMaterial({ color: c, flatShading: true, fog: false })).get(c)) // one material per color (red team: a new set every preview)
   // cubes at points (world), one InstancedMesh
@@ -78,6 +79,7 @@ export function initFlight25(api, colors) {
   api.NN.frames.push(() => { if (last && flow === 3) hover() }) // the camera or the ball moved under a still pointer // (2 Nov, later: the count-up is never stood down for a newer tag; ONE AT A TIME hid it from the zenith on)
   // the track: pts are world points along the flight; res the engine's result; color the verdict color; preview the ghost before a swing
   function track(pts, res, color, preview) {
+    if (!preview) for (const F of forming) { if (F.bob) { F.bob.parent?.remove(F.bob); F.bob.geometry.dispose(); F.bob = null } forming.delete(F) } // (red team 2.7)
     const g = new THREE.Group(), geo = box(), c = colors(), main = lam(preview ? c.dim : color), dim = lam(c.dim)
     // (5 Nov, later: every committed track is a new flight, a re-hit too; Andrew: "don't redraw when I re-hit a home run")
     const same = false
@@ -181,7 +183,6 @@ export function initFlight25(api, colors) {
   }
   function done() { if (last) { last.userData.shown = true; for (const [, o] of last.userData.reveal) if (!o.visible) { o.visible = true; startForm(o) } showTags(last, 1); last.userData.ld?.userData.settle(); const L = last.userData.line; if (L) { L.visible = true; const F = L.userData.fill, t = performance.now(); while (F.upto < F.P.length - 1) { F.upto++; F.live.set(F.upto, t + (F.upto % 40) * 4) } } } }
   // ---- the zenith and wall cubes: grown out of nothing as the ball passes, then the post (POST_LOOKS) ----
-  const forming = new Set()
   function startForm(o) {
     const F = o.userData.form; if (!F || window.__fixedTime !== undefined) return
     F.t0 = performance.now(); F.look = F.look ?? postLook; F.N = F.pts.length; F.post.count = 0; dotAt(F, 0.001)

@@ -12,11 +12,17 @@
     <title>Nuke Navigator</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23030403'/%3E%3Cpath d='M3 3l10 10M13 3L3 13' stroke='%23f0802a' stroke-width='2.5'/%3E%3C/svg%3E" />
     <style>
-      html, body { margin: 0; height: 100%; background: #ffe2a6; overflow: hidden; }
+      html, body { margin: 0; height: 100%; background: #030403; overflow: hidden; }
+      /* (6 Nov, Andrew: "Every time I load localhost it goes through a bunch of old versions before it pulls up the newest one"): the engine's own first park and
+         controls are drawn before Study 25 takes over; a black cover hides the hand-over until the study says it is ready */
+      #boot { position: fixed; inset: 0; z-index: 2147483647; background: #030403; display: grid; place-items: center; color: #e8e1c9; font: 600 13px/1 monospace; letter-spacing: 0.3em; transition: opacity 0.25s }
+      #boot.go { opacity: 0; pointer-events: none }
       canvas { display: block; width: 100vw; height: 100vh; }
     </style>
   </head>
   <body>
+    <div id="boot">NUKE NAVIGATOR</div>
+    <script>setTimeout(() => document.getElementById("boot")?.remove(), 20000) // (never left up for good if the study fails to start)</script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

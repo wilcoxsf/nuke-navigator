@@ -974,7 +974,7 @@ export async function build(root, api, U) {
 #cp .c25 .legend .o em{font-style:normal;color:var(--tx);grid-column:2}
 #cp .c25 .legend .code{grid-column:1/-1;font-size:22px;margin-bottom:6px}
 #cp .c25 .legend .fix{grid-column:1/-1;color:var(--dim);font-size:15px}
-#cp .c25 .mmenu{position:absolute;left:12px;bottom:12px;z-index:7;width:290px;max-height:calc(100% - 24px);overflow:auto;display:none;padding:8px 10px 10px;background:var(--k);border:1px solid var(--acc);box-shadow:4px 4px 0 var(--ln);pointer-events:auto}#cp .c25 .mmenu.on{display:grid;gap:4px}#cp .c25 .mmenu .mh{display:flex;justify-content:space-between;align-items:center;color:var(--acc);font-size:calc(14px * var(--ts));margin-bottom:4px}#cp .c25 .mmenu .mi{display:grid;gap:1px;padding:4px 6px;border:1px solid transparent;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .mmenu .mi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts));line-height:1.3}#cp .c25 .mmenu .mi:hover,#cp .c25 .mmenu .mi:focus-visible,#cp .c25 .mmenu .mi.on{border-color:var(--acc);outline:none}#cp .c25 .mmenu .mi.on{color:var(--acc)}
+#cp .c25 .mmenu{position:absolute;left:12px;bottom:12px;z-index:7;width:290px;max-height:calc(100% - 96px);overflow:auto;display:none;padding:8px 10px 10px;background:var(--k);border:1px solid var(--acc);box-shadow:4px 4px 0 var(--ln);pointer-events:auto}#cp .c25 .mmenu.on{display:grid;gap:4px}#cp .c25 .mmenu .mh{display:flex;justify-content:space-between;align-items:center;color:var(--acc);font-size:calc(14px * var(--ts));margin-bottom:4px}#cp .c25 .mmenu .mi{display:grid;gap:1px;padding:4px 6px;border:1px solid transparent;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .mmenu .mi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts));line-height:1.3}#cp .c25 .mmenu .mi:hover,#cp .c25 .mmenu .mi:focus-visible,#cp .c25 .mmenu .mi.on{border-color:var(--acc);outline:none}#cp .c25 .mmenu .mi.on{color:var(--acc)}
 #cp .c25 .dock{position:absolute;right:12px;bottom:12px;z-index:6;width:300px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);overflow:auto;display:none;gap:7px;align-content:start;padding:8px 10px 10px;background:var(--k);border:1px solid var(--tx);box-shadow:4px 4px 0 var(--ln);pointer-events:auto;font-size:15px;line-height:1.15;outline:none}
 #cp .c25.dk .dock{display:grid}
 #cp .c25.dk .tly{display:none}
@@ -1211,7 +1211,7 @@ export async function build(root, api, U) {
   const goPark = (abbr) => { const u = new URL(location.href); if (abbr === 'SF') u.searchParams.delete('park'); else u.searchParams.set('park', abbr); u.searchParams.set('mix', mixCode(mix).replace(/ /g, '')); u.searchParams.set('mode25', mode); u.searchParams.set('menu', '0'); if (mode === 'replay') { u.searchParams.set('ball', String(idx)); u.searchParams.set('filter', filter) } else { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) u.searchParams.set('w' + k, String(api.state[k])) } location.href = u.toString() }
   E('#c25bl').addEventListener('click', () => { pressEl(E('#c25bl')); openMod('bulletin') })
   E('#c25ww').addEventListener('click', () => { pressEl(E('#c25ww')); openMod('witness') })
-  const goTab = (m) => { if (!uiReady) return; sound.play('move'); if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (modal) closeMod(); if (m === 'blast') { if (mode !== 'whatif') setMode('whatif'); if (show !== 'hm') { Object.assign(api.state, NORMAL_NIGHT); api.update(); setShow('hm') } paintTabs(); return } if (show === 'hm') setShow('hm'); if (m !== mode) setMode(m); paintTabs() }
+  const goTab = (m) => { if (!uiReady) return; sound.play('move'); try { mmStop?.(); moments.clear() } catch (err) { void err } /* (red team 2.1, 2.2) */ if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (modal) closeMod(); if (m === 'blast') { if (mode !== 'whatif') setMode('whatif'); if (show !== 'hm') { Object.assign(api.state, NORMAL_NIGHT); api.update(); setShow('hm') } paintTabs(); return } if (show === 'hm') setShow('hm'); if (m !== mode) setMode(m); paintTabs() }
   // BLAST RADIUS's frame (5 Nov): its own zoom (windowSync above), and the park centred in what is left once the AIR and WIND boxes are counted out
   function blastFrame() {
     syncCam?.()
@@ -1379,15 +1379,17 @@ export async function build(root, api, U) {
   })
   E('#c25lg').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25lg')); toggleDock() })
   // the MOMENTS menu
+  let mmStop = null // (stops what the menu has queued: a new swing and a tab change call it)
   { const mm = document.createElement('div'); mm.className = 'mmenu'; mm.setAttribute('role', 'dialog'); mm.setAttribute('aria-label', 'landing moments'); grid.appendChild(mm)
     const list = LAB.MO.opts.filter((x) => x.kind)
     mm.innerHTML = `<div class="mh"><span>LANDING MOMENTS</span><span class="bt" data-mm="x" aria-label="close">X</span></div><div class="mi" data-mm="all" tabindex="0">PLAY ALL<em>every one in turn, five seconds apart</em></div>` + list.map((x) => `<div class="mi" data-mm="${x.kind}" tabindex="0">${x.name}<em>${x.desc}</em></div>`).join('')
     let spot = null, allT = []
     // a seat in the left-field bleachers, 395 ft out, 14 degrees off center: the first surface under it in the park's own model
     const seatSpot = () => { if (spot) return spot; const b = (-14 * Math.PI) / 180, r = 395 * 0.3048, top = api.toWorld([r * Math.sin(b), r * Math.cos(b), 80]), h = parkHitM(api.NN, top, new api.NN.THREE.Vector3(0, -1, 0), 120); spot = h ? h.point.clone() : api.toWorld([r * Math.sin(b), r * Math.cos(b), 6]); return spot }
-    const play = (kind) => { const at = seatSpot(); mm.querySelectorAll('.mi').forEach((m) => m.classList.toggle('on', m.dataset.mm === kind)); lookAt([at], 24); setTimeout(() => moments.try(kind, at.clone()), 450) }
+    const play = (kind) => { const at = seatSpot(); mm.querySelectorAll('.mi').forEach((m) => m.classList.toggle('on', m.dataset.mm === kind)); lookAt([at], 24); allT.push(setTimeout(() => { if (mm.classList.contains('on')) moments.try(kind, at.clone()) }, 450)) }
     const stopAll = () => { for (const t of allT) clearTimeout(t); allT = [] }
-    mm.addEventListener('click', (e) => { const t = e.target.closest('[data-mm]'); if (!t) return; sound.play('pick'); const k = t.dataset.mm; stopAll(); if (k === 'x') { mm.classList.remove('on'); moments.clear(); return } if (k === 'all') { list.forEach((x, i) => allT.push(setTimeout(() => play(x.kind), i * 5200))); return } play(k) })
+    mmStop = () => { stopAll(); if (mm.classList.contains('on')) moments.clear() }
+    mm.addEventListener('click', (e) => { const t = e.target.closest('[data-mm]'); if (!t) return; sound.play('pick'); const k = t.dataset.mm; stopAll(); if (k === 'x') { mm.classList.remove('on'); moments.clear(); return } if (k === 'all') { list.forEach((x, i) => allT.push(setTimeout(() => { if (mm.classList.contains('on')) play(x.kind) }, i * 5200))); return } play(k) })
     mm.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('[data-mm]'); if (t) { e.preventDefault(); e.stopPropagation(); t.click() } } if (e.key === 'Escape') { e.stopPropagation(); stopAll(); mm.classList.remove('on') } })
     E('#c25mm').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25mm')); sound.play('move'); stopAll(); mm.classList.toggle('on'); if (mm.classList.contains('on')) mm.querySelector('.mi')?.focus() })
     window.__mix25moments = { play, list: () => list.map((x) => x.kind), spot: seatSpot }
@@ -1865,7 +1867,7 @@ export async function build(root, api, U) {
     }
     body.querySelector('#c25wgo')?.addEventListener('click', go)
     // a home run in your stats plays in DEJA-VU (1 Nov, night; playtest: 'stats can't be clicked to replay that home run')
-    body.querySelectorAll('.wgo').forEach((x) => x.addEventListener('click', () => { const [d, b, ft] = x.dataset.ball.split('|'); pressEl(x); sound.play('pick'); closeMod(); if (mode !== 'replay') setMode('replay'); filter = 'oracle'; balls = filtered(); const i = balls.findIndex((y) => y.d === d && String(y.b) === b && String(y.ft) === ft); idx = Math.max(0, i); applyBall(balls[idx]); paintChooser(); paintTabs(); setTimeout(() => fire(), 600) }))
+    body.querySelectorAll('.wgo').forEach((x) => x.addEventListener('click', () => { const [d, b, ft] = x.dataset.ball.split('|'); pressEl(x); sound.play('pick'); closeMod(); if (mode !== 'replay') setMode('replay'); filter = 'oracle'; balls = filtered(); const i = balls.findIndex((y) => y.d === d && String(y.b) === b && String(y.ft) === ft); if (i < 0) { paintTabs(); return } idx = i; applyBall(balls[idx]); paintChooser(); paintTabs(); const want = balls[idx]; setTimeout(() => { if (mode === 'replay' && cur === want && !modal) fire() }, 600) })) // (red team 2.6)
     body.querySelector('#c25wold')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); wAll = !wAll; paintWitness(body) })
     body.querySelectorAll('.wask input').forEach((x) => x.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); go() } if (e.key === 'Escape') { wAsk = null; wMsg = ''; paintWitness(body) } }))
     nm?.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); nm.blur(); closeMod() } })
@@ -3035,7 +3037,7 @@ export async function build(root, api, U) {
   const voxBall = (bm) => { const v0 = bm.userData.vox; if (v0?.isObject3D) { if (v0.parent !== bm) bm.add(v0); bm.material.visible = false; return } if (v0) return; bm.userData.vox = 1; loadModels(api.NN.THREE).then((M) => { if (!M.ball) return; const v = cloneModel(M.ball, 2.0 / 0.42 / 0.09); v.traverse((o) => { if (o.isMesh && o.material.color.r > 0.5 && o.material.color.g < 0.35) o.userData.seam = true }); bm.add(v); bm.material.visible = false; bm.userData.vox = v; paintSeams() }) }
   // the voxel ball's stitches take the E color too
   function paintSeams() { const v = api.ballMesh?.()?.userData.vox; if (!v?.isObject3D) return; const c = colors().sc || '#e4002b'; v.traverse((o) => { if (o.userData.seam) o.material.color.set(c) }) }
-  window.__cpOnFire = (ev) => { flying = true
+  window.__cpOnFire = (ev) => { flying = true; moments?.clear?.(); mmStop?.() // (red team 2.1: a moment from the last flight never touches this one)
     fires++
     clearTimeout(songT); if (autoSong) { jukebox.stop(); autoSong = false }
     endPush()
