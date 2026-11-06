@@ -125,7 +125,7 @@ export function initFlight25(api, colors) {
     const zPost = cubes(geo, lam(c.mk || c.pc || c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5).reverse(), 0.45); zen.add(zPost)
     zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1, 1, c.mk || c.pc || c.tx))
     const zDot = cubes(geo, lam(c.mk ?? c.tx), [top], 1.4); zen.add(zDot) // the dot at the top of the flight
-    zen.userData.dot = top.clone(); zen.userData.form = { post: zPost, dot: zDot, at: top.clone(), pts: column(top.x, top.z, ground, top.y - 1.4, 1.5).reverse(), s: 0.45 }
+    zen.userData.dot = top.clone(); zen.userData.form = { post: zPost, dot: zDot, at: top.clone(), pts: column(top.x, top.z, ground, top.y - 1.4, 1.5).reverse(), s: 0.45, size: 1.4, look: 4 }
     g.add(zen); g.userData.reveal.push([ai / Math.max(1, src.length - 1), zen])
     // the clearance post: from the top of the wall to the ball as it crossed (GONE), or from the top down to where it hit (WALL)
     const v = res.verdict
@@ -139,7 +139,7 @@ export function initFlight25(api, colors) {
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
         cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : ''}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, gc))
         const cDot = cubes(geo, lam(gc), [ball], 1.4); cl.add(cDot) // the dot where it crossed the wall
-        cl.userData.dot = ball.clone(); cl.userData.form = { post: cPost, dot: cDot, at: ball.clone(), pts: column(b.x, b.z, lo, hi, 0.8).reverse(), s: 0.5 }
+        cl.userData.dot = ball.clone(); cl.userData.form = { post: cPost, dot: cDot, at: ball.clone(), pts: column(b.x, b.z, lo, hi, 0.8).reverse(), s: 0.5, size: 1.4, look: 6 }
         g.add(cl); g.userData.reveal.push([ci / Math.max(1, src.length - 1), cl])
       }
     }
@@ -184,32 +184,33 @@ export function initFlight25(api, colors) {
   const forming = new Set()
   function startForm(o) {
     const F = o.userData.form; if (!F || window.__fixedTime !== undefined) return
-    F.t0 = performance.now(); F.look = postLook; F.N = F.pts.length; F.post.count = 0; F.dot.scale.setScalar(0.001)
-    if (F.bob) F.bob.visible = false
-    if (F.look === 4 && !F.bob) { F.bob = cubes(box(), F.dot.material, [F.at], 0.8); F.bob.frustumCulled = false; o.add(F.bob) }
+    F.t0 = performance.now(); F.look = F.look ?? postLook; F.N = F.pts.length; F.post.count = 0; dotAt(F, 0.001)
+    if (F.look === 4 && !F.bob) { F.bob = cubes(box(), F.dot.material, [F.at], 0.8); F.bob.frustumCulled = false; (o.parent ?? o).add(F.bob) } // (on the flight, beside the post: the post's group holds only its own cube)
     forming.add(F)
   }
   const ease = (x) => 1 - Math.pow(1 - x, 3), back = (x) => { const k = 1.70158 * 1.4; return 1 + (k + 1) * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2) }
   const m4f = new THREE.Matrix4(), vF = new THREE.Vector3()
   const put = (F, i, p, sc, dy = 0) => { m4f.makeScale(sc, sc, sc).setPosition(p.x, p.y + dy, p.z); F.post.setMatrixAt(i, m4f) }
+  const dotAt = (F, k) => { const s = F.size * Math.max(0.001, k); m4f.makeScale(s, s, s).setPosition(F.at); F.dot.setMatrixAt(0, m4f); F.dot.instanceMatrix.needsUpdate = true }
   api.NN.frames.push(() => {
     const t = performance.now()
     for (const F of forming) {
       const a = t - F.t0, N = F.N, gy = F.pts[N - 1]?.y ?? F.at.y
       // the cube: out of nothing, smoothly, 0 to 360 ms (5 Nov: "the actual formation of the cube on top looks weird right now let's make it smoother")
-      const kd = Math.min(1, a / 360), sm = kd * kd * (3 - 2 * kd); F.dot.scale.setScalar(Math.max(0.001, sm))
+      const kd = Math.min(1, a / 420), sm = kd * kd * (3 - 2 * kd); dotAt(F, sm)
       const T = a - 260 // the post starts as the cube nears full size
       if (F.look === 1) { F.post.count = Math.round(N * ease(Math.max(0, Math.min(1, T / 520)))) }
-      if (F.look === 2) { const n = Math.round(N * ease(Math.max(0, Math.min(1, T / 520)))); for (let i = 0; i < n; i++) put(F, i, F.pts[N - 1 - i], F.s); F.post.count = n; F.post.instanceMatrix.needsUpdate = true }
+      if (F.look === 2 || F.look === 6) { const n = Math.round(N * ease(Math.max(0, Math.min(1, T / (F.look === 6 ? 1400 : 520))))); for (let i = 0; i < n; i++) put(F, i, F.pts[N - 1 - i], F.s); F.post.count = n; F.post.instanceMatrix.needsUpdate = true }
       if (F.look === 3) { let n = 0; for (let i = 0; i < N; i++) { const f = Math.max(0, Math.min(1, (T - i * 28) / 260)); if (f <= 0) break; put(F, i, F.pts[i], F.s * back(f)); n = i + 1 } F.post.count = n; F.post.instanceMatrix.needsUpdate = true }
       if (F.look === 4) {
         const G = 60, fall = Math.max(0, T) / 1000, drop = F.at.y - gy, y = Math.max(gy, F.at.y - 0.5 * G * fall * fall), landed = y <= gy, tl = Math.sqrt((2 * drop) / G) * 1000 // (5 Nov: "speed it up a little bit")
-        F.bob.visible = T > 0 && a < 1100; const bounce = landed ? Math.abs(Math.sin(Math.min(1, (T - tl) / 200) * Math.PI)) * 0.7 * (1 - Math.min(1, (T - tl) / 200)) : 0
-        m4f.makeScale(0.8, 0.8, 0.8).setPosition(F.at.x, y + bounce, F.at.z); F.bob.setMatrixAt(0, m4f); F.bob.instanceMatrix.needsUpdate = true
+        if (a >= 1100) { if (F.bob) { F.bob.parent?.remove(F.bob); F.bob.geometry.dispose(); F.bob = null } } else if (F.bob) F.bob.visible = T > 0; // (the weight goes once it has laid the post; it shares the cube's material, so only its own cube is freed)
+        if (F.bob) { const bounce = landed ? Math.abs(Math.sin(Math.min(1, (T - tl) / 200) * Math.PI)) * 0.7 * (1 - Math.min(1, (T - tl) / 200)) : 0
+        m4f.makeScale(0.8, 0.8, 0.8).setPosition(F.at.x, y + bounce, F.at.z); F.bob.setMatrixAt(0, m4f); F.bob.instanceMatrix.needsUpdate = true }
         let n = 0; for (let i = 0; i < N; i++) { if (F.pts[i].y >= y - 0.2) n = i + 1 } F.post.count = T > 0 ? n : 0
       }
       if (F.look === 5) { let n = 0; for (let k = 0; k < N; k++) { const i = N - 1 - k, f = (T - k * 45) / 1000; if (f <= 0) break; const p = F.pts[i], y = Math.max(p.y, F.at.y - 0.5 * 40 * f * f); vF.set(p.x, y, p.z); m4f.makeScale(F.s, F.s, F.s).setPosition(vF); F.post.setMatrixAt(k, m4f); n = k + 1 } F.post.count = n; F.post.instanceMatrix.needsUpdate = true }
-      if (a > 2600) { F.dot.scale.setScalar(1); for (let i = 0; i < N; i++) put(F, i, F.pts[i], F.s); F.post.count = N; F.post.instanceMatrix.needsUpdate = true; if (F.bob) F.bob.visible = false; forming.delete(F) }
+      if (a > 2600) { dotAt(F, 1); for (let i = 0; i < N; i++) put(F, i, F.pts[i], F.s); F.post.count = N; F.post.instanceMatrix.needsUpdate = true; if (F.bob) { F.bob.parent?.remove(F.bob); F.bob.geometry.dispose(); F.bob = null } forming.delete(F) }
     }
     // the line filling in behind the ball
     const L = last?.userData.line; if (!L) return

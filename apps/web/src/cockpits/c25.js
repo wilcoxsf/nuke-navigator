@@ -57,11 +57,12 @@ import { initTouches25 } from './touches25.js'
 import { initHeat25, ZONES, GRADS, FIELDS, SEATS, CONTRASTS, PILLAR_HEIGHTS, PILLAR_SHAPES, PILLAR_WAYS, PILLAR_PAINTS, BLAST_CAMS, BOMB_DROPS, SIDE_SHADES } from './heat25.js'
 import { BADGES as HIT_BADGES } from './hitter25.js'
 import { initStage25, RUNNER_LOOKS } from './stage25.js'
+import { parkHit as parkHitM } from '../seance.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
 import { drawFace, FACE_STYLES } from './faces25.js'
 import { initPitchArc, breakOf, feltBreak } from './pitchcam25.js'
-import { initFlight25, ARCS, LINE_FILLS, POST_LOOKS } from './flight25.js'
+import { initFlight25, ARCS, LINE_FILLS } from './flight25.js'
 import { STANDIN_STYLES, drawStandIn, kitFor, MASCOTS } from './standin25.js'
 import { loadModels, cloneModel } from './models25.js'
 import { jukebox, loadPrivateSongs } from './music25.js'
@@ -426,10 +427,9 @@ export const LAB = {
   GR: { name: 'ON BASE', def: 1, opts: RUNNER_LOOKS },
   // 5 Nov (Andrew: "make the line grey and then it turns orange as the ball flies over it ... give me some fun things for how the line goes from grey to orange")
   LF: { name: 'THE FLIGHT LINE: FILL', def: 2, opts: LINE_FILLS },
-  PO: { name: 'THE FLIGHT LINE: POSTS', def: 1, opts: POST_LOOKS }, // (5 Nov: the zenith and wall cubes grow; how their posts arrive)
   // 5 Nov (Andrew picked crater, dogpile, a fault line, the Dodger fan on a stretcher, pinball, a black hole and a portal): the seat moments; the deck plays them all in
   // turn, a pick plays only that one so it can be looked at
-  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['DOGPILE', 'dogpile', 'fans run in from all round and pile on; one pops out of the top with it'], ['FAULT LINE', 'fault', 'the stands split both ways from the spot, glowing like lava, then close'], ['BONK', 'bonk', 'it hits a Dodger fan on the head; stars, he keels over, two medics carry him off on a stretcher'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['BLACK HOLE', 'blackhole', 'the seats round it spiral into a hole, then it spits every piece back'], ['PORTAL', 'portal', 'it goes into an orange ring and shoots out of a blue one on the far side of the park'], ['UFO', 'ufo', 'a saucer drops in and beams it up']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) },
+  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['PINATA', 'pinata', 'a donkey pinata swings down on a rope; the ball smashes it and candy rains down'], ['TINY TORNADO', 'tornado', 'a twister spins up out of the seat, carries the ball round and up, and throws it into the sky'], ['WHACK-A-MOLE', 'mole', 'a mole pops up and gets bonked; it comes back up in a little Giants batting helmet'], ['JACK-IN-THE-BOX', 'jack', 'a box comes up, the lid flips and a clown head springs out with the ball in its teeth'], ['ROCKET LAUNCH', 'rocket', 'three lamps go out, then the ball lifts off on a plume until it is a dot'], ['HAND OF GOD', 'hand', 'a giant hand reaches down out of a cloud and takes the ball'], ['THE BALL HATCHES', 'hatch', 'it cracks like an egg and a chick in a Giants cap climbs out'], ['LIGHTNING ROD', 'zap', 'a rod shoots up, a bolt comes down onto it twice, the ball left smoking and glowing'], ['TOILET FLUSH', 'flush', 'a toilet comes up; the ball goes round the bowl and down'], ['CLAW MACHINE', 'claw', 'an arcade claw grabs it, drops it, grabs it again and hauls it off'], ['GHOST OF THE BALL', 'spirit', 'a see-through ghost of the ball floats up, takes a lap and drifts off'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['BONK', 'bonk', 'it hits a Dodger fan on the head; stars, he keels over, two medics carry him off on a stretcher'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['UFO', 'ufo', 'a saucer drops in and beams it up']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) },
   CN: { name: 'BLAST RADIUS: CONTRAILS', def: 1, opts: [{ c: 1, name: 'FAINT', desc: "a hairline for each of the player's home runs, bone, green and a touch brighter for the ones that go out here" }, { c: 2, name: 'ONLY THE GONE ONES', desc: 'only the ones that would go out here, in green' }, { c: 3, name: 'OFF', desc: 'no flights, only the bombs' }] },
   // 2 Nov, night (Andrew: "We can do better on voxel effects when it lands. I'd like the option for a scuba diver ... some oomph"): impact25.js
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
@@ -974,6 +974,7 @@ export async function build(root, api, U) {
 #cp .c25 .legend .o em{font-style:normal;color:var(--tx);grid-column:2}
 #cp .c25 .legend .code{grid-column:1/-1;font-size:22px;margin-bottom:6px}
 #cp .c25 .legend .fix{grid-column:1/-1;color:var(--dim);font-size:15px}
+#cp .c25 .mmenu{position:absolute;left:12px;bottom:12px;z-index:7;width:290px;max-height:calc(100% - 24px);overflow:auto;display:none;padding:8px 10px 10px;background:var(--k);border:1px solid var(--acc);box-shadow:4px 4px 0 var(--ln);pointer-events:auto}#cp .c25 .mmenu.on{display:grid;gap:4px}#cp .c25 .mmenu .mh{display:flex;justify-content:space-between;align-items:center;color:var(--acc);font-size:calc(14px * var(--ts));margin-bottom:4px}#cp .c25 .mmenu .mi{display:grid;gap:1px;padding:4px 6px;border:1px solid transparent;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .mmenu .mi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts));line-height:1.3}#cp .c25 .mmenu .mi:hover,#cp .c25 .mmenu .mi:focus-visible,#cp .c25 .mmenu .mi.on{border-color:var(--acc);outline:none}#cp .c25 .mmenu .mi.on{color:var(--acc)}
 #cp .c25 .dock{position:absolute;right:12px;bottom:12px;z-index:6;width:300px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);overflow:auto;display:none;gap:7px;align-content:start;padding:8px 10px 10px;background:var(--k);border:1px solid var(--tx);box-shadow:4px 4px 0 var(--ln);pointer-events:auto;font-size:15px;line-height:1.15;outline:none}
 #cp .c25.dk .dock{display:grid}
 #cp .c25.dk .tly{display:none}
@@ -1127,7 +1128,7 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><span class="bt" id="c25lg" aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
+    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><span class="bt" id="c25mm" aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
     <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
     <span class="old" hidden><span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span><span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span><span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
@@ -1377,6 +1378,20 @@ export async function build(root, api, U) {
     e.preventDefault(); e.stopPropagation()
   })
   E('#c25lg').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25lg')); toggleDock() })
+  // the MOMENTS menu
+  { const mm = document.createElement('div'); mm.className = 'mmenu'; mm.setAttribute('role', 'dialog'); mm.setAttribute('aria-label', 'landing moments'); grid.appendChild(mm)
+    const list = LAB.MO.opts.filter((x) => x.kind)
+    mm.innerHTML = `<div class="mh"><span>LANDING MOMENTS</span><span class="bt" data-mm="x" aria-label="close">X</span></div><div class="mi" data-mm="all" tabindex="0">PLAY ALL<em>every one in turn, five seconds apart</em></div>` + list.map((x) => `<div class="mi" data-mm="${x.kind}" tabindex="0">${x.name}<em>${x.desc}</em></div>`).join('')
+    let spot = null, allT = []
+    // a seat in the left-field bleachers, 395 ft out, 14 degrees off center: the first surface under it in the park's own model
+    const seatSpot = () => { if (spot) return spot; const b = (-14 * Math.PI) / 180, r = 395 * 0.3048, top = api.toWorld([r * Math.sin(b), r * Math.cos(b), 80]), h = parkHitM(api.NN, top, new api.NN.THREE.Vector3(0, -1, 0), 120); spot = h ? h.point.clone() : api.toWorld([r * Math.sin(b), r * Math.cos(b), 6]); return spot }
+    const play = (kind) => { const at = seatSpot(); mm.querySelectorAll('.mi').forEach((m) => m.classList.toggle('on', m.dataset.mm === kind)); lookAt([at], 24); setTimeout(() => moments.try(kind, at.clone()), 450) }
+    const stopAll = () => { for (const t of allT) clearTimeout(t); allT = [] }
+    mm.addEventListener('click', (e) => { const t = e.target.closest('[data-mm]'); if (!t) return; sound.play('pick'); const k = t.dataset.mm; stopAll(); if (k === 'x') { mm.classList.remove('on'); moments.clear(); return } if (k === 'all') { list.forEach((x, i) => allT.push(setTimeout(() => play(x.kind), i * 5200))); return } play(k) })
+    mm.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('[data-mm]'); if (t) { e.preventDefault(); e.stopPropagation(); t.click() } } if (e.key === 'Escape') { e.stopPropagation(); stopAll(); mm.classList.remove('on') } })
+    E('#c25mm').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25mm')); sound.play('move'); stopAll(); mm.classList.toggle('on'); if (mm.classList.contains('on')) mm.querySelector('.mi')?.focus() })
+    window.__mix25moments = { play, list: () => list.map((x) => x.kind), spot: seatSpot }
+  }
 
   function applyBall(b) {
     cur = b; edited = false
@@ -2822,7 +2837,7 @@ export async function build(root, api, U) {
   }
   water = atOracle ? initWater25(api, { mode: mix.B, ground: cs0().getPropertyValue('--k').trim(), ink: cs0().getPropertyValue('--tx').trim() }) : null
   pitchCam = initPitchArc(api, colors)
-  flight = initFlight25(api, colors); flight.setStyle(mix.U); flight.setFill(lab.LF); flight.setPosts(lab.PO)
+  flight = initFlight25(api, colors); flight.setStyle(mix.U); flight.setFill(lab.LF)
   ghost = initGhost25(api, { still: reduced }) // SEAT SEANCE's ghost
   // the dojo's controls in the park (30 Oct: LA1 protractor, DR1 spray fan, EV1 slingshot, the wind rose); they set the same numbers as the typed boxes and sliders
   const shadow = initShadow25(api)
@@ -2845,6 +2860,7 @@ export async function build(root, api, U) {
   const happen = atOracle ? initHappen25(api, { still: reduced, splashes: () => splashes, gull: life ? () => life.makeGull() : null }) : null // the blimp, the ferry, the Cove, the bay (happen25.js); the SPLASH HITS sign follows the count
   // voxel foul poles (poles25.js); during HERON its own bending pole stands in for the right one
   const poles = atOracle ? initPoles25(api, { look: lab.FP, hideRight: () => happen?.active?.() === 'heron' }) : null
+  window.__readBlock = () => [poles?.group, life?.board, life?.vboard, life?.vsign].filter(Boolean) // (5 Nov, night: the labels come in front of these too)
   if (happen?.splashSign?.()) keepReadable(api, happen.splashSign(), 1, 1, 1, { fixed: true, scale: false, prio: 9 }) // the tags keep off the Splash Hits sign too
   // (1 Nov, later; an audit) a new preview while a ball is up cuts its flight short: the engine stops calling __cpOnFly and __cpOnLand, so the shadow, the whoosh, the
   // leaning crowd and the board's TRACKING are put away here (the board only while it says TRACKING: a Seance call or a gag stays)
@@ -3111,7 +3127,7 @@ export async function build(root, api, U) {
   // THE ORANGE, live (2 Nov, later: a reload on every switch was a bug): the family in place, the park's materials and cubes, the interface's accent, the arcs
   function switchOrange(n) { const map = setOrange(n); if (!map) return; recolor(api.NN.scene, map); THEMES.orange.acc = ORANGE.o; if (themeKey() === 'orange') root.style.setProperty('--acc', ORANGE.o); colC = null; if (!api.anim?.()) api.update() }
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
-  applyLab = (k) => { if (k === 'GR') stage?.sync({ ball: cur, mode }); if (k === 'LF') flight?.setFill(lab.LF); if (k === 'PO') flight?.setPosts(lab.PO); if (k === 'CM') blastFrame(); if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP', 'PK', 'CN'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'BD' && show === 'hm' && hmWho) { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
+  applyLab = (k) => { if (k === 'GR') stage?.sync({ ball: cur, mode }); if (k === 'LF') flight?.setFill(lab.LF); if (k === 'CM') blastFrame(); if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP', 'PK', 'CN'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'BD' && show === 'hm' && hmWho) { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
   window.__mix25 = { stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
