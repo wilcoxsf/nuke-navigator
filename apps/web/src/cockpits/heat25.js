@@ -186,6 +186,7 @@ export function initHeat25(api, o = {}) {
   }
   function seatGrid() {
     if (grid) return grid
+    if (!api.NN.stadium) return Array.from({ length: N }, () => Array(ROWS).fill(null)) // (red team 10: nothing to land on yet; not kept)
     api.NN.stadium?.updateMatrixWorld(true)
     const P = gridPart ?? { rows: [], C: gridCtx() }
     for (let i = P.rows.length; i < N; i++) P.rows.push(gridRow(i, P.C))
@@ -194,6 +195,7 @@ export function initHeat25(api, o = {}) {
   }
   function seatGridAsync(done, slice = 8) {
     if (grid) { done?.(grid); return }
+    if (!api.NN.stadium) { addEventListener('nn-stadium', () => seatGridAsync(done, slice), { once: true }); return }
     if (!gridPart) { api.NN.stadium?.updateMatrixWorld(true); gridPart = { rows: [], C: gridCtx() } }
     const P = gridPart
     const tick = () => { if (grid) { done?.(grid); return } if (gridPart !== P) return; const t = performance.now(); while (P.rows.length < N && performance.now() - t < slice) P.rows.push(gridRow(P.rows.length, P.C)); if (P.rows.length < N) setTimeout(tick, 16); else { grid = P.rows; gridPart = null; done?.(grid) } }
@@ -211,14 +213,17 @@ export function initHeat25(api, o = {}) {
   const jobs = new Map()
   function hardAsync(done, a = air(), slice = 24) {
     const key = JSON.stringify(a), had = stored(key)
-    if (had) return had
+    if (had) { if (done) queueMicrotask(() => done(had)); return had } // (red team 9)
+    if (!api.NN.stadium) { addEventListener('nn-stadium', () => hardAsync(done, a, slice), { once: true }); return null } // (red team 10: not before the park is in)
     if (jobs.has(key)) { const j = jobs.get(key); j.done.push(done); j.slice = Math.max(j.slice, slice); return null }
-    const job = start(a); job.done = [done]; job.slice = slice; jobs.set(key, job)
-    const tick = () => { const t = performance.now(); while (job.i < N && performance.now() - t < job.slice) step(job); if (job.i < N) setTimeout(tick, job.slice < 24 ? 16 : 0); else { jobs.delete(key); const out = finish(job); for (const f of job.done) f?.(out) } }
+    if (slice >= 24) for (const [k, j] of jobs) if (j.fg) { j.dead = true; jobs.delete(k) } // (red team 6: only the air asked for last is worked out)
+    const job = start(a); job.done = [done]; job.slice = slice; job.fg = slice >= 24; jobs.set(key, job)
+    const tick = () => { if (job.dead) return; const t = performance.now(); while (job.i < N && performance.now() - t < job.slice) step(job); if (job.i < N) setTimeout(tick, job.slice < 24 ? 16 : 0); else { jobs.delete(key); const out = finish(job); for (const f of job.done) f?.(out) } }
     setTimeout(tick, 0)
     return null
   }
   const ready = () => stored(JSON.stringify(air()))
+  const cancel = () => { for (const [k, j] of jobs) if (j.fg) { j.dead = true; jobs.delete(k) } }
   // the warm-up: this air (a normal night), then the hitter list, in 10 ms slices with 16 ms rests between
   function warm(a) { const b = { ...a, hand: -a.hand }; seatGridAsync(() => hardAsync(() => hardAsync(() => setTimeout(() => { try { hitters() } catch (err) { void err } }, 400), b, 10), a, 10)) } // (both sides of the plate: the dojo's batter may be either)
   // 4 Nov, evening (GPT's red team: "Seat threshold is clearance, not a landing solution", and the wall's aim was set once, at 108 mph and 28 degrees; our own check
@@ -523,7 +528,7 @@ export function initHeat25(api, o = {}) {
     const tick = () => {
       if (group !== g0 || !group) return
       const t = performance.now() - t0
-      if (group.userData.gem) { group.userData.gem.rotation.y = t / 900; group.userData.gem.position.y = group.userData.gem.userData.y0 ??= group.userData.gem.position.y; group.userData.gem.position.y += Math.sin(t / 500) * 0.35 }
+      if (group.userData.gem && !still) { group.userData.gem.rotation.y = t / 900; group.userData.gem.position.y = group.userData.gem.userData.y0 ??= group.userData.gem.position.y; group.userData.gem.position.y += Math.sin(t / 500) * 0.35 }
       let busy = rise.length ? lift(t) : false
       if (!still) for (const x of drops) {
         if (x.done) continue
@@ -536,7 +541,7 @@ export function initHeat25(api, o = {}) {
       }
       for (const q of puffs) { const k = (t - q.userData.t) / 750; if (k >= 1) { q.visible = false; continue } busy = true; const grow = Math.min(1, k / 0.22), fall = k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45; q.scale.setScalar(Math.max(0.001, grow * fall)); q.position.y = q.userData.y0 + 2.2 * Math.sqrt(k) }
       for (const r of rings) { const k = (t - r.userData.t) / 420; if (k >= 1) { r.visible = false; continue } busy = true; r.scale.setScalar(0.3 + 2.6 * k); r.material.opacity = 0.8 * (1 - k) }
-      if (busy || group.userData.gem) anim = requestAnimationFrame(tick)
+      if (busy || (group.userData.gem && !still)) anim = requestAnimationFrame(tick)
     }
     // (4 Nov, night, Andrew: "can we have the nukes make just a teensy explosion when they land and are a HR?"): a stem and a flared cap of GEIGER cubes that rise,
     // swell and shrink away in under a second
@@ -552,7 +557,7 @@ export function initHeat25(api, o = {}) {
     const D = group?.userData.drops; if (!D?.length) return null
     const cv = api.NN.renderer?.domElement; if (!cv) return null
     const r = cv.getBoundingClientRect(); let best = null, bd = 18
-    D.forEach((x, k) => { pb.copy(x.at).add(new THREE.Vector3(0, 1.4, 0)).project(api.NN.camera); if (pb.z > 1) return; const sx = r.left + ((pb.x + 1) / 2) * r.width, sy = r.top + ((1 - pb.y) / 2) * r.height, e = Math.hypot(sx - cx, sy - cy); if (e < bd) { bd = e; best = { k, b: x.ref, gone: x.gone } } })
+    D.forEach((x, k) => { if (x.done === false) return; pb.copy(x.at).add(new THREE.Vector3(0, 1.4, 0)).project(api.NN.camera); if (pb.z > 1) return; const sx = r.left + ((pb.x + 1) / 2) * r.width, sy = r.top + ((1 - pb.y) / 2) * r.height, e = Math.hypot(sx - cx, sy - cy); if (e < bd) { bd = e; best = { k, b: x.ref, gone: x.gone } } })
     return best
   }
   function bombFocus(k) { const D = group?.userData.drops; if (!D) return; D.forEach((x, i) => { if (x.done !== false) x.m.scale.setScalar(i === k ? 1.9 : 1) }) }
@@ -603,5 +608,5 @@ export function initHeat25(api, o = {}) {
     }
     return { seat: seatRes, wall: wallRes }
   }
-  return { bombAt, bombFocus, gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
+  return { cancel, bombAt, bombFocus, gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
 }

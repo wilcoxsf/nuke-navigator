@@ -15,7 +15,12 @@ export const RUNNER_LOOKS = [
 
 const BONE = '#e8e1c9', FT = 0.3048
 // (5 Nov, Andrew: "I like ghosts on base but let's give them giants hats too"): a black cap, an orange SF patch on the front, the bill out over the eyes
-const GHOST = () => { const c = [], W = '#f4f3ee', K = '#16181b', O = '#fd5a1e'; for (let y = 0; y < 9; y++) { const r = y > 6 ? 1 : 2; for (let x = -r; x <= r; x++) for (let z = -1; z <= 1; z++) if (!(y === 0 && (x + 7) % 2)) c.push([x, y, z, W]) } c.push([-1, 6, 2, K], [1, 6, 2, K]); for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) c.push([x, 9, z, K]); c.push([0, 10, 0, K], [0, 10, 1, K], [-1, 10, 0, K], [1, 10, 0, K]); for (let x = -1; x <= 1; x++) c.push([x, 9, 2, K], [x, 9, 3, K]); c.push([0, 10, 2, O], [-1, 10, 1, O], [1, 10, 1, O]); return c }
+const WISP = '#e6ecff', WISP2 = '#d5ddf5'
+const GHOST = () => { const c = [], W = '#f4f3ee', K = '#16181b', O = '#fd5a1e'; for (let y = 2; y < 9; y++) { const r = y > 6 ? 1 : 2; for (let x = -r; x <= r; x++) for (let z = -1; z <= 1; z++) c.push([x, y, z, W]) }
+  // the hem: a ragged row, then three tails that thin out and drift
+  for (let x = -2; x <= 2; x++) c.push([x, 1, 0, WISP]); c.push([-1, 1, 1, WISP], [1, 1, -1, WISP])
+  for (const [x, z] of [[-2, 0], [0, 1], [2, -1]]) { c.push([x, 0, z, WISP2]); c.push([x + (x < 0 ? -1 : x > 0 ? 1 : 0), -1, z, WISP2]) }
+  c.push([-3, -2, 0, WISP2], [3, -2, -1, WISP2]); c.push([-1, 6, 2, K], [1, 6, 2, K]); for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) c.push([x, 9, z, K]); c.push([0, 10, 0, K], [0, 10, 1, K], [-1, 10, 0, K], [1, 10, 0, K]); for (let x = -1; x <= 1; x++) c.push([x, 9, 2, K], [x, 9, 3, K]); c.push([0, 10, 2, O], [-1, 10, 1, O], [1, 10, 1, O]); return c }
 
 export function initStage25(api, o = {}) {
   const { THREE, scene } = api.NN
@@ -26,7 +31,8 @@ export function initStage25(api, o = {}) {
   const home = W(0, 0, 0), now = () => performance.now()
   const hide = (m) => { api.NN.hideForNormal?.push(m); return m }
   const unhide = (root) => { const h = api.NN.hideForNormal; root.traverse((x) => { const k = h?.indexOf(x) ?? -1; if (k >= 0) h.splice(k, 1) }) }
-  const dispose = (root) => { g.remove(root); unhide(root); root.traverse((x) => { if (x.userData?.vox) return; x.geometry?.dispose?.(); x.material?.dispose?.() }) }
+  // (red team 1: a ghost's own see-through material is disposed, its cube never: the voxel cube is shared by every voxel in the park)
+  const dispose = (root) => { g.remove(root); unhide(root); root.traverse((x) => { if (x.userData?.ownMat) { x.material?.dispose?.(); return } if (x.userData?.vox) return; x.geometry?.dispose?.(); x.material?.dispose?.() }) }
 
   // ---- ON BASE ----
   const BASES = [[0, 0], [19.4, 19.4], [0, 38.8], [-19.4, 19.4]].map(([x, y]) => W(x, y, 0))
@@ -36,7 +42,13 @@ export function initStage25(api, o = {}) {
     const m = new THREE.Group(), at = BASES[k]
     if (L === 2 || L === 5) { for (let y = 0; y < 4; y++) { const b = hide(new THREE.Mesh(new THREE.BoxGeometry(2.6 - y * 0.5, 0.6, 2.6 - y * 0.5), basic(y === 3 ? '#ffffff' : BONE))); b.position.set(0, 0.3 + y * 0.6, 0); b.rotation.y = Math.PI / 4; m.add(b) } }
     if (L === 3) { const b = hide(new THREE.Mesh(new THREE.BoxGeometry(0.5, 16, 0.5), basic(BONE, 0.55))); b.position.y = 8; m.add(b); const cap = hide(new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 1.4), basic('#ffffff'))); cap.position.y = 0.25; cap.rotation.y = Math.PI / 4; m.add(cap) }
-    if (L === 4) { const v = voxCells(THREE, GHOST(), 0.42); m.add(v) }
+    if (L === 4) {
+      const v = voxCells(THREE, GHOST(), 0.42)
+      // their own see-through materials (the voxel ones are shared), no ink round them, so they read as sheets of mist; a soft dark spot on the bag under each
+      v.traverse((c) => { if (c.material) { const wisp = ['#e6ecff', '#d5ddf5'].includes('#' + c.material.color.getHexString()); c.material = c.material.clone(); c.material.transparent = true; c.material.opacity = wisp ? 0.3 : 0.62; c.material.depthWrite = false; c.userData.ownMat = true; c.userData.wisp = wisp; c.renderOrder = 24; hide(c) } })
+      v.userData.float = true; m.add(v)
+      const spot = hide(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 2.2), basic('#000000', 0.35))); spot.position.y = 0.05; spot.rotation.y = Math.PI / 4; m.add(spot)
+    }
     m.position.copy(at); g.add(m)
     return m
   }
@@ -58,7 +70,7 @@ export function initStage25(api, o = {}) {
   let lastT = now()
   api.NN.frames.push(() => {
     const t = now(), dt = Math.min(0.25, Math.max(0.001, (t - lastT) / 1000)); lastT = t
-    if (crew && crew.L === 4) crew.marks.forEach((m, i) => { m.position.y = BASES[0].y + Math.abs(Math.sin(t / 260 + i)) * 0.35 })
+    if (crew && crew.L === 4) crew.marks.forEach((m, i) => { const v = m.children.find((c) => c.userData.float); if (v) { v.position.y = 1.6 + Math.sin(t / 420 + i * 1.7) * 0.55; v.rotation.y = Math.sin(t / 900 + i) * 0.25; const op = 0.5 + 0.14 * Math.sin(t / 300 + i); v.traverse((c) => { if (!c.material?.transparent) return; c.material.opacity = c.userData.wisp ? op * 0.5 : op; if (c.userData.wisp) c.position.x = Math.sin(t / 240 + i * 2) * 0.18 }) } })
     if (crew && crew.L === 3) crew.marks.forEach((m) => { const b = m.children[0]; if (b) b.material.opacity = 0.4 + 0.25 * Math.sin(t / 300) })
     for (const r of runs) {
       if (r.done) continue

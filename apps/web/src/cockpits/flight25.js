@@ -45,6 +45,7 @@ export function initFlight25(api, colors) {
     const im = new THREE.InstancedMesh(geo, mat, Math.max(1, pts.length)), m4 = new THREE.Matrix4()
     pts.forEach((p, i) => { const s = typeof size === 'function' ? size(i, p) : size; m4.makeScale(s, s, s).setPosition(p); im.setMatrixAt(i, m4) })
     im.count = pts.length
+    im.frustumCulled = false // (5 Nov: drawn as they grow; bounds taken while empty dropped them when the camera moved)
     return im
   }
   const column = (x, z, y0, y1, step) => { const out = []; for (let y = y0; y <= y1; y += step) out.push(new THREE.Vector3(x, y, z)); return out }
@@ -78,9 +79,9 @@ export function initFlight25(api, colors) {
   // the track: pts are world points along the flight; res the engine's result; color the verdict color; preview the ghost before a swing
   function track(pts, res, color, preview) {
     const g = new THREE.Group(), geo = box(), c = colors(), main = lam(preview ? c.dim : color), dim = lam(c.dim)
-    // (5 Nov, Andrew: "The dropped zenith / wall lines in deja vu disappear when the ball lands and then come back - fix that bug")
-    const sig = [Math.round(res.landFt ?? 0), Math.round(res.peakFt ?? 0), pts.length, res.verdict?.kind].join(), same = !preview && last && !last.userData.preview && last.userData.sig === sig && last.userData.shown
-    g.userData.sig = sig; g.userData.preview = !!preview
+    // (5 Nov, later: every committed track is a new flight, a re-hit too; Andrew: "don't redraw when I re-hit a home run")
+    const same = false
+    g.userData.preview = !!preview
     const curve = new THREE.CatmullRomCurve3(pts), len = curve.getLength(), at = (stepM) => curve.getSpacedPoints(Math.max(2, Math.round(len / stepM)))
     const ground = toWorld([0, 0, 0]).y + 0.3
     g.userData.reveal = []
@@ -90,6 +91,7 @@ export function initFlight25(api, colors) {
       P.forEach((_, i) => m.setColorAt(i, now0 ? hot : cold)); m.instanceColor.needsUpdate = true
       m.frustumCulled = false
       m.userData.fill = { P, cold, hot, upto: now0 || preview ? P.length : -1, live: new Map() }
+      if (!now0 && !preview) m.visible = false // (shown at the crack: the first reveal)
       g.add(m); if (!preview) g.userData.line = m
     }
     else if (style === 3) {
@@ -167,6 +169,7 @@ export function initFlight25(api, colors) {
     if (ld) { const S = ld.userData.src, i = Math.min(S.length - 1, Math.max(0, Math.round(f * (S.length - 1)))), p = S[i].p; ld.userData.ride(Math.hypot(p[0], p[1]) / FT, pos ?? toWorld(p), i >= ld.userData.over, p[2] / FT) }
     for (const [at, o] of last.userData.reveal) if (f >= at && !o.visible) { o.visible = true; startForm(o) }
     const L = last.userData.line
+    if (L && !L.visible) L.visible = true
     if (L) { const F = L.userData.fill, k = Math.floor(f * (F.P.length - 1)), t = performance.now(); while (F.upto < k) { F.upto++; F.live.set(F.upto, t) } }
     if (flow === 2) showTags(last, f)
     const h = last.userData.comet
@@ -176,7 +179,7 @@ export function initFlight25(api, colors) {
       h.instanceMatrix.needsUpdate = true
     }
   }
-  function done() { if (last) { last.userData.shown = true; for (const [, o] of last.userData.reveal) if (!o.visible) { o.visible = true; startForm(o) } showTags(last, 1); last.userData.ld?.userData.settle(); const L = last.userData.line; if (L) { const F = L.userData.fill, t = performance.now(); while (F.upto < F.P.length - 1) { F.upto++; F.live.set(F.upto, t + (F.upto % 40) * 4) } } } }
+  function done() { if (last) { last.userData.shown = true; for (const [, o] of last.userData.reveal) if (!o.visible) { o.visible = true; startForm(o) } showTags(last, 1); last.userData.ld?.userData.settle(); const L = last.userData.line; if (L) { L.visible = true; const F = L.userData.fill, t = performance.now(); while (F.upto < F.P.length - 1) { F.upto++; F.live.set(F.upto, t + (F.upto % 40) * 4) } } } }
   // ---- the zenith and wall cubes: grown out of nothing as the ball passes, then the post (POST_LOOKS) ----
   const forming = new Set()
   function startForm(o) {
@@ -193,15 +196,15 @@ export function initFlight25(api, colors) {
     const t = performance.now()
     for (const F of forming) {
       const a = t - F.t0, N = F.N, gy = F.pts[N - 1]?.y ?? F.at.y
-      // the cube: out of nothing, a soft overshoot, 0 to 320 ms
-      const kd = Math.min(1, a / 320); F.dot.scale.setScalar(Math.max(0.001, back(kd)))
+      // the cube: out of nothing, smoothly, 0 to 360 ms (5 Nov: "the actual formation of the cube on top looks weird right now let's make it smoother")
+      const kd = Math.min(1, a / 360), sm = kd * kd * (3 - 2 * kd); F.dot.scale.setScalar(Math.max(0.001, sm))
       const T = a - 260 // the post starts as the cube nears full size
       if (F.look === 1) { F.post.count = Math.round(N * ease(Math.max(0, Math.min(1, T / 520)))) }
       if (F.look === 2) { const n = Math.round(N * ease(Math.max(0, Math.min(1, T / 520)))); for (let i = 0; i < n; i++) put(F, i, F.pts[N - 1 - i], F.s); F.post.count = n; F.post.instanceMatrix.needsUpdate = true }
       if (F.look === 3) { let n = 0; for (let i = 0; i < N; i++) { const f = Math.max(0, Math.min(1, (T - i * 28) / 260)); if (f <= 0) break; put(F, i, F.pts[i], F.s * back(f)); n = i + 1 } F.post.count = n; F.post.instanceMatrix.needsUpdate = true }
       if (F.look === 4) {
-        const fall = Math.max(0, T) / 1000, drop = F.at.y - gy, y = Math.max(gy, F.at.y - 0.5 * 30 * fall * fall), landed = y <= gy
-        F.bob.visible = T > 0 && a < 1400; const bounce = landed ? Math.abs(Math.sin(Math.min(1, (T - Math.sqrt((2 * drop) / 30) * 1000) / 260) * Math.PI)) * 0.9 * (1 - Math.min(1, (T - Math.sqrt((2 * drop) / 30) * 1000) / 260)) : 0
+        const G = 60, fall = Math.max(0, T) / 1000, drop = F.at.y - gy, y = Math.max(gy, F.at.y - 0.5 * G * fall * fall), landed = y <= gy, tl = Math.sqrt((2 * drop) / G) * 1000 // (5 Nov: "speed it up a little bit")
+        F.bob.visible = T > 0 && a < 1100; const bounce = landed ? Math.abs(Math.sin(Math.min(1, (T - tl) / 200) * Math.PI)) * 0.7 * (1 - Math.min(1, (T - tl) / 200)) : 0
         m4f.makeScale(0.8, 0.8, 0.8).setPosition(F.at.x, y + bounce, F.at.z); F.bob.setMatrixAt(0, m4f); F.bob.instanceMatrix.needsUpdate = true
         let n = 0; for (let i = 0; i < N; i++) { if (F.pts[i].y >= y - 0.2) n = i + 1 } F.post.count = T > 0 ? n : 0
       }

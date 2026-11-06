@@ -3,6 +3,7 @@
 // park's lights shade the faces and the post shader inks the outline.
 // FONT: 5 wide by 7 tall, # is a cube.
 import { ORANGE } from './orange25.js'
+import { parkHit } from '../seance.js'
 export const FONT = {
   0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'], 1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
   2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'], 3: ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'],
@@ -115,6 +116,7 @@ export function keepReadable(api, g, ref = 230, lo = 0.35, hi = 2.6, o = {}) {
   }
   const hits = (a, list) => list.some((b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0)
   const win = () => { const W = window.__cpWindow; return W ? { x0: (2 * W.l) / innerWidth - 1, x1: 1 - (2 * W.r) / innerWidth, y0: (2 * W.b) / innerHeight - 1, y1: 1 - (2 * W.t) / innerHeight } : { x0: -1, x1: 1, y0: -1, y1: 1 } }
+  const cc = new THREE.Vector3(), dv = new THREE.Vector3(), pw = new THREE.Vector3()
   const TRY = [[0, 0], [0, 1], [-1, 0], [1, 0], [0, 2], [-1, 1], [1, 1], [-2, 0], [2, 0], [0, 3], [-2, 1], [2, 1], [0, 4], [0, 5]], side = new THREE.Vector3()
   api.NN.frames.push(() => {
     const live = []
@@ -129,6 +131,7 @@ export function keepReadable(api, g, ref = 230, lo = 0.35, hi = 2.6, o = {}) {
     for (const r of live) {
       const o = r.userData.read
       if (!shown(r)) { o.rect = null; continue }
+      if (o.pulled) { r.position.copy(o.base); o.pulled = false } // (last frame's pull in front of the park is undone first: its size comes from where it really is)
       if (o.scale) {
         r.getWorldPosition(w)
         r.scale.setScalar(Math.min(o.hi, Math.max(o.lo, cam.position.distanceTo(w) / o.ref)))
@@ -148,6 +151,17 @@ export function keepReadable(api, g, ref = 230, lo = 0.35, hi = 2.6, o = {}) {
       r.visible = !o.off
       o.rect = o.off ? null : rect
       if (rect && !o.off) placed.push(rect)
+      if (!o.off && o.clear !== false && o.box) { // in front of whatever stands between it and the camera
+        r.updateMatrixWorld(true)
+        const b = o.box, mx = (b.min.x + b.max.x) / 2, my = (b.min.y + b.max.y) / 2, mz = (b.min.z + b.max.z) / 2
+        let k = 1
+        for (const [x, y, z] of [[mx, my, mz], [b.min.x, b.min.y, mz], [b.max.x, b.min.y, mz], [mx, b.min.y, mz], [b.min.x, b.max.y, mz], [b.max.x, b.max.y, mz]]) {
+          cc.set(x, y, z).applyMatrix4(r.matrixWorld)
+          const d = cam.position.distanceTo(cc), hit = parkHit(api.NN, cam.position, dv.copy(cc).sub(cam.position).normalize(), d)
+          if (hit && hit.distance < d - 0.5) k = Math.min(k, (hit.distance - 2.5) / d)
+        }
+        if (k < 1) { k = Math.max(0.15, k); const wp = r.getWorldPosition(pw); wp.sub(cam.position).multiplyScalar(k).add(cam.position); if (r.parent) r.parent.worldToLocal(wp); r.position.copy(wp); r.scale.multiplyScalar(k); o.pulled = true }
+      }
     }
   })
   return g

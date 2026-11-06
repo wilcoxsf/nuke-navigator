@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 4 && !dk.ride /* (5 Nov, later: BLAST RADIUS CAMERA, ON BASE, THE FLIGHT LINE: POSTS, CONTRAILS open) */, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 5 && !dk.ride /* (5 Nov, later: BLAST RADIUS CAMERA, ON BASE, THE FLIGHT LINE: POSTS, LANDING MOMENT, CONTRAILS open) */, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -500,7 +500,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   for (let k = 0; k < 30 && !home; k++) { await page.waitForTimeout(400); home = await page.evaluate(() => !window.__mix25.pushing()) }
   const cam1 = await page.evaluate(() => window.__cp.NN.camera.position.toArray())
   const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
-  check('Z2 PUSH moves the camera toward the landing, then puts it back', camMid.on && dist(camMid.p, cam0) > 5 && home && dist(cam1, cam0) < 0.5, JSON.stringify({ mid: dist(camMid.p, cam0), back: dist(cam1, cam0) }))
+  check('no camera push after a landing, even asked for (5 Nov: "kill that pan / zoom entirely")', !camMid.on && home && dist(cam1, cam0) < 0.5, JSON.stringify({ on: camMid.on, mid: dist(camMid.p, cam0), back: dist(cam1, cam0) }))
   await page.evaluate(() => window.__mix25.set('L2P5A2T1F2Z1')); await page.waitForTimeout(400)
   const s5 = await swing({ ev: 108, la: 27, dir: -18, hand: 1, temp: 70, wind: 0 })
   check('F2 CONFETTI has no landing moment', s5.moment === null, JSON.stringify(s5))
@@ -574,7 +574,7 @@ if (!process.env.PHONE_ONLY && on('E')) {
   const page = await open(1440, 900, '&menu=0')
   const hdr = await page.evaluate(() => [...document.querySelectorAll('#c25mx .mx[data-ax]')].map((b) => b.dataset.ax).join('') + '|' + getComputedStyle(document.querySelector('#c25mx')).display)
   check('nothing open sits in the header (1 Nov, night: V and J locked, MIX gone); TYPE gone too', hdr === '|none' && (await page.evaluate(() => !document.querySelector('#c25ty'))), hdr)
-  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B12 Z2 H1 U2 D1 M1 X2 E1 Y3 N1 W1 Q2 C1 O2 G2, V (STANDS) open at V5 LOWER BOWL (31 Oct) and J (DOJO CONTROLS) open at J8 (BIG ARCS)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B12 V5 Z2 H1 U2 D1 M1 X2 E1 N1 J8 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
+  check('the locks are the defaults: L2 P5 A2 T16 F1 I2 R3 S1 K1 B12 Z1 H1 U2 D1 M1 X2 E1 Y3 N1 W1 Q2 C1 O2 G2, V (STANDS) open at V5 LOWER BOWL (31 Oct) and J (DOJO CONTROLS) open at J8 (BIG ARCS)', /L2 P5 A2 T16 F1 I2 R3 Y3 S1 K1 B12 V5 Z1 H1 U2 D1 M1 X2 E1 N1 J8 W1 Q2 C1 O2 G2$/.test(await page.evaluate(() => window.__mix25.code())), await page.evaluate(() => window.__mix25.code()))
   // the side view's ball is a pixel baseball (bone hide, red stitches), and so is the ball on the zone
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF' && b.ft > 410)); await page.waitForTimeout(900)
   const bl = await page.evaluate(() => ['#c25sv', '#c25zg'].map((s) => { const g = document.querySelector(s + ' [data-ball]'); return g ? { seam: [...g.querySelectorAll('rect')].filter((r) => /--sc/.test(r.getAttribute('fill'))).length, hide: [...g.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#f2efe6').length } : null }))

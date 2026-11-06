@@ -427,6 +427,9 @@ export const LAB = {
   // 5 Nov (Andrew: "make the line grey and then it turns orange as the ball flies over it ... give me some fun things for how the line goes from grey to orange")
   LF: { name: 'THE FLIGHT LINE: FILL', def: 2, opts: LINE_FILLS },
   PO: { name: 'THE FLIGHT LINE: POSTS', def: 1, opts: POST_LOOKS }, // (5 Nov: the zenith and wall cubes grow; how their posts arrive)
+  // 5 Nov (Andrew picked crater, dogpile, a fault line, the Dodger fan on a stretcher, pinball, a black hole and a portal): the seat moments; the deck plays them all in
+  // turn, a pick plays only that one so it can be looked at
+  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['DOGPILE', 'dogpile', 'fans run in from all round and pile on; one pops out of the top with it'], ['FAULT LINE', 'fault', 'the stands split both ways from the spot, glowing like lava, then close'], ['BONK', 'bonk', 'it hits a Dodger fan on the head; stars, he keels over, two medics carry him off on a stretcher'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['BLACK HOLE', 'blackhole', 'the seats round it spiral into a hole, then it spits every piece back'], ['PORTAL', 'portal', 'it goes into an orange ring and shoots out of a blue one on the far side of the park'], ['UFO', 'ufo', 'a saucer drops in and beams it up']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) },
   CN: { name: 'BLAST RADIUS: CONTRAILS', def: 1, opts: [{ c: 1, name: 'FAINT', desc: "a hairline for each of the player's home runs, bone, green and a touch brighter for the ones that go out here" }, { c: 2, name: 'ONLY THE GONE ONES', desc: 'only the ones that would go out here, in green' }, { c: 3, name: 'OFF', desc: 'no flights, only the bombs' }] },
   // 2 Nov, night (Andrew: "We can do better on voxel effects when it lands. I'd like the option for a scuba diver ... some oomph"): impact25.js
   LI: { name: 'LANDING IMPACT', def: 2, opts: IMPACTS },
@@ -463,7 +466,7 @@ const ORDER = ['L', 'P', 'A', 'T', 'F', 'I', 'R', 'Y', 'S', 'K', 'B', 'V', 'Z', 
 // 29 Oct, evening: Y3 ICE, N1, J2, W1, Q2 (with a voxel clock), C1 GLASS
 // 29 Oct, later still: G2 RELIEF and O2 BOX SCORE / FRONT OFFICE / NO LIFE
 // 1 Nov, evening (Andrew: "no more options"): V5 LOWER BOWL and J8 BIG ARCS, what he has been looking at, so the header's MIX goes
-const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z: 2, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2, V: 5, J: 8 }
+const LOCKED = { L: 2, P: 5, A: 2, T: 16, F: 1, I: 2, R: 3, S: 1, K: 1, B: 12, Z: 1 /* 5 Nov: STILL, the push killed */, H: 1, U: 2, D: 1, M: 1, X: 2, E: 1, Y: 3, N: 1, W: 1, Q: 2, C: 1, G: 2, O: 2, V: 5, J: 8 }
 // and the lab's settled ones (1 Nov, evening: "falling atom bomb fucking spectacular", GEIGER, OUTLINE FILLS ON HOVER, STRAIGHT DOWN, ONE AT A TIME, LIVING BOTTLE,
 // COLOR ONLY, NUMBERED PINS, MERCURY TOWER, GIANTS PENNANT, QUIET BOARD, his dojo drawings): they win over a stored lab; a ?lab= code still loads another (the tests)
 // 2 Nov: FP4, ORANGE AND WHITE foul poles ("Orange and white foul poles")
@@ -1022,10 +1025,10 @@ export async function build(root, api, U) {
 #cp .c25.blast .rd,#cp .c25.blast .bsel,#cp .c25.blast .tly,#cp .c25.blast .nuke,#cp .c25.blast .slice,#cp .c25.blast .strip .bt[data-k="ev"],#cp .c25.blast .strip .bt[data-k="la"],#cp .c25.blast .strip .bt[data-k="dir"]{display:none !important} /* (4 Nov: BLAST RADIUS is the park and its map; the dojo's swing readout and ball buttons stand aside) */
 #cp .c25 .hm .hmt .bt{pointer-events:auto;cursor:pointer;padding:2px 8px}
 #cp .c25 .hm .hmt .bt.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
-#cp .c25 .hm .hmo{display:grid;gap:2px;border:1px solid var(--tx);padding:6px 8px;margin-bottom:8px;min-height:58px}
-#cp .c25 .hm .hmo b{font-weight:400;color:var(--tx);font-size:calc(13px * var(--ts))}
-#cp .c25 .hm .hmo em{font-style:normal;color:var(--acc);font-size:calc(20px * var(--ts));line-height:1}
-#cp .c25 .hm .hmo i{font-style:normal;color:var(--dim);font-size:calc(11px * var(--ts))}
+#cp .c25 .hm .hmo{display:grid;gap:4px;border:1px solid var(--acc);padding:10px 12px;margin-bottom:10px;min-height:104px;align-content:start}
+#cp .c25 .hm .hmo b{font-weight:400;color:var(--tx);font-size:calc(14px * var(--ts))}
+#cp .c25 .hm .hmo em{font-style:normal;color:var(--acc);font-size:calc(40px * var(--ts));line-height:1;letter-spacing:0.02em}
+#cp .c25 .hm .hmo i{font-style:normal;color:var(--dim);font-size:calc(11px * var(--ts));line-height:1.35}
 #cp .c25 .hm .hmo .hpin{color:var(--tx);font-size:calc(11px * var(--ts));border-top:1px solid var(--ln);padding-top:3px;margin-top:2px}
 #cp .c25 .hm .hmp select{flex:1 1 auto;width:0;min-width:0;pointer-events:auto}
 #cp .c25 .hm .hmk{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin-top:10px;color:var(--dim);font-size:calc(11px * var(--ts))}
@@ -1043,7 +1046,7 @@ export async function build(root, api, U) {
 #cp .c25 .hm .htr b{font-weight:400;color:var(--tx);font-size:calc(11px * var(--ts))}#cp .c25 .hm .htr span{color:var(--dim);font-size:calc(10px * var(--ts));line-height:1.4}#cp .c25 .hm .htr.nb b{color:var(--dim)}#cp .c25 .hm .htr.me b{color:var(--acc)}
 #cp .c25 .hm .hwho{color:var(--tx);cursor:pointer;pointer-events:auto;text-decoration:underline;text-decoration-color:var(--dim)}#cp .c25 .hm .hwho:hover,#cp .c25 .hm .hwho:focus-visible{color:var(--acc)}
 #cp .c25 .hm .hws{flex:1 1 auto;min-width:0;display:flex;justify-content:space-between;align-items:center;gap:8px;pointer-events:auto;cursor:pointer;padding:4px 8px;font-size:calc(13px * var(--ts));color:var(--tx);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}#cp .c25 .hm .hws .cv{flex:none;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--acc)}#cp .c25 .hm .hws.on .cv{border-top:0;border-bottom:6px solid var(--acc)}
-#cp .c25 .hm .hwl{display:grid;max-height:46vh;overflow:auto;pointer-events:auto;border:1px solid var(--acc);margin:-4px 0 8px;background:var(--k)}#cp .c25 .hm .hwi{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .hm .hwi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts))}#cp .c25 .hm .hwi:hover,#cp .c25 .hm .hwi:focus-visible{background:color-mix(in srgb,var(--acc) 22%,transparent);outline:none}#cp .c25 .hm .hwi.on{color:var(--acc)}
+#cp .c25 .hm .hwl[hidden]{display:none}#cp .c25 .hm .hwl{display:grid;max-height:46vh;overflow:auto;pointer-events:auto;border:1px solid var(--acc);margin:-4px 0 8px;background:var(--k)}#cp .c25 .hm .hwi{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;cursor:pointer;color:var(--tx);font-size:calc(12px * var(--ts))}#cp .c25 .hm .hwi em{font-style:normal;color:var(--dim);font-size:calc(10px * var(--ts))}#cp .c25 .hm .hwi:hover,#cp .c25 .hm .hwi:focus-visible{background:color-mix(in srgb,var(--acc) 22%,transparent);outline:none}#cp .c25 .hm .hwi.on{color:var(--acc)}
 #cp .c25 .hm .hbg.one{border-color:var(--acc);color:var(--acc)}#cp .c25 .hm .lpr2 b i.up{color:var(--tx)}
 #cp .c25 .hm .hseat{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin:2px 0 6px;font-size:calc(11px * var(--ts))}#cp .c25 .hm .hseat span:first-child{color:var(--dim)}#cp .c25 .hm .hseat b{font-weight:400;color:var(--acc)}#cp .c25 .hm .hseat .bt{pointer-events:auto;cursor:pointer;padding:1px 6px}
 #cp .c25 .sfhd #c25rt{justify-self:end;grid-row:1;grid-column:1;position:relative;z-index:1;pointer-events:auto;cursor:pointer;font-size:calc(12px * var(--ts));padding:2px 8px;margin-bottom:-22px}
@@ -1190,7 +1193,7 @@ export async function build(root, api, U) {
   addEventListener('pointerdown', (e) => { down = onPark(e) ? [e.clientX, e.clientY] : null })
   addEventListener('pointerup', (e) => {
     if (!down || !onPark(e) || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return
-    if (life && boardHit(e)) { sound.play('pick'); life.play(life.nextGag(), {}, 0, true); return } // (30 Oct, night) click the scoreboard: the next gag
+    if (life && mode !== 'shot' && show !== 'hm' && boardHit(e)) { sound.play('pick'); life.play(life.nextGag(), {}, 0, true); return } // (30 Oct, night) click the scoreboard: the next gag
     if (mode !== 'shot' && show === 'my' && (myEdit || !mySaved())) { const p = sc.pick(e.clientX, e.clientY), x = p && seatOf(p); if (x?.what === 'seat') mySave(x); return } // MY SEAT: the click is your seat
     if (mode !== 'shot') return
     const spot = sc.pick(e.clientX, e.clientY)
@@ -1217,7 +1220,7 @@ export async function build(root, api, U) {
     const l = Math.max(W0.l, sl.right + 12), full = innerWidth - W0.l - W0.r, left = innerWidth - l - W0.r
     if (l > W0.l) api.NN.setWindow({ ...W0, l, z: W0.z * Math.max(0.6, left / Math.max(1, full)) })
   }
-  function paintTabs() { const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (was !== (show === 'hm')) requestAnimationFrame(blastFrame) } if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
+  function paintTabs() { const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
   root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
   // OFF THE MENU: the pitch was outside the zone (by the ball's edge, so a pitch touching the zone is a strike); where it missed names it
@@ -1964,7 +1967,7 @@ export async function build(root, api, U) {
     else if (e.key === 'c' || e.key === 'C') setMode(mode === 'shot' ? 'replay' : 'shot')
     else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); sound.play('move'); banner(sound.on() ? 'SOUND ON' : 'SOUND OFF', 'S TO SWITCH') }
     else if ((e.key === 'x' || e.key === 'X') && mode === 'replay') tweak()
-    else if (e.key === 'z' || e.key === 'Z') { mix.Z = mix.Z === 2 ? 1 : 2; sound.play('move'); applyMix('Z'); banner(mix.Z === 2 ? 'PUSH ON' : 'PUSH OFF', 'THE CAMERA ' + (mix.Z === 2 ? 'EASES TO THE LANDING' : 'STAYS PUT') + ' (Z)') }
+    else if (e.key === 'z' || e.key === 'Z') { /* (5 Nov: no more camera push) */ }
     else if (e.key === 'r' || e.key === 'R') { mix.R = mix.R ? 0 : lastR || 1; sound.play('move'); applyMix('R') }
     else if (e.key === 'j' || e.key === 'J') openMod('jukebox')
     else if ((e.key === 'u' || e.key === 'U') && mode === 'whatif') {
@@ -2156,21 +2159,21 @@ export async function build(root, api, U) {
     const box = E('#c25hb .hmo'); if (!box) return
     if (hmBomb?.b) { const B = hmBomb.b, html = `<b>${hmName(B.b)} · ${dayOf(B.d)}</b><em>${B.ft} FT${B.park && B.park !== 'SF' ? ` AT ${B.park}` : ' AT ORACLE'}</em><i>${hmBomb.gone ? 'IT GOES OUT HERE TONIGHT' : 'IT STAYS IN HERE TONIGHT'} · CLICK TO WATCH IT IN DINGER DÉJÀ-VU</i>`; if (box.innerHTML !== html) box.innerHTML = html; return }
     const w = cellWords(hmOver), p = cellWords(hmPin)
-    let html = w ? `<b>${w.place}</b><em>${w.main}</em><i>${w.sub}</i>` : `<i>POINT AT THE FIELD OR THE SEATS. CLICK ONE TO KEEP IT AND COMPARE.</i>`
+    let html = w ? `<b>${w.place}</b><em>${w.main}</em><i>${w.sub}</i>` : `<i>${hmWho ? 'POINT AT THE FIELD OR THE SEATS, OR AT A BOMB FOR ITS DAY. CLICK A BOMB TO WATCH IT IN DINGER DÉJÀ-VU.' : 'POINT AT THE FIELD OR THE SEATS.'}</i>`
     if (p) { const diff = w && p.ev != null && w.ev != null && hmOver !== hmPin ? w.ev - p.ev : null; html += `<span class="hpin">KEPT: ${p.place}, ${p.main}${diff != null ? ` · THIS ONE TAKES ${Math.abs(diff)} MPH ${diff > 0 ? 'MORE' : diff < 0 ? 'LESS' : ''}${diff === 0 ? 'THE SAME' : ''}` : ''}</span>` }
     if (box.innerHTML !== html) box.innerHTML = html
   }
   function paintHeat() {
     const el = E('#c25hi'), hb = E('#c25hb'), s = api.state
     wordTitle(el, '/ B L A S T &nbsp; R A D I U S /', 'landing')
-    const key = [hmWho, hmMetric, hmList, Math.round(s.temp), Math.round(s.wind), Math.round(s.xwind ?? 0), s.hand].join()
+    const key = [hmWho, hmMetric, Math.round(s.temp), Math.round(s.wind), Math.round(s.xwind ?? 0), s.hand].join() // (red team 7: the list being open is not part of it)
     if (key === hmKey && hb.querySelector('.hm')) return
     hmKey = key
     const who = hmWho, people = hmPeople()
     // (4 Nov, night, Andrew: "The 'who' selector feels way out of place vibes wise with this white drop down"): a pixel button that opens a list in the panel
     const cur0 = people.find((p) => p.id === who)
     const pick = `<div class="hmp">WHO <span class="bt hws${hmList ? ' on' : ''}" id="c25hmw" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="${hmList}">${cur0 ? cur0.name : 'EVERYONE'}<i class="cv"></i></span></div>` +
-      (hmList ? `<div class="hwl" role="listbox">${[{ id: '', name: 'EVERYONE', k: null }, ...people].map((p) => `<span class="hwi${p.id === who ? ' on' : ''}" role="option" tabindex="0" data-who="${p.id}">${p.name}${p.k != null ? `<em>${p.k} BALLS · ${p.hr} HR</em>` : ''}</span>`).join('')}</div>` : '')
+      `<div class="hwl" role="listbox"${hmList ? '' : ' hidden'}>${[{ id: '', name: 'EVERYONE', k: null }, ...people].map((p) => `<span class="hwi${p.id === who ? ' on' : ''}" role="option" tabindex="0" data-who="${p.id}">${p.name}${p.k != null ? `<em>${p.k} BALLS · ${p.hr} HR</em>` : ''}</span>`).join('')}</div>`
     const tabs = who ? '' : `<div class="hmt"><span class="bt${hmMetric === 'hard' ? ' on' : ''}" data-hm="hard">HOW HARD</span><span class="bt${hmMetric === 'many' ? ' on' : ''}" data-hm="many">HOW MANY</span></div>`
     const stops = (GRADS.find((g) => g.c === lab.BG) ?? GRADS[0]).stops
     const key2 = (_, lo, hi) => `<div class="hmk"><span>${lo}</span><i style="background:linear-gradient(90deg,${stops.join(',')})"></i><span>${hi}</span></div>`
@@ -2247,12 +2250,13 @@ export async function build(root, api, U) {
         zs.map((r) => `<div class="lpr2"><span>${r.name}</span><b>${pc(r.f)} <i class="${r.vs > 0 ? 'up' : ''}">${r.vs > 0 ? '+' : r.vs < 0 ? '-' : ''}${Math.abs(r.vs)}</i> <i>${r.n ? `${r.out} OF ${r.n} HR` : 'NO HR'}</i></b></div>`).join('') + key2(null, 'FEWEST', 'MOST')
     }
     hb.innerHTML = `<div class="sel hm">${pick}${tabs}<div class="hmo"></div>${body}</div>`
-    const sel = hb.querySelector('#c25hmw'), flip = () => { hmList = !hmList; sound.play('move'); hmKey = ''; paintHeat(); if (hmList) hb.querySelector('.hwi.on, .hwi')?.focus() }
+    const sel = hb.querySelector('#c25hmw'), flip = (open = !hmList) => { hmList = open; sound.play('move'); const L = hb.querySelector('.hwl'); if (L) L.hidden = !hmList; sel?.classList.toggle('on', hmList); sel?.setAttribute('aria-expanded', String(hmList)); if (hmList) hb.querySelector('.hwi.on, .hwi')?.focus(); else sel?.focus() }
     sel?.addEventListener('click', () => { pressEl(sel); flip() })
     sel?.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); flip() } })
-    hb.querySelectorAll('.hwi').forEach((it, k, all) => it.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); all[Math.max(0, Math.min(all.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1)))].focus() } if (e.key === 'Escape') { e.stopPropagation(); hmList = false; hmKey = ''; paintHeat() } }))
-    hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmWho = ''; hmPin = null; hmKey = ''; paintHeat() }))
-    hb.querySelectorAll('[data-who]').forEach((b) => { const go = () => { sound.play('pick'); hmList = false; hmWho = b.dataset.who; hmPin = null; hmKey = ''; paintHeat() }; b.addEventListener('click', go); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } }) })
+    hb.querySelectorAll('.hwi').forEach((it, k, all) => it.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); all[Math.max(0, Math.min(all.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1)))].focus() } if (e.key === 'Escape') { e.stopPropagation(); flip(false) } }))
+    const forget = () => { hmBomb = null; hmOver = null; hmPin = null; E('#c25h')?.style.setProperty('cursor', '') } // (red team 5)
+    hb.querySelectorAll('[data-hm]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('move'); hmMetric = b.dataset.hm; hmWho = ''; forget(); hmKey = ''; paintHeat() }))
+    hb.querySelectorAll('[data-who]').forEach((b) => { const go = () => { sound.play('pick'); hmList = false; hmWho = b.dataset.who; forget(); hmKey = ''; paintHeat() }; b.addEventListener('click', go); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go() } }) })
     // the portrait (the same faces as the batter box: the real photo, else the generated one), in the page's art style
     const pf = hb.querySelector('.hpf')
     if (pf && who) { try { const rec = facesRaw[who], gen = !rec && hasGen ? genericFace('composite', who) : null, src = rec ? faceSource(rec) : gen ? gen.src : drawBust(160), cs = cs0(); drawFace(pf, src, optOf('A', mix.A).canvas ?? 'hedcut', 76, 76, { ink: cs.getPropertyValue('--tx').trim(), acc: cs.getPropertyValue('--acc').trim() }) } catch (err) { void err } }
@@ -2270,8 +2274,8 @@ export async function build(root, api, U) {
     addEventListener('pointerdown', (e) => { dn = show === 'hm' && onPark(e) ? [e.clientX, e.clientY] : null })
     addEventListener('pointerup', (e) => { if (!dn || Math.hypot(e.clientX - dn[0], e.clientY - dn[1]) > 5) return
       const bm = hmWho ? heat.bombAt(e.clientX, e.clientY) : null
-      if (bm?.b) { const B = bm.b; hmBomb = null; sound.play('pick'); goTab('replay'); setTimeout(() => { filter = 'all'; balls = filtered(); const i = balls.indexOf(B); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } }, 60); return }
-      const c = heat.cellAt(e.clientX, e.clientY); if (!c) return; hmPin = hmPin === c ? null : c; sound.play(hmPin ? 'pick' : 'back'); paintHmOver() }) }
+      if (bm?.b) { const B = bm.b; hmBomb = null; sound.play('pick'); goTab('replay'); if (mode === 'replay') { filter = 'all'; balls = filtered(); const i = balls.indexOf(B); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } } return } // (red team 3)
+      void 0 }) }
   function paintLanding(res) {
     const s = api.state, el = E('#c25hi'), hb = E('#c25hb'), bear = res.landB ?? s.dir
     wordTitle(el, '/ L A N D I N G &nbsp; P A R T Y /', 'landing')
@@ -2859,10 +2863,12 @@ export async function build(root, api, U) {
   touches = initTouches25(api, { sound: (k, a) => sound.play(k, a), makeGull: () => life?.makeGull?.() })
   // POINTING AT A SEAT: Shot Caller's pointer, a raycast at most every 70 ms
   { let pT = 0; addEventListener('pointermove', (e) => { if (mode !== 'shot' || !onPark(e)) { touches.hoverSeat(null); return } const n = performance.now(); if (n - pT < 70) return; pT = n; const p = sc.pick(e.clientX, e.clientY); touches.hoverSeat(p, p && seatOf(p), cs0().getPropertyValue('--acc').trim()) }) }
-  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner: null, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0 })
+  const moments = initMoments25(api, colors, fx, { sound: (k) => sound.play(k), banner: null, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0, force: () => LAB.MO.opts.find((x) => x.c === lab.MO)?.kind || null })
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
+    return // (5 Nov: the push is gone, Z or no Z)
+    // eslint-disable-next-line no-unreachable
     if (mix.Z !== 2 || !at || bird || reduced || look) return
     const C = api.NN.camera, T = api.NN.controls.target
     push = { start: performance.now(), p0: C.position.clone(), t0: T.clone(), p1: C.position.clone().lerp(at, 0.3), t1: T.clone().lerp(at, 0.6) }
@@ -3047,7 +3053,7 @@ export async function build(root, api, U) {
     fx.land(ev, { noAct: diverNow })
     impact.land(ev, { impact: lab.LI, diver: diverNow })
     // THE GULL ON THE NUMBER: about one landing in three, a few seconds after it settles (with the gulls on)
-    if (mix.F !== 3 && !diverNow) { const ld = flight.last()?.userData.ld; setTimeout(() => { if (ld && flight.last()?.userData.ld === ld && Math.random() < (window.__cpGullOdds ?? 1 / 3)) touches.gull(ld) }, 3200) }
+    if (mix.F !== 3 && !diverNow) { const ld = flight.last()?.userData.ld; setTimeout(() => { if (ld && flight.last()?.userData.ld === ld && Math.random() < (window.__cpGullOdds ?? 0)) touches.gull(ld) }, 3200) }
     if (life) { if (ev.key === 'SPLASH') life.show('SPLASH!', `${ft} FT`, null, 2.4); else if (hr) life.show('HOME RUN', `${ft} FT`, null, 2.4); else life.show(`${ft} FT`, ev.key === 'WALL' || ev.key === 'CLOSE' ? 'OFF THE WALL' : ev.key === 'FOUL' ? 'FOUL BALL' : 'IN PLAY', cs0().getPropertyValue('--tx').trim()) }
     if (hr && mix.F !== 3) life?.scatter()
     if (hap) moments.clear?.() // (1 Nov, night: one landing show at a time; a happening that came with the landing has the spot)

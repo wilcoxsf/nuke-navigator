@@ -30,7 +30,12 @@ export function initMoments25(api, col, fx, o = {}) {
     return g
   }
   const look = (g, i) => g.userData.looks.forEach((c, k) => { if (c) c.visible = k === i })
-  const kill = (g) => { scene.remove(g); live.delete(g) }
+  // (red team 2: what a moment made is freed when it goes, played out or cut off; the glove, sea lion and ball models are clones of shared assets and are only removed)
+  const free = (g) => { if (!g?.userData?.owned) return; g.traverse((c) => { c.geometry?.dispose?.(); c.material?.dispose?.() }) }
+  const kill = (g) => { scene.remove(g); live.delete(g); free(g) }
+  // (red team 12: a sound due later only plays if its moment is still the one up)
+  let gen = 0
+  const later = (ms, fn) => { const k = gen; setTimeout(() => { if (k === gen) fn() }, ms) }
   const hideBall = (v) => { if (!M) return; const b = api.ballMesh?.(); if (b) b.visible = !v } // with no model loaded yet, nothing takes the ball
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   const run = (fn) => { let t = 0; parts.push((dt) => fn((t += dt))) }
@@ -56,7 +61,7 @@ export function initMoments25(api, col, fx, o = {}) {
     const g = new THREE.Group(), byC = {}
     for (const [x, y, z, c] of cells) (byC[c] ??= []).push([x, y, z])
     for (const [c, list] of Object.entries(byC)) { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshLambertMaterial({ color: c, flatShading: true }), list.length); list.forEach(([x, y, z], i) => m.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x * size, y * size, z * size))); g.add(m) }
-    g.position.copy(at0); scene.add(g); live.add(g); g.userData.at = at0.clone()
+    g.position.copy(at0); scene.add(g); live.add(g); g.userData.at = at0.clone(); g.userData.owned = true
     const cam = api.NN.camera.position; g.rotation.y = Math.atan2(cam.x - at0.x, cam.z - at0.z)
     return g
   }
@@ -111,6 +116,7 @@ export function initMoments25(api, col, fx, o = {}) {
   function seats(at) {
     // half the time the glove (sometimes a bobble); otherwise a gull, a dog or a beer
     if (o.variety === false) { seatsGlove(at); return }
+    const f = o.force?.(); if (f && PLAY[f]) { PLAY[f](at); return } // (5 Nov: one picked in the side menu, to look at)
     PLAY[deal()](at)
   }
   function seatsGlove(at) {
@@ -178,7 +184,7 @@ export function initMoments25(api, col, fx, o = {}) {
   function cubes(list, o2 = {}) {
     const n = list.length, im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ flatShading: true }), n), m4 = new THREE.Matrix4(), c = new THREE.Color(), p = V(0, 0, 0)
     list.forEach((q, i) => im.setColorAt(i, c.set(q.c)))
-    im.frustumCulled = false; scene.add(im); live.add(im)
+    im.frustumCulled = false; im.userData.owned = true; scene.add(im); live.add(im)
     run((t) => {
       let alive = 0
       list.forEach((q, i) => {
@@ -190,7 +196,7 @@ export function initMoments25(api, col, fx, o = {}) {
         m4.makeScale(s, s, s).setPosition(p); im.setMatrixAt(i, m4)
       })
       im.instanceMatrix.needsUpdate = true
-      if (!alive && t > 0.5) { scene.remove(im); im.geometry.dispose(); im.material.dispose(); live.delete(im); return false }
+      if (!alive && t > 0.5) { kill(im); return false }
       return true
     })
     return im
@@ -226,7 +232,7 @@ export function initMoments25(api, col, fx, o = {}) {
     const g = vox(C, 1.2, at.clone())
     g.scale.setScalar(0.01)
     run((t) => { const k = Math.min(1, Math.max(0, (t - 0.9) / 0.35)); g.scale.setScalar(Math.max(0.01, k)); if (t > 4) { kill(g); return false } return true })
-    o.sound?.('kaboom'); setTimeout(() => o.sound?.('dirt'), 300)
+    o.sound?.('kaboom'); later(300, () => o.sound?.('dirt'))
   }
   // ABDUCTED: a saucer drops out of the sky over the spot, a beam of cubes comes down, the ball goes up it, and the saucer is gone
   function ufo(at) {
@@ -289,13 +295,147 @@ export function initMoments25(api, col, fx, o = {}) {
       return true
     })
   }
+  // ---- 5 Nov (Andrew, on the list of ten: "crater, dogpile, let's have an earthquake fault line split it, let's have it hit a dodger fan in the head and then he's
+  // carried off on a stretcher, like pinball, like black hole too. Let's have one where it enters a portal too and then pops out somewhere else") ----
+  const camSide = () => V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize()
+  const SHIRTS = ['#fd5a1e', '#16181b', '#efe6cf', '#fd5a1e', '#8a8f99', '#16181b'], SKIN = ['#e0b48a', '#c68e62', '#8d5a3b', '#f1c9a5']
+  // a little fan, two cubes wide: shoes, pants, shirt, head, cap
+  const fanCells = (shirt, skin, cap = '#16181b', pants = '#2a2d33') => { const c = []; for (const x of [0, 1]) { c.push([x, 0, 0, '#16181b'], [x, 1, 0, pants], [x, 2, 0, pants]); for (let y = 3; y <= 5; y++) c.push([x, y, 0, shirt]); c.push([x, 6, 0, skin], [x, 7, 0, skin], [x, 8, 0, cap]) } c.push([-1, 4, 0, shirt], [2, 4, 0, shirt], [0, 8, 1, cap], [1, 8, 1, cap]); return c }
+  // DOGPILE: fans run in from all round, pile on the ball, the heap wobbles, one pops out of the top with it held up, and they all scatter
+  function dogpile(at) {
+    log.push('dogpile'); hideBall(true)
+    const N = 11, fans = []
+    for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2 + rnd(-0.2, 0.2), r = rnd(18, 26), from = at.clone().add(V(Math.cos(a) * r, 0, Math.sin(a) * r)), g = vox(fanCells(SHIRTS[i % SHIRTS.length], SKIN[i % SKIN.length]), 1.25, from); fans.push({ g, from, a, h: i < 4 ? 0 : i < 8 ? 1 : i < 10 ? 2 : 3, k: i }) }
+    const top = fans[N - 1], ball = piece('ball', ['ball'], at.clone()); ball.visible = false
+    run((t) => {
+      for (const f of fans) {
+        const slot = at.clone().add(V(Math.cos(f.a) * (f.h ? 4.8 - f.h : 6), f.h * 5.2, Math.sin(f.a) * (f.h ? 4.8 - f.h : 6)))
+        if (t < 0.9) { const k = ease(t / 0.9 - f.k * 0.02); f.g.position.lerpVectors(f.from, slot, k); f.g.position.y += Math.abs(Math.sin(t * 14 + f.k)) * 1.6 * (1 - k) }
+        else if (t < 2.4) { f.g.position.copy(slot); f.g.position.x += Math.sin(t * 9 + f.k) * 0.5; f.g.rotation.z = Math.sin(t * 7 + f.k) * 0.12 }
+        else if (f !== top) { const k = ease((t - 2.4) / 1.1); f.g.position.lerpVectors(slot, f.from, k); f.g.position.y = slot.y * (1 - k) + Math.abs(Math.sin(t * 12 + f.k)) * 1.4; f.g.rotation.z = 0 }
+      }
+      if (t > 1.9) { const k = Math.min(1, (t - 1.9) / 0.3); top.g.position.y = at.y + 3 * 5.2 + 4 * ease(k); ball.visible = true; ball.position.copy(top.g.position).add(V(0, 14.4, 0)); ball.rotation.y = t * 6 }
+      if (t > 4) { for (const f of fans) kill(f.g); kill(ball); return false }
+      return true
+    })
+    o.sound?.('dirt')
+  }
+  // FAULT LINE: the ground splits from the spot both ways across the stands, the crack glows like lava, dust rises along it, then it closes up
+  function fault(at) {
+    log.push('fault'); hideBall(true)
+    const side = camSide(), depth = V(-side.z, 0, side.x), list = []
+    for (const s of [-1, 1]) {
+      let p = at.clone(), zig = 0
+      for (let i = 0; i < 26; i++) {
+        zig += rnd(-0.9, 0.9); zig = Math.max(-2.5, Math.min(2.5, zig))
+        p = at.clone().addScaledVector(side, s * i * 2.5).addScaledVector(depth, zig * 2)
+        const d = i * 0.035
+        list.push({ at: p.clone().add(V(0, 0.2, 0)), v: V(0, 0, 0), s: 2.5, life: 3.2, delay: d, c: '#16181b' })
+        list.push({ at: p.clone().add(V(0, 0.45, 0)), v: V(0, 0, 0), s: 1.4, life: 3.0, delay: d + 0.1, c: i % 3 ? ORANGE.o : '#ffd23f' })
+        if (i % 2 === 0) for (let k = 0; k < 2; k++) list.push({ at: p.clone().add(V(rnd(-1, 1), 0.5, rnd(-1, 1))), v: V(rnd(-0.6, 0.6), rnd(2, 4), rnd(-0.6, 0.6)), s: rnd(2, 3.4), life: rnd(1.4, 2.2), delay: d + rnd(0, 0.3), grow: 1.2, c: ['#8a8f99', '#b9b4a5', '#6b7079'][k % 3] })
+        // chunks of seat jolted up on either side of the split
+        if (i % 3 === 0) for (const e of [-1, 1]) list.push({ at: p.clone().addScaledVector(depth, e * 2.8).add(V(0, 0.8, 0)), v: V(depth.x * e * 3, rnd(7, 12), depth.z * e * 3), s: rnd(1.2, 2), life: 1, delay: d, c: ['#3a3f47', '#c9b79a'][i % 2] })
+      }
+    }
+    cubes(list, { g: 0 })
+    o.sound?.('kaboom'); later(250, () => o.sound?.('dirt'))
+  }
+  // BONK: it comes down on a Dodger fan's head, bounces off, stars go round, he keels over, and two medics carry him off on a stretcher
+  function bonk(at) {
+    log.push('bonk'); hideBall(true)
+    const BLUE = '#005a9c', side = camSide(), fan = vox(fanCells(BLUE, '#f1c9a5', BLUE, '#d9dde3'), 1.25, at.clone())
+    const medics = [-1, 1].map((s) => vox(fanCells('#f4f2ea', SKIN[(s + 3) % 4], '#d62a2a', '#f4f2ea'), 1.25, at.clone().addScaledVector(side, s * 30)))
+    const strC = []; box(strC, -3, 3, 0, 0, 0, 1, '#f4f2ea'); box(strC, -4, -4, 0, 0, 0, 1, '#8a8f99'); box(strC, 4, 4, 0, 0, 0, 1, '#8a8f99'); box(strC, 0, 0, 1, 1, 0, 0, '#d62a2a')
+    const str = vox(strC, 1.25, at.clone()); str.visible = false
+    const ball = piece('ball', ['ball'], at.clone().add(V(0, 11.6, 0)))
+    const stars = []; for (let i = 0; i < 5; i++) { const s = vox([[0, 0, 0, '#ffd23f']], 1, at.clone()); stars.push(s) }
+    run((t) => {
+      // the ball: off the head and away
+      if (t < 1.2) { const k = t / 1.2; ball.position.copy(at).add(V(0, 11.6, 0)).addScaledVector(side, k * 18); ball.position.y += 12 * k - 18 * k * k; ball.rotation.x = t * 10 } else ball.visible = false
+      // stars round his head while he wobbles, then he goes over
+      const wob = t < 1.8 ? Math.sin(t * 12) * 0.18 : 0, fall = t < 1.8 ? 0 : Math.min(1, (t - 1.8) / 0.35)
+      fan.rotation.z = wob + fall * (Math.PI / 2)
+      stars.forEach((s, i) => { const a = t * 6 + (i / 5) * Math.PI * 2; s.visible = t > 0.2 && t < 2.6; s.position.copy(at).add(V(Math.cos(a) * 3.2, 12.4 + fall * -8, Math.sin(a) * 3.2)) })
+      // the medics come in from each side with the stretcher between them, he goes on it, and they carry him off
+      if (t > 2.1) {
+        const inK = ease((t - 2.1) / 1.0), outK = t > 3.6 ? ease((t - 3.6) / 1.6) : 0, off = side.clone().multiplyScalar(outK * 50)
+        medics.forEach((m, j) => { const s = j ? 1 : -1; m.position.copy(at).addScaledVector(side, s * (30 - 27 * inK)).add(off); m.position.y = at.y + Math.abs(Math.sin(t * 10 + j)) * 0.6 })
+        if (t > 3.1) { str.visible = true; str.position.copy(at).add(off).add(V(0, 4.4, 0)); fan.position.copy(str.position).add(V(0, 1.2, 0)); fan.rotation.z = Math.PI / 2 }
+      }
+      if (t > 5.4) { kill(fan); kill(str); medics.forEach(kill); stars.forEach(kill); kill(ball); return false }
+      return true
+    })
+    o.sound?.('thud')
+  }
+  // PINBALL: bumpers pop up out of the seats round the spot and the ball pings between them, each lighting up as it is hit, then it drops out of sight
+  function pinball(at) {
+    log.push('pinball'); hideBall(true)
+    const side = camSide(), depth = V(-side.z, 0, side.x)
+    const spots = [[-10, 6], [10, 8], [0, -8], [-8, -4], [8, -6]].map(([a, b]) => at.clone().addScaledVector(side, a).addScaledVector(depth, b))
+    const bumperCells = (c) => { const C = []; for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) { const r = Math.hypot(x, z); if (r <= 2.3) { C.push([x, 0, z, '#16181b']); C.push([x, 1, z, r > 1.4 ? c : '#f4f2ea']) } } return C }
+    const bumpers = spots.map((p, i) => ({ g: vox(bumperCells(i % 2 ? ORANGE.o : '#ffd23f'), 1.1, p.clone()), p }))
+    const hot = spots.map((p) => { const g = vox(bumperCells('#ffffff'), 1.1, p.clone()); g.visible = false; return g })
+    const ball = piece('ball', ['ball'], at.clone().add(V(0, 4, 0)))
+    const path = [at.clone().add(V(0, 4, 0)), ...[0, 1, 2, 3, 4, 1, 0].map((k) => spots[k].clone().add(V(0, 4.4, 0)))], hop = 0.32
+    run((t) => {
+      bumpers.forEach((b, i) => { const up = ease(t / 0.3) - ease((t - 3.4) / 0.4); b.g.scale.setScalar(Math.max(0.01, up)); hot[i].scale.copy(b.g.scale) })
+      const seg = Math.floor(t / hop), k = (t % hop) / hop
+      if (seg < path.length - 1) { ball.position.lerpVectors(path[seg], path[seg + 1], k); ball.position.y += Math.sin(k * Math.PI) * 4.4; ball.rotation.y = t * 12; const hit = [0, 1, 2, 3, 4, 1, 0][seg]; hot.forEach((h, i) => { h.visible = i === hit && k > 0.85 || i === [0, 1, 2, 3, 4, 1, 0][seg - 1] && k < 0.25 }); if (k > 0.85 && !ball.userData['h' + seg]) { ball.userData['h' + seg] = 1; o.sound?.('chip') } }
+      else { const k2 = Math.min(1, (t - hop * (path.length - 1)) / 0.4); ball.position.copy(path[path.length - 1]); ball.position.y -= k2 * 6; ball.scale.setScalar(Math.max(0.01, 1 - k2)); hot.forEach((h) => { h.visible = false }) }
+      if (t > 3.9) { bumpers.forEach((b) => kill(b.g)); hot.forEach(kill); kill(ball); return false }
+      return true
+    })
+  }
+  // BLACK HOLE: a hole opens where it lands, the seats round it come apart and spiral in, it swallows them, then spits every piece back where it was
+  function blackhole(at) {
+    log.push('blackhole'); hideBall(true)
+    const disk = [], N = 70, bits = []
+    for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) { const r = Math.hypot(x, z); if (r <= 3.3) disk.push([x, 0, z, r < 1.6 ? '#000000' : r < 2.5 ? '#2a1a3d' : ORANGE.o]) }
+    const hole = vox(disk, 1.5, at.clone().add(V(0, 0.8, 0))); hole.scale.setScalar(0.01)
+    for (let i = 0; i < N; i++) { const a = rnd(0, Math.PI * 2), r = rnd(8, 24); bits.push({ a, r, y: rnd(0, 3), c: ['#3a3f47', '#c9b79a', '#8a8f99', ORANGE.o, '#efe6cf'][i % 5], s: rnd(1.2, 2.2) }) }
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ flatShading: true }), N), m4 = new THREE.Matrix4(), cc = new THREE.Color(), q = new THREE.Quaternion(), e = new THREE.Euler()
+    bits.forEach((b, i) => im.setColorAt(i, cc.set(b.c))); im.frustumCulled = false; im.userData.owned = true; scene.add(im); live.add(im)
+    run((t) => {
+      const open = Math.min(1, t / 0.4), close = t > 3.2 ? Math.max(0, 1 - (t - 3.2) / 0.4) : 1
+      hole.scale.setScalar(Math.max(0.01, open * close)); hole.rotation.y = t * 4
+      bits.forEach((b, i) => {
+        let f // 0 where it was, 1 swallowed
+        if (t < 0.5) f = 0; else if (t < 2.3) f = ease((t - 0.5) / 1.8); else if (t < 2.6) f = 1; else f = 1 - ease((t - 2.6) / 0.6)
+        const r = b.r * (1 - f), a = b.a + f * 9, s = b.s * (1 - 0.85 * f), out = t > 2.6 ? Math.sin(Math.min(1, (t - 2.6) / 0.6) * Math.PI) * 6 : 0
+        e.set(t * 3 + i, t * 2, 0); q.setFromEuler(e); m4.compose(V(at.x + Math.cos(a) * r, at.y + 0.6 + b.y * (1 - f) + out, at.z + Math.sin(a) * r), q, V(s, s, s)); im.setMatrixAt(i, m4)
+      })
+      im.instanceMatrix.needsUpdate = true
+      if (t > 3.7) { kill(hole); kill(im); return false }
+      return true
+    })
+    o.sound?.('whoosh')
+  }
+  // PORTAL: an orange ring opens where it lands and the ball goes through; a blue ring opens high on the far side of the park and it shoots out and comes down there
+  function portal(at) {
+    log.push('portal'); hideBall(true)
+    const ring = (c) => { const C = []; for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; C.push([Math.round(Math.cos(a) * 4), Math.round(Math.sin(a) * 4) + 4, 0, c], [Math.round(Math.cos(a) * 3.4), Math.round(Math.sin(a) * 3.4) + 4, 0, '#ffffff']) } return C }
+    const home = toWorld([0, 0, 0]), far = V(home.x - (at.x - home.x), at.y, at.z), exitAt = far.clone().add(V(0, 24, 0))
+    const A = vox(ring(ORANGE.o), 1.5, at.clone()), B = vox(ring('#5fd3ff'), 1.5, exitAt.clone()); A.scale.setScalar(0.01); B.scale.setScalar(0.01)
+    const ball = piece('ball', ['ball'], at.clone().add(V(0, 18, 0)))
+    run((t) => {
+      A.scale.setScalar(Math.max(0.01, ease(t / 0.35) - ease((t - 1.3) / 0.3))); A.rotation.z = t * 2
+      B.scale.setScalar(Math.max(0.01, ease((t - 0.9) / 0.35) - ease((t - 3.4) / 0.35))); B.rotation.z = -t * 2
+      if (t < 0.9) { ball.visible = true; ball.position.copy(at).add(V(0, 18 - 12 * ease(t / 0.9), 0)); ball.scale.setScalar(Math.max(0.01, 1 - Math.max(0, (t - 0.6) / 0.3))) }
+      else if (t < 1.25) ball.visible = false
+      else if (t < 2.8) { const k = (t - 1.25) / 1.55; ball.visible = true; ball.scale.setScalar(Math.min(1, k * 4)); ball.position.copy(exitAt).add(V(0, 6, 0)); ball.position.y += 10 * k - 34 * k * k; ball.position.x += (home.x - far.x) * 0.04 * k; ball.rotation.y = t * 10 }
+      else if (t < 2.9) { ball.visible = false; if (!ball.userData.dust) { ball.userData.dust = 1; for (let i = 0; i < 10; i++) cubes([{ at: far.clone().add(V(rnd(-1, 1), 0.5, rnd(-1, 1))), v: V(rnd(-4, 4), rnd(4, 9), rnd(-4, 4)), s: rnd(1.6, 2.6), life: 1, c: '#b9b4a5' }], { g: 9 }) } }
+      if (t > 3.9) { kill(A); kill(B); kill(ball); return false }
+      return true
+    })
+    o.sound?.('whoosh'); later(1000, () => o.sound?.('whoosh'))
+  }
   // the seat moments as a deck: shuffled, each played once before any comes round again
-  const SEAT_DECK = ['glove', 'gull', 'dog', 'beer', 'mushroom', 'crater', 'ufo', 'hotdog', 'fries']
-  const PLAY = { glove: seatsGlove, gull: gullGrab, dog, beer, mushroom: (at) => mushroom(at), crater, ufo, hotdog, fries }
+  const SEAT_DECK = ['glove', 'gull', 'dog', 'beer', 'mushroom', 'crater', 'ufo', 'hotdog', 'fries', 'dogpile', 'fault', 'bonk', 'pinball', 'blackhole', 'portal']
+  const PLAY = { glove: seatsGlove, gull: gullGrab, dog, beer, mushroom: (at) => mushroom(at), crater, ufo, hotdog, fries, dogpile, fault, bonk, pinball, blackhole, portal }
   let deck = []
   const deal = () => { if (!deck.length) { deck = SEAT_DECK.slice(); for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]] } } return deck.pop() }
   // a new landing clears the last one's pieces, so two never play on top of each other
-  function clear() { parts.length = 0; for (const g of [...live]) { scene.remove(g); live.delete(g) } hideBall(false) }
+  function clear() { gen++; parts.length = 0; for (const g of [...live]) kill(g); hideBall(false) }
   let wall = performance.now() // its own wall clock, steps of up to a quarter second (the engine's step is clamped, which slowed the moments on a slow device)
   api.NN.frames.push(() => { const now = performance.now(), dt = Math.min(0.25, (now - wall) / 1000); wall = now; for (let i = parts.length - 1; i >= 0; i--) if (!parts[i](dt)) parts.splice(i, 1) })
 

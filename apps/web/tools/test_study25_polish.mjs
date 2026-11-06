@@ -113,7 +113,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300)
 // ---- THE LAB has today's choices ----
 await page.keyboard.press('?'); await page.waitForTimeout(400)
 const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .dx [data-ax]')].map((b) => b.dataset.ax))
-check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'CM,GR,PO,CN', JSON.stringify(chips))
+check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'CM,GR,PO,MO,CN', JSON.stringify(chips))
 await page.keyboard.press('Escape')
 
 // ---- PASS IT ON: a link opens on its swing ----
