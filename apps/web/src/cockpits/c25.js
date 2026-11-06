@@ -1023,7 +1023,7 @@ export async function build(root, api, U) {
 #cp .c25 .sfx .swy{font-size:calc(13px * var(--ts))}
 #cp .c25 .hm .hmp{display:flex;gap:8px;align-items:center;margin-bottom:8px;color:var(--dim);font-size:calc(12px * var(--ts))}
 #cp .c25 .hm .hmt{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}#cp .c25 .sel.hm{min-width:0;max-width:100%;overflow-wrap:anywhere}
-#cp .c25.blast .rd,#cp .c25.blast .bsel,#cp .c25.blast .tly,#cp .c25.blast .nuke,#cp .c25.blast .slice,#cp .c25.blast .strip .bt[data-k="ev"],#cp .c25.blast .strip .bt[data-k="la"],#cp .c25.blast .strip .bt[data-k="dir"]{display:none !important} /* (4 Nov: BLAST RADIUS is the park and its map; the dojo's swing readout and ball buttons stand aside) */
+#cp .c25.blast.hmwho .strip{display:none !important}#cp .c25.blast .rd,#cp .c25.blast .bsel,#cp .c25.blast .tly,#cp .c25.blast .nuke,#cp .c25.blast .slice,#cp .c25.blast .strip .bt[data-k="ev"],#cp .c25.blast .strip .bt[data-k="la"],#cp .c25.blast .strip .bt[data-k="dir"]{display:none !important} /* (4 Nov: BLAST RADIUS is the park and its map; the dojo's swing readout and ball buttons stand aside) */
 #cp .c25 .hm .hmt .bt{pointer-events:auto;cursor:pointer;padding:2px 8px}
 #cp .c25 .hm .hmt .bt.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .hm .hmo{display:grid;gap:4px;border:1px solid var(--acc);padding:10px 12px;margin-bottom:10px;min-height:104px;align-content:start}
@@ -1221,7 +1221,7 @@ export async function build(root, api, U) {
     const l = Math.max(W0.l, sl.right + 12), full = innerWidth - W0.l - W0.r, left = innerWidth - l - W0.r
     if (l > W0.l) api.NN.setWindow({ ...W0, l, z: W0.z * Math.max(0.6, left / Math.max(1, full)) })
   }
-  function paintTabs() { const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
+  function paintTabs() { const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (show !== 'hm') grid.classList.remove('hmwho'); if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
   root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
   // OFF THE MENU: the pitch was outside the zone (by the ball's edge, so a pitch touching the zone is a strike); where it missed names it
@@ -1514,7 +1514,7 @@ export async function build(root, api, U) {
   const holdFor = (ev) => Math.round(80 + 110 * Math.min(1, Math.max(0, (ev - 95) / 20)))
   const fire = () => { window.__cpHold = holdFor(api.state.ev); const nk = E('#c25nk'); nk?.classList.add('go'); setTimeout(() => nk?.classList.remove('go'), 140); if (mode === 'replay') { play(); return } if (mode === 'shot') { if (scRes?.ways?.length) playShot(); else banner('PICK A SEAT', 'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT'); return } ses.fire() }
   // (29 Oct red team: the arrows and +/- silently edited the real ball in DEJA-VU and Shot Caller, and Space swung behind an open modal)
-  ctl.bind(fire, 'h', (kind) => !modal && (kind === 'fire' ? show !== 'hm' : mode === 'whatif' && (show !== 'hm' || ['temp', 'wind'].includes(ctl.SLOTS[ctl.armed]?.k))))
+  ctl.bind(fire, 'h', (kind) => !modal && (kind === 'fire' ? show !== 'hm' : mode === 'whatif' && (show !== 'hm' || (!hmWho && ['temp', 'wind'].includes(ctl.SLOTS[ctl.armed]?.k)))))
   E('#c25nk').addEventListener('click', () => { if (!uiReady) return; fire() })
   const paintSlots = () => { pix?.paint(); slots.forEach((el, i) => { el.classList.toggle('arm', i === ctl.armed && i < NS); if (i < NS) { const bb = el.querySelector('b'); if (!bb.querySelector('input')) bb.innerHTML = slotText(ctl.SLOTS[i].k); const sl = el.querySelector('.sld'); if (sl && document.activeElement !== sl) sl.value = String(Math.round(ctl.frac(ctl.SLOTS[i].k) * 1000)) } }) }
   // sliders (28 Oct, Andrew: TWEAK THE TATER should have sliders): drag a slot's slider to set it; its keys stay with the slider, not the strip's arrow keys
@@ -1610,7 +1610,7 @@ export async function build(root, api, U) {
         ['WALLOP WITNESS', 'TICK A GAME WITHIN 72 HOURS OF FIRST PITCH; AFTER THAT IT IS CLOSED'],
         ['FOUL POLES AND BUBBLES', 'THE FOUL POLES STAND OUT NOW; THE COKE BOTTLE\'S BUBBLES FIZZ OUT OF THE NECK AND POP IN THE AIR'],
         ['SEAT SEANCE', 'A BALL THAT CLEARS THE LAST ROW IS CALLED PAST THE SEATS, NOT IN ONE'],
-        ['KEYS', 'SPACE NUKE IT · U COPY A LINK TO THIS SWING · [ ] THE BALLS · M DOJO · C SHOT CALLER · X TWEAK IT · L LANDING PARTY · G SEANCE · W WEATHER · B BIRD\'S EYE · Z CAMERA PUSH · S SOUND · J JUKEBOX · A STATS · T TYPE A BALL · ? OPTIONS · BACKSPACE UNDO · 0 A BLANK SWING · ESC MENU'],
+        ['KEYS', 'SPACE NUKE IT · U COPY A LINK TO THIS SWING · [ ] THE BALLS · M DOJO · C SHOT CALLER · X TWEAK IT · L LANDING PARTY · G SEANCE · W WEATHER · B BIRD\'S EYE · Z CAMERA PUSH · S SOUND · J SOUND · A STATS · T TYPE A BALL · ? OPTIONS · BACKSPACE UNDO · 0 A BLANK SWING · ESC MENU'],
         ['NUKE IT', 'ONE BUTTON, BOTTOM RIGHT OF THE PARK IN EVERY MODE (OR SPACE): PLAYS THE REAL ONE, SWINGS YOURS, FLIES THE SHOT CALLER WAYS; NOW DARK WITH A COLORED EDGE, FINER BOMBS'],
         ['THE PARK\'S TAGS, QUIETER', 'A SMALLER BOARD, THE CAPTION IN GREY, EACH NUMBER IN ITS POST\'S COLOR (PARK TAGS AND TIE IN THE SIDE MENU)'],
         ['THE BALL\'S SHADOW', 'A DARK SPOT RUNS OVER THE GRASS, THE WALL AND THE SEATS UNDER THE BALL (BALL SHADOW IN THE SIDE MENU: STRAIGHT DOWN OR A LOW SUN)'],
@@ -1690,13 +1690,12 @@ export async function build(root, api, U) {
 </div>
       ${phrase ? `<div class="dds">${phrase}</div>` : ''}<div class="baya">THE MOON, MARS AND JUPITER ARE FLOWN WITH NO AIR, FROM A 3 FT CONTACT HEIGHT. EVERYTHING ELSE GOES THROUGH THE FLIGHT ENGINE.</div></div>`
   }
-  // JUKEBOX: every song with its length, play and stop (music25.js); it keeps playing after the window closes
+  // SOUND (6 Nov, evening: the JUKEBOX list is gone, Andrew: "I don't think anyone is going to be clicking 'jukebox'... Let's kill the jukebox feature"): J opens the
+  // mixer on its own (master, music, effects, crowd and bay); the songs play by themselves after the home runs that call for them
   function paintJukebox(body) {
-    E('#c25mt').textContent = '/ J U K E B O X /'
-    const on = jukebox.playing(), mmss = (x) => `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, '0')}`
-    body.innerHTML = `<div class="bul"><div class="bulh">BALLPARK CLASSICS AS CHIPTUNE${sound.on() ? '' : ' · SOUND IS OFF: PRESS S'}</div><div class="btab">${jukebox.songs.map((x) => `<div class="r mo jk"><span>${x.name}${x.note ? ` <i>(${x.note.toUpperCase()})</i>` : ''}</span><b>${mmss(jukebox.length(x.id))}</b><span><span class="bt" data-song="${x.id}">${on === x.id ? 'STOP' : 'PLAY'}</span></span></div>`).join('')}</div><div class="baya">A WALK-OFF PLAYS SAN FRANCISCO. A GRAND SLAM PLAYS CHARGE!</div>${sound.mixerHTML()}</div>`
-    sound.bindMixer(body) // the sound mixer: master, music, effects, crowd and bay
-    body.querySelectorAll('[data-song]').forEach((b) => b.addEventListener('click', () => { pressEl(b); autoSong = false; if (jukebox.playing() === b.dataset.song) jukebox.stop(); else { if (!sound.on()) sound.set(true); jukebox.play(b.dataset.song, { onEnd: () => { if (modal === 'jukebox') paintJukebox(E('#c25mb')) } }) } paintJukebox(body) }))
+    E('#c25mt').textContent = '/ S O U N D /'
+    body.innerHTML = `<div class="bul"><div class="bulh">SOUND${sound.on() ? '' : ' · OFF: PRESS S'}</div>${sound.mixerHTML()}</div>`
+    sound.bindMixer(body)
   }
   // the type picker: every pixel type set drawn with the same real pieces of the screen; click one to use it
   function paintTypes(body) {
@@ -2149,7 +2148,7 @@ export async function build(root, api, U) {
   // keeps it off. So a normal night is 61 F and calm at the ball, and BLAST RADIUS opens on it; the AIR and WIND controls still change it, live
   const NORMAL_NIGHT = { temp: 61, wind: 0, xwind: 0 }
   let stage = null, heat = null, hmKey = '', hmWho = '', hmLooked = false, hmMetric = 'hard', hmPin = null, hmOver = null, hmTick = 0, hmSeat = null, hmList = false
-  let hmHA = 'all' // (6 Nov) BLAST RADIUS with a player: the bombs ALL, AT ORACLE or AWAY
+  let hmValk = '', hmHA = 'all' // (6 Nov) BLAST RADIUS with a player: the bombs ALL, AT ORACLE or AWAY
   const hmPeople = (() => { let L = null; return () => { if (L) return L; const n = new Map(), h = new Map(); for (const b of R.balls) if (b.ft >= 335 || b.hr) { n.set(String(b.b), (n.get(String(b.b)) ?? 0) + 1); if (b.hr) h.set(String(b.b), (h.get(String(b.b)) ?? 0) + 1) } L = [...n.entries()].filter(([, k]) => k >= 12).map(([id, k]) => ({ id, k, hr: h.get(id) ?? 0, name: hmName(id) })).sort((a, b) => b.k - a.k).slice(0, 60); return L } })()
   const hmName = (id) => (pname(id)?.[0] ?? 'BATTER ' + id).toUpperCase()
   const airWords = (a) => `${a.temp}°F, ${a.wind ? `${Math.abs(a.wind)} MPH ${a.wind > 0 ? 'OUT' : 'IN'}` : 'CALM'}${a.xwind ? `, ${Math.abs(a.xwind)} ACROSS` : ''}, ${a.hand > 0 ? 'A RIGHTY' : 'A LEFTY'}`
@@ -2188,6 +2187,7 @@ export async function build(root, api, U) {
     if (key === hmKey && hb.querySelector('.hm')) return
     hmKey = key
     const who = hmWho, people = hmPeople()
+    grid.classList.toggle('hmwho', !!who) // (6 Nov: AIR and WIND only for the whole map)
     // (4 Nov, night, Andrew: "The 'who' selector feels way out of place vibes wise with this white drop down"): a pixel button that opens a list in the panel
     const cur0 = people.find((p) => p.id === who)
     const pick = `<div class="hmp">WHO <span class="bt hws${hmList ? ' on' : ''}" id="c25hmw" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="${hmList}">${cur0 ? cur0.name : 'EVERYONE'}<i class="cv"></i></span></div>` +
@@ -2241,7 +2241,7 @@ export async function build(root, api, U) {
       // portrait, their type and badges (hitter25.js), the map from all their balls with the bombs only for the real home runs, and three histograms, every ball in
       // grey with the home runs in bone over them; where they hit it runs left field to right field, with PULL on their pull side
       const P = heat.player(who), nm = hmName(who), Rd = P.read, Ty = P.type
-      heat.show({ metric: 'player', data: P })
+      heat.show({ metric: 'player', data: P }); if (who !== hmValk) { hmValk = who; if (sound.on()) { jukebox.play('valkyries', { vol: 0.8 }); autoSong = true } } // (6 Nov: the bombing run)
       const pc = (x) => Math.round(x * 100) + '%', med = (v) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]
       const bars = (all, hrs, lo, hi, step, l, r) => {
         const n = Math.round((hi - lo) / step), bin = (v) => Math.max(0, Math.min(n - 1, Math.floor((v - lo) / step))), c = Array(n).fill(0), h = Array(n).fill(0)
@@ -2986,7 +2986,7 @@ export async function build(root, api, U) {
     if (mode !== 'replay' || !cur || playing || pitchCam?.busy()) return
     playing = true
     let wait = 560
-    if (cur.b !== lastJingle) { lastJingle = cur.b; if (sound.on()) sound.play('jingle', { id: cur.b }) } // (31 Oct, GPT red team: the walk-up jingle no longer holds the pitch back 1.9 s; it plays over it)
+    if (cur.b !== lastJingle) { lastJingle = cur.b } /* (6 Nov: no walk-up jingle, Andrew: "Just kill this feature") */ // (31 Oct, GPT red team: the walk-up jingle no longer holds the pitch back 1.9 s; it plays over it)
     // H1 PITCH ARC: the pitch drawn on the park on its fitted path, then the hit
     const go = () => { playing = false; playT = []; api.fire() }
     playT.push(setTimeout(() => { pitchIn = performance.now(); paintPitch(); paintSide(); if (!(mix.H && pitchCam.play(cur, go, reduced ? { dur: 0.01, hold: 0.3 } : {}))) playT.push(setTimeout(go, 560)) }, wait - 560))
@@ -3102,9 +3102,11 @@ export async function build(root, api, U) {
     const b = mode === 'replay' && cur && !edited ? cur : null, st = b && hr ? situation(b)?.stamp : null, off = b && hr ? offZone(b) : null, D = 2.6 // (off: the songs)
     if (hr) life.signFx(st && /WALK-OFF/.test(st) ? 'walk' : 'hr') // the ORACLE PARK sign over the board lights up
     // the songs: a walk-off gets San Francisco (Oracle plays it after a win), a grand slam gets CHARGE!
-    if (st && !reel) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; if (/WALK-OFF/.test(st)) { jukebox.play('sf', { vol: 0.8 }); autoSong = true } else if (st === 'GRAND SLAM') { jukebox.play('charge'); autoSong = true } }, 2800) }
-    // and more (29 Oct, later): a splash hit gets ODE TO JOY, an OFF THE MENU home run the CAN-CAN, a 450 ft bomb the WILLIAM TELL gallop
-    else if (!reel && hr) { const song = ev.key === 'SPLASH' ? 'ode' : off ? 'cancan' : ft >= 450 ? 'tell' : null; if (song) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; jukebox.play(song); autoSong = true }, 2800) } }
+    // (6 Nov, evening, Andrew's picks: "Can we have the imperial march play when a dodger home run gets hit?", the anthem "for like july 4th games"; ODE TO JOY, CAN-CAN
+    // and WILLIAM TELL out): one song after a home run, the first that fits
+    const dodgerHR = !!b && (b.tb === 'Top' ? b.at === 'LAD' && b.ht === 'SF' : b.ht === 'LAD' && b.at === 'SF'), july4 = !!b && /-07-04/.test(String(b.d ?? ''))
+    const song = reel || !hr ? null : dodgerHR ? 'imperial' : july4 ? 'anthem' : st && /WALK-OFF/.test(st) ? 'sf' : st === 'GRAND SLAM' ? 'charge' : ev.key === 'SPLASH' ? 'sailor' : off ? 'entertainer' : ft >= 450 ? 'mountain' : null
+    if (song) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; jukebox.play(song, { vol: song === 'sf' ? 0.8 : 1 }); autoSong = true }, 2800) }
     // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board, and that is all the board plays
     // (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it")
     if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag

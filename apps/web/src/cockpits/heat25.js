@@ -621,6 +621,25 @@ export function initHeat25(api, o = {}) {
   // (6 Nov) the bombs by where they were hit: 'all', 'home' (at Oracle) or 'away'; kept across players
   let whereOn = 'all'
   function applyWhere() { for (const x of group?.userData.drops ?? []) { const on = whereOn === 'all' || (whereOn === 'home') === x.home; x.m.visible = on; if (x.line) x.line.visible = on } }
-  const bombsWhere = (w) => { whereOn = w; applyWhere() }
+  // (6 Nov, evening, Andrew: "When we toggle between all, at oracle, away can we have the bombs go back up and down?"): the ones showing lift back into the sky, then
+  // the new set drops in the way they first came (BOMB DROPS); nothing moves under reduced motion or a fixed test clock
+  const bombsWhere = (w) => {
+    if (w === whereOn) return
+    whereOn = w
+    const D = group?.userData.drops ?? [], g0 = group
+    const still = window.__fixedTime !== undefined || matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const settle = () => { for (const x of D) { x.m.position.y = x.at.y; x.m.scale.setScalar(1); x.line?.geometry.setDrawRange(0, Infinity); x.done = true } applyWhere() }
+    if (!D.length || still) { settle(); return }
+    cancelAnimationFrame(anim)
+    const up = D.filter((x) => x.m.visible), t0 = performance.now(), RISE = 340
+    const lift = () => {
+      if (group !== g0) return
+      const f = Math.min(1, (performance.now() - t0) / RISE), e = f * f
+      for (const x of up) { x.m.position.y = x.at.y + 46 * e; x.line?.geometry.setDrawRange(0, Math.max(0, Math.round((x.n + 1) * (1 - f)))) }
+      if (f < 1) { anim = requestAnimationFrame(lift); return }
+      settle(); const bd = look().bd; arrive(D.filter((x) => x.m.visible), bd === 4 ? 1 : bd, [])
+    }
+    anim = requestAnimationFrame(lift)
+  }
   return { cancel, bombAt, bombFocus, bombsWhere, bombCounts: () => { const D = group?.userData.drops ?? []; return { all: D.length, home: D.filter((x) => x.home).length, away: D.filter((x) => !x.home).length, shown: D.filter((x) => x.m.visible).length } }, gridReady: () => !!grid, gridAsync: seatGridAsync, hard, hardAsync, ready, warm, verify, many, player, hitters, leagueDeep, show, clear, cellAt, outline, sectorOf, mid, N, ROWS, ROW_FT, shown: () => group?.userData.heat ?? null, count: () => (group ? group.children.length : 0), cells: () => cells.length }
 }

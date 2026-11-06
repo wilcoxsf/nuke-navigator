@@ -11,14 +11,12 @@ export const SONGS = [
 L:1/4
 K:D
 D2 d| B A F| A3| E3| D2 d| B A F| A3-| A2 z| B ^A B| F G A| B2 G| E3| B2 B| B c d| e c B| A F E| D2 d| B A F| A3| E2 E| D2 E| F G A| B3-| B B c| d3| d3| d c B| A ^G A| B3| c3| d3-| d z2|` },
-  { id: 'charge', name: 'CHARGE!', bpm: 150, abc: `M:4/4
+  // (6 Nov, Andrew: "This needs to be punchier. it feels off in tempo"): the bugle call as it goes at the park, in 6/8: three quick pickups, a held G, then E and the long G,
+  // an octave up from before and a quarter faster
+  { id: 'charge', name: 'CHARGE!', bpm: 200, abc: `M:6/8
 L:1/8
 K:C
-G,C E G3 E G-| G4 z4|` },
-  { id: 'saints', name: 'WHEN THE SAINTS GO MARCHING IN', bpm: 170, abc: `M:4/4
-L:1/4
-K:C
-z C E F| G4| z C E F| G4| z C E F| G2 E2| C2 E2| D4| z E E D| C3 C| E2 G2| G2 F2| z E F G| E2 C2| D2 D2| C4|` },
+G c e g3| e g5|` },
   // 2 Nov, later (Andrew: "give me the national anthem for sure, hava nagila"): both public domain (Smith's tune, 1773; the traditional Hasidic nigun), taken from
   // flutetunes.com's MIDI of each (the melody track, notes as written; the anthem an octave down), the bass roots per half bar picked from each tune's own chords
   // (the anthem's B flat, E flat, F, C minor and G minor; Hava Nagila's D, G minor and C minor), since the I, IV, V guess doesn't fit Hava Nagila's mode
@@ -26,24 +24,22 @@ z C E F| G4| z C E F| G4| z C E F| G2 E2| C2 E2| D4| z E E D| C3 C| E2 G2| G2 F2
 L:1/16
 K:C
 z8 F3 D| ^A,4 D4 F4| ^A8 d3 c| ^A4 D4 E4| F8 F2 F2| d6 c2 ^A4| A8 G2 A2| ^A4 ^A4 F4| D4 ^A,4 F3 D| ^A,4 D4 F4| ^A8 d3 c| ^A4 D4 E4| F8 F2 F2| d6 c2 ^A4| A8 G2 A2| ^A4 ^A4 F4| D4 ^A,4 d2 d2| d4 ^d4 f4| f8 ^d2 =d2| c4 d4 ^d4| ^d8 ^d2 ^d2| d6 c2 ^A4| A4 A4 G2 A2| ^A4 D4 E4| F8 F2 F2| ^A4 ^A4 ^A2 =A2| G4 G4 G4| c4 ^d2 =d2 c2 ^A2| ^A4 =A4 F2 F2| ^A6 c2 d2 ^d2| f8 ^A2 c2| d6 ^d2 c4| ^A8 z4|` },
-  { id: 'hava', name: 'HAVA NAGILA', bpm: 144, roots: [2,2,2,2,7,7,2,2,2,2,2,2,7,7,2,2,2,2,0,0,0,0,2,2,2,2,0,0,0,0,2,2,7,7,7,7,7,7,7,7,2,2,2,2,2,2,2,2,2,2,7,7], abc: `M:4/4
-L:1/16
-K:C
-d4 d4 z2 ^f2 ^d2 =d2| ^f4 ^f4 z2 a2 g2 ^f2| g4 g4 z2 ^a2 =a2 g2| ^f4 ^d4 =d8| d4 d4 z2 ^f2 ^d2 =d2| ^f4 ^f4 z2 a2 g2 ^f2| g4 g4 z2 ^a2 =a2 g2| ^f4 ^d4 =d8| ^f2 ^f4 ^d2 =d2 =d2 =d4| ^d2 ^d4 =d2 c2 c2 c4| c4 ^d3 =d c4 g4| ^f4 ^d4 =d8| ^f2 ^f4 ^d2 =d2 =d2 =d4| ^d2 ^d4 =d2 c2 c2 c4| c4 ^d3 =d c4 g4| ^f4 ^d4 =d8| g8 g8| g4 g4 g4 g4| g2 g2 ^a3 =a g2 ^a2 =a2 g2| g2 g2 ^a3 =a g2 ^a2 =a2 g2| a2 a2 c'3 ^a =a2 c'2 ^a2 =a2| a2 a2 c'3 ^a =a2 c'2 ^a2 =a2| a2 a2 d'12| a2 a2 d'12| d4 d4 ^a2 =a2 g2 ^f2| g16|` },
   // 29 Oct, later (Andrew: "let's wire in more songs"): four more out of copyright, written out here from the well-known melodies: Beethoven's Ode to Joy (1824),
   // Offenbach's Can-Can galop (1858), the William Tell overture's finale gallop (Rossini, 1829) and Joplin's The Entertainer (1902)
-  { id: 'ode', name: 'ODE TO JOY', bpm: 150, abc: `M:4/4
-L:1/4
-K:D
-F F G A| A G F E| D D E F| F3/2 E/2 E2| F F G A| A G F E| D D E F| E3/2 D/2 D2|` },
-  { id: 'cancan', name: 'CAN-CAN', bpm: 140, abc: `M:2/4
+  // 6 Nov, evening (Andrew's picks from the review page): IN THE HALL OF THE MOUNTAIN KING (Grieg, 1875) and DRUNKEN SAILOR (traditional), the short versions written for
+  // the page; RIDE OF THE VALKYRIES (Wagner, 1856) from flutetunes.com's MIDI of the theme (B minor, 9/8, the melody as written, the first long note cut short)
+  { id: 'mountain', name: 'IN THE HALL OF THE MOUNTAIN KING', bpm: 150, roots: [9,9,4,4,9,9,4,4,9,9,4,4,9,9,4,4], abc: `M:4/4
 L:1/8
 K:C
-c4| c d f e| d2 g2| g a e f| d4| d f e d| c c' b a| g f e d| c d e f| g a g f| e2 g2| c'4|` },
-  { id: 'tell', name: 'THE WILLIAM TELL GALLOP', bpm: 160, abc: `M:6/8
+A B c d e c e2| ^d B ^d2 =d _B =d2| A B c d e c e a| g e c e g4| A B c d e c e2| ^d B ^d2 =d _B =d2| A B c d e c e a| g e c e g4|` },
+  { id: 'sailor', name: 'DRUNKEN SAILOR', bpm: 190, roots: [2,2,2,2,0,0,0,0,2,2,2,2,0,0,2,2], abc: `M:4/4
 L:1/8
 K:C
-GGG GGG| GGc d2e| GGG ceg| e2c d2B| GGG GGG| GGc d2e| cde dcB| c3 z3|` },
+A2 A A A2 A A| A2 D2 F2 A2| G2 G G G2 G G| G2 C2 E2 G2| A2 A A A2 A A| A2 B2 c2 d2| c2 A2 G2 E2| D4 D4|` },
+  { id: 'valkyries', name: 'RIDE OF THE VALKYRIES', bpm: 150, roots: [11,11,11,11,2,2,2,2,9,9,2,2,2,2,6,6,6,6,6,6], abc: `M:9/8
+L:1/16
+K:C
+^F2| B3 ^F B2 d6 B6| d3 B d2 ^f6 d6| ^f3 d ^f2 a6 A6| d3 A d2 ^f12| z16 A2| d3 A d2 ^f6 d6| ^f3 d ^f2 a6 ^f6| a3 ^f a2 ^c'6 ^c6| ^f3 ^c ^f2 ^a18|` },
   { id: 'entertainer', name: 'THE ENTERTAINER', bpm: 110, abc: `M:2/4
 L:1/16
 K:C
