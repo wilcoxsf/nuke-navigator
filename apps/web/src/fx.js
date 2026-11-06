@@ -238,12 +238,7 @@ export function initFx(NN) {
 
   function step(dt) {
     for (let i = parts.length - 1; i >= 0; i--) {
-      if (!parts[i].update(dt)) {
-        const { obj } = parts[i]
-        scene.remove(obj)
-        obj.traverse((o) => { o.material?.map?.dispose?.(); if (o.geometry && !o.userData.keep) o.geometry.dispose?.() })
-        parts.splice(i, 1)
-      }
+      if (!parts[i].update(dt)) { drop(parts[i].obj); parts.splice(i, 1) }
     }
     flash.t += dt
     light.intensity = flash.t < 0.5 ? flash.peak * Math.exp(-flash.t * 9) : 0
@@ -253,7 +248,10 @@ export function initFx(NN) {
     if (SHAKE) NN.setShake((Math.random() - 0.5) * 0.012 * shake.amp * k, (Math.random() - 0.5) * 0.009 * shake.amp * k)
   }
   function place(p) { light.position.copy(p).add(new THREE.Vector3(0, 8, 0)) }
-  function clear() { while (parts.length) { const { obj } = parts.pop(); scene.remove(obj) } light.intensity = 0; NN.setShake(0, 0) }
+  // a part played out or cut short frees the same way: everything in a burst is made for that burst (6 Nov: clear() only took them out of the scene,
+  // so a swing during the last burst left its rings, planes and lines on the GPU)
+  function drop(obj) { scene.remove(obj); obj.traverse((o) => { o.material?.map?.dispose?.(); o.material?.dispose?.(); if (o.geometry && !o.userData.keep) o.geometry.dispose?.() }) }
+  function clear() { while (parts.length) drop(parts.pop().obj); light.intensity = 0; NN.setShake(0, 0) }
   NN.frames.push(step)
   return {
     explode(tone, at, pal, scale, style) { place(at); if (style === 'k') explode2001(tone, at, scale); else explode(tone, at, pal, scale) },

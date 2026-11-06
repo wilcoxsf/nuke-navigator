@@ -116,6 +116,8 @@ const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .d
 check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'CM,GR,MO,CN', JSON.stringify(chips))
 await page.keyboard.press('Escape')
 
+// (6 Nov: the main page is done here; left open, its software-rendered park starved the pages below, which share the browser's one GPU process: a 5 s load took 97 s)
+await page.close()
 // ---- PASS IT ON: a link opens on its swing ----
 {
   const p2 = await browser.newPage({ viewport: { width: 1600, height: 900 } })
