@@ -1801,6 +1801,8 @@ export async function build(root, api, U) {
   let lib = null
   loadLibrary().then((l) => { lib = l }).catch(() => {})
   const wstore = witnessStore()
+  let wChain = Promise.resolve() // (7 Nov, red team 4.8: one save at a time, in the order made)
+  const wsave = (e) => (wChain = wChain.then(() => wstore.save(e), () => wstore.save(e)))
   let wEd = null, wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
   const G = (gamesJ?.games ?? [])
   const wNow = () => (q.get('now') ? Date.parse(q.get('now')) : Date.now())
@@ -1831,7 +1833,7 @@ export async function build(root, api, U) {
       wEd = emblemEditor(body.querySelector('.wcd'), { value: me.emblem || encodeEmblem(DEFAULT_EMBLEM), tag: me.tag || '', sound: { play: (k) => sound.play(k) }, onCancel: done,
         onSave: async (enc, tag) => {
           wEd?.destroy(); wEd = null; wTab = 'mine'; wMsg = 'SAVING...'; paintWitness(body)
-          const next = { ...me, tag, emblem: enc, name: me.name || tag.replace(/^\[[^\]]*\]/, '').toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').slice(0, 20) }, r = await wstore.save(next)
+          const next = { ...me, tag, emblem: enc, name: me.name || tag.replace(/^\[[^\]]*\]/, '').toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').slice(0, 20) }, r = (wData = { ...wData, me: next }, await wsave(next))
           if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = r.shared === false ? 'KEPT IN THIS BROWSER AS ' + tag + '; THE STAND DID NOT ANSWER' : 'ON THE STAND AS ' + tag } else wMsg = 'NOT SAVED. TRY AGAIN.'
           if (modal === 'witness') paintWitness(E('#c25mb'))
         } })
@@ -1843,7 +1845,7 @@ export async function build(root, api, U) {
     if (wAsk) { let pf = wPrefill; if (!pf) try { pf = JSON.parse(store('nn-myseat25') || 'null') } catch { pf = null } if (pf) for (const [id, v] of [['#c25wsec', pf.sec], ['#c25wrow', pf.row], ['#c25wst', pf.seat]]) { const x = body.querySelector(id); if (x && !x.value) x.value = v ?? '' } }
     body.querySelectorAll('[data-wt]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wTab = x.dataset.wt; wPicked = true; wMsg = ''; paintWitness(body) }))
     if (wTab === 'stand') { body.querySelectorAll('[data-bd]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wBoard = x.dataset.bd; paintWitness(body) })); return }
-    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); const r = await wstore.save(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = r.shared === false ? ok + ' (IN THIS BROWSER; THE STAND DID NOT ANSWER)' : ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'NOT SAVED. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
+    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); wData = { ...wData, me: next }; const r = await wsave(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = r.shared === false ? ok + ' (IN THIS BROWSER; THE STAND DID NOT ANSWER)' : ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'NOT SAVED. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
     body.querySelectorAll('.wd').forEach((x) => x.addEventListener('click', () => {
       const k = x.dataset.d
       if (me.days.includes(k)) { pressEl(x); if (wOff !== k) { wOff = k; sound.play('move'); wMsg = `${shortDate(k)} IS LOGGED. CLICK IT AGAIN TO TAKE IT OFF`; paintWitness(body); return } wOff = null; sound.play('back'); const seats = { ...me.seats }; delete seats[k]; wAsk = null; save({ ...me, days: me.days.filter((y) => y !== k), seats }, 'TAKEN OFF'); return }
