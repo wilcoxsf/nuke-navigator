@@ -1971,7 +1971,7 @@ export async function build(root, api, U) {
     if (e.repeat && !'[],.'.includes(e.key)) return // (1 Nov, later) a held key is one press, except stepping through the balls
     if (!atOracle && e.key === '3') { banner('SHOT CALLER IS ORACLE ONLY', 'IT KNOWS THE SEATS THERE'); return }
     if (!atOracle && 'lgcnwkLGCNWK'.includes(e.key)) return // 8: Oracle's own features stay off at other parks
-    if (/^[1-5]$/.test(e.key) && modal && !e.repeat) { goTab(TABS[Number(e.key) - 1][0]); return }
+    if (/^[1-5]$/.test(e.key) && modal && !e.repeat) { if (!wEd) goTab(TABS[Number(e.key) - 1][0]); return } // (7 Nov, red team 4.11: not while a calling card is being made, it would be lost)
     if (e.key === 'Escape') { if (modal) closeMod(); else if (grid.classList.contains('dk')) toggleDock(false); else { sound.play('back'); menu.show(menuKey()) } } // (the side menu closes before the menu opens)
     else if (modal) return
     else if (e.key === 'Backspace' && mode !== 'replay' && mode !== 'shot') { e.preventDefault(); const s0 = undo.pop(); if (!s0) { banner('NOTHING TO UNDO', 'BACKSPACE STEPS BACK THROUGH YOUR CHANGES'); return } undoing = true; Object.assign(api.state, s0); api.update(); ctl.onChange(); undoing = false; settled = snap(); banner('UNDONE', undo.length ? `${undo.length} MORE TO GO BACK` : 'BACK TO WHERE YOU STARTED') }

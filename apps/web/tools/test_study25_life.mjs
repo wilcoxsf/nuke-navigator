@@ -67,6 +67,8 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   await p2.click('#c25wcard'); await p2.waitForTimeout(800)
   const ed = await p2.evaluate(() => ({ editor: !!document.querySelector('.wcd canvas'), save: [...document.querySelectorAll('.wcd .bt')].some((b) => b.textContent === 'SAVE') }))
   check('WALLOP WITNESS: MAKE YOUR CALLING CARD opens the editor straight from YOUR GAMES (no tab clicked first)', onMine === true && ed.editor && ed.save, JSON.stringify({ onMine, ...ed }))
+  await p2.evaluate(() => document.activeElement?.blur?.()); await p2.keyboard.press('5'); await p2.waitForTimeout(600)
+  check('WALLOP WITNESS: a tab key with the calling card open (focus outside it) leaves the card being made', await p2.evaluate(() => !!document.querySelector('.wcd canvas')))
   await p2.click('#c25cl').catch(() => {}); await p2.waitForTimeout(500) // (close the window, so the tabs are free)
 }
 // ---- 5. (red team 4.3) ALL / AT ORACLE / AWAY: the landing puffs and rings go when they finish; nothing piles up in the map ----
