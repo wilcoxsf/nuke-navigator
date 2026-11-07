@@ -549,14 +549,15 @@ export function initHeat25(api, o = {}) {
         else x.m.position.y = x.at.y + 46 * (1 - f * f)
         if (f >= 1) { x.done = true; x.m.position.y = x.at.y; x.m.scale.setScalar(1); x.line?.geometry.setDrawRange(0, x.n); rings.push(ring(x)); if (x.gone) puffs.push(puff(x)); o.onDrop?.(x.gone) }
       }
-      for (const q of puffs) { const k = (t - q.userData.t) / 750; if (k >= 1) { q.visible = false; continue } busy = true; const grow = Math.min(1, k / 0.22), fall = k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45; q.scale.setScalar(Math.max(0.001, grow * fall)); q.position.y = q.userData.y0 + 2.2 * Math.sqrt(k) }
-      for (const r of rings) { const k = (t - r.userData.t) / 420; if (k >= 1) { r.visible = false; continue } busy = true; r.scale.setScalar(0.3 + 2.6 * k); r.material.opacity = 0.8 * (1 - k) }
+      for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i], k = (t - q.userData.t) / 750; if (k >= 1) { group.remove(q); puffs.splice(i, 1); continue } /* (7 Nov, red team 3: shared voxel cells, removed only) */ busy = true; const grow = Math.min(1, k / 0.22), fall = k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45; q.scale.setScalar(Math.max(0.001, grow * fall)); q.position.y = q.userData.y0 + 2.2 * Math.sqrt(k) }
+      for (let i = rings.length - 1; i >= 0; i--) { const r = rings[i], k = (t - r.userData.t) / 420; if (k >= 1) { dropRing(r); rings.splice(i, 1); continue } busy = true; r.scale.setScalar(0.3 + 2.6 * k); r.material.opacity = 0.8 * (1 - k) }
       if (busy || (group.userData.gem && !still)) anim = requestAnimationFrame(tick)
     }
     // (4 Nov, night, Andrew: "can we have the nukes make just a teensy explosion when they land and are a HR?"): a stem and a flared cap of GEIGER cubes that rise,
     // swell and shrink away in under a second
     const PUFF = (() => { const c = []; for (let y = 0; y < 3; y++) c.push([0, y, 0, '#9dff00']); for (const [x, z] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]]) c.push([x, 3, z, '#9dff00']); for (const [x, z] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) c.push([x, 4, z, '#c8ff6a']); return c })()
     const puff = (x) => { const m = voxCells(THREE, PUFF, 0.34); m.position.copy(x.at); m.userData.y0 = x.at.y; m.userData.t = performance.now() - t0; m.scale.setScalar(0.001); group.add(m); return m }
+    const dropRing = (r) => { group.remove(r); r.geometry.dispose(); r.material.dispose(); const H = api.NN.hideForNormal, S = group.userData.sheets; if (H?.includes(r)) H.splice(H.indexOf(r), 1); if (S?.includes(r)) S.splice(S.indexOf(r), 1) }
     const ring = (x) => { const r = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), new THREE.MeshBasicMaterial({ color: x.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: 0.8, depthWrite: false, fog: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.copy(x.at).add(new THREE.Vector3(0, 0.2, 0)); r.userData.t = performance.now() - t0; group.add(r); api.NN.hideForNormal?.push(r); (group.userData.sheets ??= []).push(r); return r }
     anim = requestAnimationFrame(tick)
   }

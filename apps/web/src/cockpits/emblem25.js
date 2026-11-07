@@ -495,24 +495,25 @@ export function emblemEditor(host, o = {}) {
     e.preventDefault(); cv.focus({ preventScroll: true }); try { cv.setPointerCapture(e.pointerId) } catch { /* old browsers */ }
     const p = cellOf(e); msg.textContent = ''
     if (mode === 'pnt') {
-      drag = { paint: true, snap: encodeEmblem(E), last: p, changed: false }
+      drag = { paint: true, snap: encodeEmblem(E), last: p, changed: false, id: e.pointerId }
       if (tool === 'fill') { fill(p); endDrag() } else { line(p, p); draw() }
       return
     }
     const hit = layerAt(p)
     if (hit >= 0 && hit !== sel) { sel = hit; pick = E.layers[sel].s; snd('pick'); sync() }
     const l = cur(); if (!l) return
-    drag = { snap: encodeEmblem(E), start: p, x0: l.x, y0: l.y, changed: false }
+    drag = { snap: encodeEmblem(E), start: p, x0: l.x, y0: l.y, changed: false, id: e.pointerId }
   })
   cv.addEventListener('pointermove', (e) => {
-    if (!drag) return
+    if (!drag || (drag.id != null && e.pointerId !== drag.id)) return // (7 Nov, red team 10: one pointer per drag)
     const p = cellOf(e)
     if (drag.paint) { if (p.x !== drag.last.x || p.y !== drag.last.y) { line(drag.last, p); drag.last = p; draw() } return }
     const l = cur(); if (!l) return
     const x = clampI(drag.x0 + p.x - drag.start.x, -32, 63, l.x), y = clampI(drag.y0 + p.y - drag.start.y, -32, 63, l.y)
     if (x !== l.x || y !== l.y) { l.x = x; l.y = y; drag.changed = true; draw() }
   })
-  cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag); cv.addEventListener('lostpointercapture', endDrag)
+  const mine = (e) => !drag || drag.id == null || e.pointerId === drag.id
+  cv.addEventListener('pointerup', (e) => { if (mine(e)) endDrag() }); cv.addEventListener('pointercancel', (e) => { if (mine(e)) endDrag() }); cv.addEventListener('lostpointercapture', (e) => { if (mine(e)) endDrag() })
 
   // ---- keys: nothing leaves the editor (the cockpit has single-key shortcuts); Escape cancels, Ctrl+Z undoes, arrows nudge on the canvas ----
   const stop = (e) => e.stopPropagation()

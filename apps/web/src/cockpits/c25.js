@@ -1221,7 +1221,9 @@ export async function build(root, api, U) {
     const l = Math.max(W0.l, sl.right + 12), full = innerWidth - W0.l - W0.r, left = innerWidth - l - W0.r
     if (l > W0.l) api.NN.setWindow({ ...W0, l, z: W0.z * Math.max(0.6, left / Math.max(1, full)) })
   }
-  function paintTabs() { const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (show !== 'hm') grid.classList.remove('hmwho'); if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
+  // the header names what is on: the lit tab (BLAST RADIUS and WALLOP WITNESS sit over a mode), else the mode
+  function paintCrumb() { const t = E('#c25ti'); if (!t) return; t.textContent = 'NUKE NAVIGATOR // ' + (modal === 'witness' ? NAMES.witness : show === 'hm' ? 'BLAST RADIUS' : mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo) }
+  function paintTabs() { paintCrumb(); const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (show !== 'hm') { grid.classList.remove('hmwho'); hmValk = '' } if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
   root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
   // OFF THE MENU: the pitch was outside the zone (by the ball's edge, so a pitch touching the zone is a strike); where it missed names it
@@ -1390,8 +1392,8 @@ export async function build(root, api, U) {
     const stopAll = () => { for (const t of allT) clearTimeout(t); allT = [] }
     mmStop = () => { stopAll(); if (mm.classList.contains('on')) moments.clear() }
     mm.addEventListener('click', (e) => { const t = e.target.closest('[data-mm]'); if (!t) return; sound.play('pick'); const k = t.dataset.mm; stopAll(); if (k === 'x') { mm.classList.remove('on'); moments.clear(); return } if (k === 'all') { list.forEach((x, i) => allT.push(setTimeout(() => { if (mm.classList.contains('on')) play(x.kind) }, i * 5200))); return } play(k) })
-    mm.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('[data-mm]'); if (t) { e.preventDefault(); e.stopPropagation(); t.click() } } if (e.key === 'Escape') { e.stopPropagation(); stopAll(); mm.classList.remove('on') } })
-    E('#c25mm').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25mm')); sound.play('move'); stopAll(); mm.classList.toggle('on'); if (mm.classList.contains('on')) mm.querySelector('.mi')?.focus() })
+    mm.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const t = e.target.closest('[data-mm]'); if (t) { e.preventDefault(); e.stopPropagation(); t.click() } } if (e.key === 'Escape') { e.stopPropagation(); mmStop?.(); mm.classList.remove('on') } }) // (7 Nov, red team 7: as the X does)
+    E('#c25mm').addEventListener('click', () => { if (!uiReady) return; pressEl(E('#c25mm')); sound.play('move'); if (mm.classList.contains('on')) mmStop?.(); else stopAll(); mm.classList.toggle('on'); if (mm.classList.contains('on')) mm.querySelector('.mi')?.focus() })
     window.__mix25moments = { play, list: () => list.map((x) => x.kind), spot: seatSpot }
   }
 
@@ -1429,7 +1431,7 @@ export async function build(root, api, U) {
     grid.classList.toggle('ns', mode !== 'whatif' || dj); grid.classList.toggle('dj', dj); grid.classList.toggle('wi', mode === 'whatif'); grid.classList.toggle('shot', mode === 'shot')
     E('#c25sc').classList.toggle('on', mode === 'shot')
     if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm' // (at once, not on the next frame's render)
-    E('#c25ti').textContent = 'NUKE NAVIGATOR // ' + (mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo)
+    paintCrumb()
     paintTitles()
   }
   // TWEAK THE TATER: carry this home run into the dojo with its own numbers, and a way back to the same ball
@@ -1818,7 +1820,7 @@ export async function build(root, api, U) {
     if (!wData) { wData = wstore.load().then((d) => { wData = d }).catch(() => { wData = { me: wstore.local(), all: [], shared: false } }).finally(() => { if (modal === 'witness') paintWitness(E('#c25mb')) }) }
     if (wData instanceof Promise) { body.innerHTML = '<div class="bay">OPENING THE BOOKS...</div>'; return }
     const me = { name: '', days: [], seats: {}, ...wData.me }
-    if (!wPicked) wTab = !(me.days?.length) && !openKeys(G, wNow()).length ? 'stand' : 'mine' // (home stretch: nothing logged and no game open to log opens on the Stand, YOUR GAMES a click away)
+    if (!wPicked && wTab !== 'card') wTab = !(me.days?.length) && !openKeys(G, wNow()).length ? 'stand' : 'mine' // (7 Nov, red team 1: never over the editor) // (home stretch: nothing logged and no game open to log opens on the Stand, YOUR GAMES a click away)
     const tabs = `<div class="wtabs"><span class="bt${wTab === 'mine' ? ' on' : ''}" data-wt="mine">YOUR GAMES</span><span class="bt${wTab === 'stand' ? ' on' : ''}" data-wt="stand">THE WITNESS STAND</span></div>`
     // THE CALLING CARD (2 Nov, night, Andrew: "People should also be able to make like gamer tags like old COD for their wallop witness name, can we get some ridiculous
     // art maker that's hard?"): MAKE YOUR CALLING CARD opens the emblem maker (emblem25.js) in the panel; SAVE keeps the tag (the name on the stand) and the emblem
@@ -1830,18 +1832,18 @@ export async function build(root, api, U) {
         onSave: async (enc, tag) => {
           wEd?.destroy(); wEd = null; wTab = 'mine'; wMsg = 'SAVING...'; paintWitness(body)
           const next = { ...me, tag, emblem: enc, name: me.name || tag.replace(/^\[[^\]]*\]/, '').toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').slice(0, 20) }, r = await wstore.save(next)
-          if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = 'ON THE STAND AS ' + tag } else wMsg = 'NOT SAVED. TRY AGAIN.'
+          if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = r.shared === false ? 'KEPT IN THIS BROWSER AS ' + tag + '; THE STAND DID NOT ANSWER' : 'ON THE STAND AS ' + tag } else wMsg = 'NOT SAVED. TRY AGAIN.'
           if (modal === 'witness') paintWitness(E('#c25mb'))
         } })
       return
     }
     body.innerHTML = `<div class="bul ww">${tabs}${wTab === 'stand' ? standHTML(me) : mineHTML(me)}</div>`
-    body.querySelector('#c25wcard')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); wTab = 'card'; paintWitness(body) })
+    body.querySelector('#c25wcard')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); wPicked = true; wTab = 'card'; paintWitness(body) })
     // (2 Nov, night) a seat asked for comes filled in: the one I'M REALLY THERE sent, or else the one MY SEAT keeps
     if (wAsk) { let pf = wPrefill; if (!pf) try { pf = JSON.parse(store('nn-myseat25') || 'null') } catch { pf = null } if (pf) for (const [id, v] of [['#c25wsec', pf.sec], ['#c25wrow', pf.row], ['#c25wst', pf.seat]]) { const x = body.querySelector(id); if (x && !x.value) x.value = v ?? '' } }
     body.querySelectorAll('[data-wt]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wTab = x.dataset.wt; wPicked = true; wMsg = ''; paintWitness(body) }))
     if (wTab === 'stand') { body.querySelectorAll('[data-bd]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wBoard = x.dataset.bd; paintWitness(body) })); return }
-    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); const r = await wstore.save(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'NOT SAVED. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
+    const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); const r = await wstore.save(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = r.shared === false ? ok + ' (IN THIS BROWSER; THE STAND DID NOT ANSWER)' : ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'NOT SAVED. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
     body.querySelectorAll('.wd').forEach((x) => x.addEventListener('click', () => {
       const k = x.dataset.d
       if (me.days.includes(k)) { pressEl(x); if (wOff !== k) { wOff = k; sound.play('move'); wMsg = `${shortDate(k)} IS LOGGED. CLICK IT AGAIN TO TAKE IT OFF`; paintWitness(body); return } wOff = null; sound.play('back'); const seats = { ...me.seats }; delete seats[k]; wAsk = null; save({ ...me, days: me.days.filter((y) => y !== k), seats }, 'TAKEN OFF'); return }
@@ -2189,6 +2191,7 @@ export async function build(root, api, U) {
     hmKey = key
     const who = hmWho, people = hmPeople()
     grid.classList.toggle('hmwho', !!who) // (6 Nov: AIR and WIND only for the whole map)
+    if (!who) hmValk = '' // (7 Nov, red team 9: back to EVERYONE, so the same player plays it again)
     // (4 Nov, night, Andrew: "The 'who' selector feels way out of place vibes wise with this white drop down"): a pixel button that opens a list in the panel
     const cur0 = people.find((p) => p.id === who)
     const pick = `<div class="hmp">WHO <span class="bt hws${hmList ? ' on' : ''}" id="c25hmw" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="${hmList}">${cur0 ? cur0.name : 'EVERYONE'}<i class="cv"></i></span></div>` +
@@ -2242,7 +2245,7 @@ export async function build(root, api, U) {
       // portrait, their type and badges (hitter25.js), the map from all their balls with the bombs only for the real home runs, and three histograms, every ball in
       // grey with the home runs in bone over them; where they hit it runs left field to right field, with PULL on their pull side
       const P = heat.player(who), nm = hmName(who), Rd = P.read, Ty = P.type
-      heat.show({ metric: 'player', data: P }); if (who !== hmValk) { hmValk = who; if (sound.on()) { jukebox.play('valkyries', { vol: 0.8 }); autoSong = true } } // (6 Nov: the bombing run)
+      heat.show({ metric: 'player', data: P }); if (who !== hmValk && sound.on()) { clearTimeout(songT); if (jukebox.play('valkyries', { vol: 0.8, onEnd: () => { autoSong = false } })) { hmValk = who; autoSong = true } } // (6 Nov: the bombing run)
       const pc = (x) => Math.round(x * 100) + '%', med = (v) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]
       const bars = (all, hrs, lo, hi, step, l, r) => {
         const n = Math.round((hi - lo) / step), bin = (v) => Math.max(0, Math.min(n - 1, Math.floor((v - lo) / step))), c = Array(n).fill(0), h = Array(n).fill(0)
@@ -3108,7 +3111,7 @@ export async function build(root, api, U) {
     // and WILLIAM TELL out): one song after a home run, the first that fits
     const dodgerHR = !!b && (b.tb === 'Top' ? b.at === 'LAD' && b.ht === 'SF' : b.ht === 'LAD' && b.at === 'SF'), july4 = !!b && /-07-04/.test(String(b.d ?? ''))
     const song = reel || !hr ? null : dodgerHR ? 'imperial' : july4 ? 'anthem' : st && /WALK-OFF/.test(st) ? 'sf' : st === 'GRAND SLAM' ? 'charge' : ev.key === 'SPLASH' ? 'sailor' : off ? 'entertainer' : ft >= 450 ? 'mountain' : null
-    if (song) { clearTimeout(songT); songT = setTimeout(() => { if (!sound.on()) return; jukebox.play(song, { vol: song === 'sf' ? 0.8 : 1 }); autoSong = true }, 2800) }
+    if (song) { clearTimeout(songT); const own = [mode, show, modal, fires].join(); songT = setTimeout(() => { if (!sound.on() || [mode, show, modal, fires].join() !== own) return; if (jukebox.play(song, { vol: song === 'sf' ? 0.8 : 1, onEnd: () => { autoSong = false } })) autoSong = true }, 2800) } // (7 Nov, red team 2 and 12)
     // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board, and that is all the board plays
     // (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it")
     if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag

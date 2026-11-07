@@ -43,6 +43,45 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   await page.click('#c25tabs [data-tab="whatif"]'); await page.waitForTimeout(6500)
   check('MOMENTS: PLAY ALL stops when the tab changes (nothing still playing 6 s later)', (await live()) === 0, JSON.stringify({ live: await live() }))
 }
+// ---- 3. (7 Nov, red team 4.7) Escape closes MOMENTS and ends what it was playing, as the X does ----
+{
+  await page.click('#c25tabs [data-tab="replay"]').catch(() => {}); await page.waitForTimeout(800)
+  if (!(await page.evaluate(() => document.querySelector('.mmenu')?.classList.contains('on')))) { await page.click('#c25mm'); await page.waitForTimeout(300) } // (the PLAY ALL check before may leave it open)
+  await page.click('.mmenu .mi[data-mm="hand"]')
+  await until(() => window.__mix25.moments.shown() > 0, 8000)
+  const playing = await page.evaluate(() => window.__mix25.moments.shown())
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400)
+  check('MOMENTS: Escape closes the menu and ends the moment playing', playing > 0 && (await page.evaluate(() => window.__mix25.moments.shown())) === 0, JSON.stringify({ playing }))
+}
+// ---- 4. (red team 4.1) MAKE YOUR CALLING CARD opens the editor when WALLOP WITNESS opened on YOUR GAMES by itself (a logged game), with no tab clicked first ----
+{
+  // (the same page, reloaded with a logged game: a second page starves on the software renderer)
+  const p2 = page
+  await p2.evaluate(() => { try { localStorage.setItem('nn-witness', JSON.stringify(['2025-07-04'])) } catch {} })
+  await p2.reload()
+  await p2.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000, polling: 500 })
+  await p2.waitForTimeout(1500)
+  await p2.click('#c25tabs [data-tab="witness"]')
+  await p2.waitForFunction(() => !!document.querySelector('#c25wcard'), null, { timeout: 30000, polling: 250 }).catch(() => {})
+  const onMine = await p2.evaluate(() => document.querySelector('[data-wt="mine"]')?.classList.contains('on'))
+  await p2.click('#c25wcard'); await p2.waitForTimeout(800)
+  const ed = await p2.evaluate(() => ({ editor: !!document.querySelector('.wcd canvas'), save: [...document.querySelectorAll('.wcd .bt')].some((b) => b.textContent === 'SAVE') }))
+  check('WALLOP WITNESS: MAKE YOUR CALLING CARD opens the editor straight from YOUR GAMES (no tab clicked first)', onMine === true && ed.editor && ed.save, JSON.stringify({ onMine, ...ed }))
+  await p2.click('#c25cl').catch(() => {}); await p2.waitForTimeout(500) // (close the window, so the tabs are free)
+}
+// ---- 5. (red team 4.3) ALL / AT ORACLE / AWAY: the landing puffs and rings go when they finish; nothing piles up in the map ----
+{
+  await page.click('#c25tabs [data-tab="blast"]')
+  await page.waitForFunction(() => !!document.querySelector('#c25hmw'), null, { timeout: 120000, polling: 500 })
+  await page.waitForTimeout(800); await page.click('#c25hmw'); await page.waitForTimeout(400); await page.keyboard.type('FLORES', { delay: 30 }); await page.keyboard.press('Enter')
+  await until(() => (window.__mix25.heat()?.bombCounts?.()?.all ?? 0) > 0, 240000)
+  await page.waitForTimeout(12000)
+  const kids = () => page.evaluate(() => window.__nn.scene.children.find((x) => x.userData?.drops?.length)?.children.length ?? -1)
+  const k0 = await kids()
+  for (const w of ['home', 'away', 'all', 'home', 'all']) { await page.click(`[data-ha="${w}"]`).catch(() => {}); await page.waitForTimeout(9000) }
+  const k1 = await kids()
+  check('BLAST RADIUS: switching ALL / AT ORACLE / AWAY five times leaves no pile of landing effects in the map', k0 > 0 && k1 <= k0 + 2, JSON.stringify({ k0, k1 }))
+}
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' || '))
 await browser.close()
 console.log(fails ? `${fails} FAILED` : 'ALL PASS')

@@ -99,7 +99,7 @@ function roots(song, P) {
   return out
 }
 
-let ac = null, master = null, playing = null
+let ac = null, master = null, playing = null, nodes = [] // (7 Nov, red team 4: every note scheduled for the song playing, so stop() can stop them)
 const hz = (m) => 440 * 2 ** ((m - 69) / 12)
 export const jukebox = {
   songs: SONGS,
@@ -120,7 +120,7 @@ export const jukebox = {
         const os = ac.createOscillator(), g = ac.createGain()
         os.type = type; os.frequency.setValueAtTime(f, at); if (slide) os.frequency.exponentialRampToValueAtTime(f * slide, at + dur)
         g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + 0.008); g.gain.setValueAtTime(peak, at + Math.max(0.01, dur * 0.7)); g.gain.exponentialRampToValueAtTime(0.0001, at + dur * 0.97)
-        os.connect(g).connect(master); os.start(at); os.stop(at + dur + 0.02)
+        os.connect(g).connect(master); os.start(at); os.stop(at + dur + 0.02); nodes.push(os)
       }
       for (const x of P.notes) voice('square', hz(x.m), t0 + sec(x.t), sec(x.d), 0.045) // the melody
       const RT = song.roots ? song.roots.map((root, j) => ({ t: (j * P.bar) / 2, root, half: true })) : roots(song, P)
@@ -128,12 +128,12 @@ export const jukebox = {
       // the hi-hat: a click of noise on every beat
       const nb = ac.createBuffer(1, ac.sampleRate * 0.05, ac.sampleRate), d = nb.getChannelData(0)
       for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length)
-      for (let bt = 0; bt < sec(P.n); bt += beat) { const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; f.type = 'highpass'; f.frequency.value = 6000; g.gain.value = 0.05; s.connect(f).connect(g).connect(master); s.start(t0 + bt) }
+      for (let bt = 0; bt < sec(P.n); bt += beat) { const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; f.type = 'highpass'; f.frequency.value = 6000; g.gain.value = 0.05; s.connect(f).connect(g).connect(master); s.start(t0 + bt); nodes.push(s) }
       const len = sec(P.n) + 0.3
       playing = { id, until: t0 + len, timer: setTimeout(() => { if (playing?.id === id) { playing = null; if (o.loop) jukebox.play(id, o); else o.onEnd?.() } }, len * 1000 + 100) }
       return true
     } catch { return false }
   },
-  stop() { if (playing) { clearTimeout(playing.timer); playing = null } if (master) { try { master.gain.setTargetAtTime(0, ac.currentTime, 0.03) } catch {} master = null } },
+  stop() { if (playing) { clearTimeout(playing.timer); playing = null } if (master) { try { master.gain.setTargetAtTime(0, ac.currentTime, 0.03) } catch {} const m = master, end = ac.currentTime + 0.12; for (const n of nodes) { try { n.stop(end) } catch {} } nodes = []; setTimeout(() => { try { m.disconnect() } catch {} }, 200); master = null } },
   length(id) { const s = SONGS.find((x) => x.id === id); if (!s) return 0; const P = parseABC(s.abc); return P.n * P.unit * 4 * (60 / s.bpm) },
 }

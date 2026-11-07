@@ -496,7 +496,7 @@ let keys = ''
 const EGGS = { 777: 'stretch', 415: 'sf', 2010: 'title', 2012: 'title', 2014: 'title' }
 function egg(k) {
   log({ n: 'egg', r: k })
-  if (k === 'stretch') { play('organ-stab', { bus: 'music' }); import('./music25.js').then((m) => setTimeout(() => m.jukebox.play('ballgame'), 600)).catch(() => {}); play('roar', { size: 0.5, bus: 'amb', delay: 0.3 }) }
+  if (k === 'stretch') { play('organ-stab', { bus: 'music' }); import('./music25.js').then((m) => setTimeout(() => { if (soundOn()) m.jukebox.play('ballgame') }, 600)).catch(() => {}); play('roar', { size: 0.5, bus: 'amb', delay: 0.3 }) }
   else if (k === 'sf') { play('foghorn'); play('bell', { delay: 1.8 }); play('sealions', { delay: 2.6 }); play('flock', { delay: 3.4 }) }
   else if (k === 'title') { play('airhorn'); play('roar', { size: 1.8, bus: 'amb', delay: 0.2 }); play('fireworks', { delay: 0.8 }); play('fireworks', { delay: 1.4 }); play('organ-charge', { delay: 2.2, bus: 'music' }) }
 }
