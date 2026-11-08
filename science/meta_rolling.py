@@ -26,6 +26,10 @@ ap.add_argument("--pred", default="", help="override the base prediction file")
 ap.add_argument("--members", default="S3", help="S3 or none or a comma list name=file")
 ap.add_argument("--tag", default="m")
 ap.add_argument("--seed", type=int, default=7)
+ap.add_argument("--period", default="M", help="refit cadence: M monthly, W weekly")
+ap.add_argument("--halflife", type=float, default=0, help="days; weight training balls by recency (0 = equal)")
+ap.add_argument("--mono", action="store_true", help="the correction may only rise with the margin-type features (margin_hat, direct_margin, dist_hat, mlp_d) and exit speed")
+ap.add_argument("--extra", default="", help="a parquet of extra legal features keyed by rid (e.g. gm_foul.parquet: gma, gmf, nfa), merged in as meta features")
 ap.add_argument("--algo", default="lgb", help="lgb or cat (CatBoost, ordered boosting)")
 ap.add_argument("--history", action="store_true", help="keep every ball that has a base prediction (e.g. a spliced 2024 season) as training history; test months are the table's test split")
 a = ap.parse_args()
@@ -49,9 +53,12 @@ r0 = np.where(fly, base.hit_distance_sc - base.mlp_d, 0.0); ok = fly.to_numpy().
 g = base.game_pk.to_numpy()
 base["gm"] = (pd.Series(r0).groupby(g).cumsum().to_numpy() - r0) / (pd.Series(ok).groupby(g).cumsum().to_numpy() - ok + 4.0)
 base = base.copy() if a.history else base[base.split.isin(["val", "test"])].copy()
+XTRA = []
+if a.extra:
+    xt = pd.read_parquet(D + a.extra); XTRA = [c for c in xt.columns if c != "rid"]; base = base.merge(xt, on="rid", how="left")
 base["doy"] = pd.to_datetime(base.game_date).dt.dayofyear
 base["venue"] = base.venue_id.astype(int)
-feats = LEGAL + ["gm", "doy"] + ([] if a.no_venue else ["venue"])
+feats = LEGAL + ["gm", "doy"] + XTRA + ([] if a.no_venue else ["venue"])
 mem = {}
 if a.members == "S3" and not a.no_members: mem = S3
 elif a.members not in ("S3", "none") and not a.no_members: mem = dict(x.split("=", 1) for x in a.members.split(","))
@@ -61,10 +68,12 @@ for k, fn in mem.items():
 bp = a.pred or (D + ("final8/S3_layer.parquet" if a.base == "layer" else "final8/S3.parquet"))
 base = base.merge(pd.read_parquet(bp).rename(columns={"p_hr": "p_base"})[["rid", "p_base"]], on="rid", how="inner").dropna(subset=["p_base"])
 base["l_base"] = lg(base.p_base)
-base["month"] = pd.to_datetime(base.game_date).dt.to_period("M")
+base["month"] = pd.to_datetime(base.game_date).dt.to_period(a.period)
 months = sorted(base[base.split == "test"].month.unique())
 out = []
 P = dict(objective="binary", learning_rate=a.lr, num_leaves=a.leaves, min_data_in_leaf=a.minleaf, lambda_l2=a.l2, feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=a.seed, num_threads=8)
+MONO = ["margin_hat", "direct_margin", "dist_hat", "mlp_d", "launch_speed"]
+if a.mono: P["monotone_constraints"] = [1 if f in MONO else 0 for f in feats]; P["monotone_constraints_method"] = "advanced"
 for m in months:
     tr = base[base.month < m]; te = base[base.month == m]
     if len(tr) < 20000: out.append(te.assign(p_meta=te.p_base)[["rid", "p_meta"]]); continue
@@ -75,7 +84,10 @@ for m in months:
         mdl.fit(Pool(tr[feats], tr.y, cat_features=cf, baseline=tr.l_base.to_numpy()))
         z = te.l_base.to_numpy() + mdl.predict(Pool(te[feats], cat_features=cf), prediction_type="RawFormulaVal")
     else:
-        ds = lgb.Dataset(tr[feats], tr.y, init_score=tr.l_base, categorical_feature=[c for c in ["venue"] if c in feats], free_raw_data=False)
+        wt = None
+        if a.halflife > 0:
+            age = (pd.Timestamp(m.start_time) - pd.to_datetime(tr.game_date)).dt.days.to_numpy(); wt = 0.5 ** (age / a.halflife)
+        ds = lgb.Dataset(tr[feats], tr.y, init_score=tr.l_base, weight=wt, categorical_feature=[c for c in ["venue"] if c in feats], free_raw_data=False)
         bst = lgb.train(P, ds, num_boost_round=a.trees)
         z = te.l_base.to_numpy() + bst.predict(te[feats], raw_score=True)
     out.append(pd.DataFrame({"rid": te.rid.to_numpy(), "p_meta": 1 / (1 + np.exp(-z))}))
