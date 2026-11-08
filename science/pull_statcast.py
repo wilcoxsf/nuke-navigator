@@ -32,9 +32,12 @@ CENSUS_FIELDS = [
 ]
 
 
+GAME_TYPES = "R"  # set from --game-types: R regular season; F wild card, D division, L league, W World Series
+
+
 def savant_params(day: str, year: int) -> dict:
     return {
-        "all": "true", "hfPT": "", "hfAB": "", "hfGT": "R|",
+        "all": "true", "hfPT": "", "hfAB": "", "hfGT": "".join(t + "|" for t in GAME_TYPES),
         "hfPR": "hit\\.\\.into\\.\\.play|",
         "hfZ": "", "stadium": "", "hfBBL": "", "hfNewZones": "", "hfPull": "", "hfC": "",
         "hfSea": f"{year}|", "hfSit": "", "player_type": "batter", "hfOuts": "",
@@ -57,7 +60,7 @@ def log(out: Path, msg: str) -> None:
 def expected_games(session: requests.Session, year: int) -> dict[str, set[int]]:
     r = session.get(
         SCHEDULE,
-        params={"sportId": 1, "season": year, "gameType": "R"},
+        params={"sportId": 1, "season": year, "gameType": ",".join(GAME_TYPES)},
         timeout=60,
     )
     r.raise_for_status()
@@ -150,7 +153,10 @@ def main() -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--sleep", type=float, default=3.0)
     ap.add_argument("--limit-days", type=int, default=0, help="stop after N new days (test runs)")
+    ap.add_argument("--game-types", default="R", help="R regular season (default); FDLW the postseason rounds")
     args = ap.parse_args()
+    global GAME_TYPES
+    GAME_TYPES = args.game_types
 
     out: Path = args.out
     raw = out / "raw"
