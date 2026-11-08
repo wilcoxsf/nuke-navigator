@@ -28,6 +28,8 @@ ap.add_argument("--tag", default="m")
 ap.add_argument("--seed", type=int, default=7)
 ap.add_argument("--period", default="M", help="refit cadence: M monthly, W weekly")
 ap.add_argument("--halflife", type=float, default=0, help="days; weight training balls by recency (0 = equal)")
+ap.add_argument("--gmk", type=float, default=4.0, help="shrinkage of the in-game carry term")
+ap.add_argument("--gmdecay", type=float, default=0.0, help="per plate appearance decay of earlier balls in the in-game carry (0 = equal weights)")
 ap.add_argument("--mono", action="store_true", help="the correction may only rise with the margin-type features (margin_hat, direct_margin, dist_hat, mlp_d) and exit speed")
 ap.add_argument("--extra", default="", help="a parquet of extra legal features keyed by rid (e.g. gm_foul.parquet: gma, gmf, nfa), merged in as meta features")
 ap.add_argument("--algo", default="lgb", help="lgb or cat (CatBoost, ordered boosting)")
@@ -51,7 +53,18 @@ base = base.sort_values(["game_date", "game_pk", "at_bat_number", "pitch_number"
 fly = (base.launch_angle >= 15) & (base.launch_speed >= 80) & base.hit_distance_sc.notna() & base.mlp_d.notna()
 r0 = np.where(fly, base.hit_distance_sc - base.mlp_d, 0.0); ok = fly.to_numpy().astype(float)
 g = base.game_pk.to_numpy()
-base["gm"] = (pd.Series(r0).groupby(g).cumsum().to_numpy() - r0) / (pd.Series(ok).groupby(g).cumsum().to_numpy() - ok + 4.0)
+if a.gmdecay <= 0:
+    base["gm"] = (pd.Series(r0).groupby(g).cumsum().to_numpy() - r0) / (pd.Series(ok).groupby(g).cumsum().to_numpy() - ok + a.gmk)
+else:  # earlier balls weighted by exp(-decay * plate appearances ago), strictly earlier balls only
+    abn = base.at_bat_number.to_numpy().astype(float); gmv = np.zeros(len(base)); i0 = 0
+    while i0 < len(base):
+        i1 = i0
+        while i1 < len(base) and g[i1] == g[i0]: i1 += 1
+        for i in range(i0, i1):
+            j = np.arange(i0, i); w = np.exp(-a.gmdecay * (abn[i] - abn[j])) * ok[j]
+            gmv[i] = (w * r0[j]).sum() / (w.sum() + a.gmk)
+        i0 = i1
+    base["gm"] = gmv
 base = base.copy() if a.history else base[base.split.isin(["val", "test"])].copy()
 XTRA = []
 if a.extra:
