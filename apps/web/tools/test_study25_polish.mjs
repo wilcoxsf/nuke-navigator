@@ -107,7 +107,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300)
 // ---- THE LAB has today's choices ----
 await page.keyboard.press('?'); await page.waitForTimeout(400)
 const chips = await page.evaluate(() => [...document.querySelectorAll('#c25dk .dx [data-ax]')].map((b) => b.dataset.ax))
-check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'CM,GR,MO,CN', JSON.stringify(chips))
+check('the side menu holds the open picks: SLINGSHOT, and (2 Nov, night) LANDING PARTY MARKS (SHORT PINS to try), LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN; the foul poles, THE ORANGE and the count-up stay locked', chips.join() === 'CM,GR,MO,AC,CN', JSON.stringify(chips))
 await page.keyboard.press('Escape')
 
 // (6 Nov: the main page is done here; left open, its software-rendered park starved the pages below, which share the browser's one GPU process: a 5 s load took 97 s)

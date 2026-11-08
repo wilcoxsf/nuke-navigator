@@ -113,7 +113,7 @@ for (const [w, h] of SIZES) {
     let X = await layout(page); check('Oracle-only histograms fit', X.fits.length === 0, X.fits.join('; '))
     await page.click('#c25hw [data-w="mlb"]'); await page.waitForTimeout(800)
     // OFF THE MENU: the filter keeps only home runs off pitches outside the zone, and the pitch panel names where
-    await page.click('#c25ch [data-f="menu"]'); await page.waitForTimeout(1200)
+    await page.click('#c25pp'); await page.waitForTimeout(300); await page.click('#c25ch [data-f="menu"]'); await page.waitForTimeout(1200) // (8 Nov: the filters are in the POCKET PROTECTOR)
     const om = await page.evaluate(() => ({ n: document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1], tag: document.querySelector('#c25pl .om')?.textContent ?? '' }))
     check('OFF THE MENU filter and tag', Number(om.n) > 30 && /OFF THE MENU: (GOLF SHOT|TOMAHAWK|CHASE SCENE|INSIDE JOB)/.test(om.tag) && /\d+\.\d IN/.test(om.tag), JSON.stringify(om))
     X = await layout(page); check('OFF THE MENU ball fits', X.fits.length === 0 && X.overlaps.length === 0, X.fits.concat(X.overlaps).join('; '))
@@ -132,15 +132,15 @@ for (const [w, h] of SIZES) {
     await page.click('#c25back'); await page.waitForTimeout(1200)
     const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
     check('BACK TO THE REPLAY returns to the same ball', bk.mode === 'replay' && bk.ch === before.ch, JSON.stringify({ bk, before }))
-    await page.click('#c25ch [data-f="giants"]'); await page.waitForTimeout(900)
+    if (!(await page.$('#c25ch [data-pr]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) } await page.click('#c25ch [data-pr]'); await page.waitForTimeout(900) // (CLEAR; the POCKET PROTECTOR may still be open)
     // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
     const si = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
     check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WPA/.test(si), si)
-    await page.click('#c25ch [data-f="big"]'); await page.waitForTimeout(1200)
+    await page.click('#c25ch [data-f="big"]'); await page.waitForTimeout(1200) // (the POCKET PROTECTOR is still open)
     const bo = await page.evaluate(() => ({ n: Number(document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1]), st: document.querySelector('#c25v .st').textContent }))
     check('BIG ONES keeps the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
     X = await layout(page); check('a stamped ball fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
-    await page.click('#c25ch [data-f="giants"]'); await page.waitForTimeout(900)
+    await page.click('#c25ch [data-pr]'); await page.waitForTimeout(600); await page.click('#c25ch [data-px]'); await page.waitForTimeout(600) // (CLEAR, DONE)
     // ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are gone from DEJA-VU's header (29 Oct, evening); Shot Caller is a mode of its own
     const gone = await page.evaluate(() => ['#c25rc', '#c25sm', '#c25kl', '#c25sc'].map((q) => getComputedStyle(document.querySelector(q)).display))
     check('ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are off the header', gone.every((d) => d === 'none'), JSON.stringify(gone))
@@ -163,7 +163,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 4 && !dk.ride /* (5 Nov, night: BLAST RADIUS CAMERA, ON BASE, LANDING MOMENT, CONTRAILS open) */, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 5 && !dk.ride /* (5 Nov, night: BLAST RADIUS CAMERA, ON BASE, LANDING MOMENT, CONTRAILS open) */, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
@@ -802,7 +802,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
   const pl = await page.evaluate((n) => ({ lands: window.__mix25.lands() - n, playing: window.__mix25.shotPlaying(), sel: window.__mix25.shot().sel }), l0)
   check('PLAY IT flies the three most common ways, then sets the first up again', pl.lands === 3 && !pl.playing && pl.sel === 0, JSON.stringify(pl))
   // a click on a seat in the park calls it too
-  await page.keyboard.press('b'); await page.waitForTimeout(800) // bird's eye: the whole park, the arcade too
+  await page.evaluate(() => window.__mix25.birdForTest()); await page.waitForTimeout(800) // bird's eye (no button or key since 8 Nov): the whole park, the arcade too
   const xy = await page.evaluate(() => { const r = window.__mix25.seatPoint('145', '3', '6'), v = (window.__cp.NN.camera.updateMatrixWorld(), r.at.clone().project(window.__cp.NN.camera)), c = document.querySelector('canvas').getBoundingClientRect(); return { x: c.left + ((v.x + 1) / 2) * c.width, y: c.top + ((1 - v.y) / 2) * c.height, on: v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1, at: r.at.toArray().map(Math.round), vz: v.z } })
   if (xy.on) {
     await page.mouse.click(xy.x, xy.y); await page.waitForTimeout(500)

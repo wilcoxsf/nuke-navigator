@@ -1,7 +1,7 @@
 // Study 25 SELECT screen: a video-game mode menu over the park (up and down to choose, Enter to start, Esc to come back to it, number keys jump straight to a line,
 // S switches the sound). While it sits idle the park behind it replays the longest home runs (attract mode, run by the study through onIdle).
 import { sound } from './sfx25.js'
-import { jukebox } from './music25.js'
+import { director } from './music25.js'
 import { ORANGE } from './orange25.js'
 
 export const MENU_CSS = `
@@ -305,7 +305,7 @@ export function selectMenu(host, items, o = {}) {
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); stepArt(e.key === 'ArrowLeft' ? -1 : 1); sound.play('move') }
     else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); allArt = !allArt; if (allArt) setScene(KEYS[0]); else paintArt(); sound.play('move') }
     else if ((e.key === 'j' || e.key === 'J') && o.onJukebox) { e.preventDefault(); sound.play('pick'); close(); o.onJukebox() }
-    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) jukebox.stop(); paint(); sound.play('move') }
+    else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) director.stopAll(); paint(); sound.play('move') }
     else if (/^[1-9]$/.test(e.key) && Number(e.key) <= items.length) { i = Number(e.key) - 1; pick() }
     e.stopImmediatePropagation()
   }, true)
