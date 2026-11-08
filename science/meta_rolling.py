@@ -25,6 +25,9 @@ ap.add_argument("--feat", default="bakeoff_features_v39c.parquet")
 ap.add_argument("--pred", default="", help="override the base prediction file")
 ap.add_argument("--members", default="S3", help="S3 or none or a comma list name=file")
 ap.add_argument("--tag", default="m")
+ap.add_argument("--seed", type=int, default=7)
+ap.add_argument("--algo", default="lgb", help="lgb or cat (CatBoost, ordered boosting)")
+ap.add_argument("--history", action="store_true", help="keep every ball that has a base prediction (e.g. a spliced 2024 season) as training history; test months are the table's test split")
 a = ap.parse_args()
 ROOT = "C:/Users/andrewwi/dev/nuke-navigator-new/"
 D = ROOT + "data/derived/"
@@ -45,7 +48,7 @@ fly = (base.launch_angle >= 15) & (base.launch_speed >= 80) & base.hit_distance_
 r0 = np.where(fly, base.hit_distance_sc - base.mlp_d, 0.0); ok = fly.to_numpy().astype(float)
 g = base.game_pk.to_numpy()
 base["gm"] = (pd.Series(r0).groupby(g).cumsum().to_numpy() - r0) / (pd.Series(ok).groupby(g).cumsum().to_numpy() - ok + 4.0)
-base = base[base.split.isin(["val", "test"])].copy()
+base = base.copy() if a.history else base[base.split.isin(["val", "test"])].copy()
 base["doy"] = pd.to_datetime(base.game_date).dt.dayofyear
 base["venue"] = base.venue_id.astype(int)
 feats = LEGAL + ["gm", "doy"] + ([] if a.no_venue else ["venue"])
@@ -61,13 +64,20 @@ base["l_base"] = lg(base.p_base)
 base["month"] = pd.to_datetime(base.game_date).dt.to_period("M")
 months = sorted(base[base.split == "test"].month.unique())
 out = []
-P = dict(objective="binary", learning_rate=a.lr, num_leaves=a.leaves, min_data_in_leaf=a.minleaf, lambda_l2=a.l2, feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=7, num_threads=8)
+P = dict(objective="binary", learning_rate=a.lr, num_leaves=a.leaves, min_data_in_leaf=a.minleaf, lambda_l2=a.l2, feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=a.seed, num_threads=8)
 for m in months:
     tr = base[base.month < m]; te = base[base.month == m]
     if len(tr) < 20000: out.append(te.assign(p_meta=te.p_base)[["rid", "p_meta"]]); continue
-    ds = lgb.Dataset(tr[feats], tr.y, init_score=tr.l_base, categorical_feature=[c for c in ["venue"] if c in feats], free_raw_data=False)
-    bst = lgb.train(P, ds, num_boost_round=a.trees)
-    z = te.l_base.to_numpy() + bst.predict(te[feats], raw_score=True)
+    if a.algo == "cat":
+        from catboost import CatBoostClassifier, Pool
+        cf = [c for c in feats if c == "venue" or str(tr[c].dtype) == "category"]
+        mdl = CatBoostClassifier(iterations=a.trees, learning_rate=a.lr * 2, depth=5, l2_leaf_reg=a.l2, random_seed=a.seed, verbose=0, thread_count=8)
+        mdl.fit(Pool(tr[feats], tr.y, cat_features=cf, baseline=tr.l_base.to_numpy()))
+        z = te.l_base.to_numpy() + mdl.predict(Pool(te[feats], cat_features=cf), prediction_type="RawFormulaVal")
+    else:
+        ds = lgb.Dataset(tr[feats], tr.y, init_score=tr.l_base, categorical_feature=[c for c in ["venue"] if c in feats], free_raw_data=False)
+        bst = lgb.train(P, ds, num_boost_round=a.trees)
+        z = te.l_base.to_numpy() + bst.predict(te[feats], raw_score=True)
     out.append(pd.DataFrame({"rid": te.rid.to_numpy(), "p_meta": 1 / (1 + np.exp(-z))}))
 o = pd.concat(out)
 t = base[base.split == "test"].merge(o, on="rid")
