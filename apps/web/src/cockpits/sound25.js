@@ -140,6 +140,13 @@ R.launch = (K) => K.noise(K.t, 0.7, { type: 'bandpass', f: 500, q: 3 }, 0.03, 24
 R.pop = (K) => { K.noise(K.t, 0.12, { type: 'lowpass', f: 1800 }, 0.12); K.tone('sine', 140, K.t, 0.2, 0.08, 50); for (let i = 0; i < 6; i++) K.noise(K.t + 0.12 + Math.random() * 0.5, 0.03, { type: 'highpass', f: 3000 }, 0.03) }
 R.crowd = (K) => K.noise(K.t, 2.6, { type: 'bandpass', f: 900, q: 0.5 }, 0.045, 700, 0.45)
 R.ring = (K) => { K.tone('triangle', 1320, K.t, 1.3, 0.035); K.tone('sine', 1985, K.t, 0.9, 0.02) }
+// 9 Nov (razzle-dazzle 4, Andrew: yes to the foul-pole ping, "the pole rings like a bell"): a struck bell, the clang of the ball on steel and then a bell's own
+// partials (hum, prime, minor third, fifth, nominal and the two above, out of tune with each other as real bells are), the low ones ringing longest
+R.bell = (K) => {
+  const t = K.t
+  K.noise(t, 0.035, { type: 'bandpass', f: 3200, q: 1.4 }, 0.16); K.tone('square', 2600, t, 0.02, 0.05, 1800)
+  K.partials(t, 660, [[0.5, 0.55], [1, 1], [1.183, 0.5], [1.506, 0.42], [2, 0.6], [2.74, 0.3], [3.76, 0.18]], 3.4, 0.085)
+}
 R.ding = (K) => K.partials(K.t, 1760, [[1, 1], [2.4, 0.4], [3.9, 0.2]], 0.8, 0.05)
 R.water = (K) => K.noise(K.t, 0.6, { type: 'lowpass', f: 3200 }, 0.1, 350)
 R['water-plop'] = (K) => { K.tone('sine', 520, K.t, 0.1, 0.07, 140); K.noise(K.t + 0.02, 0.25, { type: 'lowpass', f: 2200 }, 0.05, 400) }

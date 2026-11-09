@@ -45,9 +45,57 @@ export function initPoles25(api, o = {}) {
   }
   setLook(o.look ?? 1)
   const hideRight = (v) => { hid = !!v; for (const p of parts) if (p.right) p.pg.visible = !hid }
+  // THE POLE RINGS (9 Nov, razzle-dazzle 4, Andrew: yes to "the pole rings like a bell"): a ball off the pole sets the real pole shivering like a struck tuning
+  // fork (more toward the top, dying away), its cubes flash, and three rings of cubes spread out from where it was hit, like the sound going out across the park
+  const base = new Map() // each mesh's resting matrices, taken the first time it rings
+  const keep = (im) => { if (!base.has(im)) { const a = []; for (let i = 0; i < im.count; i++) { const m = new THREE.Matrix4(); im.getMatrixAt(i, m); a.push(m) } base.set(im, a) } return base.get(im) }
+  let ringing = null
+  function ring(at) {
+    if (!g.visible) return false
+    const p = parts.reduce((a, b) => (at && a.foot.distanceTo(at) > b.foot.distanceTo(at) ? b : a))
+    if (!p.pg.visible) return false
+    if (ringing) stop()
+    const foot = p.foot, topY = p.top.y, hitY = Math.min(topY - 1, Math.max(foot.y + 3, at?.y ?? foot.y + 10))
+    const N = 26, halo = new THREE.InstancedMesh(cube, new THREE.MeshLambertMaterial({ color: '#f4f2ea', flatShading: true, fog: false }), N * 3)
+    halo.frustumCulled = false; g.add(halo)
+    ringing = { p, t0: performance.now(), foot, topY, hitY, halo, N, mats: [p.pm.material, p.sm.material] }
+    return true
+  }
+  function stop() {
+    if (!ringing) return
+    for (const im of [ringing.p.pm, ringing.p.sm]) { const a = keep(im); a.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true }
+    for (const m of ringing.mats) m.emissive?.setRGB(0, 0, 0)
+    g.remove(ringing.halo); ringing.halo.geometry !== cube && ringing.halo.geometry.dispose(); ringing.halo.material.dispose()
+    ringing = null
+  }
+  const m4 = new THREE.Matrix4(), sv = new THREE.Vector3(), tp = new THREE.Vector3(), tq = new THREE.Quaternion(), ts = new THREE.Vector3()
+  api.NN.frames.push(() => {
+    if (!ringing) return
+    const R = ringing, t = (performance.now() - R.t0) / 1000
+    if (t > 2.4) { stop(); return }
+    sv.set(1, 0, 0).applyQuaternion(api.NN.camera.quaternion); sv.y = 0; sv.normalize()
+    const a = Math.sin(t * 34) * Math.exp(-2.2 * t) * 0.9, h = R.topY - R.foot.y
+    for (const im of [R.p.pm, R.p.sm]) {
+      const A = keep(im)
+      A.forEach((m, i) => { m.decompose(tp, tq, ts); const f = Math.max(0, (tp.y - R.foot.y) / h); tp.addScaledVector(sv, a * f * f); m4.compose(tp, tq, ts); im.setMatrixAt(i, m4) })
+      im.instanceMatrix.needsUpdate = true
+    }
+    const fl = Math.max(0, 1 - t / 0.5)
+    for (const m of R.mats) m.emissive?.setRGB(fl * 0.8, fl * 0.8, fl * 0.7)
+    let k = 0
+    for (let w = 0; w < 3; w++) {
+      const u = (t - w * 0.22) / 1.1
+      for (let j = 0; j < R.N; j++) {
+        if (u <= 0 || u >= 1) { m4.makeScale(0, 0, 0); R.halo.setMatrixAt(k++, m4); continue }
+        const r = 0.8 + u * 7, an = (j / R.N) * Math.PI * 2, s = 0.45 * (1 - u)
+        m4.makeScale(s, s, s).setPosition(R.foot.x + Math.cos(an) * r, R.hitY + Math.sin(an * 2 + t * 6) * 0.15, R.foot.z + Math.sin(an) * r); R.halo.setMatrixAt(k++, m4)
+      }
+    }
+    R.halo.count = k; R.halo.instanceMatrix.needsUpdate = true
+  })
   if (o.hideRight) api.NN.frames.push(() => { const v = !!o.hideRight(); if (v !== hid) hideRight(v) })
   return {
-    setLook(n) { if (n !== look) setLook(n) }, look: () => look, group: g, hideRight,
+    setLook(n) { if (n !== look) setLook(n) }, look: () => look, group: g, hideRight, ring, ringing: () => !!ringing,
     // for the tests: each pole's foot and top in the world, and whether it shows
     poles: () => parts.map((p) => ({ right: p.right, top: p.top.clone(), foot: p.foot.clone(), shown: g.visible && p.pg.visible, screen: p.sm.count })),
   }

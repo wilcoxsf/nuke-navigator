@@ -162,6 +162,7 @@ export function initMoments25(api, col, fx, o = {}) {
   }
   function pole(at) {
     log.push('pole')
+    if (o.poleRing?.(at)) { o.sound?.('bell'); return } // (9 Nov: the real pole rings like a bell, poles25.js; the old accent column only where there is no voxel pole)
     const left = at.x < 0, w = window.__cp.wallAt?.(left ? -45 : 45) ?? [335, 8], r = w[0] * 0.3048, b = ((left ? -45 : 45) * Math.PI) / 180
     const base = toWorld([r * Math.sin(b), r * Math.cos(b), 0]), top = toWorld([r * Math.sin(b), r * Math.cos(b), 26])
     // the pole as a column of accent cubes (28 Oct, night: voxels everywhere) that bends like a tuning fork, more at the top

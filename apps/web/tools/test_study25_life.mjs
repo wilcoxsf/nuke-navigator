@@ -71,6 +71,30 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   check('WALLOP WITNESS: a tab key with the calling card open (focus outside it) leaves the card being made', await p2.evaluate(() => !!document.querySelector('.wcd canvas')))
   await p2.click('#c25cl').catch(() => {}); await p2.waitForTimeout(500) // (close the window, so the tabs are free)
 }
+// ---- 4b. (9 Nov) THE WALL IT WENT OVER, the pole bell, the bat flip, the focus trap ----
+{
+  await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'COL')); await page.waitForTimeout(1500)
+  const aw = await page.evaluate(() => window.__mix25.awayWall())
+  check('an away home run in DEJA-VU draws the wall of the park it was hit in, and where this flight crossed it', aw && /Coors/.test(aw.venue) && aw.cross && aw.cross.wallFt > 320 && aw.cross.wallFt < 430, JSON.stringify(aw))
+  const old = await page.evaluate(() => { const i = window.__mix25.ball((b) => b.hr && b.park === 'ATH' && String(b.d).startsWith('2024')); return i < 0 ? 'none' : window.__mix25.awayWall() }); await page.waitForTimeout(800)
+  check('a 2024 Athletics home run gets the Coliseum, the wall that stood that season', old === 'none' || /Coliseum/.test(old?.venue ?? ''), JSON.stringify(old))
+  await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF')); await page.waitForTimeout(800)
+  check('an Oracle home run has no away wall', (await page.evaluate(() => window.__mix25.awayWall())) === null)
+  const rg = await page.evaluate(() => { const P = window.__mix25.poles(); if (!P) return 'no poles'; const top = P.poles()[1].top; return { rang: P.ring(top), on: P.ringing() } })
+  const quiet = await until(() => !window.__mix25.poles().ringing(), 15000) // (2.4 s of its own; it stops on a drawn frame)
+  check('a ball off the pole rings it, and the ringing dies away', rg.rang === true && rg.on === true && quiet, JSON.stringify(rg))
+  const bf = await page.evaluate(() => { const B = window.__mix25.batFlip(); return { f: B.flip(1, 0), on: B.flying() } })
+  const gone = await until(() => !window.__mix25.batFlip().flying(), 15000) // (about 4.6 s of its own; headless Edge draws few frames)
+  check('the bat flip goes up, lands and is gone again', bf.f && bf.on && gone, JSON.stringify(bf))
+  await page.evaluate(() => window.__mix25.openMod('witness')); await page.waitForTimeout(1200)
+  const n = await page.evaluate(() => window.__mix25.modFocusables())
+  const inside = () => page.evaluate(() => !!document.activeElement?.closest('#c25m'))
+  let out = 0
+  for (let i = 0; i < n + 3; i++) { await page.keyboard.press('Tab'); if (!(await inside())) out++ }
+  for (let i = 0; i < 3; i++) { await page.keyboard.press('Shift+Tab'); if (!(await inside())) out++ }
+  check('the focus trap: Tab and Shift+Tab go round the open window and never out of it', n > 2 && out === 0, JSON.stringify({ n, out }))
+  await page.keyboard.press('Escape'); await page.waitForTimeout(600)
+}
 // ---- 5. (red team 4.3) ALL / AT ORACLE / AWAY: the landing puffs and rings go when they finish; nothing piles up in the map ----
 {
   await page.click('#c25tabs [data-tab="blast"]')

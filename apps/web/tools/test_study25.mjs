@@ -113,9 +113,10 @@ for (const [w, h] of SIZES) {
     let X = await layout(page); check('Oracle-only histograms fit', X.fits.length === 0, X.fits.join('; '))
     await page.click('#c25hw [data-w="mlb"]'); await page.waitForTimeout(800)
     // OFF THE MENU: the filter keeps only home runs off pitches outside the zone, and the pitch panel names where
-    await page.click('#c25pp'); await page.waitForTimeout(300); await page.click('#c25ch [data-f="menu"]'); await page.waitForTimeout(1200) // (8 Nov: the filters are in the POCKET PROTECTOR)
+    // (9 Nov: the BOMB BINDER only sorts, so jump straight to a home run well outside the zone for the tag)
+    await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.px != null && b.pz != null && Math.abs(b.px) > 1.05)); await page.waitForTimeout(1200)
     const om = await page.evaluate(() => ({ n: document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1], tag: document.querySelector('#c25pl .om')?.textContent ?? '' }))
-    check('OFF THE MENU filter and tag', Number(om.n) > 30 && /OFF THE MENU: (GOLF SHOT|TOMAHAWK|CHASE SCENE|INSIDE JOB)/.test(om.tag) && /\d+\.\d IN/.test(om.tag), JSON.stringify(om))
+    check('OFF THE MENU tag on a ball off the plate', Number(om.n) > 30 && /OFF THE MENU: (GOLF SHOT|TOMAHAWK|CHASE SCENE|INSIDE JOB)/.test(om.tag) && /\d+\.\d IN/.test(om.tag), JSON.stringify(om))
     X = await layout(page); check('OFF THE MENU ball fits', X.fits.length === 0 && X.overlaps.length === 0, X.fits.concat(X.overlaps).join('; '))
     // TWEAK THE TATER: into the dojo with the ball's own numbers, and back to the same ball
     const before = await page.evaluate(() => ({ ev: window.__cp?.state?.ev ?? null, ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
@@ -132,15 +133,22 @@ for (const [w, h] of SIZES) {
     await page.click('#c25back'); await page.waitForTimeout(1200)
     const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
     check('BACK TO THE REPLAY returns to the same ball', bk.mode === 'replay' && bk.ch === before.ch, JSON.stringify({ bk, before }))
-    if (!(await page.$('#c25ch [data-pr]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) } await page.click('#c25ch [data-pr]'); await page.waitForTimeout(900) // (CLEAR; the POCKET PROTECTOR may still be open)
+    // THE BOMB BINDER (9 Nov): his ten names, sorts only, no filters; DEEPEST DINGERS puts the longest first
+    if (!(await page.$('#c25ch [data-pr]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
+    const bbn = await page.evaluate(() => ({ btn: document.querySelector('#c25pp').textContent, sorts: [...document.querySelectorAll('#c25ch [data-ps]')].map((b) => b.textContent), filters: document.querySelectorAll('#c25ch [data-f], #c25ch [data-pa]').length }))
+    check('the BOMB BINDER has the ten sorts and no filters', /^BOMB BINDER/.test(bbn.btn) && bbn.sorts.join() === 'FRESH FRANKS,DUSTY DINGERS,DEEPEST DINGERS,SQUEAKERS,LASERBEAMS,TENDER TATERS,SKY SCRAPERS,WORM BURNERS,SIZZLE SWATS,FROSTY FRANKS' && bbn.filters === 0, JSON.stringify(bbn))
+    await page.click('#c25ch [data-ps="far"]'); await page.waitForTimeout(1200)
+    const dd = await page.evaluate(() => { const c = window.__mix25.cur(), L = window.__mix25.allBalls().filter((b) => b.hr), m = Math.max(...L.map((b) => b.ft)); return { ft: c.ft, max: m, ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] } })
+    check('DEEPEST DINGERS starts on the longest home run of the mix', dd.ch === '1' && dd.ft === dd.max, JSON.stringify(dd))
+    await page.click('#c25ch [data-pr]'); await page.waitForTimeout(900) // (CLEAR)
     // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
     const si = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
     check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WPA/.test(si), si)
-    await page.click('#c25ch [data-f="big"]'); await page.waitForTimeout(1200) // (the POCKET PROTECTOR is still open)
+    await page.click('#c25rl'); await page.waitForTimeout(1500) // (9 Nov: the big ones live in the REEL now that the binder has no filters)
     const bo = await page.evaluate(() => ({ n: Number(document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1]), st: document.querySelector('#c25v .st').textContent }))
-    check('BIG ONES keeps the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
+    check('the REEL plays the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
     X = await layout(page); check('a stamped ball fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
-    await page.click('#c25ch [data-pr]'); await page.waitForTimeout(600); await page.click('#c25ch [data-px]'); await page.waitForTimeout(600) // (CLEAR, DONE)
+    await page.evaluate(() => window.__mix25.stopReel()); await page.waitForTimeout(600); if (await page.$('#c25ch [data-px]')) { await page.click('#c25ch [data-px]'); await page.waitForTimeout(600) } // (stop the reel; DONE)
     // ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are gone from DEJA-VU's header (29 Oct, evening); Shot Caller is a mode of its own
     const gone = await page.evaluate(() => ['#c25rc', '#c25sm', '#c25kl', '#c25sc'].map((q) => getComputedStyle(document.querySelector(q)).display))
     check('ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are off the header', gone.every((d) => d === 'none'), JSON.stringify(gone))
@@ -163,7 +171,7 @@ for (const [w, h] of SIZES) {
     // 30 Oct: RIDE IT is gone; ? opens the dock with every choice (the locked ones marked), and Esc closes it
     await page.keyboard.press('?'); await page.waitForTimeout(500)
     const dk = await page.evaluate(() => ({ open: document.querySelector('.c25').classList.contains('dk'), chips: document.querySelectorAll('#c25dk .dx [data-ax]').length, ride: !!document.querySelector('#c25ri') }))
-    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 5 && !dk.ride /* (5 Nov, night: BLAST RADIUS CAMERA, ON BASE, LANDING MOMENT, CONTRAILS open) */, JSON.stringify(dk))
+    check('? opens the side menu with what is still open (2 Nov, night: SLINGSHOT, LANDING PARTY MARKS, LANDING IMPACT, THE COVE, SHOT CALLER: THE WAYS IN); no RIDE IT', dk.open && dk.chips === 1 /* (9 Nov: only CN still open) */ && !dk.ride /* (5 Nov, night: BLAST RADIUS CAMERA, ON BASE, LANDING MOMENT, CONTRAILS open) */, JSON.stringify(dk))
     await page.focus('#c25dk'); await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     // the existing features still work in the shared panel
     await page.keyboard.press('l'); await page.waitForTimeout(2500)
