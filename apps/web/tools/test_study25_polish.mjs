@@ -65,10 +65,12 @@ check('the first Esc closes the side menu and opens nothing else', !esc1.dock &&
 const shadowVis = () => page.evaluate(() => { let v = null; window.__cp.NN.scene.traverse((o) => { if (o.isGroup && o.children.length === 2 && o.children[0].isInstancedMesh && o.children[0].material.opacity === 0.62) v = o.visible }); return v })
 await page.evaluate(() => { window.__mix25.lab('SH', 1); Object.assign(window.__cp.state, { ev: 108, la: 30, dir: 10 }); window.__cp.update() }); await page.waitForTimeout(1500)
 await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000); await page.waitForTimeout(500)
+await page.evaluate(() => { window.__cpSlow = 6 }) // (9 Nov: headless Edge draws about one frame a second; a six-times-slower flight gets frames in the air)
 await page.click('#c25nk')
 let seen = false
-for (let k = 0; k < 70 && !seen; k++) { await page.waitForTimeout(200); seen = !!(await shadowVis()) }
+for (let k = 0; k < 90 && !seen; k++) { await page.waitForTimeout(200); seen = !!(await shadowVis()) }
 check('the ball\'s shadow shows while it flies', seen)
+await until(() => !!(window.__cp.anim?.() && window.__cp.anim().exploded), 40000); await page.evaluate(() => { window.__cpSlow = 1 })
 await until(() => !(window.__cp.anim?.() && !window.__cp.anim().exploded), 30000); await page.waitForTimeout(800)
 check('and is gone once it lands', (await shadowVis()) === false)
 await page.click('#c25nk')

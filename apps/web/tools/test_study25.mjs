@@ -144,11 +144,11 @@ for (const [w, h] of SIZES) {
     // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
     const si = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
     check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WPA/.test(si), si)
-    await page.click('#c25rl'); await page.waitForTimeout(1500) // (9 Nov: the big ones live in the REEL now that the binder has no filters)
-    const bo = await page.evaluate(() => ({ n: Number(document.querySelector('#c25ch').textContent.match(/OF (\d+)/)?.[1]), st: document.querySelector('#c25v .st').textContent }))
-    check('the REEL plays the grand slams, walk-offs and late go-ahead home runs, stamped', bo.n > 20 && /WALK-OFF|GRAND SLAM|GO-AHEAD/.test(bo.st), JSON.stringify(bo))
+    await page.evaluate(() => window.__mix25.ball((b) => b.hr && /WALK-OFF|GRAND SLAM/.test(window.__mix25.stamp(b) ?? ''))); await page.waitForTimeout(1500) // (9 Nov: the REEL is gone; straight to a big one)
+    const bo = await page.evaluate(() => ({ rl: !!document.querySelector('#c25rl'), st: document.querySelector('#c25v .st').textContent }))
+    check('no REEL button, and a big home run is stamped', !bo.rl && /WALK-OFF|GRAND SLAM/.test(bo.st), JSON.stringify(bo))
     X = await layout(page); check('a stamped ball fits', X.overlaps.concat(X.fits).length === 0, X.overlaps.concat(X.fits).join('; '))
-    await page.evaluate(() => window.__mix25.stopReel()); await page.waitForTimeout(600); if (await page.$('#c25ch [data-px]')) { await page.click('#c25ch [data-px]'); await page.waitForTimeout(600) } // (stop the reel; DONE)
+    if (await page.$('#c25ch [data-px]')) { await page.click('#c25ch [data-px]'); await page.waitForTimeout(600) } // (stop the reel; DONE)
     // ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are gone from DEJA-VU's header (29 Oct, evening); Shot Caller is a mode of its own
     const gone = await page.evaluate(() => ['#c25rc', '#c25sm', '#c25kl', '#c25sc'].map((q) => getComputedStyle(document.querySelector(q)).display))
     check('ODDS RECEIPT, STAR MAP, KARL and the SHOT CALLER button are off the header', gone.every((d) => d === 'none'), JSON.stringify(gone))
@@ -538,13 +538,14 @@ if (!process.env.PHONE_ONLY && on('D')) {
   await page.click('#c25ti'); await page.waitForTimeout(400)
   check('clicking the title opens the menu', await page.evaluate(() => document.querySelector('.c25 .sm').classList.contains('open')))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
-  // HIGHLIGHT REEL plays the big ones one after another
-  await page.click('#c25rl')
+  // (9 Nov: the HIGHLIGHT REEL is gone)
+  if (false) {
   let b1 = null, b2 = null
   for (let k = 0; k < 80 && !(b1 && b2 && b2 !== b1); k++) { await page.waitForTimeout(500); const r = await page.evaluate(() => ({ on: !!window.__mix25.reel(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] })); if (r.on) { b1 ??= r.ch; b2 = r.ch } }
   check('the REEL button by PLAY IT runs the highlight reel, moving on to the next big one by itself', !!b1 && b2 !== b1, JSON.stringify({ b1, b2 }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(400)
   check('Esc stops the reel', await page.evaluate(() => !window.__mix25.reel()))
+  }
   await page.evaluate(() => window.__mix25.menu.close())
   await page.click('#c25mn'); await page.waitForTimeout(400)
   await page.click('.c25 .sm .smi:nth-child(4)'); await page.waitForTimeout(4000)
@@ -695,7 +696,7 @@ if (!process.env.PHONE_ONLY && on('H')) {
   for (const G of [2, 1, 3, 4, 2]) { await page.evaluate((c) => window.__mix25.set(c), 'G' + G); await page.evaluate(() => window.__mix25.life.play('bagcheck', {}, 0, true)); for (let k = 0; k < 20 && G !== 4 && (await page.evaluate(() => window.__mix25.life.ledsOut())) < 20; k++) await page.waitForTimeout(300); bd.push(await page.evaluate(() => ({ g: window.__mix25.life.boardNow(), vox: window.__mix25.life.vboard.visible, bulbs: window.__mix25.life.board.visible, out: window.__mix25.life.ledsOut() }))) }
   check('G1 to G4: the voxel board (cubes, relief, flip dots) or the old bulbs, the lit LEDs counted on the voxel ones', bd.every((x, i) => x.g === [2, 1, 3, 4, 2][i]) && bd.filter((x) => x.g !== 4).every((x) => x.vox && !x.bulbs && x.out > 20) && bd[3].bulbs && !bd[3].vox, JSON.stringify(bd))
   const an = await page.evaluate(() => { const L = window.__mix25.life; L.boardStyle = 4; const r = L.gags().map((n) => [n, L.peek(n, L.dur(n) * 0.55, {}).lit]); L.boardStyle = 2; return r })
-  check('the gags draw on the old bulbs too (G4)', an.length === 37 && an.every(([, n]) => n > 10), JSON.stringify(an))
+  check('the gags draw on the old bulbs too (G4)', an.length === 38 /* (9 Nov: THE ROLL-UP) */ && an.every(([, n]) => n > 10), JSON.stringify(an))
   await page.evaluate(() => window.__mix25.life.signFx('hr')); await page.waitForTimeout(400)
   check('a home run still lights the sign', await page.evaluate(() => window.__mix25.life.signState() === 'hr'))
   // the model's own sign and its own mound and boxes are out of the wire; ours are in
@@ -801,14 +802,14 @@ if (!process.env.PHONE_ONLY && on('G')) {
     for (const N of [2, 3, 1]) { await page.evaluate((c) => window.__mix25.set(c), 'N' + N); await page.waitForTimeout(300) }
     X = await layout(page); check('Shot Caller still fits after the frontier looks', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   }
-  // PLAY IT flies the three most common ways, one after another
+  // PLAY IT (9 Nov): one swing, the picked way bright and every other way at once as see-through balls
   for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.look()?.moving)); k++) await page.waitForTimeout(300)
   const l0 = await page.evaluate(() => window.__mix25.lands())
   await page.click('#c25nk')
-  for (let k = 0; k < 150 && (await page.evaluate((n) => window.__mix25.lands() < n + 3, l0)); k++) await page.waitForTimeout(500)
+  for (let k = 0; k < 150 && (await page.evaluate((n) => window.__mix25.lands() < n + 1, l0)); k++) await page.waitForTimeout(500)
   for (let k = 0; k < 20 && (await page.evaluate(() => window.__mix25.shotPlaying())); k++) await page.waitForTimeout(400)
-  const pl = await page.evaluate((n) => ({ lands: window.__mix25.lands() - n, playing: window.__mix25.shotPlaying(), sel: window.__mix25.shot().sel }), l0)
-  check('PLAY IT flies the three most common ways, then sets the first up again', pl.lands === 3 && !pl.playing && pl.sel === 0, JSON.stringify(pl))
+  const pl = await page.evaluate((n) => ({ lands: window.__mix25.lands() - n, playing: window.__mix25.shotPlaying(), ghosts: window.__mix25.shotGhosts(), ways: window.__mix25.shot().ways.length }), l0)
+  check('PLAY IT flies once: the picked way, and every other way at once as see-through balls that stay where they came down', pl.lands === 1 && !pl.playing && pl.ghosts === pl.ways - 1 && pl.ghosts > 0, JSON.stringify(pl))
   // a click on a seat in the park calls it too
   await page.evaluate(() => window.__mix25.birdForTest()); await page.waitForTimeout(800) // bird's eye (no button or key since 8 Nov): the whole park, the arcade too
   const xy = await page.evaluate(() => { const r = window.__mix25.seatPoint('145', '3', '6'), v = (window.__cp.NN.camera.updateMatrixWorld(), r.at.clone().project(window.__cp.NN.camera)), c = document.querySelector('canvas').getBoundingClientRect(); return { x: c.left + ((v.x + 1) / 2) * c.width, y: c.top + ((1 - v.y) / 2) * c.height, on: v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1, at: r.at.toArray().map(Math.round), vz: v.z } })

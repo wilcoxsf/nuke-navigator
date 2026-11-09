@@ -75,7 +75,10 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 {
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'COL')); await page.waitForTimeout(1500)
   const aw = await page.evaluate(() => window.__mix25.awayWall())
-  check('an away home run in DEJA-VU draws the wall of the park it was hit in, and where this flight crossed it', aw && /Coors/.test(aw.venue) && aw.cross && aw.cross.wallFt > 320 && aw.cross.wallFt < 430, JSON.stringify(aw))
+  check('an away home run in DEJA-VU draws the wall of the park it was hit in, and where this flight crossed it, the clearance hidden until it is hit', aw && /Coors/.test(aw.venue) && aw.cross && aw.cross.wallFt > 320 && aw.cross.wallFt < 430 && aw.shown === false, JSON.stringify(aw))
+  await page.evaluate(() => { window.__f0 = window.__mix25.fires() }); await page.click('#c25nk') // (the swing button: Space would press whatever button has the focus)
+  await until(() => window.__mix25.fires() > window.__f0, 30000); await until(() => !!(window.__cp.anim?.() && window.__cp.anim().exploded), 30000); await page.waitForTimeout(800) // (the new swing's landing, not the last one's)
+  check('after the swing, the clearance over that wall is up', (await page.evaluate(() => window.__mix25.awayWall()?.shown)) === true)
   const old = await page.evaluate(() => { const i = window.__mix25.ball((b) => b.hr && b.park === 'ATH' && String(b.d).startsWith('2024')); return i < 0 ? 'none' : window.__mix25.awayWall() }); await page.waitForTimeout(800)
   check('a 2024 Athletics home run gets the Coliseum, the wall that stood that season', old === 'none' || /Coliseum/.test(old?.venue ?? ''), JSON.stringify(old))
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF')); await page.waitForTimeout(800)
@@ -95,24 +98,10 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   check('the focus trap: Tab and Shift+Tab go round the open window and never out of it', n > 2 && out === 0, JSON.stringify({ n, out }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(600)
 }
-// ---- 4c. (9 Nov) THE SONG SLOTS: his picks are loaded, rare things win, and a landing moment's song can come up ----
+// ---- 4c. (9 Nov, later) THE SONGS: his picks, whole, loaded; a shuffled bag deals every one before any repeats ----
 {
-  const n = await page.evaluate(() => window.__mix25.jukebox.songs.length)
-  const F = (c) => page.evaluate((c) => window.__mix25.songFor(c)?.id ?? null, c)
-  const base = { hr: true, key: 'GONE', ft: 410, hang: 5, odds: 0.6, goneN: 20, here: true, moment: null }
-  const B = (o) => ({ g: 1, d: '2025-07-15', b: 1, gm: '1', in: 4, ou: 1, sk: 1, la: 28, temp: 65, tm: '13:05', park: 'SF', ht: 'SF', at: 'NYM', tb: 'Bot', ...o })
-  const r = {
-    walkoff: await F({ ...base, b: B({ in: 9 }), giants: true, stamp: 'WALK-OFF' }),
-    dodger: await F({ ...base, b: B({ ht: 'SF', at: 'LAD', tb: 'Top' }), giants: false }),
-    rehab: await F({ ...base, b: B({ ht: 'LAD', at: 'SF', tb: 'Top', park: 'LAD' }), giants: true }),
-    lucky: await F({ ...base, b: B({}), giants: true, odds: 0.05 }),
-    fenway: await F({ ...base, b: B({ ht: 'BOS', at: 'SF', tb: 'Top', park: 'BOS' }), giants: true }),
-    wall: await F({ ...base, hr: false, key: 'WALL', b: B({}) }),
-    plain: await F({ ...base, b: B({}), giants: true }),
-    dog: await F({ ...base, b: B({ d: '2025-07-16', b: 7 }), giants: true, moment: 'dog' }),
-  }
-  check('his song picks are loaded (51 picks, the two better files and the walk-off song), and the old songs are gone', n >= 54, String(n))
-  check('the song slots: walk-off, a Dodger home run, Rehab, Get Lucky, Fenway, off the wall, and Bye Bye Baby by default', r.walkoff === 'sf' && r.dodger === 'imperial2' && r.rehab === 'rehab' && r.lucky === 'getlucky' && r.fenway === 'caroline' && r.wall === 'piece' && r.plain === 'byebye' && ['hounddog', 'byebye'].includes(r.dog), JSON.stringify(r))
+  const r = await page.evaluate(() => { const S = window.__mix25.jukebox.songs.map((x) => x.id), n = S.length, d = []; for (let i = 0; i < n * 3; i++) d.push(window.__mix25.nextSong()); const c = S.map((id) => d.filter((x) => x === id).length); return { n, min: Math.min(...c), max: Math.max(...c), twice: d.filter((x, i) => i && x === d[i - 1]).length, len: window.__mix25.jukebox.length('getlucky') } }) // (three bags' worth: the home runs before this may have started one)
+  check('the songs are his picks, whole (54 with the walk-off song), dealt off a shuffled bag: every one before any comes a third time, never twice running', r.n >= 54 && r.min >= 2 && r.max <= 4 && r.twice === 0 && r.len > 120, JSON.stringify(r))
 }
 // ---- 4d. (9 Nov) BAD LUCK (the mirror and the ladder) plays from the MOMENTS menu; THE ROLL-UP is on the board ----
 {

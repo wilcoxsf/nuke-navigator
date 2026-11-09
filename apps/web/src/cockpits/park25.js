@@ -828,7 +828,7 @@ export function initPark25(api, col, o = {}) {
         for (let i = 0; i < 10; i++) { const a = (t * 0.7 + i * 0.37) % 2.2, sx = x1 + 1 + Math.sin(i * 1.7 + t) * 2 + a * 2, sy = 9 - a * 3.4; if (t > 4.2 && sy > 1) put(sx, sy, i % 3 ? 'g' : 'd') } // the smoke off the end
         if (t > 7.0) { const u = t - 7.0; for (let i = 0; i < 26; i++) put(14 + u * 18 + hash(i) * 12, 9 + (hash(i + 7) - 0.5) * (4 + u * 6), hash(i + 3) > 0.5 ? 'g' : 'w') } // he blows it out
       }
-      text(t < 1.8 ? 'LIE DOWN' : t < 2.8 ? 'ROLL HIM UP' : t < 3.6 ? 'LICK IT' : t < 4.6 ? 'LIGHT IT' : t < 7.0 ? 'PUFF PUFF' : 'DODGER KUSH', 'c', 0, t < 7.0 ? 'w' : 'o')
+      text(t < 1.8 ? 'LIE DOWN' : t < 2.8 ? 'ROLL HIM UP' : t < 3.6 ? 'LICK IT' : t < 4.6 ? 'LIGHT IT' : t < 7.0 ? 'PUFF PUFF' : 'SKUNK WEED' /* (9 Nov, Andrew: "Dodger kush is a lame name") */, 'c', 0, t < 7.0 ? 'w' : 'o')
     } },
     // WATERBOARD (GPT review, his "change"): head down on the plank under the rally towel; SAY IT, NEVER, the cooler, GO GIANTS; and behind him a line of Dodgers waits
     // its turn while the Giant fetches a fresh cooler

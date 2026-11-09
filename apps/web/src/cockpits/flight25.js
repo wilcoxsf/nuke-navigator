@@ -139,7 +139,7 @@ export function initFlight25(api, colors) {
         const gc = v.kind === 'GONE' ? c.nk || c.mk || c.pc || c.acc : c.mk || c.pc || c.tx // (2 Nov, later: "the cleared the wall cube / line let's also make it geiger"; 3 Nov, the color audit: GEIGER means gone, so off the wall it stays ICE)
         const cPost = cubes(geo, lam(gc), column(b.x, b.z, lo, hi, 0.8).reverse(), 0.5); cl.add(cPost)
         const gone = v.kind === 'GONE', n = Math.round(gone ? v.clearBy : v.short)
-        cl.add(tag(gone ? 'CLEARED THE WALL BY' : 'SHORT OF THE TOP BY', `${gone ? '+' : ''}${n} FT`, new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, gc))
+        cl.add(tag(gone ? "CLEARED ORACLE'S WALL BY" : 'SHORT OF THE TOP BY', `${n} FT`, /* (9 Nov, Andrew: "I don't understand what the like +X feet means": the words say it, no plus sign) */ new THREE.Vector3(b.x, hi + 1, b.z), c.acc, 1, 3, gc))
         const cDot = cubes(geo, lam(gc), [ball], 1.4); cl.add(cDot) // the dot where it crossed the wall
         cl.userData.dot = ball.clone(); cl.userData.form = { post: cPost, dot: cDot, at: ball.clone(), pts: column(b.x, b.z, lo, hi, 0.8).reverse(), s: 0.5, size: 1.4, look: 6 }
         g.add(cl); g.userData.reveal.push([ci / Math.max(1, src.length - 1), cl])
