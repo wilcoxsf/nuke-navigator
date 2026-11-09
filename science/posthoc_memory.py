@@ -16,10 +16,12 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--pred", default="data/derived/final8/S3.parquet")
 ap.add_argument("--write", default="", help="also write the final layer (venue offsets + gm) test-row predictions to this parquet")
 ap.add_argument("--period", default="M", help="refit cadence: M monthly, W weekly")
+ap.add_argument("--score-post", action="store_true", help="(9 Nov) --write also predicts the sealed rows (split post), fit on val and test history only; nothing printed covers them")
 ap.add_argument("--table", default="bakeoff_features_v5r.parquet", help="bakeoff_features_fwd2024.parquet for the 2024 forward split")
 a = ap.parse_args()
 ROOT = "C:/Users/andrewwi/dev/nuke-navigator-new/"
-D = ROOT + "data/derived/"
+import modelstore as MS  # (9 Nov: NN_D points at the production tables)
+D = MS.D
 df = pd.read_parquet(D + a.table, columns=["rid", "split", "y", "game_date", "game_pk", "venue_id", "margin_hat", "hit_distance_sc", "launch_angle", "launch_speed"])
 df = df.merge(pd.read_parquet(D + "bakeoff_features.parquet", columns=["rid", "batter", "pitcher", "at_bat_number", "pitch_number"]), on="rid")
 df = df.merge(pd.read_parquet(D + "bakeoff_features_v39c.parquet", columns=["rid", "mlp_d"]), on="rid")
@@ -67,7 +69,8 @@ df["bt"] = decayed("batter", 15.0)
 df["pt"] = decayed("pitcher", 25.0)
 p = pd.read_parquet(ROOT + a.pred).set_index("rid").p_hr
 d = df.set_index("rid").join(p, how="inner").dropna(subset=["p_hr"])
-d = d[d.split.isin(["val", "test"])].copy()
+d = d[d.split.isin(["val", "test", "post"] if a.score_post else ["val", "test"])].copy()
+post_mask = (d.split == "post").to_numpy()
 te_mask = (d.split == "test").to_numpy()
 ownres = d.dres.to_numpy()
 mf = te_mask & np.isfinite(ownres)
@@ -113,7 +116,7 @@ def run(feats):
     tidx = np.flatnonzero(te_mask)
     months = d.month.to_numpy()
     for mth in sorted(d.month[te_mask].unique()):
-        hist = np.flatnonzero(~te_mask | (te_mask & (months < mth)))
+        hist = np.flatnonzero((~te_mask & ~post_mask) | (te_mask & (months < mth)))  # (the sealed rows are never history)
         t = fit(hist, feats)
         sel = np.flatnonzero(te_mask & (months == mth))
         X = design(sel, feats)
@@ -149,5 +152,13 @@ for feats in ((["gm"],) if a.period != "M" else (["gm"], ["ven"], ["bt"], ["pt"]
         "+".join(feats), bb(q), dd_.mean(), lo, hi, dd_[near].mean(), nlo, nhi, dd_[oracle].mean(), np.round(t[2:2 + 2 * len(feats)], 3)))
 if a.write:  # the adopted layer: global slope and intercept, venue offsets, in-game carry (gm)
     q, _ = run(["gm"])
-    pd.DataFrame({"rid": te.index.to_numpy(), "p_hr": q}).to_parquet(ROOT + a.write)
+    W = pd.DataFrame({"rid": te.index.to_numpy(), "p_hr": q})
+    if a.score_post and post_mask.any():  # the sealed rows, month by month, fit on val and the test months before each (never on sealed rows)
+        months = d.month.to_numpy(); qp = np.zeros(len(d))
+        for mth in sorted(d.month[post_mask].unique()):
+            hist = np.flatnonzero((~te_mask & ~post_mask) | (te_mask & (months < mth)))
+            t = fit(hist, ["gm"]); sel = np.flatnonzero(post_mask & (months == mth)); X = design(sel, ["gm"]); m = X.shape[1]
+            qp[sel] = sig(t[0] * d.lg.to_numpy()[sel] + t[1] + X @ t[2:2 + m] + t[2 + m:][d.k.to_numpy()[sel]])
+        W = pd.concat([W, pd.DataFrame({"rid": d.index[post_mask] if d.index.name == "rid" else d.rid.to_numpy()[post_mask], "p_hr": qp[post_mask]})], ignore_index=True)
+    W.to_parquet(ROOT + a.write)
     print("wrote", a.write, len(q))

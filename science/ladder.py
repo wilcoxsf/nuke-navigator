@@ -26,6 +26,7 @@ from sklearn.metrics import brier_score_loss, log_loss, mean_absolute_error, roc
 from sklearn.model_selection import GroupKFold
 
 from features import assert_clean
+from modelstore import fit as sfit  # (9 Nov: the production run saves each fitted model; research runs are unchanged)
 
 BASE0 = ["launch_speed", "launch_angle", "stand_r", "home_team", "hawkeye"]
 WX = ["om_temp_f", "om_rh", "om_pressure_hpa", "air_density", "om_wind_u", "om_wind_v", "om_wind_mph", "om_gust_mph",
@@ -112,7 +113,7 @@ def add_bearing_hat(df, tr_mask, other_masks, feats):
     for k, (a, b) in enumerate(GroupKFold(5).split(tr, groups=tr["game_pk"])):
         m = lgb.LGBMRegressor(n_estimators=400, learning_rate=0.08, num_leaves=63, min_child_samples=200, subsample=0.8,
                               subsample_freq=1, colsample_bytree=0.8, n_jobs=10, random_state=k, verbose=-1)
-        m.fit(tr.iloc[a][feats], tr.iloc[a]["bearing"])
+        m = sfit(f"bearing_hat/fold{k}", m, lambda m: m.fit(tr.iloc[a][feats], tr.iloc[a]["bearing"]))
         oof[b] = m.predict(tr.iloc[b][feats])
         models.append(m)
     df.loc[tr.index, "bearing_hat"] = oof

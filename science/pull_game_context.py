@@ -3,7 +3,10 @@ and Open-Meteo's historical weather archive (hourly temperature, humidity, press
 
 Polite and bounded: one request at a time, a pause between calls, stops on any 429. Raw responses are cached.
 
-Usage: python pull_game_context.py <out_dir> <first_year> <last_year>
+Usage: python pull_game_context.py <out_dir> <first_year> <last_year> [--game-types F,D,L,W]
+(9 Nov 2026: --game-types for the postseason, default R; non-R pulls cache under their own names, so the regular-season cache is never touched, and their
+weather runs one day past the last date so a venue's last night game, which starts after midnight UTC, keeps its hours. The regular-season pull still ends on
+the last local date, which drops weather for each venue-year's last night game; left as is so the research tables stay as they were.)
 Outputs: games.parquet (one row per game) and game_weather.parquet (weather averaged over the game window).
 """
 from __future__ import annotations
@@ -49,15 +52,20 @@ def num(x):
 
 
 def main() -> None:
-    out = Path(sys.argv[1])
-    y0, y1 = int(sys.argv[2]), int(sys.argv[3])
+    args = sys.argv[1:]
+    gt = "R"
+    if "--game-types" in args:
+        i = args.index("--game-types"); gt = args[i + 1]; del args[i:i + 2]
+    sfx = "" if gt == "R" else "_" + gt.replace(",", "")
+    out = Path(args[0])
+    y0, y1 = int(args[1]), int(args[2])
     (out / "cache" / "schedule").mkdir(parents=True, exist_ok=True)
     (out / "cache" / "weather").mkdir(parents=True, exist_ok=True)
 
     games = []
     for year in range(y0, y1 + 1):
-        j = get(SCHEDULE, {"sportId": 1, "season": year, "gameType": "R", "hydrate": "venue(location,fieldInfo)"},
-                out / "cache" / "schedule" / f"{year}.json", 1.0)
+        j = get(SCHEDULE, {"sportId": 1, "season": year, "gameType": gt, "hydrate": "venue(location,fieldInfo)"},
+                out / "cache" / "schedule" / f"{year}{sfx}.json", 1.0)
         for block in j.get("dates", []):
             for g in block.get("games", []):
                 if g.get("status", {}).get("abstractGameState") != "Final":
@@ -93,9 +101,9 @@ def main() -> None:
     print(f"weather requests needed: {len(todo)}", flush=True)
     rows = []
     for i, (vid, lat, lon, year, d0, d1) in enumerate(todo):
-        j = get(OPEN_METEO, {"latitude": round(lat, 4), "longitude": round(lon, 4), "start_date": str(d0), "end_date": str(d1),
+        j = get(OPEN_METEO, {"latitude": round(lat, 4), "longitude": round(lon, 4), "start_date": str(d0), "end_date": str(__import__("pandas").Timestamp(str(d1)) + __import__("pandas").Timedelta(days=1))[:10] if sfx else str(d1),
                              "hourly": HOURLY, "wind_speed_unit": "mph", "temperature_unit": "fahrenheit", "timezone": "UTC"},
-                out / "cache" / "weather" / f"{vid}_{year}.json", 1.2)
+                out / "cache" / "weather" / f"{vid}_{year}{sfx}.json", 1.2)
         h = j["hourly"]
         for k, t in enumerate(h["time"]):
             rows.append((vid, t, h["temperature_2m"][k], h["relative_humidity_2m"][k], h["surface_pressure"][k],

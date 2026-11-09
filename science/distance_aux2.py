@@ -35,7 +35,7 @@ feats = [f for f in B.FEATS_PHYS if f in df.columns]
 d = df.hit_distance_sc.to_numpy(float)
 lab = (df.hit_distance_sc.between(150, 480) & df.launch_angle.between(8, 55) & df.launch_speed.between(70, 125) & df.bearing.between(-44, 44)).to_numpy()
 reg = lab & df.launch_angle.between(15, 50).to_numpy() & (df.launch_speed >= 85).to_numpy()
-is_test = (df.split == "test").to_numpy()
+is_test = df.split.isin(["test", "post"]).to_numpy()  # (9 Nov: and the sealed rows)
 fold = (df.game_pk.astype(int) % 4).to_numpy().copy()
 fold[is_test] = -1
 big = dict(n_estimators=50 if a.smoke else 700, learning_rate=0.1 if a.smoke else 0.05, num_leaves=15 if a.smoke else 63, min_child_samples=30 if a.smoke else 100, subsample=0.8, subsample_freq=1, colsample_bytree=0.8, verbose=-1, n_jobs=6)
@@ -47,7 +47,8 @@ for name, (mask, extra) in jobs.items():
     models = []
     for f in range(4):
         trn = mask & ~is_test & (fold != f)
-        m = lgb.LGBMRegressor(**big, **extra).fit(df.loc[trn, feats], d[trn])
+        from modelstore import fit as sfit
+        m = sfit(f"aux2/{name}_fold{f}", lgb.LGBMRegressor(**big, **extra), lambda m: m.fit(df.loc[trn, feats], d[trn]))
         models.append(m)
         rows = (fold == f) & use
         pred[rows] = m.predict(df.loc[rows, feats])

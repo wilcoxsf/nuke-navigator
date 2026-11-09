@@ -44,8 +44,9 @@ def college_teacher(col: str, sign: int, extra=()):
     tm["side_r"] = (tm.BatterSide == "Right").astype(float)
     tm["grp"] = tm.TaggedPitchType.map(TM_GROUP).fillna("other").astype(str).astype(GRP_DTYPE)
     truth = prep(tm.assign(Direction=0.0), sign)
-    return {k: lgb.LGBMRegressor(n_estimators=300, learning_rate=0.06, num_leaves=31, min_child_samples=50, subsample=0.8, subsample_freq=1,
-                                 colsample_bytree=0.8, verbose=-1, n_jobs=8).fit(tm[TEACH_X + list(extra)], truth[k]) for k in ("w_back", "w_side")}
+    from modelstore import fit as sfit  # (9 Nov: saved in the production run)
+    return {k: sfit(f"spin_teacher/{k}_s{sign}_{'_'.join(extra) or 'base'}", lgb.LGBMRegressor(n_estimators=300, learning_rate=0.06, num_leaves=31, min_child_samples=50, subsample=0.8, subsample_freq=1,
+                                 colsample_bytree=0.8, verbose=-1, n_jobs=8), lambda m: m.fit(tm[TEACH_X + list(extra)], truth[k])) for k in ("w_back", "w_side")}
 
 
 def fence_at(df: pd.DataFrame, bearing: np.ndarray) -> np.ndarray:
@@ -74,7 +75,7 @@ def main() -> None:
         needed = set(BASE0 + WX + PITCH + HIST + BAT + v2) | {
             "game_pk", "game_date", "at_bat_number", "pitch_number", "y", "hit_distance_sc", "bearing", "launch_speed", "launch_angle", "release_speed",
             "stand_r", "pitch_type", "air_density", "home_team", "game_year", "batter", "pitcher", "is_home_run", "hawkeye", "stand",
-            "venue_id", "vaa", "haa", "plate_x", "plate_z"}
+            "venue_id", "vaa", "haa", "plate_x", "plate_z", "sealed"}  # (sealed: the production run's 2026 postseason rows, 9 Nov)
         have = set(pq.read_schema(g(a.exp)).names)
         df = pd.read_parquet(g(a.exp), columns=sorted(needed & have))  # only what the bake-off uses: the full table is several GB in memory
         for c in df.select_dtypes("float64").columns:
@@ -87,6 +88,8 @@ def main() -> None:
     df = df.merge(dims, on="game_pk", how="left").reset_index(drop=True)
     df["rid"] = np.arange(len(df))
     df["split"] = np.where(df.game_date < VAL_START, "train", np.where(df.game_date < TEST_START, "val", "test"))
+    if "sealed" in df.columns:  # (9 Nov: the production run's sealed rows, the 2026 postseason: scored like test rows, never in a printed score)
+        df["split"] = np.where(df.sealed.fillna(False).astype(bool).to_numpy(), "post", df.split)
     print("rows", len(df), df.split.value_counts().to_dict(), f"{time.time() - t0:.0f}s", flush=True)
 
     tr = (df.split == "train").to_numpy()

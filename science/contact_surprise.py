@@ -58,7 +58,8 @@ def main() -> None:
         for a_idx, b_idx in GroupKFold(4).split(ok, groups=df.game_pk.to_numpy()[ok]):
             m = lgb.LGBMRegressor(n_estimators=500, learning_rate=0.06, num_leaves=63, min_child_samples=100, subsample=0.8, subsample_freq=1, colsample_bytree=0.8,
                                   n_jobs=THREADS, verbose=-1, random_state=0)
-            m.fit(X.iloc[ok[a_idx]], y[ok[a_idx]])
+            from modelstore import fit as sfit
+            m = sfit(f"surprise/{res_col}_fold{n}", m, lambda m: m.fit(X.iloc[ok[a_idx]], y[ok[a_idx]]))
             exp[ok[b_idx]] = m.predict(X.iloc[ok[b_idx]])
             acc[others] += m.predict(X.iloc[others])
             n += 1

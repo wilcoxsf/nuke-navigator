@@ -65,6 +65,8 @@ def main() -> None:
     logm[ix] = np.log(0.5 * (lo + hi))
     if a.logm:
         logm = np.load(a.logm)
+        if len(logm) < len(df) and (df.split.iloc[len(logm):] == "post").all():  # (9 Nov: the production table is the research one plus sealed rows at the end; they have no labels)
+            logm = np.concatenate([logm, np.full(len(df) - len(logm), np.nan)])
         assert len(logm) == len(df), "cached labels do not match this table"
     df["logm"] = logm
     np.save(a.out + ".logm.npy", logm)  # keep the 30-minute label pass if a later step fails
@@ -75,14 +77,15 @@ def main() -> None:
     df["stand_r"] = df.stand_r.astype(float)
     P = dict(n_estimators=300, learning_rate=0.05, num_leaves=31, min_child_samples=100, subsample=0.8, subsample_freq=1, colsample_bytree=0.8, verbose=-1, n_jobs=3)
     fold = (df.game_pk.astype(int) % 4).to_numpy().copy()  # a copy: pandas hands back a read-only view
-    is_test = (df.split == "test").to_numpy().copy()
+    is_test = df.split.isin(["test", "post"]).to_numpy().copy()  # (9 Nov: and the production run's sealed rows)
     fold[is_test] = -1
     has = np.isfinite(df.logm.to_numpy()) & ~is_test
     pred = np.zeros(len(df))
     models = []
     for f in range(4):
         trn = has & (fold != f)
-        m = lgb.LGBMRegressor(**P).fit(df.loc[trn, F], df.logm[trn])
+        from modelstore import fit as sfit
+        m = sfit(f"carry/fold{f}", lgb.LGBMRegressor(**P), lambda m: m.fit(df.loc[trn, F], df.logm[trn]))
         models.append(m)
         rows = fold == f
         pred[rows] = m.predict(df.loc[rows, F])

@@ -194,7 +194,9 @@ def main() -> None:
         steps = a.epochs * (len(tri) // bs + 1)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=steps)
         best, best_state = 9.0, None
-        for ep in range(a.epochs):
+        import modelstore as MS  # (9 Nov: the production run saves the best net; load mode replays it)
+        skey = f"{Path(a.out_dir).name}/{a.name}_seed{seed}"
+        for ep in (range(0) if MS.loading else range(a.epochs)):
             net.train()
             perm = rng.permutation(tri)
             for s in range(0, len(perm), bs):
@@ -221,7 +223,10 @@ def main() -> None:
             print(f"seed {seed} epoch {ep} val Brier {vb:.5f} (offset {float(net.off):.1f} ft, params {np.round(torch.exp(net.logp).detach().numpy(), 3).tolist()}) {time.time() - t0:.0f}s", flush=True)
             if vb < best:
                 best, best_state = vb, {k: v.clone() for k, v in net.state_dict().items()}
-        net.load_state_dict(best_state)
+        if MS.loading:
+            net, ex = MS.load_torch(skey, net); best = (ex or {}).get("val_brier", float("nan"))
+        else:
+            net.load_state_dict(best_state); MS.save_torch(skey, net, {"val_brier": best})
         outs = [run_rows(net, evi[i:i + 8192]) for i in range(0, len(evi), 8192)]
         p_acc += np.concatenate([o[0] for o in outs]) / a.seeds
         d_acc += np.concatenate([o[1] for o in outs]) / a.seeds

@@ -31,7 +31,7 @@ feats = [f for f in B.FEATS_PHYS if f in df.columns and not f.startswith(("dist_
 d = df.hit_distance_sc.to_numpy(float)
 bat = df.bat_speed.notna().to_numpy()
 lab = (df.hit_distance_sc.between(150, 480) & df.launch_angle.between(8, 55) & df.launch_speed.between(70, 125) & df.bearing.between(-44, 44)).to_numpy() & bat
-is_test = (df.split == "test").to_numpy()
+is_test = df.split.isin(["test", "post"]).to_numpy()  # (9 Nov: and the sealed rows)
 fold = (df.game_pk.astype(int) % 4).to_numpy().copy()
 fold[is_test] = -1
 use = (df.launch_angle.between(8, 55) & (df.launch_speed >= 60) & df.bearing_hat.notna()).to_numpy() & bat
@@ -40,7 +40,8 @@ pred = np.full(len(df), np.nan)
 models = []
 for f in range(4):
     trn = lab & ~is_test & (fold != f)
-    m = lgb.LGBMRegressor(**big).fit(df.loc[trn, feats], d[trn])
+    from modelstore import fit as sfit
+    m = sfit(f"dist_bat/fold{f}", lgb.LGBMRegressor(**big), lambda m: m.fit(df.loc[trn, feats], d[trn]))
     models.append(m)
     rows = (fold == f) & use
     pred[rows] = m.predict(df.loc[rows, feats])

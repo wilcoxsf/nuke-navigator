@@ -43,15 +43,19 @@ def monotone(feats):
     return [1 if f == "launch_speed" else 0 for f in feats]
 
 
+from modelstore import fit as sfit  # (9 Nov: the production run saves each member)
+SK = "member"  # set in main: <out_dir name>/<entrant>/s<SEED>
+
+
 def fit_lgbm(df, feats, tr, va, seed=0):
     clf = lgb.LGBMClassifier(n_estimators=1500, learning_rate=0.05, num_leaves=63, min_child_samples=200, subsample=0.8, subsample_freq=1,
                              colsample_bytree=0.7, reg_lambda=2.0, monotone_constraints=monotone(feats), n_jobs=10, random_state=seed, verbose=-1)
-    clf.fit(df.loc[tr, feats], df.loc[tr, "y"], eval_set=[(df.loc[va, feats], df.loc[va, "y"])], callbacks=[lgb.early_stopping(60, verbose=False)])
+    clf = sfit(f"{SK}/clf", clf, lambda m: m.fit(df.loc[tr, feats], df.loc[tr, "y"], eval_set=[(df.loc[va, feats], df.loc[va, "y"])], callbacks=[lgb.early_stopping(60, verbose=False)]))
     dtr, dva = tr & df.hit_distance_sc.notna().to_numpy(), va & df.hit_distance_sc.notna().to_numpy()
     reg = lgb.LGBMRegressor(n_estimators=1500, learning_rate=0.05, num_leaves=63, min_child_samples=200, subsample=0.8, subsample_freq=1,
                             colsample_bytree=0.7, reg_lambda=2.0, n_jobs=10, random_state=seed, verbose=-1)
-    reg.fit(df.loc[dtr, feats], df.loc[dtr, "hit_distance_sc"], eval_set=[(df.loc[dva, feats], df.loc[dva, "hit_distance_sc"])],
-            callbacks=[lgb.early_stopping(60, verbose=False)])
+    reg = sfit(f"{SK}/reg", reg, lambda m: m.fit(df.loc[dtr, feats], df.loc[dtr, "hit_distance_sc"], eval_set=[(df.loc[dva, feats], df.loc[dva, "hit_distance_sc"])],
+            callbacks=[lgb.early_stopping(60, verbose=False)]))
     return clf, reg
 
 
@@ -65,8 +69,8 @@ def run_lgbm(df, feats, tr, va, ev, extra_resid=False):
         ok_va = va & df.phys_dist.notna().to_numpy() & ~np.isnan(d)
         r = lgb.LGBMRegressor(n_estimators=1500, learning_rate=0.05, num_leaves=31, min_child_samples=200, subsample=0.8, subsample_freq=1,
                               colsample_bytree=0.7, n_jobs=10, verbose=-1)
-        r.fit(df.loc[ok_tr, feats], d[ok_tr] - df.phys_dist.to_numpy()[ok_tr], eval_set=[(df.loc[ok_va, feats], d[ok_va] - df.phys_dist.to_numpy()[ok_va])],
-              callbacks=[lgb.early_stopping(60, verbose=False)])
+        r = sfit(f"{SK}/resid", r, lambda m: m.fit(df.loc[ok_tr, feats], d[ok_tr] - df.phys_dist.to_numpy()[ok_tr], eval_set=[(df.loc[ok_va, feats], d[ok_va] - df.phys_dist.to_numpy()[ok_va])],
+              callbacks=[lgb.early_stopping(60, verbose=False)]))
         out["d_hat_resid"] = df.loc[ev, "phys_dist"].to_numpy() + r.predict(df.loc[ev, feats])
     return out, info
 
@@ -101,10 +105,10 @@ def run_xgb(df, feats, tr, va, ev):
         w = None
         if os.environ.get("WTAU"):  # recency weights: a ball from this season counts 1, one from tau years earlier counts 1/e
             w = np.exp((df.loc[tr, "game_year"].to_numpy(float) - 2026.0) / float(os.environ["WTAU"]))
-        clf.fit(df.loc[tr, feats], df.loc[tr, "y"], sample_weight=w, eval_set=[(df.loc[va, feats], df.loc[va, "y"])], verbose=False)
+        clf = sfit(f"{SK}/clf", clf, lambda m: m.fit(df.loc[tr, feats], df.loc[tr, "y"], sample_weight=w, eval_set=[(df.loc[va, feats], df.loc[va, "y"])], verbose=False))
     dtr, dva = tr & df.hit_distance_sc.notna().to_numpy(), va & df.hit_distance_sc.notna().to_numpy()
     reg = xgb.XGBRegressor(**p, eval_metric="mae")
-    reg.fit(df.loc[dtr, feats], df.loc[dtr, "hit_distance_sc"], eval_set=[(df.loc[dva, feats], df.loc[dva, "hit_distance_sc"])], verbose=False)
+    reg = sfit(f"{SK}/reg", reg, lambda m: m.fit(df.loc[dtr, feats], df.loc[dtr, "hit_distance_sc"], eval_set=[(df.loc[dva, feats], df.loc[dva, "hit_distance_sc"])], verbose=False))
     return pd.DataFrame({"rid": df.loc[ev, "rid"].to_numpy(), "p_hr": clf.predict_proba(df.loc[ev, feats])[:, 1], "d_hat": reg.predict(df.loc[ev, feats])}), \
         {"hr_trees": int(clf.best_iteration), "dist_trees": int(reg.best_iteration)}
 
@@ -120,10 +124,10 @@ def run_cat(df, feats, tr, va, ev):
         return d
     p = dict(iterations=1500, learning_rate=0.08, depth=8, l2_leaf_reg=3.0, thread_count=10, verbose=False, early_stopping_rounds=60, random_seed=0)
     clf = CatBoostClassifier(**p)
-    clf.fit(Pool(frame(tr), df.loc[tr, "y"], cat_features=cats), eval_set=Pool(frame(va), df.loc[va, "y"], cat_features=cats))
+    clf = sfit(f"{SK}/clf", clf, lambda m: m.fit(Pool(frame(tr), df.loc[tr, "y"], cat_features=cats), eval_set=Pool(frame(va), df.loc[va, "y"], cat_features=cats)))
     dtr, dva = tr & df.hit_distance_sc.notna().to_numpy(), va & df.hit_distance_sc.notna().to_numpy()
     reg = CatBoostRegressor(**p, loss_function="MAE")
-    reg.fit(Pool(frame(dtr), df.loc[dtr, "hit_distance_sc"], cat_features=cats), eval_set=Pool(frame(dva), df.loc[dva, "hit_distance_sc"], cat_features=cats))
+    reg = sfit(f"{SK}/reg", reg, lambda m: m.fit(Pool(frame(dtr), df.loc[dtr, "hit_distance_sc"], cat_features=cats), eval_set=Pool(frame(dva), df.loc[dva, "hit_distance_sc"], cat_features=cats)))
     Xe = Pool(frame(ev), cat_features=cats)
     return pd.DataFrame({"rid": df.loc[ev, "rid"].to_numpy(), "p_hr": clf.predict_proba(Xe)[:, 1], "d_hat": reg.predict(Xe)}), \
         {"hr_trees": int(clf.get_best_iteration()), "dist_trees": int(reg.get_best_iteration())}
@@ -229,6 +233,8 @@ def main() -> None:
     ap.add_argument("--sample", type=float, default=1.0, help="fraction of TRAIN rows (quick tests)")
     a = ap.parse_args()
     t0 = time.time()
+    global SK
+    SK = f"{Path(a.out_dir).name}/{a.entrant}/s{os.environ.get('SEED', '0')}"
     df = pd.read_parquet(a.data.replace("\\", "/"))
     if a.sample < 1:
         keep = (df.split != "train") | (np.random.default_rng(0).random(len(df)) < a.sample)

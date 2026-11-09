@@ -27,7 +27,7 @@ df["p_throws_r"] = (df.p_throws == "R").astype(float)
 F = ["launch_speed", "launch_angle", "stand_r", "bearing_hat", "om_temp_f", "om_rh", "om_pressure_hpa", "om_wind_u", "om_wind_v", "release_speed", "release_spin_rate", "spin_axis", "pfx_x", "pfx_z",
      "plate_x", "plate_z", "vaa", "bat_speed", "attack_angle", "swing_path_tilt", "swing_length", "p_throws_r"]
 lab = (df.hit_distance_sc.between(150, 480) & df.launch_angle.between(8, 55) & df.launch_speed.between(70, 125) & df.bearing.between(-44, 44)).to_numpy()  # exactly the rows E10 labeled
-is_test = (df.split == "test").to_numpy().copy()
+is_test = df.split.isin(["test", "post"]).to_numpy().copy()  # (9 Nov: and the sealed rows)
 fold = (df.game_pk.astype(int) % 4).to_numpy().copy()
 fold[is_test] = -1
 has = lab & ~is_test
@@ -36,7 +36,8 @@ pred = np.zeros(len(df))
 models = []
 for f in range(4):
     trn = has & (fold != f)
-    m = lgb.LGBMRegressor(**P).fit(df.loc[trn, F], df.hit_distance_sc[trn])
+    from modelstore import fit as sfit
+    m = sfit(f"dist_hat/fold{f}", lgb.LGBMRegressor(**P), lambda m: m.fit(df.loc[trn, F], df.hit_distance_sc[trn]))
     models.append(m)
     rows = fold == f
     pred[rows] = m.predict(df.loc[rows, F])

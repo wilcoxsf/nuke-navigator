@@ -26,6 +26,7 @@ from sklearn.model_selection import GroupKFold
 from bakeoff_data import DIMS, fence_at
 from experiments import HID
 from ladder import BASE0, BAT, HIST, PITCH, WX
+from modelstore import fit as sfit
 
 THREADS = int(os.environ.get("EXP_THREADS", "10"))
 F0 = BASE0 + PITCH + HIST + WX + BAT + HID["H1"]["cols"] + HID["H4"]["cols"]
@@ -63,10 +64,10 @@ def main() -> None:
     for k, (a_idx, b_idx) in enumerate(GroupKFold(a.folds).split(fit_rows, groups=df.game_pk.to_numpy()[fit_rows])):
         ia, ib = fit_rows[a_idx], fit_rows[b_idx]
         m1 = lgb.LGBMRegressor(**big)
-        m1.fit(X.iloc[ia], y[ia], eval_set=[(X[val_rows], y[val_rows])], callbacks=[lgb.early_stopping(60, verbose=False)])
+        m1 = sfit(f"c5/lgb_fold{k}", m1, lambda m: m.fit(X.iloc[ia], y[ia], eval_set=[(X[val_rows], y[val_rows])], callbacks=[lgb.early_stopping(60, verbose=False)]))
         m2 = xgb.XGBRegressor(tree_method="hist", enable_categorical=True, objective="reg:absoluteerror", n_estimators=1600, learning_rate=0.06, max_depth=8,
                               min_child_weight=50, subsample=0.8, colsample_bytree=0.7, n_jobs=THREADS, early_stopping_rounds=60)
-        m2.fit(X.iloc[ia], y[ia], eval_set=[(X[val_rows], y[val_rows])], verbose=False)
+        m2 = sfit(f"c5/xgb_fold{k}", m2, lambda m: m.fit(X.iloc[ia], y[ia], eval_set=[(X[val_rows], y[val_rows])], verbose=False))
         oof[ib] = 0.5 * (m1.predict(X.iloc[ib]) + m2.predict(X.iloc[ib]))
         # everything that is not in this fold's training part gets the fold model too (averaged at the end)
         rest = np.flatnonzero(region)

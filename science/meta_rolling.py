@@ -33,10 +33,12 @@ ap.add_argument("--gmdecay", type=float, default=0.0, help="per plate appearance
 ap.add_argument("--mono", action="store_true", help="the correction may only rise with the margin-type features (margin_hat, direct_margin, dist_hat, mlp_d) and exit speed")
 ap.add_argument("--extra", default="", help="a parquet of extra legal features keyed by rid (e.g. gm_foul.parquet: gma, gmf, nfa), merged in as meta features")
 ap.add_argument("--algo", default="lgb", help="lgb or cat (CatBoost, ordered boosting)")
+ap.add_argument("--score-post", action="store_true", help="(9 Nov) also predict the sealed rows (split post) in their months; they are never trained on and never scored here")
 ap.add_argument("--history", action="store_true", help="keep every ball that has a base prediction (e.g. a spliced 2024 season) as training history; test months are the table's test split")
 a = ap.parse_args()
 ROOT = "C:/Users/andrewwi/dev/nuke-navigator-new/"
-D = ROOT + "data/derived/"
+import modelstore as MS  # (9 Nov: NN_D points at the production tables)
+D = MS.D
 S3 = {"xgb": "v39c_avg/pred_xgb.parquet", "phys": "v7_stack/pred_diffphys_v3b.parquet", "lgb": "v39c_lgbm_phys/pred_lgbm_phys.parquet", "cat": "v39b_cat/pred_cat.parquet",
       "mlp": "e49a_wide/pred_mlp.parquet", "mlplong": "e49b_wide_long/pred_mlp.parquet", "mlpwider": "e51_wider/pred_mlp.parquet"}
 LEGAL = ["launch_speed", "launch_angle", "margin_hat", "direct_margin", "dist_hat", "dist_q10", "dist_q90", "margin_q10", "margin_q90", "mlp_d", "mlp_b", "mlp_p",
@@ -65,7 +67,7 @@ else:  # earlier balls weighted by exp(-decay * plate appearances ago), strictly
             gmv[i] = (w * r0[j]).sum() / (w.sum() + a.gmk)
         i0 = i1
     base["gm"] = gmv
-base = base.copy() if a.history else base[base.split.isin(["val", "test"])].copy()
+base = base.copy() if a.history else base[base.split.isin(["val", "test", "post"] if a.score_post else ["val", "test"])].copy()
 XTRA = []
 if a.extra:
     xt = pd.read_parquet(D + a.extra); XTRA = [c for c in xt.columns if c != "rid"]; base = base.merge(xt, on="rid", how="left")
@@ -82,13 +84,13 @@ bp = a.pred or (D + ("final8/S3_layer.parquet" if a.base == "layer" else "final8
 base = base.merge(pd.read_parquet(bp).rename(columns={"p_hr": "p_base"})[["rid", "p_base"]], on="rid", how="inner").dropna(subset=["p_base"])
 base["l_base"] = lg(base.p_base)
 base["month"] = pd.to_datetime(base.game_date).dt.to_period(a.period)
-months = sorted(base[base.split == "test"].month.unique())
+months = sorted(base[base.split.isin(["test", "post"] if a.score_post else ["test"])].month.unique())
 out = []
 P = dict(objective="binary", learning_rate=a.lr, num_leaves=a.leaves, min_data_in_leaf=a.minleaf, lambda_l2=a.l2, feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=a.seed, num_threads=8)
 MONO = ["margin_hat", "direct_margin", "dist_hat", "mlp_d", "launch_speed"]
 if a.mono: P["monotone_constraints"] = [1 if f in MONO else 0 for f in feats]; P["monotone_constraints_method"] = "advanced"
 for m in months:
-    tr = base[base.month < m]; te = base[base.month == m]
+    tr = base[(base.month < m) & (base.split != "post")]; te = base[base.month == m]  # (sealed rows: predicted, never trained on)
     if len(tr) < 20000: out.append(te.assign(p_meta=te.p_base)[["rid", "p_meta"]]); continue
     if a.algo == "cat":
         from catboost import CatBoostClassifier, Pool

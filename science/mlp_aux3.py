@@ -49,7 +49,8 @@ ap.add_argument("--rv-nohr", action="store_true", help="E45 echo control N4: mas
 ap.add_argument("--no-foul-dist", action="store_true", help="E42 F1: fouls train only the fair/foul head, no distance")
 a = ap.parse_args()
 t0 = time.time()
-R = ROOT + "data/derived/"
+import modelstore as MS  # (9 Nov: the production run saves every net; NN_D points the data at data/prod)
+R = MS.D
 df = pd.read_parquet(a.data)
 if "drop" in set(df.split.unique()):
     df = df[df.split != "drop"].reset_index(drop=True)
@@ -91,7 +92,8 @@ fairf_early = is_fair.astype(np.float32)
 trfair = (df.split == "train").to_numpy() & is_fair  # statistics and eval bookkeeping use fair train rows only
 tr_all = (df.split == "train").to_numpy()  # includes fouls (all fouls are train rows)
 va = (df.split == "val").to_numpy() & is_fair
-ev = (df.split == "test").to_numpy() & is_fair
+ev = df.split.isin(["test", "post"]).to_numpy() & is_fair  # (9 Nov: and the sealed rows; printed scores use the test rows only)
+ev_test = (df.split == "test").to_numpy() & is_fair
 import torch
 import torch.nn as nn
 
@@ -256,7 +258,17 @@ def mloss(pred, target, mask):
     return (huber(pred, target) * mask).sum() / (mask.sum() + 1)
 
 
-def train(tri, seed, eval_sets):
+def train(tri, seed, eval_sets, key=None):
+    if MS.loading:  # replay the stored net(s): the best epoch, or the SWA epochs whose predictions were averaged
+        vai = np.flatnonzero(va)
+        n = MS.get(key + "_n") if a.swa else 1
+        outs = None
+        for j in range(n):
+            net, _ = MS.load_torch(f"{key}_{j}", Net())
+            o = {nm: predict(net, ix) for nm, ix in eval_sets.items()}
+            outs = o if outs is None else {nm: {k: outs[nm][k] + o[nm][k] for k in o[nm]} for nm in o}
+        outs = {nm: {k: v / n for k, v in outs[nm].items()} for nm in outs}
+        return outs, float(np.mean((outs["val"]["p"] - y[vai]) ** 2))
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     net = Net()
@@ -321,14 +333,17 @@ def train(tri, seed, eval_sets):
             if ep >= a.epochs - a.swa:
                 outs = {n: predict(net, ix) for n, ix in eval_sets.items()}
                 acc = outs if acc is None else {n: {k: acc[n][k] + outs[n][k] for k in outs[n]} for n in outs}
+                if key: MS.save_torch(f"{key}_{nacc}", net)
                 nacc += 1
         elif vb < best:
             best, best_state = vb, {k: v.clone() for k, v in net.state_dict().items()}
     if a.swa:
+        if key: MS.put(key + "_n", nacc)
         outs = {n: {k: v / nacc for k, v in acc[n].items()} for n in acc}
         best = float(np.mean((outs["val"]["p"] - y[vai]) ** 2))
     else:
         net.load_state_dict(best_state)
+        if key: MS.save_torch(f"{key}_0", net)
         outs = {n: predict(net, ix) for n, ix in eval_sets.items()}
     return outs, best
 
@@ -341,7 +356,9 @@ def merge(acc, outs, w):
 
 Path(a.out_dir).mkdir(parents=True, exist_ok=True)
 vai, evi = np.flatnonzero(va), np.flatnonzero(ev)
+evt = np.flatnonzero(ev_test)
 info = {}
+SK = Path(a.out_dir).name  # the store key for this run's nets
 if a.oof:
     K = a.oof
     fold = (df.game_pk.fillna(0).astype(int).to_numpy() % K)
@@ -354,7 +371,7 @@ if a.oof:
         hold = np.flatnonzero(trfair & (fold == k))
         trn = tri_all[~(trfair[tri_all] & (fold[tri_all] == k))]
         for s in range(a.seeds):
-            outs, vb = train(trn, 100 * k + s, {"val": vai, "ev": evi, "hold": hold})
+            outs, vb = train(trn, 100 * k + s, {"val": vai, "ev": evi, "hold": hold}, key=f"{SK}/fold{k}_seed{s}")
             info[f"fold{k}_seed{s}_val_brier"] = vb
             w = 1.0 / (K * a.seeds)
             res[hold] = np.nan_to_num(res[hold]) + flat(outs["hold"]) / a.seeds
@@ -367,13 +384,13 @@ if a.oof:
     out.insert(0, "rid", df.rid.to_numpy()[sel])
     out.to_parquet(Path(a.out_dir) / "mlp_oof.parquet")
     oofm = trfair & np.isfinite(res[:, 0])
-    print("oof train Brier of the MLP head:", float(np.mean((res[oofm, 0] - y[oofm]) ** 2)), "val", float(np.mean((res[vai, 0] - y[vai]) ** 2)), "test", float(np.mean((res[evi, 0] - y[evi]) ** 2)))
+    print("oof train Brier of the MLP head:", float(np.mean((res[oofm, 0] - y[oofm]) ** 2)), "val", float(np.mean((res[vai, 0] - y[vai]) ** 2)), "test", float(np.mean((res[evt, 0] - y[evt]) ** 2)))
     print("mlp_oof done", info, f"{time.time() - t0:.0f}s", flush=True)
 else:
     acc = None
     tri = np.flatnonzero(tr_all)
     for seed in range(a.seeds):
-        outs, vb = train(tri, seed + a.seed0, {"val": vai, "ev": evi})
+        outs, vb = train(tri, seed + a.seed0, {"val": vai, "ev": evi}, key=f"{SK}/seed{seed + a.seed0}")
         acc = merge(acc, {"val": outs["val"], "ev": outs["ev"]}, 1.0 / a.seeds)
         info[f"seed{seed}_val_brier"] = vb
     rids = np.concatenate([df.rid.to_numpy()[vai], df.rid.to_numpy()[evi]])  # val AND test rows, so the stacker (fit on val) can use this net
