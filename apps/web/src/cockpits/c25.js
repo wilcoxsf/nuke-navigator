@@ -59,6 +59,7 @@ import { BADGES as HIT_BADGES } from './hitter25.js'
 import { initStage25, RUNNER_LOOKS } from './stage25.js'
 import { initAwayWall25 } from './awaywall25.js'
 import { initBatFlip25, isNoDoubter } from './batflip25.js'
+import { songFor } from './songs25.js'
 import { parkHit as parkHitM } from '../seance.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
@@ -431,7 +432,7 @@ export const LAB = {
   LF: { name: 'THE FLIGHT LINE: FILL', def: 2, opts: LINE_FILLS },
   // 5 Nov (Andrew picked crater, dogpile, a fault line, the Dodger fan on a stretcher, pinball, a black hole and a portal): the seat moments; the deck plays them all in
   // turn, a pick plays only that one so it can be looked at
-  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['PINATA', 'pinata', 'a donkey pinata swings down on a rope; the ball smashes it and candy rains down'], ['TINY TORNADO', 'tornado', 'a twister spins up out of the seat, carries the ball round and up, and throws it into the sky'], ['WHACK-A-MOLE', 'mole', 'the ball bounces up high and comes back down on a mole; he comes back up in a little Giants batting helmet'], ['JACK-IN-THE-BOX', 'jack', 'a box comes up, the lid flips and a clown head springs out with the ball in its open mouth'], ['HAND OF GOD', 'hand', 'a ray of light comes down out of a white cloud and a giant hand reaches down it and takes the ball'], ['THE BALL HATCHES', 'hatch', 'once the dust settles it swells into an egg, cracks, and a gull climbs out and flies off'], ['LIGHTNING ROD', 'zap', 'a rod shoots up, a bolt comes down onto it twice, the ball left smoking and glowing'], ['TOILET FLUSH', 'flush', 'a toilet comes up; the ball goes round the bowl and down'], ['CLAW MACHINE', 'claw', 'an arcade claw grabs it, drops it, grabs it again and hauls it off'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['UFO', 'ufo', 'a saucer drops in and beams it up']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) },
+  MO: { name: 'LANDING MOMENT', def: 1, opts: [['THE DECK', '', 'every seat moment in turn, shuffled'], ['PINATA', 'pinata', 'a donkey pinata swings down on a rope; the ball smashes it and candy rains down'], ['TINY TORNADO', 'tornado', 'a twister spins up out of the seat, carries the ball round and up, and throws it into the sky'], ['WHACK-A-MOLE', 'mole', 'the ball bounces up high and comes back down on a mole; he comes back up in a little Giants batting helmet'], ['JACK-IN-THE-BOX', 'jack', 'a box comes up, the lid flips and a clown head springs out with the ball in its open mouth'], ['HAND OF GOD', 'hand', 'a ray of light comes down out of a white cloud and a giant hand reaches down it and takes the ball'], ['THE BALL HATCHES', 'hatch', 'once the dust settles it swells into an egg, cracks, and a gull climbs out and flies off'], ['LIGHTNING ROD', 'zap', 'a rod shoots up, a bolt comes down onto it twice, the ball left smoking and glowing'], ['TOILET FLUSH', 'flush', 'a toilet comes up; the ball goes round the bowl and down'], ['CLAW MACHINE', 'claw', 'an arcade claw grabs it, drops it, grabs it again and hauls it off'], ['CRATER', 'crater', 'it lands like a meteor: the seats blow out into a smoking rim'], ['PINBALL', 'pinball', 'bumpers pop up out of the seats and it pings between them'], ['UFO', 'ufo', 'a saucer drops in and beams it up'], ['BAD LUCK', 'mirror', 'Friday the 13th: it goes through a mirror and rolls on under a ladder']].map(([name, kind, desc], i) => ({ c: i + 1, name, kind, desc })) }, // (9 Nov: BAD LUCK, last, so the other numbers stay)
   // 8 Nov (Andrew: "Can we make it visually distinct if the ball was hit at a different ballpark? ... a different colored line probably and then a lot of the other
   // interface orange becomes that color"): in DEJA-VU, a home run hit somewhere else flies in its own color and the interface turns with it
   AC: { name: 'AWAY BALLS: COLOR', def: 1, opts: [{ c: 1, name: 'ICE', desc: 'every home run hit at another park flies in ice blue, and the interface turns ice blue with it' }, { c: 2, name: "THE HOME TEAM'S COLOR", desc: "each in the color of the team whose park it was hit in, as the BLAST RADIUS bombs are" }, { c: 3, name: 'NO CHANGE', desc: 'orange like the rest' }] },
@@ -1177,6 +1178,11 @@ export async function build(root, api, U) {
 
   const getJSON = async (u) => { try { const r = await fetch(u); return r.ok ? await r.json() : {} } catch { return {} } }
   const [parks, R, pool, D, facesRaw, bio, gamesJ] = await Promise.all([loadParks(), loadReplay(), loadPool(), loadDists(), getJSON('/faces_tone.json'), getJSON('/batter_bio.json'), getJSON('/giants_games.json')]) // bio: heights from the MLB Stats API (science/pull_batter_bio.py)
+  // (9 Nov) the songs: one cue helper that skips a song the private file does not have, and the hooks outside a landing
+  let lastSong = null, dojoSwings = 0, forceMoment = null
+  const songCue = (id, o = {}) => (jukebox.songs.some((x) => x.id === id) ? director.cue(id, o) : false)
+  { const first = () => { removeEventListener('pointerdown', first, true); removeEventListener('keydown', first, true); if (performance.now() < 90000) setTimeout(() => songCue('centerfield', { prio: 1 }), 300) } // CENTERFIELD: the first touch after the cover lifts (browsers need a touch before any sound)
+    addEventListener('pointerdown', first, true); addEventListener('keydown', first, true) }
   const awayWall = initAwayWall25(api, { parks, wallFnOf: U.wallFnOf }) // (9 Nov: an away home run shows the wall of the park it was really hit in)
   const hasGen = await loadGenericFaces('composite')
   // the histogram panel shows one of: the histograms, LANDING PARTY (L), SEAT SEANCE (G), SHOT CALLER (C), the ODDS RECEIPT (O); the park markers belong to whichever is on
@@ -1187,7 +1193,7 @@ export async function build(root, api, U) {
   // 29 Oct, evening (Andrew): SHOT CALLER is its own mode (the menu and C take you there), not a DEJA-VU button; STAR MAP and ODDS RECEIPT go ("I have no idea what
   // the star map is. I don't care about the odds receipt"); KARL comes in only when the forecast says fog, no button
   for (const id of ['#c25sc', '#c25rc', '#c25sm', '#c25kl']) E(id).style.display = 'none'
-  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel', 'hm'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'hm') { heat?.clear(); hmKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last); paintTabs() } // (3 Nov: the tabs follow, BLAST RADIUS lit only while its map is on)
+  const setShow = (k) => { if (!uiReady || mode === 'shot') return; show = show === k ? 'hist' : k; if (show === 'se') songCue('bennie', { prio: 2, still: () => show === 'se' }) /* (9 Nov: SEAT SEANCE) */; for (const [id, m] of FEAT) E(id).classList.toggle('on', show === m); lpKey = seKey = ''; if (!['lp', 'se', 'my', 'reel', 'hm'].includes(show)) unlook(); if (show !== 'reel') stopReelAll(); reelLooked = false; if (show !== 'se') { ghost?.hide(); if (cur && mode === 'replay') { const n = pname(cur.b); life?.idle(`${(n ? n[0] : 'BATTER ' + cur.b).toUpperCase()}  ·  ${cur.d}`) } } if (show !== 'lp') lp.clear(); if (show !== 'se') se.clear(); if (show !== 'my') { mySeat.clear(); myKey = '' } if (show !== 'hm') { heat?.clear(); hmKey = '' } if (show !== 'sm') { stars?.clear(); smKey = '' } if (last) render(last); paintTabs() } // (3 Nov: the tabs follow, BLAST RADIUS lit only while its map is on)
   for (const [id, m] of FEAT) { E(id).addEventListener('click', () => { if (!uiReady) return; pressEl(E(id)); sound.play('move'); if (mode === 'shot') setMode('replay'); setShow(m) }); E(id).classList.toggle('on', show === m) } // from Shot Caller, a feature takes you back to the replay with it on
   // SHOT CALLER is a mode of its own (29 Oct): the header button and C go in and out of it
   E('#c25sc').addEventListener('click', () => { pressEl(E('#c25sc')); sound.play('move'); if (uiReady) setMode(mode === 'shot' ? 'replay' : 'shot') })
@@ -1208,7 +1214,7 @@ export async function build(root, api, U) {
   addEventListener('pointerdown', (e) => { down = onPark(e) ? [e.clientX, e.clientY] : null })
   addEventListener('pointerup', (e) => {
     if (!down || !onPark(e) || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return
-    if (life && mode !== 'shot' && show !== 'hm' && boardHit(e)) { sound.play('pick'); life.play(life.nextGag(), {}, 0, true); return } // (30 Oct, night) click the scoreboard: the next gag
+    if (life && mode !== 'shot' && show !== 'hm' && boardHit(e)) { sound.play('pick'); life.play(life.nextGag(), {}, 0, true); songCue('taxman', { prio: 2 }); return } // (30 Oct, night) click the scoreboard: the next gag
     if (mode !== 'shot' && show === 'my' && (myEdit || !mySaved())) { const p = sc.pick(e.clientX, e.clientY), x = p && seatOf(p); if (x?.what === 'seat') mySave(x); return } // MY SEAT: the click is your seat
     if (mode !== 'shot') return
     const spot = sc.pick(e.clientX, e.clientY)
@@ -1441,6 +1447,7 @@ export async function build(root, api, U) {
   const DOJO0 = { ev: 103, la: 28, dir: 0, temp: 62, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }
   let dojoKeep = null
   function setMode(m) {
+    if (m === 'whatif' && mode !== 'whatif') dojoSwings = 0 // (a new visit to the dojo)
     if (mode === 'whatif' && m !== 'whatif' && !stepped) dojoKeep = { ...snap(), hand: api.state.hand } // (1 Nov, night: your own swing waits for you; a tweak of a real ball does not)
     if (m === 'shot' && !atOracle) m = 'replay' // Shot Caller knows Oracle's seats only
     if (uiReady && m !== mode) sound.play('mode-' + m) // a stinger for each mode
@@ -1647,7 +1654,7 @@ export async function build(root, api, U) {
     if (i < 0) { e.preventDefault(); (e.shiftKey ? F[F.length - 1] : F[0]).focus({ preventScroll: true }); return }
     if (!e.shiftKey && i === F.length - 1) { e.preventDefault(); F[0].focus({ preventScroll: true }) } else if (e.shiftKey && i === 0) { e.preventDefault(); F[F.length - 1].focus({ preventScroll: true }) }
   }, true)
-  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) { sound.play('modal-open'); modFrom = document.activeElement } modal = k; E('#c25m').classList.add('open'); E('#c25m').classList.toggle('wwm', k === 'witness'); paintModal(); E('#c25cl')?.focus?.({ preventScroll: true }); if (k === 'moon') life?.play('moon', {}, 0, true); if (uiReady) paintTabs() }
+  const openMod = (k) => { if (k === 'bay' && bay?.error) bay = null; if (!modal) { sound.play('modal-open'); modFrom = document.activeElement; if (k === 'witness') songCue('partitura', { prio: 2, still: () => modal === 'witness' }); if (k === 'moon') songCue('marquee', { prio: 2, still: () => modal === 'moon' }) } modal = k; E('#c25m').classList.add('open'); E('#c25m').classList.toggle('wwm', k === 'witness'); paintModal(); E('#c25cl')?.focus?.({ preventScroll: true }); if (k === 'moon') life?.play('moon', {}, 0, true); if (uiReady) paintTabs() }
   const closeMod = () => { if (modal) sound.play('modal-close'); if (wEd) { wEd.destroy(); wEd = null } if (wTab === 'card') wTab = 'mine'; modal = null; E('#c25m').classList.remove('open', 'wwm'); iniCancel?.(); iniCancel = null; if (modFrom?.isConnected) modFrom.focus?.({ preventScroll: true }); modFrom = null; if (uiReady) paintTabs() }
   E('#c25cl').addEventListener('click', closeMod)
   E('#c25m').addEventListener('click', (e) => { if (e.target === E('#c25m')) closeMod() })
@@ -1892,6 +1899,7 @@ export async function build(root, api, U) {
     if (wTab === 'card') {
       body.innerHTML = '<div class="bul ww wcd"></div>'
       const done = () => { wEd?.destroy(); wEd = null; wTab = 'mine'; if (modal === 'witness') paintWitness(body) }
+      songCue('femme', { prio: 3, still: () => !!wEd })
       wEd = emblemEditor(body.querySelector('.wcd'), { value: me.emblem || encodeEmblem(DEFAULT_EMBLEM), tag: me.tag || '', sound: { play: (k) => sound.play(k) }, onCancel: done,
         onSave: async (enc, tag) => {
           wEd?.destroy(); wEd = null; wTab = 'mine'; wMsg = 'SAVING...'; paintWitness(body)
@@ -2309,7 +2317,7 @@ export async function build(root, api, U) {
       // portrait, their type and badges (hitter25.js), the map from all their balls with the bombs only for the real home runs, and three histograms, every ball in
       // grey with the home runs in bone over them; where they hit it runs left field to right field, with PULL on their pull side
       const P = heat.player(who), nm = hmName(who), Rd = P.read, Ty = P.type
-      heat.show({ metric: 'player', data: P }); if (who !== hmValk && sound.on()) { if (director.cue('valkyries', { prio: 2, vol: 0.8, still: () => show === 'hm' && hmWho === who })) hmValk = who } // (6 Nov: the bombing run)
+      heat.show({ metric: 'player', data: P }); if (who !== hmValk && sound.on() && P.best) { if (songCue('starboy', { prio: 2, vol: 0.85, still: () => show === 'hm' && hmWho === who })) hmValk = who } // (9 Nov: STARBOY points at the best seat to catch one; the Valkyries are cut)
       const pc = (x) => Math.round(x * 100) + '%', med = (v) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]
       const bars = (all, hrs, lo, hi, step, l, r) => {
         const n = Math.round((hi - lo) / step), bin = (v) => Math.max(0, Math.min(n - 1, Math.floor((v - lo) / step))), c = Array(n).fill(0), h = Array(n).fill(0)
@@ -2481,7 +2489,7 @@ export async function build(root, api, U) {
   let reelAll = null, reelLooked = false
   const reelList = () => (life ? life.gags() : [])
   const reelBusy = () => !!life?.anim() || (life?.queued().length ?? 0) > 0
-  function reelPlay(n) { life.play(n, {}, 0, true); paintGagReel() }
+  function reelPlay(n) { life.play(n, {}, 0, true); songCue('taxman', { prio: 2 }); paintGagReel() }
   // the row playing now lights up, and PLAY ALL says STOP while it runs (checked a few times a second while the reel is open)
   setInterval(() => { if (show !== 'reel' || !life) return; const hb = E('#c25hb'), now = life.anim(); hb.querySelectorAll('[data-rl]').forEach((r) => { const on = r.dataset.rl === now; if (r.classList.contains('on') !== on) { r.classList.toggle('on', on); r.querySelector('b').innerHTML = on ? '&#9654;' : '&middot;' } }); const ra = E('#c25ra'); if (ra) ra.textContent = reelAll ? 'STOP' : 'PLAY ALL' }, 400)
   function stopReelAll() { if (reelAll) { clearTimeout(reelAll.t); reelAll = null } }
@@ -2512,6 +2520,7 @@ export async function build(root, api, U) {
   const seatOf = (p) => { const h0 = api.toWorld([0, 0, 0]), b = (Math.atan2(p.x - h0.x, -(p.z - h0.z)) * 180) / Math.PI, d = Math.hypot(p.x - h0.x, p.z - h0.z), wall = (api.wallAt?.(b) ?? [400, 8])[0] * 0.3048; return se.seatAt(p, p.y < h0.y - 1.5 && b > 20 ? 'SPLASH' : d < wall - 0.1 ? 'FIELD' : Math.abs(b) > 47 ? 'FOUL' : 'STANDS') }
   function shotAt(spot, seat = null, keepCam = false) {
     stopShot()
+    if (seat?.what === 'seat') songCue('consent', { prio: 2, still: () => mode === 'shot' }) // (9 Nov: AGE OF CONSENT when a seat is picked)
     { const hb = E('#c25hb'); hb._sc = hb._fr = null } // (red team: a render in the next 30 ms read the old chart)
     E('#c25hb').innerHTML = '<div class="lph">CALLING THE SHOT...</div>'
     setTimeout(() => {
@@ -2962,7 +2971,7 @@ export async function build(root, api, U) {
   // POINTING AT A SEAT: Shot Caller's pointer, a raycast at most every 70 ms
   { let pT = 0; addEventListener('pointermove', (e) => { if (mode !== 'shot' || !onPark(e)) { touches.hoverSeat(null); return } const n = performance.now(); if (n - pT < 70) return; pT = n; const p = sc.pick(e.clientX, e.clientY); touches.hoverSeat(p, p && seatOf(p), cs0().getPropertyValue('--acc').trim()) }) }
   const batFlip = initBatFlip25(api, { sound: (k) => sound.play(k) }) // (9 Nov: razzle-dazzle 6)
-  const moments = initMoments25(api, colors, fx, { poleRing: (at) => poles?.ring(at) ?? false, sound: (k) => sound.play(k), banner: null, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0, force: () => LAB.MO.opts.find((x) => x.c === lab.MO)?.kind || null })
+  const moments = initMoments25(api, colors, fx, { poleRing: (at) => poles?.ring(at) ?? false, sound: (k) => sound.play(k), banner: null, oracle: atOracle, cove: () => (fx.kayaks?.() ?? 0) > 0, force: () => forceMoment || LAB.MO.opts.find((x) => x.c === lab.MO)?.kind || null }) // (9 Nov: forceMoment, the mirror on Friday the 13th)
   // Z2 PUSH: the camera eases toward where the ball came down and back (1.4 s in, 1.6 s held, 1.4 s out); a new swing or a drag ends it at once
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   function camPush(at) {
@@ -3119,6 +3128,7 @@ export async function build(root, api, U) {
   // the voxel ball's stitches take the E color too
   function paintSeams() { const v = api.ballMesh?.()?.userData.vox; if (!v?.isObject3D) return; const c = colors().sc || '#e4002b'; v.traverse((o) => { if (o.userData.seam) o.material.color.set(c) }) }
   window.__cpOnFire = (ev) => { flying = true; moments?.clear?.(); mmStop?.() // (red team 2.1: a moment from the last flight never touches this one)
+    if (mode === 'whatif' && !stepped && ++dojoSwings === 10) songCue('ymca', { prio: 3, delay: 3500, still: () => mode === 'whatif' }) // (9 Nov: Y.M.C.A. on the tenth swing of a visit to the dojo)
     fires++
     director.check()
     endPush()
@@ -3156,6 +3166,7 @@ export async function build(root, api, U) {
     // (6 Nov, Andrew: "I don't want the screen to say home run 390 feet": the board keeps to the Dodger gags and the batter's marquee)
     if (hr && mix.F !== 3) life?.scatter()
     if (hap) moments.clear?.() // (1 Nov, night: one landing show at a time; a happening that came with the landing has the spot)
+    { const b = mode === 'replay' && cur && !edited ? cur : null, d = b?.d ? new Date(b.d + 'T12:00:00Z') : null; forceMoment = hr && d && d.getUTCDay() === 5 && d.getUTCDate() === 13 ? 'mirror' : null } // (9 Nov: Friday the 13th)
     lastMoment = mix.F === 1 && show !== 'se' && !hap ? moments.land(ev, window.__dojo?.landing?.kind, life?.board.position) : null // (30 Oct: under the seance the ghost owns the seat, no gull or dog on it)
     if (life) boardFor(ev, hr, ft)
     camPush(ev.at)
@@ -3175,9 +3186,20 @@ export async function build(root, api, U) {
     // the songs: a walk-off gets San Francisco (Oracle plays it after a win), a grand slam gets CHARGE!
     // (6 Nov, evening, Andrew's picks: "Can we have the imperial march play when a dodger home run gets hit?", the anthem "for like july 4th games"; ODE TO JOY, CAN-CAN
     // and WILLIAM TELL out): one song after a home run, the first that fits
-    const dodgerHR = !!b && (b.tb === 'Top' ? b.at === 'LAD' && b.ht === 'SF' : b.ht === 'LAD' && b.at === 'SF'), july4 = !!b && /-07-04/.test(String(b.d ?? ''))
-    const song = reel || !hr ? null : dodgerHR ? 'imperial' : july4 ? 'anthem' : st && /WALK-OFF/.test(st) ? 'sf' : st === 'GRAND SLAM' ? 'charge' : ev.key === 'SPLASH' ? 'sailor' : off ? 'entertainer' : ft >= 450 ? 'mountain' : null
-    if (song) { const own = [mode, show, fires].join(); director.cue(song, { prio: song === 'imperial' || song === 'sf' ? 5 : 4, delay: 2800, vol: song === 'sf' ? 0.8 : 1, still: () => [mode, show, fires].join() === own }) } // (8 Nov: through the director)
+    // (9 Nov, Andrew's song slots, songs25.js): rare things always win, the common ones share a draw with the landing moment's song and BYE BYE, BABY!
+    if (!reel) {
+      const res = api.fly({ ...api.state }), v = res.verdict, giants = b ? (b.tb === 'Bot' ? b.ht === 'SF' : b.at === 'SF') : true
+      const pr = hr && parks.parks.length ? evalParks(parks, api) : [], goneN = pr.filter((r) => r.k === 'GONE').length
+      const kind = lastMoment === 'seats' ? moments.log().slice(-1)[0] : lastMoment
+      const second = !!b && hr && R.balls.some((x) => x !== b && x.hr && x.gm === b.gm && x.b === b.b && (x.in < b.in || (x.in === b.in && x.ou < b.ou)))
+      const g0 = b ? G.find((x) => String(x.pk) === String(b.gm)) : null
+      const lb = Math.abs(res.landB ?? 0)
+      const pick = songFor({ hr, key: ev.key, ft, b, giants, stamp: st, off: !!off, hang: res.hang, odds: hr ? odds().p : null, goneN, here: ev.key !== 'FOUL', moment: kind,
+        nearMiss: !hr && ev.key !== 'WALL' && ev.key !== 'FOUL' && v.wallFt && ft < v.wallFt && ft >= v.wallFt - 10, poleMiss: ev.key === 'FOUL' && lb > 45.5 && lb < 48.5 && ft >= 300,
+        loss: g0 ? g0.win === false : false, second }, (id) => jukebox.songs.some((x) => x.id === id))
+      lastSong = pick
+      if (pick) { const own = [mode, show, fires].join(); songCue(pick.id, { prio: pick.id === 'imperial2' || pick.id === 'sf' ? 5 : 4, delay: 2800, vol: pick.id === 'sf' ? 0.8 : 1, still: () => [mode, show, fires].join() === own }) }
+    }
     // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board, and that is all the board plays
     // (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it")
     if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag
@@ -3214,7 +3236,7 @@ export async function build(root, api, U) {
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
   applyLab = (k) => { if (k === 'GR') stage?.sync({ ball: cur, mode }); if (k === 'LF') flight?.setFill(lab.LF); if (k === 'CM') blastFrame(); if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP', 'PK', 'CN'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'BD' && show === 'hm' && hmWho) { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+  window.__mix25 = { lastSong: () => lastSong, songFor: (c) => songFor(c, (id) => jukebox.songs.some((x) => x.id === id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }

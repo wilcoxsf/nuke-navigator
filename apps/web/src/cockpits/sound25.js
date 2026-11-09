@@ -265,6 +265,7 @@ R.sealions = (K) => { for (let i = 0; i < 7; i++) { const f = rnd(200, 320), p =
 R.dog = (K) => { for (let i = 0; i < 2; i++) K.voice(K.t + i * 0.3, 0.14, 460, 340, [900, 1700], 0.1, { a: 0.01 }) }
 R.spout = (K) => { K.noise(K.t, 0.8, { type: 'bandpass', f: 900, q: 0.8 }, 0.12, 500, 0.05, { hold: 0.4 }); run('water', K, {}, 0.3) }
 R.mole = (K) => { K.tone('sine', 2600, K.t, 0.07, 0.04, 3400); K.tone('sine', 2800, K.t + 0.12, 0.07, 0.04, 3600); R.dirt(K) }
+R.shatter = (K) => { K.noise(K.t, 0.05, { type: 'highpass', f: 3500 }, 0.25); for (let i = 0; i < 14; i++) K.tone('triangle', 2400 + Math.random() * 3200, K.t + 0.02 + Math.random() * 0.35, 0.05, 0.03) } // (9 Nov: the mirror)
 R.dirt = (K) => { for (let i = 0; i < 8; i++) K.noise(K.t + rnd(0, 0.4), 0.05, { type: 'lowpass', f: 700 }, 0.08) }
 R.serpent = (K) => { K.noise(K.t, 1.2, { type: 'highpass', f: 3500 }, 0.07, null, 0.2, { hold: 0.5, lfo: [12, 800] }); K.tone('sine', 50, K.t, 1.2, 0.18, 75, { a: 0.4, hold: 0.6 }); run('water', K, {}, 1.0) }
 R.hiss = (K) => K.noise(K.t, 0.8, { type: 'highpass', f: 3800 }, 0.06, null, 0.1, { hold: 0.3 })
@@ -503,7 +504,7 @@ let keys = ''
 const EGGS = { 777: 'stretch', 415: 'sf', 2010: 'title', 2012: 'title', 2014: 'title' }
 function egg(k) {
   log({ n: 'egg', r: k })
-  if (k === 'stretch') { play('organ-stab', { bus: 'music' }); import('./music25.js').then((m) => m.director.cue('ballgame', { prio: 1, delay: 600 })).catch(() => {}); play('roar', { size: 0.5, bus: 'amb', delay: 0.3 }) }
+  if (k === 'stretch') { play('organ-stab', { bus: 'music' }); play('roar', { size: 0.5, bus: 'amb', delay: 0.3 }) }
   else if (k === 'sf') { play('foghorn'); play('bell', { delay: 1.8 }); play('sealions', { delay: 2.6 }); play('flock', { delay: 3.4 }) }
   else if (k === 'title') { play('airhorn'); play('roar', { size: 1.8, bus: 'amb', delay: 0.2 }); play('fireworks', { delay: 0.8 }); play('fireworks', { delay: 1.4 }); play('organ-charge', { delay: 2.2, bus: 'music' }) }
 }

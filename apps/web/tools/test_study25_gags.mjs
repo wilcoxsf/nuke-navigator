@@ -10,7 +10,7 @@ const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/
 let fails = 0
 const check = (name, ok, extra = '') => { if (!ok) fails++; console.log(ok ? 'PASS' : 'FAIL', name, ok ? '' : extra) }
 const errs = []
-const NEW = ['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump', 'burrito', 'boot', 'bison', 'pyramid']
+const NEW = ['rollup' /* (9 Nov: THE ROLL-UP) */, 'muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump', 'burrito', 'boot', 'bison', 'pyramid']
 const BITS = []
 
 async function open(ctxOpts = {}) {
@@ -41,7 +41,7 @@ check('and every one of them changes as it goes (three different frames)', flat.
 const bag = await page.evaluate(() => { const L = window.__mix25.life; const d = [], n = L.gags().length; for (let i = 0; i < n * 2; i++) d.push(L.nextGag()); return { d, all: L.gags() } })
 const twice = bag.d.filter((g, i) => i && g === bag.d[i - 1])
 const counts = bag.all.map((g) => bag.d.filter((x) => x === g).length)
-check(`the gag bag deals all ${bag.all.length} gags before any repeats, never twice running`, bag.all.length === 37 && NEW.every((n) => bag.all.includes(n)) && twice.length === 0 && counts.every((c) => c === 2), JSON.stringify({ twice, counts }))
+check(`the gag bag deals all ${bag.all.length} gags before any repeats, never twice running`, bag.all.length === NEW.length + BITS.length && NEW.every((n) => bag.all.includes(n)) && twice.length === 0 && counts.every((c) => c === 2), JSON.stringify({ twice, counts }))
 // 3. each new animation plays to the end on the board's clock (run three times as fast: the software renderer gives the page a frame every second or two, and the
 // board takes at most half a second a frame), the LEDs change while it plays, and it sends its sound cues
 await page.evaluate(() => { window.__mix25.life.rate = 3 })

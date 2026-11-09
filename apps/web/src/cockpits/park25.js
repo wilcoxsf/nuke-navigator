@@ -809,6 +809,27 @@ export function initPark25(api, col, o = {}) {
       splat(t, 2.4, 10, 13, 0.7)
       text(t < 2.4 ? 'DODGER DOG' : t < 4.8 ? 'CHOMP' : 'WORTH IT', 'c', 0, t < 2.4 ? 'w' : 'o')
     } },
+    // THE ROLL-UP (9 Nov, Andrew: "a dodger rolled into a joint and smoked"): he lies down on a giant rolling paper, the Giant rolls him up, licks it, lights the end,
+    // takes three long puffs as it burns down toward the cap, and blows the smoke out
+    rollup: { dur: 9.0, still: 3.0, draw(t) {
+      ground()
+      blit(SFG, 2, 7)
+      if (t < 1.8) { rect(22, 18, 40, 2, 'w'); blit(LADR, 34, 4 + Math.round(Math.min(1, t / 0.8) * 3)) } // the paper, and the Dodger lying down on it
+      else if (t < 3.6) { // rolled: a fat white tube with his cap out of one end and his cleats out of the other
+        const k = Math.min(1, (t - 1.8) / 0.8), y = Math.round(16 - k * 2), th = Math.round(4 - k)
+        rect(24, y, 34, th, 'w'); rect(58, y, 3, 2, 'b'); rect(21, y + th - 2, 3, 2, 'd')
+        if (t > 2.8) for (let x = 24; x < 24 + (t - 2.8) * 42 && x < 58; x++) put(x, y - 1, 'b') // the lick along the seam
+      } else { // to his mouth, lit, burning down toward the cap
+        const burn = t < 4.6 ? 0 : Math.min(22, (t - 4.6) * 6), x1 = 44 - burn
+        rect(12, 10, x1 - 12, 2, 'w'); rect(10, 10, 2, 2, 'b') // the cap end in the Giant's mouth
+        const glow = t > 3.9 && Math.sin(t * 9) > -0.3
+        rect(x1, 10, 2, 2, t < 3.9 ? 'g' : glow ? 'r' : 'o')
+        if (t > 3.6 && t < 4.4) { put(x1 + 3, 9 + Math.round(Math.sin(t * 30)), 'y'); put(x1 + 3, 11, 'o'); rect(x1 + 4, 10, 3, 2, 'g') } // the lighter
+        for (let i = 0; i < 10; i++) { const a = (t * 0.7 + i * 0.37) % 2.2, sx = x1 + 1 + Math.sin(i * 1.7 + t) * 2 + a * 2, sy = 9 - a * 3.4; if (t > 4.2 && sy > 1) put(sx, sy, i % 3 ? 'g' : 'd') } // the smoke off the end
+        if (t > 7.0) { const u = t - 7.0; for (let i = 0; i < 26; i++) put(14 + u * 18 + hash(i) * 12, 9 + (hash(i + 7) - 0.5) * (4 + u * 6), hash(i + 3) > 0.5 ? 'g' : 'w') } // he blows it out
+      }
+      text(t < 1.8 ? 'LIE DOWN' : t < 2.8 ? 'ROLL HIM UP' : t < 3.6 ? 'LICK IT' : t < 4.6 ? 'LIGHT IT' : t < 7.0 ? 'PUFF PUFF' : 'DODGER KUSH', 'c', 0, t < 7.0 ? 'w' : 'o')
+    } },
     // WATERBOARD (GPT review, his "change"): head down on the plank under the rally towel; SAY IT, NEVER, the cooler, GO GIANTS; and behind him a line of Dodgers waits
     // its turn while the Giant fetches a fresh cooler
     waterboard: { dur: 9.6, still: 4.0, draw(t) {
@@ -1289,7 +1310,7 @@ export function initPark25(api, col, o = {}) {
     } },
   }
   // the gags; a shuffled bag, so every gag plays before any plays twice and never the same one twice in a row
-  const GAGS = ['muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump', 'burrito', 'boot', 'bison', 'pyramid']
+  const GAGS = ['rollup', 'muniwait', 'foghorn', 'thirdrail', 'ipa', 'covedive', 'bagcheck', 'noreentry', 'rentctrl', 'merch', 'lombard', 'seat', 'humanbat', 'crabpot', 'bartdoors', 'mowedin', 'runover', 'sealsnack', 'leaves3rd', 'bipped', 'chipper', 'alcatraz', 'tshirt', 'steamroller', 'birds', 'quake', 'bp', 'driverless', 'crabsnip', 'hotdog', 'waterboard', 'ironmaiden', 'wifeleaves', 'bridgejump', 'burrito', 'boot', 'bison', 'pyramid']
   let bag = [], lastGag = null
   function nextGag() {
     if (!bag.length) { bag = GAGS.slice(); for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]] } if (bag[bag.length - 1] === lastGag) bag.unshift(bag.pop()) }

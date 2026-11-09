@@ -95,6 +95,35 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   check('the focus trap: Tab and Shift+Tab go round the open window and never out of it', n > 2 && out === 0, JSON.stringify({ n, out }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(600)
 }
+// ---- 4c. (9 Nov) THE SONG SLOTS: his picks are loaded, rare things win, and a landing moment's song can come up ----
+{
+  const n = await page.evaluate(() => window.__mix25.jukebox.songs.length)
+  const F = (c) => page.evaluate((c) => window.__mix25.songFor(c)?.id ?? null, c)
+  const base = { hr: true, key: 'GONE', ft: 410, hang: 5, odds: 0.6, goneN: 20, here: true, moment: null }
+  const B = (o) => ({ g: 1, d: '2025-07-15', b: 1, gm: '1', in: 4, ou: 1, sk: 1, la: 28, temp: 65, tm: '13:05', park: 'SF', ht: 'SF', at: 'NYM', tb: 'Bot', ...o })
+  const r = {
+    walkoff: await F({ ...base, b: B({ in: 9 }), giants: true, stamp: 'WALK-OFF' }),
+    dodger: await F({ ...base, b: B({ ht: 'SF', at: 'LAD', tb: 'Top' }), giants: false }),
+    rehab: await F({ ...base, b: B({ ht: 'LAD', at: 'SF', tb: 'Top', park: 'LAD' }), giants: true }),
+    lucky: await F({ ...base, b: B({}), giants: true, odds: 0.05 }),
+    fenway: await F({ ...base, b: B({ ht: 'BOS', at: 'SF', tb: 'Top', park: 'BOS' }), giants: true }),
+    wall: await F({ ...base, hr: false, key: 'WALL', b: B({}) }),
+    plain: await F({ ...base, b: B({}), giants: true }),
+    dog: await F({ ...base, b: B({ d: '2025-07-16', b: 7 }), giants: true, moment: 'dog' }),
+  }
+  check('his song picks are loaded (51 picks, the two better files and the walk-off song), and the old songs are gone', n >= 54, String(n))
+  check('the song slots: walk-off, a Dodger home run, Rehab, Get Lucky, Fenway, off the wall, and Bye Bye Baby by default', r.walkoff === 'sf' && r.dodger === 'imperial2' && r.rehab === 'rehab' && r.lucky === 'getlucky' && r.fenway === 'caroline' && r.wall === 'piece' && r.plain === 'byebye' && ['hounddog', 'byebye'].includes(r.dog), JSON.stringify(r))
+}
+// ---- 4d. (9 Nov) BAD LUCK (the mirror and the ladder) plays from the MOMENTS menu; THE ROLL-UP is on the board ----
+{
+  if (!(await page.evaluate(() => document.querySelector('.mmenu')?.classList.contains('on')))) { await page.click('#c25mm'); await page.waitForTimeout(300) }
+  await page.click('.mmenu .mi[data-mm="mirror"]'); await page.waitForTimeout(900)
+  const mr = await page.evaluate(() => ({ last: window.__mix25.moments.log().slice(-1)[0], up: window.__mix25.moments.shown() }))
+  check('BAD LUCK: the mirror and the ladder go up from the MOMENTS menu', mr.last === 'mirror' && mr.up >= 2, JSON.stringify(mr))
+  await page.click('.mmenu [data-mm="x"]').catch(() => {}); await page.waitForTimeout(600)
+  const ru = await page.evaluate(() => { const L = window.__mix25.life; const d = L.dur('rollup'); return { has: L.names().includes('rollup'), lit: [0.15, 0.5, 0.85].map((f) => L.peek('rollup', d * f, {}).lit) } })
+  check('THE ROLL-UP is one of the board gags and draws all the way through', ru.has && ru.lit.every((v) => v >= 12), JSON.stringify(ru))
+}
 // ---- 5. (red team 4.3) ALL / AT ORACLE / AWAY: the landing puffs and rings go when they finish; nothing piles up in the map ----
 {
   await page.click('#c25tabs [data-tab="blast"]')

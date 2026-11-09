@@ -6,45 +6,9 @@
 // I LEFT MY HEART IN SAN FRANCISCO (Cory and Cross, 1954) is still under copyright: it is transcribed from the lead sheet Andrew supplied and lives in
 // public/songs_private.json (git-ignored, loaded by loadPrivateSongs), so it never reaches the repo; it is only for the private
 // friends' site, and should not go anywhere public without a license.
-export const SONGS = [
-  { id: 'ballgame', name: 'TAKE ME OUT TO THE BALL GAME', bpm: 200, abc: `M:3/4
-L:1/4
-K:D
-D2 d| B A F| A3| E3| D2 d| B A F| A3-| A2 z| B ^A B| F G A| B2 G| E3| B2 B| B c d| e c B| A F E| D2 d| B A F| A3| E2 E| D2 E| F G A| B3-| B B c| d3| d3| d c B| A ^G A| B3| c3| d3-| d z2|` },
-  // (6 Nov, Andrew: "This needs to be punchier. it feels off in tempo"): the bugle call as it goes at the park, in 6/8: three quick pickups, a held G, then E and the long G,
-  // an octave up from before and a quarter faster
-  { id: 'charge', name: 'CHARGE!', bpm: 200, abc: `M:6/8
-L:1/8
-K:C
-G c e g3| e g5|` },
-  // 2 Nov, later (Andrew: "give me the national anthem for sure, hava nagila"): both public domain (Smith's tune, 1773; the traditional Hasidic nigun), taken from
-  // flutetunes.com's MIDI of each (the melody track, notes as written; the anthem an octave down), the bass roots per half bar picked from each tune's own chords
-  // (the anthem's B flat, E flat, F, C minor and G minor; Hava Nagila's D, G minor and C minor), since the I, IV, V guess doesn't fit Hava Nagila's mode
-  { id: 'anthem', name: 'THE STAR-SPANGLED BANNER', bpm: 96, roots: [10,10,10,10,10,10,10,10,10,10,10,10,5,5,10,10,10,10,10,10,10,10,10,10,10,10,10,10,5,5,10,10,10,10,10,10,10,10,5,3,3,3,10,10,5,5,10,10,10,10,10,10,3,3,0,10,10,5,10,0,10,10,10,0,10,10], abc: `M:3/4
-L:1/16
-K:C
-z8 F3 D| ^A,4 D4 F4| ^A8 d3 c| ^A4 D4 E4| F8 F2 F2| d6 c2 ^A4| A8 G2 A2| ^A4 ^A4 F4| D4 ^A,4 F3 D| ^A,4 D4 F4| ^A8 d3 c| ^A4 D4 E4| F8 F2 F2| d6 c2 ^A4| A8 G2 A2| ^A4 ^A4 F4| D4 ^A,4 d2 d2| d4 ^d4 f4| f8 ^d2 =d2| c4 d4 ^d4| ^d8 ^d2 ^d2| d6 c2 ^A4| A4 A4 G2 A2| ^A4 D4 E4| F8 F2 F2| ^A4 ^A4 ^A2 =A2| G4 G4 G4| c4 ^d2 =d2 c2 ^A2| ^A4 =A4 F2 F2| ^A6 c2 d2 ^d2| f8 ^A2 c2| d6 ^d2 c4| ^A8 z4|` },
-  // 29 Oct, later (Andrew: "let's wire in more songs"): four more out of copyright, written out here from the well-known melodies: Beethoven's Ode to Joy (1824),
-  // Offenbach's Can-Can galop (1858), the William Tell overture's finale gallop (Rossini, 1829) and Joplin's The Entertainer (1902)
-  // 6 Nov, evening (Andrew's picks from the review page): IN THE HALL OF THE MOUNTAIN KING (Grieg, 1875) and DRUNKEN SAILOR (traditional), the short versions written for
-  // the page; RIDE OF THE VALKYRIES (Wagner, 1856) from flutetunes.com's MIDI of the theme (B minor, 9/8, the melody as written, the first long note cut short)
-  { id: 'mountain', name: 'IN THE HALL OF THE MOUNTAIN KING', bpm: 150, roots: [9,9,4,4,9,9,4,4,9,9,4,4,9,9,4,4], abc: `M:4/4
-L:1/8
-K:C
-A B c d e c e2| ^d B ^d2 =d _B =d2| A B c d e c e a| g e c e g4| A B c d e c e2| ^d B ^d2 =d _B =d2| A B c d e c e a| g e c e g4|` },
-  { id: 'sailor', name: 'DRUNKEN SAILOR', bpm: 190, roots: [2,2,2,2,0,0,0,0,2,2,2,2,0,0,2,2], abc: `M:4/4
-L:1/8
-K:C
-A2 A A A2 A A| A2 D2 F2 A2| G2 G G G2 G G| G2 C2 E2 G2| A2 A A A2 A A| A2 B2 c2 d2| c2 A2 G2 E2| D4 D4|` },
-  { id: 'valkyries', name: 'RIDE OF THE VALKYRIES', bpm: 150, roots: [11,11,11,11,2,2,2,2,9,9,2,2,2,2,6,6,6,6,6,6], abc: `M:9/8
-L:1/16
-K:C
-^F2| B3 ^F B2 d6 B6| d3 B d2 ^f6 d6| ^f3 d ^f2 a6 A6| d3 A d2 ^f12| z16 A2| d3 A d2 ^f6 d6| ^f3 d ^f2 a6 ^f6| a3 ^f a2 ^c'6 ^c6| ^f3 ^c ^f2 ^a18|` },
-  { id: 'entertainer', name: 'THE ENTERTAINER', bpm: 110, abc: `M:2/4
-L:1/16
-K:C
-d^d e c'2 e c'2| e c'6 z2| c'd'^d'e' c'd'e'2| b d'4 c'4 z2| d^d e c'2 e c'2| e c'6 z2| a g ^f a c' e'2 d'| c' a d'6 z2|` }
-]
+// (9 Nov, Andrew: "I want basically only songs"): the old ABC songs are cut (TAKE ME OUT, CHARGE!, THE ANTHEM, MOUNTAIN KING, DRUNKEN SAILOR, THE VALKYRIES, THE
+// ENTERTAINER); every song now comes from the private file (his picks, as chiptune clips), so SONGS starts empty and fills when that loads
+export const SONGS = []
 
 // the private songs (git-ignored file; missing on any other machine, which is fine): added to SONGS once loaded
 export async function loadPrivateSongs() { try { const r = await fetch('/songs_private.json'); if (!r.ok) return 0; const j = await r.json(); for (const x of j.songs ?? []) if (!SONGS.some((y) => y.id === x.id)) SONGS.push(x); return j.songs?.length ?? 0 } catch { return 0 } }
@@ -128,7 +92,8 @@ function build(song) {
   return B
 }
 // a song's level against TAKE ME OUT TO THE BALL GAME's (the reference, at 1), within 0.55 to 1.8 times
-const levelOf = (B) => { const R = SONGS.find((x) => x.id === 'ballgame'); const ref = R ? build(R).e : B.e; return (B.level ??= Math.max(0.55, Math.min(1.8, Math.sqrt(ref / Math.max(1e-9, B.e))))) }
+const REF_E = 0.0069943 // (the loudness of the old TAKE ME OUT TO THE BALL GAME, the reference every song was levelled to; kept when it was cut, 9 Nov)
+const levelOf = (B) => { const ref = REF_E; return (B.level ??= Math.max(0.55, Math.min(1.8, Math.sqrt(ref / Math.max(1e-9, B.e))))) }
 let tick = 0
 export const jukebox = {
   songs: SONGS,

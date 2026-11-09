@@ -596,7 +596,38 @@ export function initMoments25(api, col, fx, o = {}) {
   }
   // the seat moments as a deck: shuffled, each played once before any comes round again
   const SEAT_DECK = ['glove', 'gull', 'dog', 'beer', 'mushroom', 'crater', 'ufo', 'hotdog', 'fries', 'pinball', 'pinata', 'tornado', 'mole', 'jack', 'hand', 'hatch', 'zap', 'flush', 'claw'] // (6 Nov: bonk, rocket and the ghost out)
-  const PLAY = { glove: seatsGlove, gull: gullGrab, dog, beer, mushroom: (at) => mushroom(at), crater, ufo, hotdog, fries, pinball, pinata, tornado, mole, jack, hand, hatch, zap, flush, claw }
+  // BAD LUCK (9 Nov, Andrew: "a ball breaking a mirror and going under a ladder when it lands"; Friday the 13th): a standing mirror in a wooden frame waits where it
+  // comes down; the ball goes through the glass, the glass bursts, and the ball rolls on under a stepladder beside it, then everything goes
+  function mirror(at) {
+    log.push('mirror'); o.banner?.('SEVEN YEARS', 'AND IT WALKED UNDER A LADDER')
+    const F = [], G = [], wood = '#a8713f', dark = '#6b4423'
+    for (let y = 1; y <= 13; y++) { F.push([-4, y, 0, wood], [4, y, 0, wood]) }
+    for (let x = -4; x <= 4; x++) { F.push([x, 1, 0, wood], [x, 13, 0, wood]) }
+    F.push([-4, 0, -1, dark], [-4, 0, 1, dark], [4, 0, -1, dark], [4, 0, 1, dark], [0, 14, 0, '#f2bc40'])
+    for (let x = -3; x <= 3; x++) for (let y = 2; y <= 12; y++) G.push([x, y, 0, (x - y + 30) % 6 === 0 ? '#ffffff' : (x + y) % 2 ? '#bfe6f7' : '#9fd3ec'])
+    const side = V(1, 0, 0).applyQuaternion(api.NN.camera.quaternion); side.y = 0; side.normalize()
+    const base = at.clone(), fr = vox(F, 0.8, base.clone()), gl = vox(G, 0.8, base.clone())
+    const L = [] // the stepladder: two legs out to each side, rungs between, seen from the front, open at the bottom for the ball
+    for (let y = 0; y <= 12; y++) { const k = Math.round((12 - y) / 3); L.push([-2 - k, y, 0, wood], [2 + k, y, 0, wood]) }
+    for (const y of [3, 6, 9, 12]) { const k = Math.round((12 - y) / 3); for (let x = -1 - k; x <= 1 + k; x++) L.push([x, y, 0, dark]) }
+    const lad = vox(L, 0.8, base.clone().addScaledVector(side, 14)); lad.scale.setScalar(0.01)
+    hideBall(true)
+    let broke = false, ball = null
+    run((t) => {
+      if (!broke && t > 0.25) { // the glass goes
+        broke = true; kill(gl); o.sound?.('shatter')
+        const list = []
+        for (let i = 0; i < 70; i++) list.push({ at: base.clone().add(V(rnd(-2.4, 2.4), rnd(2, 9.5), 0)), v: V(rnd(-7, 7), rnd(2, 10), rnd(-7, 7)), s: rnd(0.3, 0.8), life: rnd(0.9, 1.6), c: ['#ffffff', '#bfe6f7', '#9fd3ec'][i % 3] })
+        cubes(list, { g: 18 })
+        ball = piece('ball', ['ball'], base.clone().add(V(0, 0.6, 0)))
+      }
+      lad.scale.setScalar(Math.max(0.01, ease((t - 0.5) / 0.35)))
+      if (ball) { const u = Math.min(1, Math.max(0, (t - 0.9) / 1.6)); ball.position.copy(base).addScaledVector(side, 24 * u).add(V(0, 0.6 + Math.abs(Math.sin(u * 9)) * 0.6 * (1 - u), 0)); ball.rotation.z = -u * 30 }
+      if (t > 4.4) { kill(fr); kill(lad); if (ball) kill(ball); return false }
+      return true
+    })
+  }
+  const PLAY = { mirror, glove: seatsGlove, gull: gullGrab, dog, beer, mushroom: (at) => mushroom(at), crater, ufo, hotdog, fries, pinball, pinata, tornado, mole, jack, hand, hatch, zap, flush, claw }
   let deck = []
   const deal = () => { if (!deck.length) { deck = SEAT_DECK.slice(); for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]] } } return deck.pop() }
   // a new landing clears the last one's pieces, so two never play on top of each other
