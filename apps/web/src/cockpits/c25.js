@@ -875,7 +875,7 @@ export async function build(root, api, U) {
 #cp .c25 .btab .r b.y{color:var(--acc)}
 #cp .c25 .btab .r b.n{color:var(--dim)}
 #cp .c25 .btab .r.mo{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.2fr);font-size:20px}
-#cp .c25 .btab .r.mo b{text-align:right}
+#cp .c25 .btab .r.mo b{text-align:right}#cp .c25 .btab.jkl .r.jk{grid-template-columns:minmax(0,1fr) auto;cursor:pointer;font-size:17px}#cp .c25 .btab.jkl .r.jk:hover,#cp .c25 .btab.jkl .r.jk:focus-visible{outline:1px solid var(--acc)}#cp .c25 .btab.jkl .r.jk span{overflow:hidden;text-overflow:ellipsis}#cp .c25 .btab.jkl .r.jk.on{color:var(--acc)}
 #cp .c25 .ddk{color:var(--acc);font-size:16px}
 #cp .c25 .ddbig{font-size:54px;line-height:1}
 #cp .c25 .dds{color:var(--dim);font-size:18px}
@@ -1150,7 +1150,7 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><span class="bt" id="c25mm" aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
+    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><span class="bt" id="c25sk" aria-label="skip to the next song" title="skip to the next song">SKIP</span><span class="bt" id="c25jk" aria-label="jukebox (J)" title="pick a song (J)">JUKEBOX</span><span class="bt" id="c25mm" aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
     <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
     <span class="old" hidden><span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span><span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span><span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
@@ -1343,8 +1343,8 @@ export async function build(root, api, U) {
   const NERD_F = { far: ['400 FT AND UP', (b) => b.ft >= 400], hard: ['105 MPH AND UP', (b) => b.ev >= 105], menu: [NAMES.offMenu, (b) => offZone(b)], big: ['BIG ONES: WALK-OFFS, SLAMS, LATE GO-AHEADS', (b) => big(b)], mine: ['MY GAMES', (b) => b.park === 'SF' && seenDays().includes(b.d)] }
   const byD = (a, b) => String(b.d).localeCompare(String(a.d))
   // (9 Nov, Andrew's names: the BOMB BINDER only sorts; the plain meaning is each button's tooltip)
-  const NERD_S = { new: ['FRESH FRANKS', null, 'newest first'], old: ['DUSTY DINGERS', (a, b) => -byD(a, b), 'oldest first'], far: ['DEEPEST DINGERS', (a, b) => b.ft - a.ft, 'longest first'], short: ['SQUEAKERS', (a, b) => a.ft - b.ft, 'shortest first'], hard: ['LASERBEAMS', (a, b) => b.ev - a.ev, 'hardest hit first'], soft: ['TENDER TATERS', (a, b) => a.ev - b.ev, 'softest hit first'], high: ['SKY SCRAPERS', (a, b) => b.la - a.la, 'steepest first'], low: ['WORM BURNERS', (a, b) => a.la - b.la, 'flattest first'], hot: ['SIZZLE SWATS', (a, b) => (b.temp ?? 0) - (a.temp ?? 0), 'warmest night first'], cold: ['FROSTY FRANKS', (a, b) => (a.temp ?? 99) - (b.temp ?? 99), 'coldest night first'] }
-  const fvList = () => { let L = R.balls.filter((b) => (fv.any || b.hr) && (fv.where === 'all' || (fv.where === 'oracle') === (b.park === 'SF')) && (fv.who === 'all' || (fv.who === 'giants') === !!b.g)); for (const k of fv.f) if (NERD_F[k]) L = L.filter(NERD_F[k][1]); const so = NERD_S[fv.sort]?.[1]; return so ? [...L].sort(so) : L }
+  const NERD_S = { new: ['FRESH FRANKS', null, 'newest first'], old: ['DUSTY DINGERS', (a, b) => -byD(a, b), 'oldest first'], far: ['DEEPEST DINGERS', (a, b) => b.ft - a.ft, 'longest first'], short: ['SQUEAKERS', (a, b) => a.ft - b.ft, 'shortest first'], hard: ['LASERBEAMS', (a, b) => b.ev - a.ev, 'hardest hit first'], soft: ['TENDER TATERS', (a, b) => a.ev - b.ev, 'softest hit first'], high: ['SKY SCRAPERS', (a, b) => b.la - a.la, 'steepest first'], low: ['WORM BURNERS', (a, b) => a.la - b.la, 'flattest first'], hot: ['SIZZLE SWATS', (a, b) => (b.temp ?? 0) - (a.temp ?? 0), 'warmest night first'], cold: ['FROSTY FRANKS', (a, b) => (a.temp ?? 99) - (b.temp ?? 99), 'coldest night first'], random: ['RANDOM', 'shuffle', 'a new random order every time you press it'] } // (10 Nov, Andrew: "have a random button too")
+  const fvList = () => { let L = R.balls.filter((b) => (fv.any || b.hr) && (fv.where === 'all' || (fv.where === 'oracle') === (b.park === 'SF')) && (fv.who === 'all' || (fv.who === 'giants') === !!b.g)); for (const k of fv.f) if (NERD_F[k]) L = L.filter(NERD_F[k][1]); const so = NERD_S[fv.sort]?.[1]; if (so === 'shuffle') { const k = fv.shuf ?? new Map(); return [...L].sort((a, b) => (k.get(a) ?? 0) - (k.get(b) ?? 0)) } return so ? [...L].sort(so) : L }
   const filtered = () => (filter === 'big' ? R.balls.filter(big) : filter === 'all' ? R.balls : fvList())
 
   // ---- the mixer ----
@@ -1551,8 +1551,8 @@ export async function build(root, api, U) {
     const opt = (L, cur, attr) => L.map(([k, l]) => `<span class="bt${cur === k ? ' on' : ''}" ${attr}="${k}">${l}</span>`).join('')
     const panel = ppOpen === 'where' ? `<div class="ppl" role="dialog" aria-label="where"><div class="pph">WHERE IT WAS HIT</div><div class="ppr">${opt(WHERE, v.where, 'data-pw')}</div></div>`
       : ppOpen === 'who' ? `<div class="ppl" role="dialog" aria-label="who"><div class="pph">WHO HIT IT</div><div class="ppr">${opt(WHO, v.who, 'data-po')}</div></div>`
-      : ppOpen === 'bb' ? `<div class="ppl" role="dialog" aria-label="bomb binder"><div class="pph">SORT</div><div class="ppr">${Object.entries(NERD_S).map(([k, [l, , t]]) => `<span class="bt${v.sort === k ? ' on' : ''}" data-ps="${k}" title="${t}">${l}</span>`).join('')}</div><div class="ppr ppe"><span class="bt" data-pr="1">CLEAR</span><span class="bt" data-px="1">DONE</span></div></div>` : ''
-    return `${panel}<div class="bwr"><span class="bt bwb${ppOpen === 'where' ? ' on' : ''}" id="c25fw" title="where it was hit" aria-expanded="${ppOpen === 'where'}">WHERE?<em>${w}</em></span><span class="bt bwb${ppOpen === 'who' ? ' on' : ''}" id="c25fo" title="who hit it" aria-expanded="${ppOpen === 'who'}">WHO?<em>${o}</em></span><span class="bt bwb${ppOpen === 'bb' ? ' on' : ''}" id="c25pp" title="sort them by the numbers" aria-expanded="${ppOpen === 'bb'}">BOMB BINDER<em>${n ? NERD_S[v.sort][0] : 'FRESH FRANKS'}</em></span></div>`
+      : ppOpen === 'bb' ? `<div class="ppl" role="dialog" aria-label="sort the shots"><div class="pph">SORT THE SHOTS</div><div class="ppr">${Object.entries(NERD_S).map(([k, [l, , t]]) => `<span class="bt${v.sort === k ? ' on' : ''}" data-ps="${k}" title="${t}">${l}</span>`).join('')}</div><div class="ppr ppe"><span class="bt" data-px="1">DONE</span></div></div>` : ''
+    return `${panel}<div class="bwr"><span class="bt bwb${ppOpen === 'where' ? ' on' : ''}" id="c25fw" title="where it was hit" aria-expanded="${ppOpen === 'where'}">WHERE?<em>${w}</em></span><span class="bt bwb${ppOpen === 'who' ? ' on' : ''}" id="c25fo" title="who hit it" aria-expanded="${ppOpen === 'who'}">WHO?<em>${o}</em></span><span class="bt bwb${ppOpen === 'bb' ? ' on' : ''}" id="c25pp" title="sort them by the numbers, or at random" aria-expanded="${ppOpen === 'bb'}">SORT THE SHOTS?<em>${n ? NERD_S[v.sort][0] : 'FRESH FRANKS'}</em></span></div>`
   }
   // (10 Nov, Andrew: "the where who bomb binder things I want like on the menu lower RHS not over the park, in the empty space below the histograms"): the block sits
   // at the bottom of the histogram panel, its full width; where that space is short (a small screen in DEJA-VU, under the batter card) the buttons drop their
@@ -1602,10 +1602,10 @@ export async function build(root, api, U) {
     el.querySelectorAll('[data-pw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); ppOpen = null; tryFv(() => { fv.where = b.dataset.pw }) }))
     el.querySelectorAll('[data-po]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); ppOpen = null; tryFv(() => { fv.who = b.dataset.po }) }))
     void cyc
-    el.querySelectorAll('[data-ps]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); tryFv(() => { fv.sort = b.dataset.ps }) }))
+    el.querySelectorAll('[data-ps]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); tryFv(() => { fv.sort = b.dataset.ps; if (fv.sort === 'random') { const r = new Map(); for (const x of R.balls) r.set(x, Math.random()); fv.shuf = r } }) })) // (RANDOM: a fresh shuffle on every press)
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); tryFv(() => { const k = b.dataset.f; if (fv.f.has(k)) fv.f.delete(k); else fv.f.add(k) }) }))
     el.querySelector('[data-pa]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); tryFv(() => { fv.any = !fv.any }) })
-    el.querySelector('[data-pr]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('back'); tryFv(() => { fv.sort = 'new'; fv.f.clear(); fv.any = false }) })
+    // (10 Nov, Andrew: "The clear button is broken": CLEAR is gone; a sort replaces the last one, FRESH FRANKS is where it starts)
     el.querySelector('[data-px]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); ppOpen = null; paintChooser() })
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
     wireBall(el); placeCorner(el)
@@ -1829,12 +1829,15 @@ export async function build(root, api, U) {
 </div>
       ${phrase ? `<div class="dds">${phrase}</div>` : ''}<div class="baya">THE MOON, MARS AND JUPITER ARE FLOWN WITH NO AIR, FROM A 3 FT CONTACT HEIGHT. EVERYTHING ELSE GOES THROUGH THE FLIGHT ENGINE.</div></div>`
   }
-  // SOUND (6 Nov, evening: the JUKEBOX list is gone, Andrew: "I don't think anyone is going to be clicking 'jukebox'... Let's kill the jukebox feature"): J opens the
+  // SOUND and THE JUKEBOX (10 Nov: the list is back, with the shuffle) (6 Nov, evening: the JUKEBOX list is gone, Andrew: "I don't think anyone is going to be clicking 'jukebox'... Let's kill the jukebox feature"): J opens the
   // mixer on its own (master, music, effects, crowd and bay); the songs play by themselves after the home runs that call for them
   function paintJukebox(body) {
     E('#c25mt').textContent = '/ S O U N D /'
-    body.innerHTML = `<div class="bul"><div class="bulh">SOUND${sound.on() ? '' : ' · OFF: PRESS S'}</div>${sound.mixerHTML()}</div>`
+    const now = jukebox.playing(), sc = body.closest('.box') ?? body, top = sc.scrollTop // (a new song repaints the list where you had it)
+    body.innerHTML = `<div class="bul"><div class="bulh">SOUND${sound.on() ? '' : ' · OFF: PRESS S'}</div>${sound.mixerHTML()}<div class="bulh">THE JUKEBOX · ${jukebox.songs.length} SONGS, SHUFFLED; CLICK ONE TO PLAY IT NOW</div><div class="btab jkl">${jukebox.songs.map((x) => `<div class="r mo jk${x.id === now ? ' on' : ''}" data-song="${x.id}" role="button" tabindex="0"><span>${x.name}</span><b>${x.id === now ? 'PLAYING' : 'PLAY'}</b></div>`).join('')}</div></div>`
     sound.bindMixer(body)
+    sc.scrollTop = top
+    body.querySelectorAll('[data-song]').forEach((r) => { const go = () => { if (!sound.on()) sound.set(true); bgNext(r.dataset.song); paintJukebox(body) }; r.addEventListener('click', go); r.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go() } }) })
   }
   // the type picker: every pixel type set drawn with the same real pieces of the screen; click one to use it
   function paintTypes(body) {
@@ -1941,12 +1944,24 @@ export async function build(root, api, U) {
   director.gate = () => sound.on() // (8 Nov: nothing starts with the sound off)
   // THE BACKGROUND MUSIC (10 Nov, Andrew: "just have the background music be the background music with any sfx from the events we want"): from the first key or click,
   // his songs play one after another, whole, off the shuffled bag (songs25.js), whatever the page is doing; S stops it, S again starts the next one
+  // (10 Nov, later, Andrew: "can we get a skip button and a jukebox button again?"): SKIP plays the next song off the bag now; JUKEBOX (J) lists them all, a click
+  // plays that one, and the shuffle carries on after it
+  const songName = (id) => jukebox.songs.find((x) => x.id === id)?.name ?? ''
+  function bgNext(id) {
+    const n = id ?? nextSong(jukebox.songs.map((x) => x.id)); if (!n) return false
+    director.stopAll(); lastSong = { id: n }
+    return songCue(n, { prio: 0 })
+  }
+  let shownSong = null
   setInterval(() => {
     if (director.now && !jukebox.playing()) director.now = null // (a song stopped early, not by its end: the next one still comes)
-    if (!sound.on() || !gesturedYet() || director.wait || jukebox.playing() || !jukebox.songs.length) return
-    const id = nextSong(jukebox.songs.map((x) => x.id)); lastSong = id ? { id } : null
-    if (id) songCue(id, { prio: 0 })
+    const p = jukebox.playing()
+    if (p !== shownSong) { shownSong = p; const sk = E('#c25sk'); if (sk) sk.title = p ? `skip ${songName(p)}` : 'skip to the next song'; if (modal === 'jukebox') paintJukebox(E('#c25mb')) }
+    if (!sound.on() || !gesturedYet() || director.wait || p || !jukebox.songs.length) return
+    bgNext()
   }, 1000)
+  E('#c25sk').addEventListener('click', () => { pressEl(E('#c25sk')); if (!sound.on()) sound.set(true); bgNext() }) // (with the sound off, SKIP turns it on)
+  E('#c25jk').addEventListener('click', () => { pressEl(E('#c25jk')); sound.play('move'); openMod('jukebox') })
   let wChain = Promise.resolve() // (7 Nov, red team 4.8: one save at a time, in the order made)
   const wsave = (e) => (wChain = wChain.then(() => wstore.save(e), () => wstore.save(e)))
   let wEd = null, wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false

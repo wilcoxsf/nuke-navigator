@@ -134,13 +134,25 @@ for (const [w, h] of SIZES) {
     const bk = await page.evaluate(() => ({ mode: window.__mix25.mode(), ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] }))
     check('BACK TO THE REPLAY returns to the same ball', bk.mode === 'replay' && bk.ch === before.ch, JSON.stringify({ bk, before }))
     // THE BOMB BINDER (9 Nov): his ten names, sorts only, no filters; DEEPEST DINGERS puts the longest first
-    if (!(await page.$('#c25ch [data-pr]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
-    const bbn = await page.evaluate(() => ({ btn: document.querySelector('#c25pp').textContent, sorts: [...document.querySelectorAll('#c25ch [data-ps]')].map((b) => b.textContent), filters: document.querySelectorAll('#c25ch [data-f], #c25ch [data-pa]').length }))
-    check('the BOMB BINDER has the ten sorts and no filters', /^BOMB BINDER/.test(bbn.btn) && bbn.sorts.join() === 'FRESH FRANKS,DUSTY DINGERS,DEEPEST DINGERS,SQUEAKERS,LASERBEAMS,TENDER TATERS,SKY SCRAPERS,WORM BURNERS,SIZZLE SWATS,FROSTY FRANKS' && bbn.filters === 0, JSON.stringify(bbn))
+    if (!(await page.$('#c25ch [data-ps]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
+    const bbn = await page.evaluate(() => ({ btn: document.querySelector('#c25pp').textContent, sorts: [...document.querySelectorAll('#c25ch [data-ps]')].map((b) => b.textContent), filters: document.querySelectorAll('#c25ch [data-f], #c25ch [data-pa]').length, clear: !!document.querySelector('#c25ch [data-pr]') }))
+    check('SORT THE SHOTS? (the old BOMB BINDER, 10 Nov) has the ten sorts and RANDOM, no filters, no CLEAR', /^SORT THE SHOTS\?/.test(bbn.btn) && bbn.sorts.join() === 'FRESH FRANKS,DUSTY DINGERS,DEEPEST DINGERS,SQUEAKERS,LASERBEAMS,TENDER TATERS,SKY SCRAPERS,WORM BURNERS,SIZZLE SWATS,FROSTY FRANKS,RANDOM' && bbn.filters === 0 && !bbn.clear, JSON.stringify(bbn))
     await page.click('#c25ch [data-ps="far"]'); await page.waitForTimeout(1200)
     const dd = await page.evaluate(() => { const c = window.__mix25.cur(), L = window.__mix25.allBalls().filter((b) => b.hr), m = Math.max(...L.map((b) => b.ft)); return { ft: c.ft, max: m, ch: document.querySelector('#c25ch').textContent.match(/BALL (\d+)/)?.[1] } })
     check('DEEPEST DINGERS starts on the longest home run of the mix', dd.ch === '1' && dd.ft === dd.max, JSON.stringify(dd))
-    await page.click('#c25ch [data-pr]'); await page.waitForTimeout(900) // (CLEAR)
+    // RANDOM (10 Nov): a new order on every press
+    if (!(await page.$('#c25ch [data-ps]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
+    const order = () => page.evaluate(() => [...Array(8)].map((_, i) => document.querySelector('#c25ch').textContent.match(/BALL (\d+) OF (\d+)/)?.[2]).join() + '|' + window.__mix25.cur()?.ft + ',' + window.__mix25.cur()?.ev)
+    await page.click('#c25ch [data-ps="random"]'); await page.waitForTimeout(900); const o1 = await order()
+    if (!(await page.$('#c25ch [data-ps]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
+    await page.click('#c25ch [data-ps="random"]'); await page.waitForTimeout(900); const o2 = await order()
+    if (!(await page.$('#c25ch [data-ps]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
+    await page.click('#c25ch [data-ps="random"]'); await page.waitForTimeout(900); const o3 = await order()
+    const sub = await page.evaluate(() => document.querySelector('#c25pp').textContent)
+    check('RANDOM shuffles the shots, a new first ball on a new press, and the button says RANDOM', /RANDOM/.test(sub) && (o1 !== o2 || o2 !== o3), JSON.stringify({ o1, o2, o3, sub }))
+    if (!(await page.$('#c25ch [data-ps]'))) { await page.click('#c25pp'); await page.waitForTimeout(300) }
+    await page.click('#c25ch [data-ps="new"]'); await page.waitForTimeout(900) // (back to FRESH FRANKS, where the rest of this test expects it)
+    if (await page.$('#c25ch [data-px]')) { await page.click('#c25ch [data-px]'); await page.waitForTimeout(300) }
     // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
     const si = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
     check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WPA/.test(si), si)
@@ -428,7 +440,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   await page.keyboard.press('j'); await page.waitForTimeout(500)
   const jb = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), rows: document.querySelectorAll('#c25mb .jk, #c25mb [data-song]').length, mix: document.querySelectorAll('#c25mb [data-snd]').length, t: document.querySelector('#c25mt')?.textContent }))
   const songs = await page.evaluate(() => window.__mix25.jukebox.songs.map((x) => x.id).sort().join())
-  check('J opens SOUND (the mixer, no song list), and the songs are the ones kept', jb.open && jb.rows === 0 && jb.mix === 4 && /S O U N D/.test(jb.t) && /byebye/.test(songs) && !/imperial/.test(songs) /* (10 Nov: the Star Wars track is out too) */ && /(^|,)sf(,|$)/.test(songs) && !/ballgame|charge|anthem|mountain|sailor|valkyries|saints|hava|ode|cancan|tell|(^|,)imperial(,|$)|(^|,)entertainer(,|$)/.test(songs) /* (9 Nov: his song picks) */, JSON.stringify({ ...jb, songs }))
+  check('J opens SOUND (the mixer and, since 10 Nov, the jukebox list again), and the songs are the ones kept', jb.open && jb.rows >= 60 && jb.mix === 4 && /S O U N D/.test(jb.t) && /byebye/.test(songs) && !/imperial/.test(songs) /* (10 Nov: the Star Wars track is out too) */ && /(^|,)sf(,|$)/.test(songs) && !/ballgame|charge|anthem|mountain|sailor|valkyries|saints|hava|ode|cancan|tell|(^|,)imperial(,|$)|(^|,)entertainer(,|$)/.test(songs) /* (9 Nov: his song picks) */, JSON.stringify({ ...jb, songs }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)

@@ -6,7 +6,7 @@
 //   An unknown name never throws. `at` (a world position) pans it across the stereo field from the camera and fades it with distance.
 //   The bed: a crowd murmur that swells while a ball is in the air, the bay lapping, gulls and a ferry horn now and then, the PA hum.
 //   A swing: the crack (a 112 mph ball cracks louder, with a sub thump and the stands' slapback), a whoosh that follows the ball across the speakers, then the crowd:
-//   a roar sized by distance, a groan off the wall, the foghorn on a splash, the organ's CHARGE! on a home run, an air horn past 480 ft.
+//   a roar sized by distance, a groan off the wall, the foghorn on a splash, an air horn past 480 ft (the organ's CHARGE! is out, 10 Nov).
 //   Easter eggs: type 777 for the Seventh Inning Stretch, 415 for an SF medley, 2010, 2012 or 2014 for a title celebration; every third splash hit, the boats in
 //   the Cove lose their minds (a honk storm).
 // window.__nnSoundLog lists what played (for the tests); window.__nnSoundRender(name) renders one offline and measures it.
@@ -454,7 +454,7 @@ export function land(ev = {}, info = {}) {
   const hr = ['GONE', 'NUKE', 'SPLASH', 'SCRAPER', 'POLE'].includes(k)
   if (hr) {
     play('roar', { size: clamp((ft - 340) / 90, 0.5, 1.7) + (k === 'NUKE' ? 0.3 : 0), bus: 'amb' })
-    if (k !== 'SPLASH') play('organ-charge', { delay: 1.1, bus: 'music' })
+    // (10 Nov, Andrew: "Can we take out the charge"): no CHARGE! on the organ after a home run; the song playing carries it
     if (ft >= 480) play('airhorn', { delay: 0.35 })
     if (k === 'SPLASH') { play('foghorn', { delay: 0.25, vol: 0.9 }); play('splash2', { at: ev.at }); afterSplash() }
   } else if (k === 'WALL' || k === 'CLOSE') play('groan', { bus: 'amb' })
@@ -507,7 +507,7 @@ function egg(k) {
   log({ n: 'egg', r: k })
   if (k === 'stretch') { play('organ-stab', { bus: 'music' }); play('roar', { size: 0.5, bus: 'amb', delay: 0.3 }) }
   else if (k === 'sf') { play('foghorn'); play('bell', { delay: 1.8 }); play('sealions', { delay: 2.6 }); play('flock', { delay: 3.4 }) }
-  else if (k === 'title') { play('airhorn'); play('roar', { size: 1.8, bus: 'amb', delay: 0.2 }); play('fireworks', { delay: 0.8 }); play('fireworks', { delay: 1.4 }); play('organ-charge', { delay: 2.2, bus: 'music' }) }
+  else if (k === 'title') { play('airhorn'); play('roar', { size: 1.8, bus: 'amb', delay: 0.2 }); play('fireworks', { delay: 0.8 }); play('fireworks', { delay: 1.4 }) }
 }
 function onGesture() { if (gestured) return; gestured = true; if (soundOn()) { audioCtx(); startAmb() } }
 export const gesturedYet = () => gestured // (10 Nov: the background songs wait for the first key or click, as every sound does)

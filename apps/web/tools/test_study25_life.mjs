@@ -117,6 +117,26 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   check('a song plays in the background (no home run needed), with no ambient bed, and no Imperial March in the shuffle', on && !!bg.playing && bg.bed === false && bg.imperial === false, JSON.stringify(bg))
   await page.evaluate(() => window.__mix25.jukebox.stop()); const next = await until(() => !!window.__mix25.jukebox.playing(), 8000)
   check('when a song ends the next one starts on its own', next, JSON.stringify(await page.evaluate(() => window.__mix25.jukebox.playing())))
+  // (10 Nov, later) SKIP and JUKEBOX in the header
+  const s0 = await page.evaluate(() => window.__mix25.jukebox.playing())
+  await page.click('#c25sk'); await page.waitForTimeout(900)
+  const s1 = await page.evaluate(() => window.__mix25.jukebox.playing())
+  check('SKIP plays a different song straight away', !!s1 && s1 !== s0, JSON.stringify({ s0, s1 }))
+  await page.click('#c25jk'); await page.waitForTimeout(900)
+  const jk = await page.evaluate(() => { const rows = [...document.querySelectorAll('#c25mb [data-song]')]; return { n: rows.length, on: rows.find((r) => r.classList.contains('on'))?.dataset.song ?? null, pick: rows.find((r) => !r.classList.contains('on'))?.dataset.song } })
+  await page.click(`#c25mb [data-song="${jk.pick}"]`); await page.waitForTimeout(900)
+  const s2 = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), on: document.querySelector('#c25mb .jk.on')?.dataset.song ?? null }))
+  check('JUKEBOX lists every song with the one playing marked, and a click plays that one', jk.n >= 60 && jk.on === s1 && s2.playing === jk.pick && s2.on === jk.pick, JSON.stringify({ jk, s2 }))
+  await page.keyboard.press('Escape'); await page.waitForTimeout(600)
+  // (10 Nov, later) the menu's gags: twelve, no mock game, and not one letter drawn in any frame of any of them
+  const gg = await page.evaluate(() => {
+    const M = window.__mix25.menu, c = document.querySelector('.c25 .sm canvas.ins2'), cx = c.getContext('2d'), ft = cx.fillText.bind(cx); let words = 0, blank = 0
+    cx.fillText = (...a) => { words++; return ft(...a) }
+    for (const k of M.scenes) for (const t of [0.5, 2, 3.5, 5, 7]) { M.scene(k, t); const d = cx.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 64) if (d[i]) n++; if (!n) blank++ }
+    cx.fillText = ft
+    return { n: M.scenes.length, inning: M.scenes.includes('inning'), words, blank, h: c.height, keys: M.scenes.join() }
+  })
+  check('the menu strip is the twelve gags (no mock game), taller, with no text drawn in any of them', gg.n === 12 && !gg.inning && gg.words === 0 && gg.blank === 0 && gg.h === 120, JSON.stringify(gg))
   // (10 Nov) WHERE? WHO? BOMB BINDER and the three under them sit under the histograms, not over the park
   await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(1500)
   const cn = await page.evaluate(() => { const bw = document.querySelector('#c25ch .bw').getBoundingClientRect(), hi = document.querySelector('#c25hi').getBoundingClientRect(), pk = document.querySelector('#c25h').getBoundingClientRect(); return { fit: window.__mix25.cornerFit(), inside: bw.left >= hi.left - 1 && bw.right <= hi.right + 1 && bw.bottom <= hi.bottom + 1, offPark: bw.left >= pk.right - 1, n: document.querySelectorAll('#c25ch .bw .bt.bwb').length } })
