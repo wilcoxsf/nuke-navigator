@@ -52,10 +52,10 @@ base AS (
 base2 AS (SELECT *, CASE WHEN stand = 'R' THEN -bearing ELSE bearing END AS pull_angle FROM base)
 SELECT *,
   avg(launch_speed) OVER bw AS b_ev, avg(launch_angle) OVER bw AS b_la,
-  avg(CASE WHEN is_home_run THEN 1.0 ELSE 0.0 END) OVER bw AS b_hr,
+  avg({hr}) OVER bw AS b_hr,
   avg(CASE WHEN launch_speed >= 95 THEN 1.0 ELSE 0.0 END) OVER bw AS b_hard,
   avg(pull_angle) OVER bw AS b_pull, count(*) OVER bw AS b_n, avg(bat_speed) OVER bw AS b_bat_speed,
-  avg(launch_speed) OVER pw AS p_ev, avg(CASE WHEN is_home_run THEN 1.0 ELSE 0.0 END) OVER pw AS p_hr
+  avg(launch_speed) OVER pw AS p_ev, avg({hr}) OVER pw AS p_hr
 FROM base2
 WINDOW bw AS (PARTITION BY batter ORDER BY game_date, game_pk, at_bat_number ROWS BETWEEN 100 PRECEDING AND 1 PRECEDING),
        pw AS (PARTITION BY pitcher ORDER BY game_date, game_pk, at_bat_number ROWS BETWEEN 200 PRECEDING AND 1 PRECEDING)
@@ -63,7 +63,10 @@ WINDOW bw AS (PARTITION BY batter ORDER BY game_date, game_pk, at_bat_number ROW
 
 
 def load(bbe: str, games: str, weather: str) -> pd.DataFrame:
-    df = duckdb.sql(SQL.format(bbe=bbe, games=games, weather=weather)).df()
+    # (10 Nov, GPT lockbox red team 3) a sealed row's placeholder label never enters the home-run-rate history; research tables have no sealed column
+    has_sealed = 'sealed' in {r[0] for r in duckdb.sql(f"DESCRIBE SELECT * FROM read_parquet('{bbe}')").fetchall()}
+    hr = "CASE WHEN coalesce(sealed, false) THEN NULL WHEN is_home_run THEN 1.0 ELSE 0.0 END" if has_sealed else "CASE WHEN is_home_run THEN 1.0 ELSE 0.0 END"
+    df = duckdb.sql(SQL.format(bbe=bbe, games=games, weather=weather, hr=hr)).df()
     df["stand_r"] = (df["stand"] == "R").astype(float)
     df["hawkeye"] = df["hawkeye"].astype(float)
     df["y"] = df["is_home_run"].astype(float)

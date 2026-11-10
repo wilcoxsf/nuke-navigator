@@ -6,6 +6,7 @@ Bases: --base S3 (the raw S3 stack, trained on validation + earlier test months)
 months only, so it trains on earlier test months). Legal inputs only: nothing measured after contact (no true bearing, distance, fence at the true bearing).
 Usage: python science/meta_rolling.py --base S3 --trees 200 --tag m2"""
 import argparse
+import os
 
 import lightgbm as lgb
 import numpy as np
@@ -104,6 +105,10 @@ for m in months:
             age = (pd.Timestamp(m.start_time) - pd.to_datetime(tr.game_date)).dt.days.to_numpy(); wt = 0.5 ** (age / a.halflife)
         ds = lgb.Dataset(tr[feats], tr.y, init_score=tr.l_base, weight=wt, categorical_feature=[c for c in ["venue"] if c in feats], free_raw_data=False)
         bst = lgb.train(P, ds, num_boost_round=a.trees)
+        if os.environ.get("NN_D") and a.tag == "prod":  # (10 Nov, GPT lockbox red team 8) the month's booster, its features and cutoff, kept for 2027 replay
+            import pickle; from pathlib import Path as _P
+            _d = _P(os.environ.get("NN_STORE", D + "models")) / "meta"; _d.mkdir(parents=True, exist_ok=True)
+            pickle.dump({"month": str(m), "booster": bst.model_to_string(), "feats": feats, "params": P, "trees": a.trees, "train_rows": int(len(tr))}, open(_d / f"{m}.pkl", "wb"))
         z = te.l_base.to_numpy() + bst.predict(te[feats], raw_score=True)
     out.append(pd.DataFrame({"rid": te.rid.to_numpy(), "p_meta": 1 / (1 + np.exp(-z))}))
 o = pd.concat(out)

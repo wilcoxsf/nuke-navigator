@@ -158,6 +158,9 @@ if a.write:  # the adopted layer: global slope and intercept, venue offsets, in-
         for mth in sorted(d.month[post_mask].unique()):
             hist = np.flatnonzero((~te_mask & ~post_mask) | (te_mask & (months < mth)))
             t = fit(hist, ["gm"]); sel = np.flatnonzero(post_mask & (months == mth)); X = design(sel, ["gm"]); m = X.shape[1]
+            if MS.D != ROOT + "data/derived/":  # (10 Nov, GPT lockbox red team 8) the month's layer coefficients and venue map, kept for 2027 replay
+                import pickle; _d = MS.STORE / "layer"; _d.mkdir(parents=True, exist_ok=True)
+                pickle.dump({"month": str(mth), "theta": t, "venues": vi, "feats": ["gm"], "lam": LAM}, open(_d / f"{mth}.pkl", "wb"))
             qp[sel] = sig(t[0] * d.lg.to_numpy()[sel] + t[1] + X @ t[2:2 + m] + t[2 + m:][d.k.to_numpy()[sel]])
         W = pd.concat([W, pd.DataFrame({"rid": d.index[post_mask] if d.index.name == "rid" else d.rid.to_numpy()[post_mask], "p_hr": qp[post_mask]})], ignore_index=True)
     W.to_parquet(ROOT + a.write)

@@ -63,6 +63,8 @@ def add_rolling(df: pd.DataFrame) -> None:
     slim = df[["rid", "batter", "pitcher", "game_date", "game_pk", "at_bat_number", "attack_angle", "attack_dir_field", "swing_length", "bat_speed",
                "intercept_x", "intercept_y", "launch_speed", "is_home_run"]].copy()
     slim["is_home_run"] = slim.is_home_run.astype(float)
+    if "sealed" in df.columns:  # (10 Nov, GPT lockbox red team 3) a sealed row's placeholder label never enters the 500-ball home-run rates (NULL is skipped)
+        slim.loc[df.sealed.fillna(False).astype(bool).to_numpy(), "is_home_run"] = np.nan
     con = duckdb.connect()
     con.sql("SET threads TO 3")
     con.register("d", slim)

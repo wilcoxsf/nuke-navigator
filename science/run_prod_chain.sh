@@ -11,7 +11,8 @@ PY=../.venv/Scripts/python.exe; R=../data/derived
 if [ "$SMOKE" = "1" ]; then P=../data/prod_smoke; LIM="--limit-year 2024"; EP="--epochs 1 --seeds 1"; EPL="--epochs 1 --seeds 1"; DPE="--epochs 1"; export XGB_N=60; LOGM=""; OOF="--seeds 1 --epochs 1"
 else P=../data/prod; LIM=""; EP=""; EPL="--epochs 20"; DPE="--epochs 6"; LOGM="--logm $R/bakeoff_features_v10.parquet.logm.npy"; OOF="--seeds 2"; fi
 mkdir -p $P
-export NN_D=$P NN_STORE=$P/models NN_STORE_MODE=save
+export NN_D=$P NN_STORE=$P/models NN_STORE_MODE=${PROD_MODE:-save}  # (10 Nov: PROD_MODE=load replays the saved models, no training)
+echo "== mode $NN_STORE_MODE"
 B=../data/prod; G=$B/game_context
 Z() { $PY -W ignore "$@"; }
 st() { echo "== $1 $(date +%H:%M)"; }
@@ -70,7 +71,8 @@ Z final_stack.py --comp xgb=$P/v39c_avg/pred_xgb.parquet phys=$P/v7_stack/pred_d
 st layer; Z posthoc_memory.py --pred ${P#../}/final8/S3.parquet --write ${P#../}/final8/S3_layer.parquet --score-post 2>&1 | grep -E "^gm |wrote|Error|Traceback" | cut -c1-200 || die layer
 st meta;  Z meta_rolling.py --base S3 --trees 200 --minleaf 1500 --tag prod --score-post 2>&1 | grep -v "^\[" | tail -1 | cut -c1-220 || die meta
 Z blend_preds.py --data $P/bakeoff_features_v5r.parquet --a $P/final8/S3_layer.parquet --b $P/meta_prod.parquet --out $P/blend_prod.parquet 2>&1 | tail -1 || die blend
-st lockbox; Z score_lockbox.py 2>&1 | tail -2 || die lockbox
+st logit; mkdir -p $P/logit; Z bakeoff.py --data $P/bakeoff_features_v39c.parquet --out-dir $P/logit --entrant logit 2>&1 | grep -E "done|Error|Traceback" | cut -c1-200 || die logit  # (the contact-only reference for the lockbox)
+st parity; Z prod_parity.py 2>&1 | tail -12 || die parity
 if [ "$SMOKE" != "1" ]; then
   st "check against the research champion (2025-26 test balls; same row ids)"
   Z paired.py --data $R/bakeoff_features_v5r.parquet --a $R/blend_c25_t200_m1500.parquet --b $P/blend_prod.parquet --label-a research --label-b prod 2>&1 | tail -3 | cut -c1-160
