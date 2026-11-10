@@ -24,7 +24,8 @@ import pandas as pd
 ROOT = "C:/Users/andrewwi/dev/nuke-navigator-new/"
 LB = Path(ROOT + "data/prod/lockbox"); FZ = LB / "frozen"
 K = ["game_pk", "at_bat_number", "pitch_number"]
-COMP = [("p_s3", "the S3 stack"), ("p_xgb", "XGBoost, three seeds"), ("p_logit", "the contact-only logistic"), ("p_flat", "the flat training rate")]
+COMP = [("p_s3", "the S3 stack"), ("p_xgb", "XGBoost, three seeds"), ("p_savant_x", "Savant's expected stats (xBA, xSLG, xwOBA)"), ("p_savant_lsa", "Savant's barrel class"),
+        ("p_logit", "the contact-only logistic"), ("p_flat", "the flat training rate")]
 BANDS = [0, 0.01, 0.05, 0.2, 0.5, 0.8, 1.0]
 ap = argparse.ArgumentParser()
 g = ap.add_mutually_exclusive_group(required=True)

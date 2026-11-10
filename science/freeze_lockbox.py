@@ -55,9 +55,12 @@ for name, f in (("p_blend", "blend_prod.parquet"), ("p_s3", "final8/S3.parquet")
     assert not x.rid.duplicated().any(), f
     t = t.merge(x, on="rid", how="left", validate="one_to_one")
 t["p_flat"] = flat
-fz = t[K + ["game_date", "venue_id", "margin_hat", "p_blend", "p_s3", "p_xgb", "p_logit", "p_flat"]].copy()
-for c in K: fz[c] = fz[c].astype("int64")
-cols = ["p_blend", "p_s3", "p_xgb", "p_logit", "p_flat"]
+for c in K: t[c] = t[c].astype("int64")
+sv = pd.read_parquet(LB / "savant_refs.parquet")  # (10 Nov, later: Savant's barrel class and expected stats as references, science/savant_refs.py)
+for c in K: sv[c] = sv[c].astype("int64")
+t = t.merge(sv, on=K, how="left", validate="one_to_one")
+cols = ["p_blend", "p_s3", "p_xgb", "p_logit", "p_flat", "p_savant_x", "p_savant_lsa"]
+fz = t[K + ["game_date", "venue_id", "margin_hat"] + cols].copy()
 assert len(fz) == 1931 and not fz.duplicated(K).any(), (len(fz), int(fz.duplicated(K).sum()))
 assert fz.game_pk.nunique() == 40, fz.game_pk.nunique()
 assert np.isfinite(fz[cols].to_numpy()).all() and (fz[cols].to_numpy() >= 0).all() and (fz[cols].to_numpy() <= 1).all(), "a probability is missing or out of [0, 1]"
