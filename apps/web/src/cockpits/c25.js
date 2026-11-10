@@ -60,6 +60,7 @@ import { initStage25, RUNNER_LOOKS } from './stage25.js'
 import { initAwayWall25 } from './awaywall25.js'
 import { initBatFlip25, isNoDoubter } from './batflip25.js'
 import { nextSong } from './songs25.js'
+import { gesturedYet } from './sound25.js'
 import { pOut, inTen } from './wallodds25.js'
 import { parkHit as parkHitM } from '../seance.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
@@ -740,6 +741,7 @@ export async function build(root, api, U) {
 #cp .c25 .bsel .bt.bwb{background:var(--k);color:var(--tx);border:1px solid var(--tx);text-align:center;min-width:8.5em;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15}#cp .c25 .bsel .bt.bwb em{font-style:normal;font-size:.72em;color:var(--dim);letter-spacing:.08em}
 #cp .c25 .bsel .bt.bwb.on{background:var(--acc);color:var(--k);border-color:var(--acc)}#cp .c25 .bsel .bt.bwb.on em{color:var(--k)}
 #cp .c25 .bsel .bw .ppl{left:auto;right:0}
+#cp .c25 .bsel .bw.inhi{justify-items:stretch}#cp .c25 .bsel .bw.inhi .bwr{display:flex;gap:6px}#cp .c25 .bsel .bw.inhi .bt.bwb{flex:1 1 0;min-width:0;font-size:.8em;padding:5px 4px;white-space:normal;overflow-wrap:anywhere}#cp .c25 .bsel .bw.inhi.tight .bt.bwb{padding:2px 4px}#cp .c25 .bsel .bw.inhi.tight .bt.bwb em{display:none} /* (10 Nov: under the histograms) */
 @media (max-width:900px){#cp .c25 .bsel .bw{position:static;justify-items:start}#cp .c25 .bsel .bwr{justify-content:flex-start;flex-wrap:wrap}#cp .c25 .bsel .bt.bwb{min-width:0}}
 #cp .c25 #c25vw{display:none !important}#cp .c25 .bsel .r1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}#cp .c25 .bsel .ppw{position:relative;display:inline-flex;gap:6px;align-items:center}#cp .c25 .bsel .bt.cyc{border-color:var(--acc);min-width:7.5em;text-align:center}#cp .c25 .bsel .ppl{position:absolute;left:0;bottom:calc(100% + 8px);z-index:12;width:min(560px,80vw);display:grid;gap:6px;padding:10px 12px;background:var(--k);border:1px solid var(--acc);pointer-events:auto}#cp .c25 .bsel .ppl .pph{color:var(--dim);font-size:.85em;letter-spacing:.12em}#cp .c25 .bsel .ppl .ppr{display:flex;gap:6px;flex-wrap:wrap}#cp .c25 .bsel .ppl .ppe{justify-content:flex-end}#cp .c25 .bsel .ppl .bt.on{background:var(--acc);color:var(--k);border-color:var(--acc)}
 #cp .c25 .bsel .r2{color:var(--dim);background:var(--k);justify-self:start;padding:1px 4px 1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -1552,15 +1554,24 @@ export async function build(root, api, U) {
       : ppOpen === 'bb' ? `<div class="ppl" role="dialog" aria-label="bomb binder"><div class="pph">SORT</div><div class="ppr">${Object.entries(NERD_S).map(([k, [l, , t]]) => `<span class="bt${v.sort === k ? ' on' : ''}" data-ps="${k}" title="${t}">${l}</span>`).join('')}</div><div class="ppr ppe"><span class="bt" data-pr="1">CLEAR</span><span class="bt" data-px="1">DONE</span></div></div>` : ''
     return `${panel}<div class="bwr"><span class="bt bwb${ppOpen === 'where' ? ' on' : ''}" id="c25fw" title="where it was hit" aria-expanded="${ppOpen === 'where'}">WHERE?<em>${w}</em></span><span class="bt bwb${ppOpen === 'who' ? ' on' : ''}" id="c25fo" title="who hit it" aria-expanded="${ppOpen === 'who'}">WHO?<em>${o}</em></span><span class="bt bwb${ppOpen === 'bb' ? ' on' : ''}" id="c25pp" title="sort them by the numbers" aria-expanded="${ppOpen === 'bb'}">BOMB BINDER<em>${n ? NERD_S[v.sort][0] : 'FRESH FRANKS'}</em></span></div>`
   }
+  // (10 Nov, Andrew: "the where who bomb binder things I want like on the menu lower RHS not over the park, in the empty space below the histograms"): the block sits
+  // at the bottom of the histogram panel, its full width; where that space is short (a small screen in DEJA-VU, under the batter card) the buttons drop their
+  // second lines; cornerFit says whether it fits under the histograms
+  let cornerFit = null
   function placeCorner(el) {
-    const bw = el.querySelector('.bw'), nk = E('#c25nk')
-    if (!bw || !nk) return
-    if (innerWidth < 900) { bw.style.right = bw.style.bottom = ''; return }
-    const a = el.getBoundingClientRect(), b = nk.getBoundingClientRect(), t = E('#c25t'), tr = t?.offsetParent ? t.getBoundingClientRect() : null
-    let top = b.top
-    if (tr && tr.width > 2 && tr.height > 2 && tr.right > b.left - 340 && tr.left < b.right && tr.top < top) top = tr.top // (the dojo's swing tally sits over NUKE IT on wide screens: stack over it too)
-    bw.style.right = `${-(b.right - a.right)}px`; bw.style.bottom = `${a.bottom - top + 8}px`
+    const bw = el?.querySelector('.bw'), hi = E('#c25hi')
+    if (!bw) return
+    bw.classList.remove('inhi', 'tight')
+    if (innerWidth < 900 || !hi?.offsetParent) { bw.style.right = bw.style.bottom = bw.style.width = ''; cornerFit = null; return }
+    const a = el.getBoundingClientRect(), h = hi.getBoundingClientRect(), pad = 14
+    const used = [...hi.querySelectorAll('#c25hb > *')].reduce((m, k) => (k.offsetParent ? Math.max(m, k.getBoundingClientRect().bottom) : m), h.top + 24)
+    bw.classList.add('inhi'); bw.style.width = `${h.width - 2 * pad}px`
+    bw.style.right = `${a.right - (h.right - pad)}px`; bw.style.bottom = `${a.bottom - (h.bottom - 8)}px`
+    const room = h.bottom - 8 - used - 10
+    cornerFit = room >= bw.offsetHeight
+    if (!cornerFit) { bw.classList.add('tight'); cornerFit = room >= bw.offsetHeight }
   }
+  { let q = 0; const re = () => { cancelAnimationFrame(q); q = requestAnimationFrame(() => placeCorner(E('#c25ch'))) }; const hb = E('#c25hb'); if (hb) new MutationObserver(re).observe(hb, { childList: true, subtree: true }); addEventListener('resize', re) } // (the histograms redraw: the space under them changes)
   function paintChooser() {
     const el = E('#c25ch')
     { const nk = E('#c25nk'), w = nk?.offsetWidth ?? 0; if (w && innerWidth >= 900) { const r = w + (compactK() < 1 ? 22 : 30) + 'px'; if (el.style.right !== r) el.style.right = r } } // (3 Nov: the buttons wrap short of NUKE IT, however wide it is)
@@ -1597,10 +1608,9 @@ export async function build(root, api, U) {
     el.querySelector('[data-pr]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('back'); tryFv(() => { fv.sort = 'new'; fv.f.clear(); fv.any = false }) })
     el.querySelector('[data-px]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); ppOpen = null; paintChooser() })
     E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
-    placeCorner(el)
+    wireBall(el); placeCorner(el)
     // (9 Nov, Andrew: "Kill the reel": the REEL button is gone; the highlight-reel code stays unused)
     el.querySelector('#c25nt')?.addEventListener('change', (e) => { const i = balls.findIndex((b) => b.d === e.target.value); if (i < 0) return; sound.play('move'); idx = i; applyBall(balls[idx]); paintChooser() })
-    wireBall(el)
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
   // TWEAK THE TATER, made plain (28 Oct, night, Andrew: "really difficult to discern... think through this interface"): the strip is the swing (speed, angle, where it's
@@ -1929,6 +1939,14 @@ export async function build(root, api, U) {
   loadLibrary().then((l) => { lib = l }).catch(() => {})
   const wstore = witnessStore()
   director.gate = () => sound.on() // (8 Nov: nothing starts with the sound off)
+  // THE BACKGROUND MUSIC (10 Nov, Andrew: "just have the background music be the background music with any sfx from the events we want"): from the first key or click,
+  // his songs play one after another, whole, off the shuffled bag (songs25.js), whatever the page is doing; S stops it, S again starts the next one
+  setInterval(() => {
+    if (director.now && !jukebox.playing()) director.now = null // (a song stopped early, not by its end: the next one still comes)
+    if (!sound.on() || !gesturedYet() || director.wait || jukebox.playing() || !jukebox.songs.length) return
+    const id = nextSong(jukebox.songs.map((x) => x.id)); lastSong = id ? { id } : null
+    if (id) songCue(id, { prio: 0 })
+  }, 1000)
   let wChain = Promise.resolve() // (7 Nov, red team 4.8: one save at a time, in the order made)
   const wsave = (e) => (wChain = wChain.then(() => wstore.save(e), () => wstore.save(e)))
   let wEd = null, wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
@@ -3251,10 +3269,7 @@ export async function build(root, api, U) {
     // and WILLIAM TELL out): one song after a home run, the first that fits
     // (9 Nov, later, Andrew: "Let's just shuffle between the songs and randomly pick one every time and not have them triggered by any events"): a home run gets the next
     // song off a shuffled bag (songs25.js), whole; it plays until you move on
-    if (!reel && hr) {
-      const id = nextSong(jukebox.songs.map((x) => x.id)); lastSong = id ? { id } : null
-      if (id) { const own = [mode, show, fires].join(); songCue(id, { prio: 4, delay: 2800, still: () => [mode, show, fires].join() === own }) }
-    }
+    // (10 Nov, Andrew: "no songs are playing on shuffle"): the songs are the background music now, one after another off the shuffled bag (bgSongs below), not a home run's
     // the rivalry: a Giants home run against the Dodgers gets a Giant doing something terrible to a Dodger on the board, and that is all the board plays
     // (30 Oct, Andrew: "Every other board show let's kill I only want dodger gags on the board, that's literally it")
     if (hr && b && (b.tb === 'Top' ? b.at === 'SF' && b.ht === 'LAD' : b.ht === 'SF' && b.at === 'LAD')) life.play(life.nextGag(), {}, D) // the next gag from park25's shuffled bag
@@ -3291,7 +3306,7 @@ export async function build(root, api, U) {
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
   applyLab = (k) => { if (k === 'GR') stage?.sync({ ball: cur, mode }); if (k === 'LF') flight?.setFill(lab.LF); if (k === 'CM') blastFrame(); if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP', 'PK', 'CN'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'BD' && show === 'hm' && hmWho) { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { wallWords: (v) => window.__cpWallWords?.(v) ?? null, pOut: (c, k) => pOut(c, k), shotGhosts: () => shotGhosts.n(), stamp: (b) => situation(b)?.stamp ?? null, lastSong: () => lastSong, nextSong: () => nextSong(jukebox.songs.map((x) => x.id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+  window.__mix25 = { cornerFit: () => cornerFit, wallWords: (v) => window.__cpWallWords?.(v) ?? null, pOut: (c, k) => pOut(c, k), shotGhosts: () => shotGhosts.n(), stamp: (b) => situation(b)?.stamp ?? null, lastSong: () => lastSong, nextSong: () => nextSong(jukebox.songs.map((x) => x.id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }

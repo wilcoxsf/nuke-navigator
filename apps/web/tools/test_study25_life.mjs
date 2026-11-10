@@ -111,6 +111,16 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 {
   const r = await page.evaluate(() => { const S = window.__mix25.jukebox.songs.map((x) => x.id), n = S.length, d = []; for (let i = 0; i < n * 3; i++) d.push(window.__mix25.nextSong()); const c = S.map((id) => d.filter((x) => x === id).length); return { n, min: Math.min(...c), max: Math.max(...c), twice: d.filter((x, i) => i && x === d[i - 1]).length, len: window.__mix25.jukebox.length('getlucky') } }) // (three bags' worth: the home runs before this may have started one)
   check('the songs are his picks, whole (54 with the walk-off song), dealt off a shuffled bag: every one before any comes a third time, never twice running', r.n >= 54 && r.min >= 2 && r.max <= 4 && r.twice === 0 && r.len > 120, JSON.stringify(r))
+  // (10 Nov) the songs are the background music: one is always on once the page has had a click, the ambient bed (bay, gulls, ferry) is off, the Star Wars track is out
+  const on = await until(() => !!window.__mix25.jukebox.playing(), 8000)
+  const bg = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), bed: window.__nnSoundStats().amb, imperial: window.__mix25.jukebox.songs.some((x) => /imperial/i.test(x.id + x.name)) }))
+  check('a song plays in the background (no home run needed), with no ambient bed, and no Imperial March in the shuffle', on && !!bg.playing && bg.bed === false && bg.imperial === false, JSON.stringify(bg))
+  await page.evaluate(() => window.__mix25.jukebox.stop()); const next = await until(() => !!window.__mix25.jukebox.playing(), 8000)
+  check('when a song ends the next one starts on its own', next, JSON.stringify(await page.evaluate(() => window.__mix25.jukebox.playing())))
+  // (10 Nov) WHERE? WHO? BOMB BINDER and the three under them sit under the histograms, not over the park
+  await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(1500)
+  const cn = await page.evaluate(() => { const bw = document.querySelector('#c25ch .bw').getBoundingClientRect(), hi = document.querySelector('#c25hi').getBoundingClientRect(), pk = document.querySelector('#c25h').getBoundingClientRect(); return { fit: window.__mix25.cornerFit(), inside: bw.left >= hi.left - 1 && bw.right <= hi.right + 1 && bw.bottom <= hi.bottom + 1, offPark: bw.left >= pk.right - 1, n: document.querySelectorAll('#c25ch .bw .bt.bwb').length } })
+  check('the corner buttons sit in the space under the histograms, off the park', cn.fit === true && cn.inside && cn.offPark && cn.n >= 6, JSON.stringify(cn))
 }
 // ---- 4d. (9 Nov) BAD LUCK (the mirror and the ladder) plays from the MOMENTS menu; THE ROLL-UP is on the board ----
 {

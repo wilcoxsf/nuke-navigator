@@ -32,7 +32,7 @@ await page.keyboard.press('Shift')
 await page.waitForTimeout(400)
 {
   const s = await page.evaluate(() => window.__nnSoundStats())
-  check('the first key unlocks it: context running, the bed on', s.gestured && s.state === 'running' && s.amb, JSON.stringify(s))
+  check('the first key unlocks it: context running, and no ambient bed (10 Nov: the songs are the background)', s.gestured && s.state === 'running' && !s.amb, JSON.stringify(s))
 }
 
 // ---- every name the other pieces call ----
@@ -65,7 +65,7 @@ await page.waitForTimeout(1500)
 {
   const r = await page.evaluate(async () => {
     const bad = [], N = window.__nnSoundNames()
-    for (const n of N) { try { const x = await window.__nnSoundRender(n, { ev: 115, size: 1 }, 6); if (!(x.peak > 0.003 && x.peak < 2.5 && x.dur > 0.02)) bad.push(`${n} peak ${x.peak.toFixed(4)} dur ${x.dur.toFixed(2)}`) } catch (e) { bad.push(n + ' threw ' + e.message) } }
+    for (const n of N) { try { const x = await window.__nnSoundRender(n, { ev: 115, size: 1 }, 6); if (!(x.peak > 0.003 && x.peak < 2.5 && x.dur > 0.015)) /* (10 Nov: the Geiger tick is a 20 ms click by design) */ bad.push(`${n} peak ${x.peak.toFixed(4)} dur ${x.dur.toFixed(2)}`) } catch (e) { bad.push(n + ' threw ' + e.message) } }
     const crack = await window.__nnSoundRender('crack', { ev: 95 }), crack112 = await window.__nnSoundRender('crack', { ev: 114 })
     return { n: N.length, bad, crack, crack112 }
   })
@@ -103,7 +103,7 @@ await page.waitForTimeout(1500)
   await page.keyboard.press('s')
   await page.waitForTimeout(400)
   const s2 = await page.evaluate(() => window.__nnSoundStats())
-  check('S again: back on, the bed back', s2.on && s2.amb && s2.master > 0.5, JSON.stringify(s2))
+  check('S again: back on (still no bed)', s2.on && !s2.amb && s2.master > 0.5, JSON.stringify(s2))
 }
 
 // ---- the easter egg ----

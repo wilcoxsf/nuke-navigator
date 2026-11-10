@@ -467,8 +467,9 @@ function afterSplash() { splashN++; if (splashN % 3 === 0) { setTimeout(() => pl
 // ---- the bed: crowd, bay, PA hum; gulls and the ferry now and then ----
 let tensionK = 0
 function tension(k, secs) { tensionK = k; if (!amb) return; const base = 0.05; amb.crowd.gain.cancelScheduledValues(ac.currentTime); amb.crowd.gain.setTargetAtTime(base * (1 + 2.6 * k), ac.currentTime, Math.max(0.05, secs / 3)) }
+const BED = false // (10 Nov, Andrew: "Can we kill the ocean music and just have the background music be the background music with any sfx from the events we want?": the bed is off; the songs are the background now, the event sounds stay)
 function startAmb() {
-  if (amb || !soundOn() || !gestured) return
+  if (!BED || amb || !soundOn() || !gestured) return
   try {
     audioCtx()
     const B = bufs(ac), out = bus('amb'), nodes = []
@@ -509,6 +510,7 @@ function egg(k) {
   else if (k === 'title') { play('airhorn'); play('roar', { size: 1.8, bus: 'amb', delay: 0.2 }); play('fireworks', { delay: 0.8 }); play('fireworks', { delay: 1.4 }); play('organ-charge', { delay: 2.2, bus: 'music' }) }
 }
 function onGesture() { if (gestured) return; gestured = true; if (soundOn()) { audioCtx(); startAmb() } }
+export const gesturedYet = () => gestured // (10 Nov: the background songs wait for the first key or click, as every sound does)
 addEventListener('pointerdown', onGesture, true)
 addEventListener('keydown', (e) => {
   onGesture()
@@ -519,7 +521,7 @@ addEventListener('keydown', (e) => {
 }, true)
 
 // ---- the mixer, drawn into the JUKEBOX window ----
-const ROWS = [['master', 'MASTER'], ['music', 'MUSIC'], ['sfx', 'EFFECTS'], ['amb', 'CROWD AND BAY']]
+const ROWS = [['master', 'MASTER'], ['music', 'MUSIC'], ['sfx', 'EFFECTS'], ['amb', 'CROWD']]
 export function mixerHTML() {
   return `<style>#cp .snd .r{grid-template-columns:auto 1fr auto;gap:10px;align-items:center}#cp .snd input[type=range]{accent-color:var(--acc);width:100%;min-width:0;margin:0}</style><div class="bulh">SOUND · S TURNS IT ALL ${soundOn() ? 'OFF' : 'ON'}</div><div class="btab snd">` + ROWS.map(([k, w]) => `<div class="r mo"><span>${w}</span><input type="range" min="0" max="100" step="5" value="${Math.round(mix[k] * 100)}" data-snd="${k}" aria-label="${w} volume"><b>${Math.round(mix[k] * 100)}</b></div>`).join('') + `<div class="r mo"><span>EASTER EGGS</span><b>TYPE 777, 415 OR 2010</b></div></div>`
 }
