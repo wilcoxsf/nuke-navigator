@@ -47,7 +47,7 @@ export function parkHit(NN, p, dir, far = 400) { const ms = prepare(NN); if (!ms
 // Follows a path (list of {p}) past the wall until it meets the stands, the street or the water. Returns the world point, what it is, and the path index.
 export function findLanding(NN, path, toWorld) {
   const ms = prepare(NN)
-  NN.stadium.updateMatrixWorld(true) // the model arrives before its first render: without this the ray-cast runs on identity matrices
+  NN.stadium?.updateMatrixWorld(true) // (10 Nov: absent while a park is still loading; the ray then meets nothing and the ball lands on the street) the model arrives before its first render: without this the ray-cast runs on identity matrices
   const wp = path.map((q, i) => ({ v: toWorld(q.p), i })).filter((_, i) => i % 3 === 0)
   for (let i = 1; i < wp.length; i++) {
     if (Math.hypot(wp[i].v.x, wp[i].v.z) < 90) continue

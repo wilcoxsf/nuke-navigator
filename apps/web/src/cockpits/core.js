@@ -1,6 +1,7 @@
 // Shared plumbing for the ten cockpits (?cp=1..10). A cockpit is a different way of laying out the same live flight: it reads the swing and result from the
 // Dojo (window.__cp), draws its own interface, and drives the same state (exit speed, launch angle, direction, temperature, wind, hand).
 // The 3D park stays the main event: each cockpit marks a placeholder element as its park window and the camera is fitted to it.
+import { pOut, clearanceOf } from './wallodds25.js'
 export const SPEC = {
   ev: { lo: 60, hi: 125, label: 'EXIT SPEED', unit: 'MPH', fmt: (v) => `${v}` },
   la: { lo: -10, hi: 60, label: 'LAUNCH ANGLE', unit: 'DEG', fmt: (v) => `${v}` },
@@ -145,7 +146,8 @@ export function evalParks(data, api) {
 // 'gone in N to M of 30 parks' for the live what-if swing: cached, debounced, updates once when ready (null in replay mode or before the carry table loads)
 // ready: what to call when the band is in (the whole engine by default; Study 25 repaints only its line, because a full update mid-swing replaced the flight with the preview)
 export function goneWord(data, api, pr, ready = () => api.update()) {
-  const n = pr.filter((r) => r.k === 'GONE').length, b = bandPeek(api.state, api.fly, data.parks, (p) => wallFnOf(data, p), ready)
+  // (10 Nov: the count is the parks' odds added up, each from how far the flight clears that park's wall: science/otherpark_study.md, wallodds25.js)
+  const n = Math.round(pr.reduce((s, r) => s + (pOut(clearanceOf(r.v), r.p.abbr) ?? (r.k === 'GONE' ? 1 : 0)), 0)), b = bandPeek(api.state, api.fly, data.parks, (p) => wallFnOf(data, p), ready)
   return b ? bandWord(b, pr.length) : `${n} OF ${pr.length}`
 }
 export function fencePoly(data, p, step = 5) {

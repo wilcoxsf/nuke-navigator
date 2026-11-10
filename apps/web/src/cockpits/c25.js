@@ -60,6 +60,7 @@ import { initStage25, RUNNER_LOOKS } from './stage25.js'
 import { initAwayWall25 } from './awaywall25.js'
 import { initBatFlip25, isNoDoubter } from './batflip25.js'
 import { nextSong } from './songs25.js'
+import { pOut, inTen } from './wallodds25.js'
 import { parkHit as parkHitM } from '../seance.js'
 import { EMBLEM_CSS, emblemEditor, emblemDataURL, DEFAULT_EMBLEM, encodeEmblem } from './emblem25.js'
 import { initWater25 } from './water25.js'
@@ -1186,7 +1187,22 @@ export async function build(root, api, U) {
   // (9 Nov) the songs: one cue helper that skips a song the private file does not have, and the hooks outside a landing
   let lastSong = null, dojoSwings = 0, forceMoment = null
   const songCue = (id, o = {}) => (jukebox.songs.some((x) => x.id === id) ? director.cue(id, o) : false)
-  const awayWall = initAwayWall25(api, { parks, wallFnOf: U.wallFnOf, onData: () => paintAwayWall() }) // (onData: the season table or the park's crest came in, draw again)
+  const awayWall = initAwayWall25(api, { parks, wallFnOf: U.wallFnOf, onData: () => paintAwayWall() })
+  // ORACLE'S CLEARANCE TAG, IN WORDS (10 Nov; science/oracle_wall_fit.md): a real ball at Oracle says what really happened; anything else (an away ball flown
+  // here, your own swing, a tweaked ball) is a what-if, and near the wall it says the odds as well (wallodds25.js)
+  window.__cpWallWords = (v) => {
+    if (!atOracle) return null
+    const c = v.kind === 'GONE' ? Math.round(v.clearBy ?? 0) : -Math.round(v.short ?? 0)
+    const real = mode === 'replay' && cur && !edited && cur.park === 'SF'
+    if (real) {
+      if (cur.hr) return c >= 2 ? ["CLEARED ORACLE'S WALL BY", `${c} FT`] : ["JUST OVER ORACLE'S WALL", null]
+      return c > 0 ? ['JUST SHORT OF THE TOP', null] : ['SHORT OF THE TOP BY', `${-c} FT`]
+    }
+    const p = pOut(c, 'SF')
+    if (p >= 0.9) return ["CLEARED ORACLE'S WALL BY", `${Math.max(0, c)} FT`]
+    if (p < 0.1) return ['SHORT OF THE TOP BY', `${Math.max(0, -c)} FT`]
+    return c >= 0 ? [`CLEARS ORACLE'S WALL BY · ${inTen(p)} GO`, `${c} FT`] : [`SHORT OF THE TOP BY · ${inTen(p)} STILL GO`, `${-c} FT`]
+  } // (onData: the season table or the park's crest came in, draw again)
   // SHOT CALLER's every way at once (9 Nov; playShot below)
   const shotGhosts = (() => {
     const { THREE, scene } = api.NN, geo = new THREE.SphereGeometry(0.9, 14, 10)
@@ -3275,7 +3291,7 @@ export async function build(root, api, U) {
   const labHooks = [() => flight.setLand(lab.LN), () => flight.setLandCol(lab.LC), () => poles?.setLook?.(lab.FP), () => coke?.setLook?.(lab.CB), () => shadow.setStyle(lab.SH), () => flight.setFlow(lab.TF), () => pix?.setDesigns({ ev: lab.CS, la: lab.CA, dir: lab.CD, temp: lab.CT, wind: lab.CW }), () => ctl3d?.setStyles({ sl: lab.SL, sk: lab.SK, th: lab.TH }), () => setTagStyle(lab.TG), () => setTagTie(lab.TT), () => lp.setStyle(lab.LP)]
   applyLab = (k) => { if (k === 'GR') stage?.sync({ ball: cur, mode }); if (k === 'LF') flight?.setFill(lab.LF); if (k === 'CM') blastFrame(); if (['BG', 'FV', 'SV', 'BK', 'PH', 'PS', 'PD', 'PP', 'PK', 'CN'].includes(k) && show === 'hm') { hmKey = ''; paintHeat() } if (k === 'CM' && show === 'hm') lookBlast(); if (k === 'BD' && show === 'hm' && hmWho) { hmKey = ''; paintHeat() } if (k === 'SA' && mode === 'shot' && scRes?.at) shotAt(scRes.at.clone(), scRes.seat, true) /* (3 Nov: a new cloud look redraws in place) */; if (k === 'OR') switchOrange(lab.OR) /* the orange first: the bomb on NUKE IT is drawn in it */; const nk = E('#c25nk'); if (nk) { nk.querySelector('.nkw').innerHTML = nukeSVG(lab.BI, 2.5, 'var(--nki)'); nk.className = 'nuke nk' + lab.BS; grid.style.setProperty('--nk', NUKE_COLORS[lab.BC]?.[1] ?? '#9dff00') } for (const f of labHooks) f(k) }
   applyLab()
-  window.__mix25 = { shotGhosts: () => shotGhosts.n(), stamp: (b) => situation(b)?.stamp ?? null, lastSong: () => lastSong, nextSong: () => nextSong(jukebox.songs.map((x) => x.id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
+  window.__mix25 = { wallWords: (v) => window.__cpWallWords?.(v) ?? null, pOut: (c, k) => pOut(c, k), shotGhosts: () => shotGhosts.n(), stamp: (b) => situation(b)?.stamp ?? null, lastSong: () => lastSong, nextSong: () => nextSong(jukebox.songs.map((x) => x.id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
     fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }

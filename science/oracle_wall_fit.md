@@ -1,0 +1,32 @@
+# Oracle Park's wall, rebuilt
+- balls at Oracle 2020-2026 in play, 280 ft and up, |bearing| <= 45: 6,338; home runs 924
+- Savant's measured Oracle fence (2023-2026 mean) at -45, -22.5, 0, +22.5, +45 deg: distance [339.8, 376.9, 391.2, 411.2, 304.1] ft, height [8.2, 8.2, 9.1, 6.5, 23.8] ft
+- the app's current wall at the same bearings: distance [342.2, 370.4, 395.3, 394.0, 308.4] ft, height [9.4, 9.4, 8.4, 21.0, 26.1] ft
+## Fit on 2020-2024, scored on 2025-2026 (each wall's odds from its own clearance)
+- the old profile (oracle_wall_v1.json): 2025-2026 balls near the wall (905): yes/no wrong 7.3% (says in but went out 3.5%, says out but stayed in 3.8%); odds Brier 0.0574
+- the app's flight wall today (the crest, oracle_crest.json): 2025-2026 balls near the wall (905): yes/no wrong 2.5% (says in but went out 1.0%, says out but stayed in 1.5%); odds Brier 0.0265
+- Savant's five points alone (straight lines between): 2025-2026 balls near the wall (905): yes/no wrong 5.5% (says in but went out 2.2%, says out but stayed in 3.3%); odds Brier 0.0427
+- the prior (model shape through Savant's points): 2025-2026 balls near the wall (905): yes/no wrong 5.2% (says in but went out 1.8%, says out but stayed in 3.4%); odds Brier 0.0397
+- fitted to the real balls (pull toward the measured wall x1.0): 2025-2026 balls near the wall (905): yes/no wrong 5.2% (says in but went out 4.1%, says out but stayed in 1.1%); odds Brier 0.0402
+- fitted to the real balls (pull toward the measured wall x1.0, with one overall offset): 2025-2026 balls near the wall (905): yes/no wrong 4.9% (says in but went out 1.7%, says out but stayed in 3.2%); odds Brier 0.0375
+- fitted to the real balls (pull toward the measured wall x0.2): 2025-2026 balls near the wall (905): yes/no wrong 4.8% (says in but went out 3.6%, says out but stayed in 1.1%); odds Brier 0.0376
+- fitted to the real balls (pull toward the measured wall x0.2, with one overall offset): 2025-2026 balls near the wall (905): yes/no wrong 4.4% (says in but went out 1.4%, says out but stayed in 3.0%); odds Brier 0.0348
+- fitted to the real balls (pull toward the measured wall x0.05): 2025-2026 balls near the wall (905): yes/no wrong 4.3% (says in but went out 3.3%, says out but stayed in 1.0%); odds Brier 0.0346
+- fitted to the real balls (pull toward the measured wall x0.05, with one overall offset): 2025-2026 balls near the wall (905): yes/no wrong 4.2% (says in but went out 1.4%, says out but stayed in 2.8%); odds Brier 0.0331
+- the crest's shape through Savant's points: 2025-2026 balls near the wall (905): yes/no wrong 5.5% (says in but went out 1.4%, says out but stayed in 4.1%); odds Brier 0.0409
+- fitted from the crest's shape (pull x0.2, with one overall offset): 2025-2026 balls near the wall (905): yes/no wrong 5.1% (says in but went out 1.1%, says out but stayed in 4.0%); odds Brier 0.0374
+- fitted from the crest's shape (pull x0.05, with one overall offset): 2025-2026 balls near the wall (905): yes/no wrong 5.2% (says in but went out 1.2%, says out but stayed in 4.0%); odds Brier 0.0361
+- the best on 2025-2026: fitted to the real balls (pull toward the measured wall x0.05, with one overall offset) (Brier 0.0331); refit on all of 2020-2026 with it
+## The wall fitted on all of 2020-2026 (distance ft / height ft every 9 deg; the app's current wall in brackets)
+- -45 deg: 340 / 8.3   [342 / 9.4]   Savant line 340 / 8.2
+- -36 deg: 353 / 8.2   [354 / 9.4]   Savant line 355 / 8.2
+- -27 deg: 364 / 8.0   [363 / 9.4]   Savant line 369 / 8.2
+- -18 deg: 382 / 8.5   [380 / 9.4]   Savant line 380 / 8.4
+- -9 deg: 387 / 9.0   [412 / 8.4]   Savant line 386 / 8.8
+- +0 deg: 393 / 9.2   [395 / 8.4]   Savant line 391 / 9.1
+- +9 deg: 399 / 8.0   [421 / 8.0]   Savant line 399 / 8.1
+- +18 deg: 408 / 7.0   [421 / 8.0]   Savant line 407 / 7.0
+- +27 deg: 381 / 14.0   [368 / 26.1]   Savant line 390 / 9.9
+- +36 deg: 343 / 18.9   [339 / 26.1]   Savant line 347 / 16.9
+- +45 deg: 304 / 23.8   [308 / 26.1]   Savant line 304 / 23.8
+- the odds: P(out) = logistic(clearance / 7.02 ft +0.74); a ball is called out when the odds pass one half (clearance above -5.2 ft)

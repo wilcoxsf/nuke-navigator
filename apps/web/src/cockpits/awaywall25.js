@@ -30,7 +30,12 @@ export function initAwayWall25(api, { parks, wallFnOf, onData }) {
   function wallOf(b) {
     const team = ALIAS[b.park] ?? b.park, yr = String(b.d ?? '').slice(0, 4)
     const f = fences?.fences?.[`${team}:${yr}`], p = parks?.parks?.find((x) => x.abbr === team)
-    if (f && !f.same_as_crest) return { fn: wallFnOf({ bearings: fences.bearings }, { abbr: team, dist: f.dist, height: f.height }), venue: f.venue, team, crest: true }
+    const now = fences?.fences?.[`${team}:2026`]
+    if (f && !f.same_as_crest && p && now && f.venue === now.venue && parks?.crests?.[team]) { // (10 Nov) the same park, its fence moved: today's crest, shifted by Savant's change between that season and today (as science/otherpark_study.py flies it)
+      const today = wallFnOf(parks, p), then = wallFnOf({ bearings: fences.bearings }, { abbr: team, dist: f.dist, height: f.height }), was = wallFnOf({ bearings: fences.bearings }, { abbr: team, dist: now.dist, height: now.height })
+      return { fn: (br) => { const c = today(br), a = then(br), z = was(br); return [c[0] + a[0] - z[0], Math.max(1, c[1] + a[1] - z[1])] }, venue: f.venue, team, crest: true }
+    }
+    if (f && !f.same_as_crest) return { fn: wallFnOf({ bearings: fences.bearings }, { abbr: team, dist: f.dist, height: f.height }), venue: f.venue, team, crest: !(now && f.venue === now.venue) } // (crest false: the same park's crest is still loading; draw it again when it comes)
     if (p) return { fn: wallFnOf(parks, p), venue: f?.venue ?? p.name, team, crest: !!parks?.crests?.[team] }
     return null
   }

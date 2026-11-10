@@ -1,0 +1,42 @@
+# Each park's wall odds on its own crest
+- balls on seasons that match today's crest: 57,266 at 30 parks
+## Fit on crest seasons to 2025, scored on 2026 (14,753 balls at 29 parks; KC has no crest season before 2026)
+- hard call wrong 2.9%; pooled odds Brier 0.0232; each park's own odds Brier 0.0213
+- own minus pooled: -0.0019 (95% -0.0027 to -0.0011, games resampled)
+- BAL 2026: 504 balls; hard call wrong 6.2%; pooled Brier 0.0581, own 0.0622
+- ATH 2026: 566 balls; hard call wrong 5.7%; pooled Brier 0.0446, own 0.0442
+- TB 2026: 552 balls; hard call wrong 7.6%; pooled Brier 0.0538, own 0.0319
+- SF 2026: 442 balls; hard call wrong 4.3%; pooled Brier 0.0421, own 0.0254
+- PIT 2026: 461 balls; hard call wrong 4.6%; pooled Brier 0.0271, own 0.0224
+- COL 2026: 562 balls; hard call wrong 3.7%; pooled Brier 0.0289, own 0.0281
+## Each park's odds now in the app (the clearance where a ball is a coin flip; Oracle's own fit is logistic(0.575 x clear + 1.585), coin flip at -2.8 ft)
+- KC: k 0.507, a +1.448; coin flip at -2.9 ft (509 balls)
+- SF: k 0.580, a +1.559; coin flip at -2.7 ft (1,843 balls)
+- NYM: k 0.713, a +0.828; coin flip at -1.2 ft (2,048 balls)
+- TOR: k 0.549, a +0.544; coin flip at -1.0 ft (2,132 balls)
+- CHC: k 0.550, a +0.195; coin flip at -0.4 ft (1,574 balls)
+- MIL: k 0.685, a +0.092; coin flip at -0.1 ft (1,478 balls)
+- DET: k 0.504, a +0.020; coin flip at -0.0 ft (1,726 balls)
+- WSH: k 0.535, a -0.102; coin flip at +0.2 ft (2,198 balls)
+- LAD: k 0.728, a -0.203; coin flip at +0.3 ft (2,172 balls)
+- STL: k 0.693, a -0.300; coin flip at +0.4 ft (1,965 balls)
+- LAA: k 0.647, a -0.282; coin flip at +0.4 ft (2,023 balls)
+- ATH: k 0.366, a -0.307; coin flip at +0.8 ft (1,122 balls)
+- ARI: k 0.504, a -0.459; coin flip at +0.9 ft (1,930 balls)
+- SEA: k 0.714, a -0.663; coin flip at +0.9 ft (1,958 balls)
+- MIA: k 0.516, a -0.695; coin flip at +1.3 ft (2,053 balls)
+- CWS: k 0.571, a -0.853; coin flip at +1.5 ft (2,063 balls)
+- BAL: k 0.255, a -0.413; coin flip at +1.6 ft (1,057 balls)
+- SD: k 0.606, a -1.033; coin flip at +1.7 ft (1,942 balls)
+- MIN: k 0.587, a -1.189; coin flip at +2.0 ft (2,239 balls)
+- PHI: k 0.542, a -1.121; coin flip at +2.1 ft (2,177 balls)
+- CLE: k 0.437, a -1.002; coin flip at +2.3 ft (2,112 balls)
+- CIN: k 0.644, a -1.519; coin flip at +2.4 ft (2,253 balls)
+- ATL: k 0.494, a -1.199; coin flip at +2.4 ft (2,177 balls)
+- TEX: k 0.442, a -1.084; coin flip at +2.5 ft (2,118 balls)
+- HOU: k 0.497, a -1.247; coin flip at +2.5 ft (2,177 balls)
+- NYY: k 0.454, a -1.382; coin flip at +3.0 ft (2,145 balls)
+- BOS: k 0.271, a -1.048; coin flip at +3.9 ft (2,201 balls)
+- PIT: k 0.437, a -1.775; coin flip at +4.1 ft (2,026 balls)
+- COL: k 0.413, a -1.744; coin flip at +4.2 ft (2,277 balls)
+- TB: k 0.339, a -2.258; coin flip at +6.7 ft (1,571 balls)
