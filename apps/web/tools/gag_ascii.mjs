@@ -1,6 +1,9 @@
 // The menu gags as text (10 Nov 2026): runs src/cockpits/menugags25.js in Node against a fake canvas and prints frames one character a pixel, so the art can be
 // checked without screenshots (Andrew: no screenshots of the Nuke Navigator UI). Usage: node tools/gag_ascii.mjs [gag] [t1,t2,...] [x0-x1]
-import { GAGS, GW, GH, U, drawGag } from '../src/cockpits/menugags25.js'
+import { GAGS as GAGS0, GW, GH, U, drawGag as drawGag0, drawGagFrom } from '../src/cockpits/menugags25.js'
+import { CAND_GAGS } from '../src/cockpits/menugags_cand25.js'
+// CAND=1 shows the candidate gags (menugags_cand25.js) instead of the twelve in the app
+const GAGS = process.env.CAND ? CAND_GAGS : GAGS0, drawGag = process.env.CAND ? (cx, k, t, a) => drawGagFrom(CAND_GAGS, cx, k, t, a) : drawGag0
 const CH = { '#0b0b0b': '#', '#ffffff': 'o', '#f5f5f5': 'w', '#f1ead2': 'c', '#e9b48c': 's', '#b97a52': 's', '#1b1b1b': 'k', '#1f5fd6': 'B', '#3b4a6b': 'j', '#c8914f': '=', '#6b3f1d': 'g',
   '#d1102a': 'R', '#8e0b1d': 'r', '#1d5f97': '~', '#3d8ccc': '-', '#dff2ff': '*', '#2c6a33': ',', '#3a7d40': ',', '#94643a': '_', '#8a8f99': ':', '#5b616b': ':', '#e6e9ee': 'v', '#f2bc40': 'y',
   '#c8102e': 'R', '#d8452a': 'C', '#962b17': 'c', '#3a3f47': '%', '#b9bec6': '.', '#c3c8cf': '.', '#d3d7dd': '.', '#7a3b2a': 'H', '#5c2a1d': 'H', '#6e5a48': 'L', '#4d3e31': 'l', '#a8713f': 'd',

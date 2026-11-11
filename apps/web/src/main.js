@@ -417,6 +417,8 @@ renderer.setAnimationLoop((t) => {
   renderer.render(quadScene, quadCam)
 })
 window.__ready = () => mats.length > 0 && window.__cmpReady === true
+/* (11 Nov, the soak test: GPU objects alive, to catch a leak over hundreds of swings) */
+window.__glInfo = () => ({ geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, calls: renderer.info.render.calls })
 
 const qs = new URLSearchParams(location.search)
 window.__cmpReady = true // (the first page's comparison strip is gone, 31 Oct; Study 25 loads its own comparisons)

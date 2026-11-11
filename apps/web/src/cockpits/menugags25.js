@@ -443,3 +443,11 @@ export function drawGag(cx, k, t, accent = '#f0802a') {
   const P = painter(cx, accent)
   g.draw(P, Math.max(0, Math.min(g.dur, t)))
 }
+// the drawing kit, for candidate gags drawn the same way (menugags_cand25.js; 10-11 Nov, overnight)
+export const GAGKIT = { C, cl, lerp, seg, eo, ei, eio, back, hold, D2R, rng, hash, dk, sprite, xf, KITS, guy, painter }
+// draw from any table of gags (the candidates' gallery)
+export function drawGagFrom(table, cx, k, t, accent = '#f0802a') {
+  const g = table[k]; if (!g) return
+  cx.clearRect(0, 0, GW * U, GH * U)
+  g.draw(painter(cx, accent), Math.max(0, Math.min(g.dur, t)))
+}

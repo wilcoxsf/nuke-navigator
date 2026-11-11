@@ -229,13 +229,17 @@ export function landNumber(api, o) {
   g.userData.rect = () => (outer.userData.settled && shown(outer) ? outer.userData.read?.rect ?? null : null)
   // for the touches (touches25.js): the top of the number in the world, its width and scale, the camera's right
   g.userData.perch = () => { const sc = outer.scale.x || 1, p = outer.getWorldPosition(new THREE.Vector3()); return { top: p.clone().add(new THREE.Vector3(0, px * 7 * sc * (inner.scale.y || 1), 0)), w: (num?.userData.width ?? 10) * sc, sc, R: new THREE.Vector3(1, 0, 0).applyQuaternion(api.NN.camera.quaternion).setY(0).normalize(), live: !!outer.parent && shown(outer) && !!outer.userData.settled && !plan?.dip } }
-  hover.add(g)
+  hover.add(g); g.userData.born = outer.userData.born = performance.now()
   live.add(outer)
   if (!hooked) {
     hooked = true
+    /* (11 Nov, the soak test: a number whose track has left the scene still has a parent, the track, so "no parent" never let go of it, and every old track stayed
+       alive through this hover set, about 0.3 MB a swing. Now both sets let go once the number's root is not the scene: after it has been seen there, or 5 s on) */
+    const gone = (n, now) => { let r = n; while (r.parent) r = r.parent; if (r === api.NN.scene) { n.userData.seen = true; return false } return n.userData.seen || now - (n.userData.born ?? 0) > 5000 }
     api.NN.frames.push(() => {
       const now = performance.now()
-      for (const n of live) { let r = n; while (r.parent) r = r.parent; if (r !== api.NN.scene && n.userData.seen) { live.delete(n); continue } if (r === api.NN.scene) n.userData.seen = true; n.userData.tick(now) }
+      for (const g of hover) if (gone(g, now)) hover.delete(g)
+      for (const n of live) { if (gone(n, now)) { live.delete(n); continue } n.userData.tick(now) }
       for (let i = chips.length - 1; i >= 0; i--) if (!chips[i]()) chips.splice(i, 1)
     })
     // TOUCH: a click on a settled number (a press and a let-go that barely moved) counts it up again
