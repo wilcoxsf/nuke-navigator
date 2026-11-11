@@ -24,7 +24,7 @@ for (const [n, want] of [[1, 'replay'], [2, 'whatif'], [3, 'shot'], [5, 'whatif'
 // the jukebox by touch: open it, play a song, close it
 await page.tap('#c25mn'); await wait(700); await page.tap('.c25 .sm .smi:nth-child(6)'); await wait(1200)
 const jk = await ev(() => ({ open: document.querySelector('#c25m')?.classList.contains('open'), rows: document.querySelectorAll('#c25mb [data-song]').length }))
-say(jk.open && jk.rows > 50, '3a JUKEBOX from the menu by touch', jk)
+say(jk.open && jk.rows >= 1, '3a JUKEBOX from the menu by touch (11 Nov: it lists the songs you have guessed; a fresh one has the walk-off song)', jk)
 await page.tap('#c25mb [data-song] b'); await wait(1000)
 const pl = await ev(() => window.__mix25.jukebox.playing()); say(!!pl, '3b a tapped song plays', { pl })
 const close = await visible('#c25cl'); say(close, '3c the window has a CLOSE a thumb can reach', {})

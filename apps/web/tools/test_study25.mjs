@@ -5,6 +5,11 @@
 // setting, contact spark, fireworks on a home run, a splash hit with its banner and kayaks, Karl's fog), another park's team color, and phones.
 // Usage: node tools/test_study25.mjs [base url]
 import { chromium } from 'playwright-core'
+// (11 Nov: the guessing jukebox; the song file has opaque ids and no titles, so the tests work out the ids and type the titles from the private songbook)
+import { readFileSync as _rf } from 'fs'
+import { createHash as _ch } from 'crypto'
+const SONGBOOK = JSON.parse(_rf('C:/Users/andrewwi/Documents/NukeNavigator/songbook/songs_full.json', 'utf8')).songs
+const oid = (sid) => 'k' + _ch('sha256').update('nn-id|' + sid).digest('hex').slice(0, 10), titleOf = (sid) => SONGBOOK.find((x) => x.id === sid).name
 
 const base = process.argv[2] ?? 'http://localhost:5175'
 const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] })
@@ -389,7 +394,7 @@ if (!process.env.PHONE_ONLY && on('B')) {
     await page.click('#c25nk'); await page.waitForTimeout(300); await page.keyboard.press(']'); await page.waitForTimeout(4000)
     const f3 = await page.evaluate(() => ({ f: window.__mix25.fires(), busy: window.__mix25.pitchCam().busy() }))
     check('a new ball during the pitch calls the pitch off (nothing fires)', f3.f === f2 && !f3.busy, JSON.stringify({ f2, f3 }))
-    await page.evaluate(() => { localStorage.setItem('nn-snd', '1'); window.__mix25.jukebox.play('byebye') }) // (9 Nov: the old songs are cut; a private-file song); await page.waitForTimeout(300)
+    await page.evaluate(() => { localStorage.setItem('nn-snd', '1'); window.__mix25.jukebox.play(window.__mix25.jukebox.songs.find((x) => x.id !== 'sf').id) }) // (11 Nov: opaque ids now) (9 Nov: the old songs are cut; a private-file song); await page.waitForTimeout(300)
     await page.keyboard.press('s'); await page.waitForTimeout(300)
     const off = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), on: localStorage.getItem('nn-snd') }))
     await page.keyboard.press('s'); await page.waitForTimeout(200)
@@ -440,7 +445,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   await page.keyboard.press('j'); await page.waitForTimeout(500)
   const jb = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), rows: document.querySelectorAll('#c25mb .jk, #c25mb [data-song]').length, mix: document.querySelectorAll('#c25mb [data-snd]').length, t: document.querySelector('#c25mt')?.textContent }))
   const songs = await page.evaluate(() => window.__mix25.jukebox.songs.map((x) => x.id).sort().join())
-  check('J opens THE JUKEBOX (the song list, the sound levels folded under it), and the songs are the ones kept', jb.open && jb.rows >= 60 && jb.mix === 4 && /J U K E B O X/.test(jb.t) && /byebye/.test(songs) && !/imperial/.test(songs) /* (10 Nov: the Star Wars track is out too) */ && /(^|,)sf(,|$)/.test(songs) && !/ballgame|charge|anthem|mountain|sailor|valkyries|saints|hava|ode|cancan|tell|(^|,)imperial(,|$)|(^|,)entertainer(,|$)/.test(songs) /* (9 Nov: his song picks) */, JSON.stringify({ ...jb, songs }))
+  check('J opens THE JUKEBOX (the song list, the sound levels folded under it), and the songs are the ones kept', jb.open && jb.rows >= 1 && jb.mix === 4 && /J U K E B O X/.test(jb.t) && songs.split(',').includes(oid('byebye')) && /* (11 Nov: the list is the songs you have guessed; a fresh one has the walk-off song) */ !/imperial/.test(songs) /* (10 Nov: the Star Wars track is out too) */ && /(^|,)sf(,|$)/.test(songs) && !/ballgame|charge|anthem|mountain|sailor|valkyries|saints|hava|ode|cancan|tell|(^|,)imperial(,|$)|(^|,)entertainer(,|$)/.test(songs) /* (9 Nov: his song picks) */, JSON.stringify({ ...jb, songs }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)

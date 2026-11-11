@@ -2,6 +2,11 @@
 // cancels what it scheduled when it is closed or a tab changes. No screenshots: state is read from the page.
 // Usage: node tools/test_study25_life.mjs [base url]
 import { chromium } from 'playwright-core'
+// (11 Nov: the guessing jukebox; the song file has opaque ids and no titles, so the tests work out the ids and type the titles from the private songbook)
+import { readFileSync as _rf } from 'fs'
+import { createHash as _ch } from 'crypto'
+const SONGBOOK = JSON.parse(_rf('C:/Users/andrewwi/Documents/NukeNavigator/songbook/songs_full.json', 'utf8')).songs
+const oid = (sid) => 'k' + _ch('sha256').update('nn-id|' + sid).digest('hex').slice(0, 10), titleOf = (sid) => SONGBOOK.find((x) => x.id === sid).name
 
 const base = process.argv[2] ?? 'http://localhost:5195'
 const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
@@ -137,7 +142,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 }
 // ---- 4c. (9 Nov, later) THE SONGS: his picks, whole, loaded; a shuffled bag deals every one before any repeats ----
 {
-  const r = await page.evaluate(() => { const S = window.__mix25.jukebox.songs.map((x) => x.id), n = S.length, d = []; for (let i = 0; i < n * 3; i++) d.push(window.__mix25.nextSong()); const c = S.map((id) => d.filter((x) => x === id).length); return { n, min: Math.min(...c), max: Math.max(...c), twice: d.filter((x, i) => i && x === d[i - 1]).length, len: window.__mix25.jukebox.length('getlucky') } }) // (three bags' worth: the home runs before this may have started one)
+  const r = await page.evaluate((GL) => { const S = window.__mix25.jukebox.songs.map((x) => x.id), n = S.length, d = []; for (let i = 0; i < n * 3; i++) d.push(window.__mix25.nextSong()); const c = S.map((id) => d.filter((x) => x === id).length); return { n, min: Math.min(...c), max: Math.max(...c), twice: d.filter((x, i) => i && x === d[i - 1]).length, len: window.__mix25.jukebox.length(GL) } }, oid('getlucky')) // (three bags' worth: the home runs before this may have started one)
   check('the songs are his picks, whole (54 with the walk-off song), dealt off a shuffled bag: every one before any comes a third time, never twice running', r.n >= 54 && r.min >= 2 && r.max <= 4 && r.twice === 0 && r.len > 120, JSON.stringify(r))
   // (10 Nov) the songs are the background music: one is always on once the page has had a click, the ambient bed (bay, gulls, ferry) is off, the Star Wars track is out
   const on = await until(() => !!window.__mix25.jukebox.playing(), 8000)
@@ -150,25 +155,28 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   await page.click('#c25sk'); await page.waitForTimeout(900)
   const s1 = await page.evaluate(() => window.__mix25.jukebox.playing())
   check('SKIP plays a different song straight away', !!s1 && s1 !== s0, JSON.stringify({ s0, s1 }))
+  // (11 Nov) the guessing jukebox: five songs guessed first (each played, then named), then the jukebox lists those and the walk-off song
+  for (const sid of ['billiejean', 'getlucky', 'hounddog', 'roxanne', 'starboy']) { await page.evaluate((id) => window.__mix25.jukebox.play(id), oid(sid)); await page.waitForTimeout(250); const ok = await page.evaluate((t) => window.__mix25.guess(t), titleOf(sid)); if (!ok) console.log('FAIL could not guess', sid) }
+  const s1g = oid('starboy')
   await page.evaluate(() => { document.activeElement?.blur?.() }); await page.keyboard.press('j'); await page.waitForTimeout(900)
   const jk = await page.evaluate(() => { const rows = [...document.querySelectorAll('#c25mb [data-song]')]; return { n: rows.length, on: rows.find((r) => r.classList.contains('on'))?.dataset.song ?? null, pick: rows.find((r) => !r.classList.contains('on'))?.dataset.song } })
   await page.click(`#c25mb [data-song="${jk.pick}"] b`); await page.waitForTimeout(900)
   const s2 = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), on: document.querySelector('#c25mb .jk.on')?.dataset.song ?? null }))
-  check('JUKEBOX lists every song with the one playing marked, and a click plays that one', jk.n >= 60 && jk.on === s1 && s2.playing === jk.pick && s2.on === jk.pick, JSON.stringify({ jk, s2 }))
+  check('JUKEBOX lists the songs you have guessed (five and the walk-off song) with the one playing marked, and a click plays that one', jk.n === 6 && jk.on === s1g && s2.playing === jk.pick && s2.on === jk.pick, JSON.stringify({ jk, s2 }))
   // (10 Nov, later) the mini player: search, + QUEUE (it plays next, before the shuffle), PAUSE and PLAY again from where it was
   await page.fill('#jks', 'billie'); await page.waitForTimeout(400)
   const sr = await page.evaluate(() => [...document.querySelectorAll('#c25mb [data-song]')].map((r) => r.dataset.song))
-  check('the jukebox search finds a song by its name', sr.length >= 1 && sr.includes('billiejean') && sr.length < 5, JSON.stringify(sr))
-  await page.click('#c25mb [data-jq="billiejean"]'); await page.waitForTimeout(300)
+  check('the jukebox search finds a song you have by its name', sr.length >= 1 && sr.includes(oid('billiejean')) && sr.length < 5, JSON.stringify(sr))
+  await page.click(`#c25mb [data-jq="${oid('billiejean')}"]`); await page.waitForTimeout(300)
   const q1 = await page.evaluate(() => document.querySelector('#jkq').textContent)
   await page.click('#jksk'); await page.waitForTimeout(900)
   const q2 = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), q: document.querySelector('#jkq').textContent }))
-  check('+ QUEUE puts it up next, and SKIP plays the queue before the shuffle', /BILLIE JEAN/.test(q1) && q2.playing === 'billiejean' && /NOTHING QUEUED/.test(q2.q), JSON.stringify({ q1, q2 }))
+  check('+ QUEUE puts it up next, and SKIP plays the queue before the shuffle', /BILLIE JEAN/.test(q1) && q2.playing === oid('billiejean') && /NOTHING QUEUED/.test(q2.q), JSON.stringify({ q1, q2 }))
   await page.waitForTimeout(1500); await page.click('#jkpp'); await page.waitForTimeout(1300)
   const pz = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), btn: document.querySelector('#jkpp').textContent }))
   await page.click('#jkpp'); await page.waitForTimeout(900)
   const pl = await page.evaluate(() => ({ at: window.__mix25.jukebox.at(), btn: document.querySelector('#jkpp').textContent }))
-  check('PAUSE stops it and the shuffle waits; PLAY carries on from where it was', pz.playing === null && pz.btn === 'PLAY' && pl.at?.id === 'billiejean' && pl.at.t > 0.5 && pl.btn === 'PAUSE', JSON.stringify({ pz, pl }))
+  check('PAUSE stops it and the shuffle waits; PLAY carries on from where it was', pz.playing === null && pz.btn === 'PLAY' && pl.at?.id === oid('billiejean') && pl.at.t > 0.5 && pl.btn === 'PAUSE', JSON.stringify({ pz, pl }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(600)
   // (10 Nov, later) the menu's gags: twelve, no mock game, and not one letter drawn in any frame of any of them
   const gg = await page.evaluate(() => {

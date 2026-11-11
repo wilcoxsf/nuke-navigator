@@ -890,7 +890,7 @@ export async function build(root, api, U) {
 #cp .c25 .btab .r b.y{color:var(--acc)}
 #cp .c25 .btab .r b.n{color:var(--dim)}
 #cp .c25 .btab .r.mo{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.2fr);font-size:17px}
-#cp .c25 .btab .r.mo b{text-align:right}#cp .c25 .btab.jkl .r.jk{grid-template-columns:minmax(0,1fr) auto auto;cursor:pointer;font-size:17px;align-items:center}#cp .c25 .jkb{display:grid;gap:10px;pointer-events:auto}#cp .c25 .jkn{display:grid;gap:6px;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .jkt{display:grid;gap:2px}#cp .c25 .jkt span{color:var(--dim);font-size:13px;letter-spacing:.12em}#cp .c25 .jkt b{font-weight:400;font-size:22px;color:var(--acc)}#cp .c25 .jkbar{height:6px;border:1px solid var(--tx)}#cp .c25 .jkbar i{display:block;height:100%;background:var(--acc);width:0}#cp .c25 .jkr{display:flex;gap:6px 10px;align-items:center;justify-content:space-between;flex-wrap:wrap}#cp .c25 .jkb,#cp .c25 .jkb>*,#cp .c25 .jkn,#cp .c25 .jkt{min-width:0}#cp .c25 .jkt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap} /* (the phone: the SOUND button made the row too wide) */#cp .c25 .jkr .bt{min-width:6em;text-align:center}#cp .c25 .jks{font:inherit;font-size:17px;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:6px 8px;width:100%;box-sizing:border-box}#cp .c25 .jks:focus{outline:none}#cp .c25 .jkc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16em);gap:14px}@media (max-width:700px){#cp .c25 .jkc{grid-template-columns:minmax(0,1fr)}}#cp .c25 .btab.jkl{max-height:46vh;overflow:auto}#cp .c25 .jkq{display:grid;gap:4px}#cp .c25 .jqi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;font-size:17px}#cp .c25 .jqi span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#cp .c25 .jke{color:var(--dim);font-size:15px}#cp .c25 .jkm summary{cursor:pointer;color:var(--dim);letter-spacing:.12em;font-size:13px}#cp .c25 .btab.jkl .r.jk:hover,#cp .c25 .btab.jkl .r.jk:focus-visible{outline:1px solid var(--acc)}#cp .c25 .btab.jkl .r.jk span{overflow:hidden;text-overflow:ellipsis}#cp .c25 .btab.jkl .r.jk.on{color:var(--acc)}
+#cp .c25 .btab .r.mo b{text-align:right}#cp .c25 .btab.jkl .r.jk{grid-template-columns:minmax(0,1fr) auto auto;cursor:pointer;font-size:17px;align-items:center}#cp .c25 .jkb{display:grid;gap:10px;pointer-events:auto}#cp .c25 .jkn{display:grid;gap:6px;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .jkt{display:grid;gap:2px}#cp .c25 .jkt span{color:var(--dim);font-size:13px;letter-spacing:.12em}#cp .c25 .jkt b{font-weight:400;font-size:22px;color:var(--acc)}#cp .c25 .jkbar{height:6px;border:1px solid var(--tx)}#cp .c25 .jkbar i{display:block;height:100%;background:var(--acc);width:0}#cp .c25 .jkr{display:flex;gap:6px 10px;align-items:center;justify-content:space-between;flex-wrap:wrap}#cp .c25 .jkb,#cp .c25 .jkb>*,#cp .c25 .jkn,#cp .c25 .jkt{min-width:0}#cp .c25 .jkt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#cp .c25 .jkhn{color:var(--hint,#7fb0d9)}#cp .c25 .jkt b .jkhn{color:var(--hint,#7fb0d9)}#cp .c25 .jky{color:var(--dim);font-size:.75em}#cp .c25 .jky.jkhn{color:var(--hint,#7fb0d9)}#cp .c25 .jkg{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:stretch}#cp .c25 .jkg .bt{display:flex;align-items:center;justify-content:center;min-width:6em}#cp .c25 .jkhr .bt[aria-disabled]{cursor:default;letter-spacing:.2em}#cp .c25 .jkgn{color:var(--dim);font-size:15px}#cp .c25 .jkyes{color:var(--acc)} /* (the phone: the SOUND button made the row too wide) */#cp .c25 .jkr .bt{min-width:6em;text-align:center}#cp .c25 .jks{font:inherit;font-size:17px;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:6px 8px;width:100%;box-sizing:border-box}#cp .c25 .jks:focus{outline:none}#cp .c25 .jkc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16em);gap:14px}@media (max-width:700px){#cp .c25 .jkc{grid-template-columns:minmax(0,1fr)}}#cp .c25 .btab.jkl{max-height:46vh;overflow:auto}#cp .c25 .jkq{display:grid;gap:4px}#cp .c25 .jqi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;font-size:17px}#cp .c25 .jqi span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#cp .c25 .jke{color:var(--dim);font-size:15px}#cp .c25 .jkm summary{cursor:pointer;color:var(--dim);letter-spacing:.12em;font-size:13px}#cp .c25 .btab.jkl .r.jk:hover,#cp .c25 .btab.jkl .r.jk:focus-visible{outline:1px solid var(--acc)}#cp .c25 .btab.jkl .r.jk span{overflow:hidden;text-overflow:ellipsis}#cp .c25 .btab.jkl .r.jk.on{color:var(--acc)}
 #cp .c25 .ddk{color:var(--acc);font-size:15px}
 #cp .c25 .ddbig{font-size:54px;line-height:1}
 #cp .c25 .dds{color:var(--dim);font-size:17px}
@@ -1878,12 +1878,46 @@ export async function build(root, api, U) {
   // let's add a queue button too. Simple little music player that you then escape out of and use the app"): what is playing with its progress, PAUSE and SKIP; a
   // search over the songs; PLAY or + QUEUE on each; UP NEXT (the queue plays first, then the shuffle carries on); the sound levels folded away underneath
   let jkQ = '', jkQueue = [], jkPaused = null
+  // THE GUESSING JUKEBOX (11 Nov, Andrew: "it doesn't show the name of the song unless a user guesses the song ... you can only actually replay or choose or cue the
+  // songs that you have actually guessed"; then: no limit on guesses but count them, just the song title, separate hints for the blanks and the year, and a hinted
+  // part shows in another colour). Every song but the walk-off one comes with no name (songbook/build_songbook.py): a check hash per spelling that counts, and the
+  // title sealed with that spelling, so only a right guess can read it. Only the song playing can be guessed. What you have unlocked stays in this browser
+  // ('nn-jk-1'); names, guesses and hints per song, for the leaderboards once there are logins on the token site.
+  const JK_KEY = 'nn-jk-1'
+  let jkMe = { u: {}, g: {}, h: {} }, jkGuessText = '', jkSaid = null
+  try { const v = JSON.parse(localStorage.getItem(JK_KEY) || 'null'); if (v && typeof v === 'object') jkMe = { u: v.u || {}, g: v.g || {}, h: v.h || {} } } catch (e) { /* (private window: nothing kept) */ }
+  const jkSave = () => { try { localStorage.setItem(JK_KEY, JSON.stringify(jkMe)) } catch (e) { /* (private window) */ } }
+  const songOf = (id) => jukebox.songs.find((x) => x.id === id)
+  const known = (id) => { const x = songOf(id); return !!x && (!x.lock || !!jkMe.u[id]) }
+  const songName = (id) => { const x = songOf(id); return !x ? '' : x.lock ? jkMe.u[id]?.name ?? '' : x.name ?? '' }
+  const jkTitleNorm = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/&/g, ' AND ').replace(/['\u2019\u2018`]/g, '').replace(/[^A-Z0-9]+/g, ' ').trim()
+  const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))]
+  const hexOf = (b) => b.map((x) => x.toString(16).padStart(2, '0')).join('')
+  async function jkOpen(id, v, c) { const b = Uint8Array.from(atob(c), (ch) => ch.charCodeAt(0)), ks = []; for (let i = 0; ks.length < b.length; i++) ks.push(...(await sha(`nn-key|${id}|${v}|${i}`))); return new TextDecoder().decode(b.map((x, i) => x ^ ks[i])) }
+  const jkNowId = () => jukebox.at()?.id ?? jkPaused?.id ?? null
+  // a guess at the song playing: true (unlocked), false (counted, wrong), null (nothing to guess)
+  async function jkGuess(text) {
+    const id = jkNowId(), x = songOf(id)
+    if (!x?.lock || jkMe.u[id] || !globalThis.crypto?.subtle) return null
+    const g = jkTitleNorm(text); if (!g) return null
+    jkMe.g[id] = (jkMe.g[id] || 0) + 1
+    const tries = [...new Set([g, g.replace(/^THE /, '')].flatMap((v) => [v, v.replace(/ /g, '')]))]
+    for (const v of tries) {
+      const chk = hexOf(await sha(`nn-check|${id}|${v}`)).slice(0, 20), hit = x.lock.v.find((p) => p[0] === chk)
+      if (hit) { const h = jkMe.h[id] || {}; jkMe.u[id] = { name: await jkOpen(id, v, hit[1]), n: jkMe.g[id], hb: !!h.b, hy: !!h.y, at: Date.now() }; jkSave(); return true }
+    }
+    jkSave(); return false
+  }
+  function jkHint(kind) { const id = jkNowId(), x = songOf(id); if (!x?.lock || jkMe.u[id]) return; (jkMe.h[id] ??= {})[kind] = true; jkSave() }
+  // one song's title (and year) as you have it: the hinted part in the hint colour
+  const jkTitle = (id) => { const x = songOf(id), u = jkMe.u[id]; if (!x) return ''; if (!x.lock) return jkEsc(x.name ?? ''); if (!u) return '? ? ?'; return `<span class="${u.hb ? 'jkhn' : ''}">${jkEsc(u.name)}</span>${x.lock.year ? ` <span class="jky${u.hy ? ' jkhn' : ''}">${x.lock.year}</span>` : ''}` }
+  const jkTally = () => { const L = jukebox.songs.filter((x) => x.lock), U = L.filter((x) => jkMe.u[x.id]), blind = U.filter((x) => !jkMe.u[x.id].hb && !jkMe.u[x.id].hy).length; return { n: U.length, of: L.length, blind, hinted: U.length - blind, guesses: U.reduce((a, x) => a + (jkMe.u[x.id].n || 0), 0) } }
   const jkEsc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
   const mmss = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`
   const jkNorm = (x) => x.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
   function paintJukebox(body) {
     E('#c25mt').textContent = '/ J U K E B O X /'
-    body.innerHTML = `<div class="jkb"><div class="jkn" id="jkn"></div><input class="jks" id="jks" type="search" placeholder="SEARCH THE SONGS" aria-label="search the songs" autocomplete="off" value="${jkEsc(jkQ)}">
+    body.innerHTML = `<div class="jkb"><div class="jkn" id="jkn"></div><input class="jks" id="jks" type="search" placeholder="SEARCH YOUR SONGS" aria-label="search the songs you have guessed" autocomplete="off" value="${jkEsc(jkQ)}">
       <div class="jkc"><div><div class="bulh" id="jkh"></div><div class="btab jkl" id="jkl"></div></div><div><div class="bulh">UP NEXT</div><div class="jkq" id="jkq"></div></div></div>
       <details class="jkm"><summary>SOUND LEVELS</summary>${sound.mixerHTML()}</details></div>`
     sound.bindMixer(body)
@@ -1897,10 +1931,22 @@ export async function build(root, api, U) {
   function jkNowPaint0() {
     const el = E('#jkn'); if (!el) return
     const a = jukebox.at(), id = a?.id ?? jkPaused?.id ?? null
-    el.innerHTML = `<div class="jkt"><span>${jkPaused ? 'PAUSED' : a ? 'NOW PLAYING' : 'NOTHING PLAYING YET'}</span><b>${id ? jkEsc(songName(id)) : 'PICK ONE'}</b></div><div class="jkbar"><i id="jkbi"></i></div><div class="jkr"><span id="jkt0">0:00</span><span class="bt" id="jkpp" role="button" tabindex="0">${jkPaused ? 'PLAY' : 'PAUSE'}</span><span class="bt" id="jksk" role="button" tabindex="0">SKIP</span><span class="bt" id="jkso" role="button" tabindex="0" title="the sound, all of it (S)">${sound.on() ? 'SOUND OFF' : 'SOUND ON'}</span><span id="jkt1">0:00</span></div>`
+    const x = id ? songOf(id) : null, locked = !!x?.lock && !jkMe.u[id], h = (id && jkMe.h[id]) || {}, gs = (id && jkMe.g[id]) || 0
+    const guessBox = locked ? `<div class="jkg"><input class="jks" id="jkgi" type="text" placeholder="NAME THAT SONG" aria-label="guess the song playing" autocomplete="off" spellcheck="false" value="${jkEsc(jkGuessText)}"><span class="bt" id="jkgo" role="button" tabindex="0">GUESS</span></div>
+      <div class="jkr jkhr"><span class="bt" id="jkhb" role="button" tabindex="0"${h.b ? ' aria-disabled="true"' : ''}>${h.b ? `<span class="jkhn">${jkEsc(x.lock.mask)}</span>` : 'HINT: THE BLANKS'}</span><span class="bt" id="jkhy" role="button" tabindex="0"${h.y ? ' aria-disabled="true"' : ''}>${h.y ? `<span class="jkhn">${x.lock.year ?? 'NO YEAR ON FILE'}</span>` : 'HINT: THE YEAR'}</span><span class="jkgn">${jkSaid === 'no' ? 'NOPE. ' : ''}${gs ? `${gs} GUESS${gs === 1 ? '' : 'ES'}` : 'NO GUESSES YET'}</span></div>` : ''
+    const got = jkSaid === 'yes' && id && jkMe.u[id] ? `<div class="jkgn jkyes">GOT IT IN ${jkMe.u[id].n}${jkMe.u[id].hb || jkMe.u[id].hy ? ', WITH A HINT' : ', BLIND'}. IT IS IN YOUR JUKEBOX NOW</div>` : ''
+    el.innerHTML = `<div class="jkt"><span>${jkPaused ? 'PAUSED' : a ? 'NOW PLAYING' : 'NOTHING PLAYING YET'}</span><b>${id ? jkTitle(id) : 'PICK ONE'}</b></div>${guessBox}${got}<div class="jkbar"><i id="jkbi"></i></div><div class="jkr"><span id="jkt0">0:00</span><span class="bt" id="jkpp" role="button" tabindex="0">${jkPaused ? 'PLAY' : 'PAUSE'}</span><span class="bt" id="jksk" role="button" tabindex="0">SKIP</span><span class="bt" id="jkso" role="button" tabindex="0" title="the sound, all of it (S)">${sound.on() ? 'SOUND OFF' : 'SOUND ON'}</span><span id="jkt1">0:00</span></div>`
     const pp = el.querySelector('#jkpp'), sk = el.querySelector('#jksk'), key = (b, f) => { b.addEventListener('click', f); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); f() } }) }
     const so = el.querySelector('#jkso'); key(so, () => { pressEl(so); soundKey() }) // (the third red team, 3: a phone had no way to turn it off)
     key(pp, () => { pressEl(pp); jkPause() }); key(sk, () => { pressEl(sk); if (!sound.on()) sound.set(true); jkPaused = null; bgNext() })
+    const gi = el.querySelector('#jkgi')
+    if (gi) {
+      const go = async () => { const t = gi.value; if (!jkTitleNorm(t)) return; const r = await jkGuess(t); if (r === null) return; jkSaid = r ? 'yes' : 'no'; if (r) { jkGuessText = ''; sound.play('banner') } else sound.play('back'); jkNowPaint(); jkList(); if (!r) { const g2 = E('#jkgi'); g2?.focus(); g2?.select() } }
+      gi.addEventListener('input', () => { jkGuessText = gi.value })
+      gi.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go() } })
+      key(el.querySelector('#jkgo'), () => { pressEl(el.querySelector('#jkgo')); go() })
+      for (const [sel, kind] of [['#jkhb', 'b'], ['#jkhy', 'y']]) { const b = el.querySelector(sel); key(b, () => { if (b.getAttribute('aria-disabled')) return; pressEl(b); sound.play('pick'); jkHint(kind); jkNowPaint() }) }
+    }
     jkTick()
   }
   function jkTick() {
@@ -1911,9 +1957,9 @@ export async function build(root, api, U) {
   function jkList() { jkFocus(jkList0) }
   function jkList0() {
     const el = E('#jkl'); if (!el) return
-    const q = jkNorm(jkQ).trim(), now = jukebox.playing() ?? jkPaused?.id, L = jukebox.songs.filter((x) => !q || jkNorm(x.name).includes(q))
-    E('#jkh').textContent = q ? `${L.length} OF ${jukebox.songs.length} SONGS` : `${jukebox.songs.length} SONGS`
-    el.innerHTML = L.length ? L.map((x) => `<div class="r mo jk${x.id === now ? ' on' : ''}" data-song="${jkEsc(x.id)}" role="button" tabindex="0" title="play it now"><span>${jkEsc(x.name)}</span><b>${x.id === now ? (jkPaused ? 'PAUSED' : 'PLAYING') : 'PLAY'}</b><span class="bt" data-jq="${jkEsc(x.id)}" role="button" tabindex="0" title="play it after this one (and anything already queued)">+ QUEUE</span></div>`).join('') : (jukebox.songs.length ? '<div class="jke">NOTHING BY THAT NAME</div>' : '<div class="jke">THE SONGS ARE ON THEIR WAY...</div>')
+    const q = jkNorm(jkQ).trim(), now = jukebox.playing() ?? jkPaused?.id, mine = jukebox.songs.filter((x) => known(x.id)), L = mine.filter((x) => !q || jkNorm(songName(x.id)).includes(q)), T = jkTally()
+    E('#jkh').textContent = `YOUR JUKEBOX: ${T.n} OF ${T.of} GUESSED (${T.blind} BLIND, ${T.hinted} WITH A HINT)${q ? ` · ${L.length} FOUND` : ''}`
+    el.innerHTML = L.length ? L.map((x) => `<div class="r mo jk${x.id === now ? ' on' : ''}" data-song="${jkEsc(x.id)}" role="button" tabindex="0" title="play it now"><span>${jkTitle(x.id)}</span><b>${x.id === now ? (jkPaused ? 'PAUSED' : 'PLAYING') : 'PLAY'}</b><span class="bt" data-jq="${jkEsc(x.id)}" role="button" tabindex="0" title="play it after this one (and anything already queued)">+ QUEUE</span></div>`).join('') : (jukebox.songs.length ? (q ? '<div class="jke">NOTHING YOU HAVE GUESSED BY THAT NAME</div>' : '<div class="jke">NOTHING GUESSED YET. NAME THE SONG PLAYING TO ADD IT</div>') : '<div class="jke">THE SONGS ARE ON THEIR WAY...</div>')
     el.querySelectorAll('[data-song]').forEach((r) => { const go = () => { if (!sound.on()) sound.set(true); jkPaused = null; bgNext(r.dataset.song) }; r.addEventListener('click', go); r.addEventListener('keydown', (e) => { if (e.target !== r) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go() } }) })
     el.querySelectorAll('[data-jq]').forEach((b) => { const go = (e) => { e.stopPropagation(); pressEl(b); sound.play('pick'); jkQueue.push(b.dataset.jq); jkQueuePaint() }; b.addEventListener('click', go); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(e) } }) })
   }
@@ -2035,7 +2081,6 @@ export async function build(root, api, U) {
   // his songs play one after another, whole, off the shuffled bag (songs25.js), whatever the page is doing; S stops it, S again starts the next one
   // (10 Nov, later, Andrew: "can we get a skip button and a jukebox button again?"): SKIP plays the next song off the bag now; JUKEBOX (J) lists them all, a click
   // plays that one, and the shuffle carries on after it
-  const songName = (id) => jukebox.songs.find((x) => x.id === id)?.name ?? ''
   function bgNext(id) {
     const q = id ?? jkQueue.shift(), n = q ?? nextSong(jukebox.songs.map((x) => x.id)); if (!n) return false // (the jukebox's queue first, then the shuffled bag)
     if (q) markPlayed(q) // (GPT red team 5)
@@ -2049,7 +2094,7 @@ export async function build(root, api, U) {
   setInterval(() => {
     if (director.now && !jukebox.playing()) director.now = null // (a song stopped early, not by its end: the next one still comes)
     const p = jukebox.playing()
-    if (p !== shownSong) { shownSong = p; const sk = E('#c25sk'); if (sk) sk.title = p ? `skip ${songName(p)}` : 'skip to the next song'; if (modal === 'jukebox') { jkNowPaint(); jkList(); jkQueuePaint() } }
+    if (p !== shownSong) { shownSong = p; jkSaid = null; jkGuessText = ''; const sk = E('#c25sk'); if (sk) sk.title = p && known(p) ? `skip ${songName(p)}` : 'skip to the next song'; if (modal === 'jukebox') { jkNowPaint(); jkList(); jkQueuePaint() } }
     else if (modal === 'jukebox') jkTick()
     if (jkPaused || !sound.on() || !gesturedYet() || director.wait || p || !jukebox.songs.length) return
     bgNext()
@@ -3445,7 +3490,7 @@ export async function build(root, api, U) {
   applyLab()
   for (const ev of ['nn-wallodds', 'nn-crests']) addEventListener(ev, () => { try { if (!flying && !api.anim?.()) api.update() } catch {} }) // (GPT red team 8)
   window.__mix25 = { dojoPark: (k) => { if (k !== undefined) { dojoPark = k; paintAwayWall(); paintChooser(); api.update() } return dojoPark }, shotFrame: () => shotFrame, cornerFit: () => cornerFit, wallWords: (v) => window.__cpWallWords?.(v) ?? null, pOut: (c, k) => pOut(c, k), shotGhosts: () => shotGhosts.n(), stamp: (b) => situation(b)?.stamp ?? null, lastSong: () => lastSong, nextSong: () => nextSong(jukebox.songs.map((x) => x.id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
-    fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, lands: () => lands, fires: () => fires,
+    fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, guess: (t) => jkGuess(t), hint: (k) => jkHint(k), mine: () => JSON.parse(JSON.stringify(jkMe)), forget: () => { jkMe = { u: {}, g: {}, h: {} }; jkSave() }, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }
   return {
