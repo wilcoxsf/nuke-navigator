@@ -580,6 +580,7 @@ const PHONE_CSS = `
 #cp .c25>.ptabs{grid-area:ptabs;display:flex;gap:6px;align-items:stretch}
 #cp .c25>.ptabs .bt{flex:1;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 3px 0 var(--e);pointer-events:auto}
 #cp .c25 .hdr .lt>.ps,#cp .c25 .hdr .mx[data-ax],#cp .c25 .hdr #c25vw{display:none}
+#cp .c25.c25 .hdr #c25mn .mnm{display:inline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #cp .c25 .hdr .h2{overflow-x:auto;overflow-y:hidden;gap:14px;scrollbar-width:none}
 #cp .c25 .rd{max-width:57%;left:10px;top:12px}
 #cp .c25 .rd .big{font-size:calc(44px * var(--ts))}
@@ -667,6 +668,7 @@ export async function build(root, api, U) {
 #cp .c25 .hdr #c25mn{background:var(--acc);color:var(--k);border-color:var(--acc);gap:6px}
 #cp .c25 .hdr kbd{font-family:inherit;font-size:1em;line-height:1;border:1px solid currentColor;padding:1px 3px}
 #cp .c25 .hdr .lt{display:flex;align-items:center;gap:12px;min-width:0;position:relative}
+#cp .c25 .hdr #c25mn .mnm{display:none}
 #cp .c25 .hdr #c25ti{cursor:pointer;pointer-events:auto;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .hdr .lt{position:relative}
 #cp .c25 .hdr .mhint{position:absolute;left:calc(100% + 14px);top:-1px;z-index:5;background:var(--acc);color:var(--k);font-family:PS2P,monospace;font-size:var(--lsz);padding:5px 7px;white-space:nowrap;display:none;pointer-events:none;box-shadow:3px 3px 0 var(--tx)}
@@ -1162,7 +1164,7 @@ export async function build(root, api, U) {
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'fv', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
-  root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh"><span class="k">ESC = MENU, ANY TIME</span><span class="t" style="display:none">TAP MENU TO CHANGE MODE</span></span></span><span class="rt">
+  root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<span class="mnm" id="c25mnm"></span><kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh"><span class="k">ESC = MENU, ANY TIME</span><span class="t" style="display:none">TAP MENU TO CHANGE MODE</span></span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
     <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><!-- (10 Nov, later, Andrew: "We don't need a moments thing on the top right, and we can get rid of options too. Just a skip track button on the top right": MOMENTS, OPTIONS and JUKEBOX are hidden; ? still opens the options, J the jukebox) --><span class="bt" id="c25sk" aria-label="skip to the next song" title="skip to the next song">SKIP</span><span class="bt" id="c25jk" hidden aria-label="jukebox (J)" title="pick a song (J)">JUKEBOX</span><span class="bt" id="c25mm" hidden aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" hidden aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
     <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
@@ -1300,7 +1302,7 @@ export async function build(root, api, U) {
     if (l > W0.l) api.NN.setWindow({ ...W0, l, z: W0.z * Math.max(0.6, left / Math.max(1, full)) })
   }
   // the header names what is on: the lit tab (BLAST RADIUS and WALLOP WITNESS sit over a mode), else the mode
-  function paintCrumb() { const t = E('#c25ti'); if (!t) return; t.textContent = 'NUKE NAVIGATOR // ' + (modal === 'witness' ? NAMES.witness : show === 'hm' ? 'BLAST RADIUS' : mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo) }
+  function paintCrumb() { const t = E('#c25ti'); if (!t) return; const nm = modal === 'witness' ? NAMES.witness : show === 'hm' ? 'BLAST RADIUS' : mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo; t.textContent = 'NUKE NAVIGATOR // ' + nm; const mm = E('#c25mnm'); if (mm) mm.textContent = ': ' + nm } /* (11 Nov, Andrew: the mode on the MENU button on a phone, where the title is hidden) */
   function paintTabs() { paintCrumb(); director.check(); grid.classList.toggle('wwopen', modal === 'witness'); const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (show !== 'hm') { grid.classList.remove('hmwho'); hmValk = '' } if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
   root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
@@ -2207,7 +2209,7 @@ export async function build(root, api, U) {
   const menuGo = (m) => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } if (modal) closeMod(); if (show === 'hm') setShow('hm'); setMode(m); paintTabs() } // (the third red team, 1: WALLOP WITNESS stayed on top)
   const menuJuke = () => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } openMod('jukebox') }
   menu = selectMenu(grid, [
-    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'EVERY ORACLE HOME RUN, FLYING AGAIN' /* (his pick said GIANTS; the default list is every home run at Oracle, theirs too: the third red team, 6) */, run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
+    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'EVERY HOME RUN IN A GIANTS GAME, FLYING AGAIN' /* (11 Nov, Andrew: "it's not only oracle home runs it's home runs at other sites too - so I think it's GIANTS but we include the opponents too") */, run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
     { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT YOUR OWN', run: () => menuGo('whatif') },
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT. SEE WHAT IT TAKES TO REACH IT', run: () => menuGo('shot'), off: () => !atOracle },
     { k: 'witness', name: NAMES.witness, blurb: 'LOG YOUR GAMES. CLIMB THE STAND', run: () => goTab('witness') },

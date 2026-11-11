@@ -114,6 +114,12 @@ function painter(cx, acc) {
 
 // ---- the gags ----
 // each: label (for the screen reader only), dur (seconds, the hold included), still (the moment a reduced-motion screen shows), draw(P, t)
+// (11 Nov) for the dog and the parrots: a small boat, a water dog sitting or swimming, a wild parrot (the Telegraph Hill flock)
+const boat = (P, x, y, col) => { P.rect(x - 9, y - 1, 19, 3, C.out); P.rect(x - 8, y - 1, 17, 2, col); P.rect(x - 6, y + 1, 13, 1, dk(col)); P.rect(x + 5, y - 5, 1, 4, C.grey2) }
+const dogSit = (P, x, y, face = 1, wag = 0) => P.spr(sprite().rect(-2, -2, 5, 2, C.dog).rect(-3, -4, 2, 2, C.dog).dot(-4, -3, C.out).dot(-2, -5, dk(C.dog)).line(3, -2, 4.5, -3.5 - wag, C.dog, 1).rect(-1, 0, 1, 1, C.dog).rect(2, 0, 1, 1, C.dog), x, y, { face })
+const dogSwim = (P, x, y, face = -1) => P.spr(sprite().rect(-3, -4, 2, 2, C.dog).dot(-4, -3, C.out).dot(-2, -5, dk(C.dog)).rect(-1, -2, 4, 1, C.dog), x, y, { face })
+const parrot = (P, x, y, f, face = -1) => { const up = Math.floor(f) % 2; P.spr(sprite().rect(-2, -1, 4, 2, '#2fb34a').rect(-3, -2, 2, 2, '#2fb34a').dot(-4, -1.5, C.gold).dot(-2.5, -1.5, C.out).dot(-3, -2.5, C.red).line(0, -1, 2, up ? -3.5 : 1, '#1d7a33', 1).rect(2, 0, 2, 1, '#1d7a33'), x, y, { face }) }
+
 export const GAGS = {
   snag: { label: 'the pitcher snags a line drive; it is still smoking in his glove and he shakes his hand like it burned', dur: 8, still: 3.2, draw(P, t0) {
     const t = hold(t0, 2.05, 0.18), PX = 186, BX = 66
@@ -138,26 +144,6 @@ export const GAGS = {
     if (t >= 1.28 && t < 1.74) { const k = (t - 1.28) / 0.46; P.ball(lerp(PX - 7, BX + 6, k), 27 + Math.sin(k * Math.PI) * -1 + k * 1) }
     else if (t >= 1.74 && t < 2.05) { const k = (t - 1.74) / 0.31; P.ball(lerp(BX + 6, PX - 5, k), lerp(28, 26, k)); P.px(lerp(BX + 6, PX - 5, k) - 3, lerp(28, 26, k), C.grey); P.px(lerp(BX + 6, PX - 5, k) - 6, lerp(28, 26, k), C.grey2) }
     else if (t < 1.28 && t > 0) {} // (in his hand)
-  } },
-  moonshot: { label: 'a moonshot leaves the top of the screen and comes back down with a satellite', dur: 9, still: 7.0, draw(P, t0) {
-    const t = hold(t0, 1.62, 0.15), BX = 60, PX = 176
-    P.field(PX); P.rect(BX - 3, 35, 6, 1, C.white); P.shake(t0, 1.62, 0.25, 1); P.shake(t0, 6.55, 0.4, 2.5)
-    const sw = seg(t, 1.5, 1.68), watch = t > 2.2 && t < 6.55, crash = t >= 6.55
-    const jump = crash ? Math.max(0, Math.sin(seg(t, 6.55, 7.1) * Math.PI)) * 4 : 0
-    P.guy(KITS.sf, { bat: t < 1.5 ? 160 : t < 1.9 ? lerp(160, 10, eo(sw)) : null, armF: t < 1.5 ? 150 : t < 2.2 ? 40 : watch ? 165 : crash ? 175 : 10, armB: t < 1.9 ? 140 : crash ? 160 : 10, lean: watch ? -0.2 : 0.1, headDy: watch ? -0.5 : 0, legF: [2.5, -jump * 0.3] }, BX, 36 - jump * 0.5)
-    if (t >= 1.9) { P.rect(BX + 4, 35, 7, 1, C.wood) } // the bat, dropped
-    const thr = seg(t, 1.0, 1.2), back2 = crash ? eo(seg(t, 6.55, 7.0)) * 10 : 0, hop = crash ? Math.max(0, Math.sin(seg(t, 6.55, 7.0) * Math.PI)) * 5 : 0
-    P.guy(KITS.la, { glove: 'F', armF: crash ? 175 : 80, armB: t < 1.0 ? lerp(40, 175, seg(t, 0.5, 0.95)) : t < 2.4 ? lerp(175, 30, eo(thr)) : watch ? 20 : 170, lean: thr * 0.3 * (1 - seg(t, 1.4, 1.8)) - (watch ? 0.2 : 0), mouth: crash ? 'O' : null, legF: [2 + thr * 2.5, 0] }, PX + back2, 36 - hop, { face: -1 })
-    if (t >= 1.18 && t < 1.62) { const k = (t - 1.18) / 0.44; P.ball(lerp(PX - 6, BX + 6, k), 27) }
-    if (t >= 1.62 && t < 2.4) { const k = t - 1.62; P.ball(BX + 7 + k * 70, 27 - k * 46 + k * k * 6) }
-    // it comes back: the ball tangled with a satellite, tumbling, then the crash and the sparks
-    if (t >= 5.7) {
-      const k = seg(t, 5.7, 6.55), x = lerp(150, 140, k), y = lerp(-6, 32, ei(k)), r = crash ? 18 : t * 400, Sat = sprite()
-      Sat.rect(-1.5, -1.5, 3, 3, C.sat).rect(-6.5, -1, 4, 2, C.panel).rect(2.5, -1, 4, 2, C.panel).line(0, -1.5, 1.5, -4.5, C.grey, 1).dot(1.5, -5, C.red)
-      if (crash) { Sat.rect(-6.5, -1, 4, 2, C.panel) }
-      P.spr(Sat, x, crash ? 33 : y, { rot: r }); P.ball(x + (crash ? 5 : 2), (crash ? 34 : y + 2))
-      if (crash) { P.puff(t, x, 34, 6.55, 21, 14, C.dirt); if (Math.floor(t * 12) % 3 === 0) for (let i = 0; i < 3; i++) P.px(x - 2 + hash(i, Math.floor(t * 12)) * 5, 30 - hash(Math.floor(t * 12), i) * 4, C.spark) }
-    }
   } },
   splash: { label: 'a splash hit skips across McCovey Cove five times before a kayaker grabs it', dur: 8.5, still: 6.6, draw(P, t0) {
     const t = hold(t0, 1.3, 0.12), BX = 32, PX = 80, W = 33
@@ -295,26 +281,6 @@ export const GAGS = {
     const front = lerp(-20, 300, eio(seg(t, 1.0, 3.4))), dens = t < 6.0 ? 0.86 : lerp(0.86, 0.5, seg(t, 6.0, 7.0))
     for (let v = 0; v < GH; v++) for (let u = 0; u < GW; u++) { const edge = front - 10 * Math.sin(v * 0.4 + t * 1.3) - (v % 5); if (u > edge) continue; const d = dens * (u > edge - 14 ? (edge - u) / 14 : 1); const h = hash(u + Math.floor(t * 3) * 0.01, v); if (h < d) P.px(u, v, h < d * 0.35 ? '#d3d7dd' : C.fog) }
   } },
-  wave: { label: 'the crowd does the wave, and it goes round the one guy asleep; he wakes up and stands alone once it is gone', dur: 9, still: 7.8, draw(P, t) {
-    const ROW = 31, SL = 136
-    P.rect(0, 36, GW, 4, C.seat); for (let u = 0; u < GW; u += 12) P.rect(u, 34, 10, 2, C.seat2)
-    const wx = -14 + (t - 0.4) * 46, r = rng(5), kits = [KITS.sfFan, KITS.sf, KITS.gold, KITS.sfFan, KITS.vest], woke = t > 7.2
-    for (let x = 4; x < GW; x += 12) {
-      const kit = kits[Math.floor(r() * kits.length)], sk = r() > 0.7 ? C.skin2 : C.skin, me = x === SL
-      if (me) {
-        const jolt = seg(t, 7.2, 7.4)
-        if (!woke) P.guy(KITS.sfFan, { half: true, armF: 5, armB: 5, eye: 'shut', mouth: 'o', headDx: 1, headDy: 1.5, lean: 0.2 }, x, ROW + 5)
-        else P.guy(KITS.sfFan, { armF: 178, armB: 175, mouth: 'O' }, x, 36 - back(jolt) * 1, { sy: 1 + 0.15 * (1 - jolt) })
-        continue
-      }
-      const near = Math.abs(x - SL) === 12, s = Math.max(0, 1 - Math.abs(x - wx) / 15), lookAt = woke ? (x < SL ? 1 : -1) : 1
-      if (near && s > 0) { // round the sleeper: the two beside him stand up higher and lean in over him, arms meeting above his head
-        const lean = (x < SL ? 1 : -1)
-        P.guy(kit, { skin: sk, armF: lerp(10, 150, s), armB: lerp(10, 175, s), lean: 0.35 * s }, x, 36 - s * 3, { face: lean })
-      } else if (s > 0.05) P.guy(kit, { skin: sk, armF: lerp(10, 178, s), armB: lerp(10, 172, s), mouth: s > 0.6 ? 'O' : null }, x, lerp(ROW + 11, 36, eo(s)) , { face: 1 })
-      else P.guy(kit, { half: true, skin: sk, armF: 10, armB: 8, headDx: woke ? 0.5 : 0 }, x, ROW + 5, { face: lookAt })
-    }
-  } },
   sealion: { label: 'a sea lion balances the ball on its nose, flips it into a hoop, and claps', dur: 8.5, still: 6.4, draw(P, t) {
     const W = 31, SX = 92, HX = 206
     P.water(W, t)
@@ -433,6 +399,73 @@ export const GAGS = {
     if (t >= 1.22 && t < 1.68) { const k = seg(t, 1.22, 1.68); P.ball(lerp(PX - 7, BX + 6, k), 27) }
     else if (t >= 1.68 && t < 1.95) { const k = seg(t, 1.68, 1.95), x = lerp(BX + 7, PX - 2, k), y = lerp(27, 23, k); P.ball(x, y); P.px(x - 3, y + 0.3, C.grey); P.px(x - 6, y + 0.6, C.grey2) }
     else if (t >= 1.95) { const k = seg(t, 1.95, 3.1), y = 23 - Math.sin(Math.min(1, k) * Math.PI) * 16 + (k >= 1 ? 12 : 0); P.ball(lerp(PX - 2, 150, k), k < 1 ? y : 34 - Math.abs(Math.sin(seg(t, 3.1, 3.8) * Math.PI * 2)) * 2 * (1 - seg(t, 3.1, 3.8))) }
+  } },
+  // (11 Nov, Andrew's picks from the overnight candidates)
+  balldog: { label: 'a splash hit; a water dog dives off a boat, paddles out, brings the ball back and shakes off all over its owner', dur: 9, still: 7.0, draw(P, t) {
+    const W = 33, BX = 228
+    P.water(W, t)
+    if (t < 1.0) { const k = t / 1.0; P.ball(lerp(60, 150, k), lerp(-4, W - 1, ei(k))) }
+    P.splash(t, 150, W, 1.0, 3, 1.2)
+    const bob = Math.sin(t * 3) * 0.5
+    boat(P, BX, W - 1 + bob, '#e2621b')
+    P.guy(KITS.sfFan, { half: true, armF: t > 6.4 && t < 7.6 ? 150 : t > 1.2 && t < 2.0 ? 120 : 30, armB: 20, mouth: t > 6.6 ? 'O' : null, eye: t > 6.6 ? 'shut' : null }, BX + 3, W + 3 + bob, { face: -1 })
+    const dive = seg(t, 1.6, 2.2), out = seg(t, 2.2, 4.2), back2 = seg(t, 4.6, 6.2)
+    if (t < 1.6) dogSit(P, BX - 5, W - 2 + bob, -1, Math.sin(t * 16))
+    else if (t < 2.2) { const x = lerp(BX - 5, BX - 18, dive), y = W - 3 - Math.sin(dive * Math.PI) * 7; P.spr(sprite().rect(-3, -1, 6, 2, C.dog).rect(-5, -2, 2, 2, C.dog).line(3, 0, 5, 1, C.dog, 1), x, y, { face: -1, rot: lerp(-20, 40, dive) }) }
+    else if (t < 4.6) { const x = lerp(BX - 18, 152, eo(out)); dogSwim(P, x, W + Math.sin(t * 8) * 0.5); if (Math.floor(t * 8) % 2) P.px(x + 4, W, C.foam); if (t >= 4.2) P.ball(x - 4.5, W - 2.5) }
+    else if (t < 6.2) { const x = lerp(152, BX - 7, eio(back2)); dogSwim(P, x, W + Math.sin(t * 8) * 0.5, 1); P.ball(x + 4.5, W - 2.5) }
+    else { const shake = t > 6.4 && t < 7.6, dx = shake ? Math.sin(t * 40) * 0.8 : 0; dogSit(P, BX - 5 + dx, W - 2 + bob, 1, Math.sin(t * 16)); if (shake) P.spray(t, BX - 4, W - 5, 6.4, 7, 26, { dir: 90, spread: 160, speed: 22, g: 40, stagger: 1.0, floor: W, vanish: true, cols: [C.foam, C.water2] }); P.ball(BX - 9, W - 5 + bob) }
+    if (t >= 2.2 && t < 2.6) P.splash(t, BX - 18, W, 2.2, 5, 0.6)
+    if (t >= 1.0 && t < 4.2) P.ball(150, W - 1 + Math.sin(t * 3 + 2) * 0.5)
+  } },
+  parrots: { label: 'a Giant hits one out, and a flock of wild parrots plucks the ball out of the sky and flies off with it', dur: 9, still: 3.4, draw(P, t0) {
+    const t = hold(t0, 1.0, 0.15), BX = 40, PX = 150
+    P.field(PX); P.rect(BX - 3, 35, 6, 1, C.white); P.shake(t0, 1.0, 0.25, 1)
+    // the Dodger pitches; the Giant swings at 0.9 and watches it go; then the steal: arms out, the bat dropped
+    const thr = seg(t, 0.45, 0.62), sw = seg(t, 0.85, 1.0), robbed = t > 2.9, shrug = seg(t, 3.3, 3.7)
+    P.guy(KITS.la, { glove: 'F', armF: 80, armB: t < 0.45 ? lerp(40, 175, seg(t, 0.1, 0.42)) : t < 1.4 ? lerp(175, 30, eo(thr)) : robbed ? 170 + Math.sin(t * 9) * 8 : 20, lean: thr * 0.3 * (1 - seg(t, 0.9, 1.3)), mouth: robbed ? 'O' : null, legF: [2 + thr * 2.5, 0] }, PX, 36, { face: -1 })
+    P.guy(KITS.sf, { bat: t < 0.85 ? 160 : t < 1.2 ? lerp(160, 10, eo(sw)) : null, armF: t < 0.85 ? 150 : t < 1.3 ? 40 : !robbed ? 170 : lerp(170, 100, shrug), armB: t < 1.2 ? 140 : !robbed ? 160 : lerp(160, 100, shrug), lean: !robbed && t > 1.3 ? -0.2 : 0.1, headDy: t > 1.3 ? -0.5 : 0, mouth: t > 1.3 ? 'O' : null, legF: [2.5, 0] }, BX, 36)
+    if (t >= 1.2) P.rect(BX + 4, 35, 7, 1, C.wood) // the bat, dropped
+    // the ball: the pitch, then high and away to the right; the flock meets it at 2.9 and carries it off over the bay
+    const meet = [196, 6]
+    if (t >= 0.6 && t < 1.0) { const k = seg(t, 0.6, 1.0); P.ball(lerp(PX - 6, BX + 6, k), 27) }
+    else if (t >= 1.0 && t < 2.9) { const k = seg(t, 1.0, 2.9); P.ball(lerp(BX + 7, meet[0], k), 27 - Math.sin(k * Math.PI * 0.62) * 27 + k * 4) }
+    if (t > 1.7) {
+      const k = seg(t, 1.7, 2.9), k2 = seg(t, 3.1, 7.2)
+      const cx = t < 2.9 ? lerp(285, meet[0], eo(k)) : lerp(meet[0], 300, ei(k2)), cy = t < 2.9 ? lerp(-8, meet[1], eo(k)) : lerp(meet[1], -14, k2) + Math.sin(t * 5) * 1.5
+      const F = [[-6, -2], [6, -3], [0, -6], [-10, 2], [10, 1], [-3, 4], [4, 5]], spread = t < 2.9 ? 1.6 - 0.6 * k : 1
+      for (let i = 0; i < F.length; i++) parrot(P, cx + F[i][0] * spread, cy + F[i][1] * spread * 0.8, t * 10 + i * 1.7, t < 2.9 ? -1 : 1)
+      if (t >= 2.9) P.ball(cx, cy + 3)
+      if (t > 3.0) { const f = seg(t, 3.0, 6.0); if (f < 1) P.px(meet[0] - 8 + Math.sin(t * 4) * 3, lerp(meet[1] + 2, 35, f), '#2fb34a') } // a feather, drifting down
+    }
+  } },
+  robbed: { label: 'a Giant pitches, the Dodger hits a high one to the wall, and the Giant in left climbs it, robs him, and rides the whole wall over into the Cove', dur: 9.5, still: 4.4, draw(P, t0) {
+    const t = hold(t0, 1.0, 0.12), WX = 196, W = 34, PX = 60, BX = 14
+    P.rect(0, 36, WX, 4, C.grass); for (let u = 0; u < WX; u += 3) P.px(u + ((u / 3) % 2), 36, C.grass2); P.rect(PX - 7, 35, 14, 1, C.dirt); P.rect(BX - 3, 35, 6, 1, C.white)
+    P.water(W, t, WX + 2)
+    P.shake(t0, 1.0, 0.2, 1); P.shake(t, 6.2, 0.5, 2)
+    // the wall, which tips over into the water from 5.0
+    const tip = seg(t, 5.0, 6.2), ang = ei(tip) * 80
+    const Wl = sprite(); for (let v = 0; v < 18; v++) for (let u = 0; u < 3; u++) Wl.dot(u, -v - 1, (u + v) % 3 ? C.brick : C.brick2)
+    P.spr(Wl, WX, 36, { rot: ang, pu: 3, pv: 0 })
+    if (t >= 6.2) P.splash(t, WX + 14, W, 6.2, 8, 1.6)
+    // the Giant pitches from the mound, facing the Dodger; the Dodger swings at 0.9
+    const thr = seg(t, 0.4, 0.58), sw = seg(t, 0.85, 1.0)
+    P.guy(KITS.sf, { glove: 'F', armF: 80, armB: t < 0.4 ? lerp(40, 175, seg(t, 0.05, 0.38)) : lerp(175, 30, eo(thr)), lean: thr * 0.3 * (1 - seg(t, 0.8, 1.2)), legF: [2 + thr * 2.5, 0], num: 1, headDy: t > 1.2 ? -0.5 : 0 }, PX, 36, { face: -1 })
+    P.guy(KITS.la, { bat: t < 0.85 ? 160 : t < 1.2 ? lerp(160, 10, eo(sw)) : null, armF: t < 0.85 ? 150 : t < 4.4 ? 40 : 110, armB: t < 1.2 ? 140 : t < 4.4 ? 20 : 110, mouth: t > 4.4 ? 'O' : null, legF: [2.5, 0] }, BX, 36)
+    if (t >= 1.2) P.rect(BX + 4, 35, 7, 1, C.wood)
+    // the ball: the pitch, then a high fly that comes down at the top of the wall, where his glove is
+    const G = [WX + 2, 4]
+    if (t >= 0.55 && t < 1.0) { const k = seg(t, 0.55, 1.0); P.ball(lerp(PX - 6, BX + 6, k), 27) }
+    else if (t >= 1.0 && t < 3.9) { const k = seg(t, 1.0, 3.9); P.ball(lerp(BX + 7, G[0], k), lerp(27, G[1], k) - Math.sin(k * Math.PI) * 16) }
+    // the fielder: runs to the wall, climbs to the top, reaches, the catch at 3.9, holds it up, then rides the wall down
+    let fx, fy, pose, rot = 0
+    if (t < 2.6) { const r = seg(t, 1.1, 2.6), p = Math.sin(t * 12); fx = lerp(130, WX - 3, eo(r)); fy = 36; pose = { glove: 'F', armF: 120, armB: 40, legF: [1.5 + p * 2, 0], legB: [-1.5 - p * 2, 0], lean: -0.1 } }
+    else if (t < 3.9) { const c = seg(t, 2.6, 3.5); fx = WX + 1; fy = lerp(36, 18, eo(c)); pose = { glove: 'F', armF: t > 3.4 ? 178 : 150, armB: 160, legF: [1, -1], legB: [-1, 0], headDy: -0.5 } }
+    else if (t < 5.0) { fx = WX + 1; fy = 18; pose = { glove: 'F', inGlove: true, armF: 178, armB: 175, mouth: 'O' } }
+    else { const a = ang * D2R; fx = WX + 3 + Math.sin(a) * 18; fy = 36 - Math.cos(a) * 18; pose = { glove: 'F', inGlove: true, armF: 178, armB: 120, mouth: 'O' }; rot = ang * 0.6 }
+    if (t < 6.4) P.guy(KITS.sf, pose, fx, fy, { face: 1, rot })
+    else P.guy(KITS.sf, { half: true, armF: 178, glove: 'F', inGlove: true, mouth: 'O' }, WX + 20, W + 8 + Math.sin(t * 5) * 0.5, { face: 1 }) // in the Cove, glove up
   } },
 }
 function acc(P) { return P.acc }

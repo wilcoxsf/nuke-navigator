@@ -188,14 +188,7 @@ R['hr-horn'] = R.horn
 // the foghorn: a diaphone, BEEE then the low grunt
 R.foghorn = (K, o) => { const v = o.vol ?? 1; for (const dt of [0, 9]) { K.tone('sawtooth', 182, K.t, 0.15, 0.06 * v, null, { a: 0.15, hold: 0.8, lp: 700, detune: dt }); K.tone('sawtooth', 122, K.t + 1.0, 0.7, 0.07 * v, 112, { a: 0.05, hold: 0.9, lp: 500, detune: dt }) } }
 R.ferry = (K) => { for (const f of [73, 110]) K.tone('sawtooth', f, K.t, 0.6, 0.05, null, { a: 0.2, hold: 1.6, lp: 420 }) }
-// CHARGE! on the organ (the bugle call, traditional), then the crowd shouts it back
-R['organ-charge'] = (K) => {
-  let u = K.t
-  for (const [m, d] of [[67, 0.16], [72, 0.16], [76, 0.16], [79, 0.3], [76, 0.14], [79, 0.7]]) { K.organ(midi(m), u, d * 0.95, 0.05); u += d }
-  K.noise(u + 0.05, 0.4, { type: 'bandpass', f: 800, q: 2 }, 0.09, 600, 0.03, { hold: 0.2 })
-  K.noise(u + 0.05, 0.4, { type: 'bandpass', f: 1300, q: 3 }, 0.05, 900, 0.03, { hold: 0.2 })
-}
-R.charge = R['organ-charge']
+// (11 Nov, Andrew: delete it) CHARGE! on the organ is gone; it is in git history before this date
 R['organ-stab'] = (K) => { for (const m of [60, 64, 67, 72]) K.organ(midi(m), K.t, 0.28, 0.035) }
 R.airhorn = (K) => { for (const [t, d] of [[0, 0.22], [0.3, 0.22], [0.6, 0.8]]) for (const f of [466, 554, 698]) K.tone('sawtooth', f, K.t + t, 0.06, 0.03, null, { a: 0.01, hold: d, lp: 3000 }) }
 R['honk-storm'] = (K) => { for (let i = 0; i < 16; i++) { const t = K.t + rnd(0, 3.2), f = rnd(85, 250), d = rnd(0.3, 1.1), p = K.pan(rnd(-1, 1)); for (const m of [1, 1.26]) K.tone('sawtooth', f * m, t, 0.2, 0.03, null, { a: 0.05, hold: d, lp: 650, dest: p }) } }

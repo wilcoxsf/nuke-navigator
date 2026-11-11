@@ -545,7 +545,7 @@ if (!process.env.PHONE_ONLY && on('D')) {
   await page.keyboard.press('1'); await page.waitForTimeout(1200)
   check('a number key jumps straight to that mode', await page.evaluate(() => window.__mix25.mode() === 'replay' && !document.querySelector('.c25 .sm').classList.contains('open')))
   // findable (28 Oct): the MENU button wears its ESC keycap at the top left, the title opens it too, and a one-time hint follows the first close
-  const mb = await page.evaluate(() => { const b = document.querySelector('#c25mn').getBoundingClientRect(), t = document.querySelector('#c25ti').getBoundingClientRect(); return { txt: document.querySelector('#c25mn').textContent, l: b.left, t: b.top, rightOfTitle: b.left > t.left, hint: document.querySelector('#c25mh').classList.contains('go'), seen: localStorage.getItem('nn-mhint25') } })
+  const mb = await page.evaluate(() => { const b = document.querySelector('#c25mn').getBoundingClientRect(), t = document.querySelector('#c25ti').getBoundingClientRect(); return { txt: document.querySelector('#c25mn').innerText.replace(/\s+/g, ''), l: b.left /* (11 Nov: innerText, so the phone-only mode name, hidden here, is not read) */, t: b.top, rightOfTitle: b.left > t.left, hint: document.querySelector('#c25mh').classList.contains('go'), seen: localStorage.getItem('nn-mhint25') } })
   check('the MENU button sits top left with its ESC keycap; the first close showed the ESC hint once', /MENU\s*ESC/.test(mb.txt) && mb.l < 40 && mb.t < 30 && !mb.rightOfTitle && mb.seen === '1', JSON.stringify(mb))
   await page.click('#c25ti'); await page.waitForTimeout(400)
   check('clicking the title opens the menu', await page.evaluate(() => document.querySelector('.c25 .sm').classList.contains('open')))

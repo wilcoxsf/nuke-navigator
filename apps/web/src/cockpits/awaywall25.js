@@ -14,6 +14,10 @@ import { voxDigits } from './landnum25.js'
 
 const FT = 0.3048
 const ALIAS = { AZ: 'ARI', OAK: 'ATH' }
+/* (11 Nov, Andrew: "build those parks") games the home team played away from home. The data marks the home team, not the ground, so these go by team and date.
+   The only one in the Giants data (from July 2023): Rickwood Field, Birmingham, 20 Jun 2024, Cardinals v Giants. Its MLB set-up as published (sources differ by a
+   few feet): 325 LF, 399 LCF, 400 CF, 370 RCF, 332 RF; a 20 ft wall built in right-center, the rest taken as 12 ft. Bearings are the fence file's, LF line to RF line */
+const NEUTRAL = { 'STL:2024-06-20': { venue: 'Rickwood Field', dist: [325, 399, 400, 370, 332], height: [12, 12, 12, 20, 12] } }
 const SHORT = { 'ORIOLE PARK AT CAMDEN YARDS': 'CAMDEN YARDS', 'GEORGE M. STEINBRENNER FIELD': 'STEINBRENNER FIELD', 'UNIQLO FIELD AT DODGER STADIUM': 'DODGER STADIUM',
   'RINGCENTRAL COLISEUM': 'THE COLISEUM', 'OAKLAND COLISEUM': 'THE COLISEUM', 'O.CO COLISEUM': 'THE COLISEUM' }
 const shortName = (v) => { const u = String(v ?? '').toUpperCase(); return SHORT[u] ?? u }
@@ -29,6 +33,7 @@ export function initAwayWall25(api, { parks, wallFnOf, onData }) {
 
   function wallOf(b) {
     const team = ALIAS[b.park] ?? b.park, yr = String(b.d ?? '').slice(0, 4)
+    const ns = NEUTRAL[`${team}:${b.d}`]; if (ns && fences?.bearings) return { fn: wallFnOf({ bearings: fences.bearings }, { abbr: team, dist: ns.dist, height: ns.height }), venue: ns.venue, team, crest: false, neutral: true }
     const f = fences?.fences?.[`${team}:${yr}`], p = parks?.parks?.find((x) => x.abbr === team)
     const now = fences?.fences?.[`${team}:2026`]
     if (f && !f.same_as_crest && p && now && f.venue === now.venue && parks?.crests?.[team]) { // (10 Nov) the same park, its fence moved: today's crest, shifted by Savant's change between that season and today (as science/otherpark_study.py flies it)

@@ -178,7 +178,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
     cx.fillText = ft
     return { n: M.scenes.length, inning: M.scenes.includes('inning'), words, blank, h: c.height, keys: M.scenes.join() }
   })
-  check('the menu strip is the twelve gags (no mock game), taller, with no text drawn in any of them', gg.n === 12 && !gg.inning && gg.words === 0 && gg.blank === 0 && gg.h === 120, JSON.stringify(gg))
+  /* (11 Nov, Andrew's picks: MOONSHOT and THE WAVE out; BALL DOG, PARROT GETAWAY, ROBBED in) */ check('the menu strip is his thirteen gags (no mock game, no MOONSHOT or WAVE), taller, with no text drawn in any of them', gg.n === 13 && ['balldog', 'parrots', 'robbed'].every((k) => gg.keys.split(',').includes(k)) && !/moonshot|wave/.test(gg.keys) && !gg.inning && gg.words === 0 && gg.blank === 0 && gg.h === 120, JSON.stringify(gg))
   // (10 Nov) WHERE? WHO? BOMB BINDER and the three under them sit under the histograms, not over the park
   await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(1500)
   const cn = await page.evaluate(() => { const bw = document.querySelector('#c25ch .bw').getBoundingClientRect(), hi = document.querySelector('#c25hi').getBoundingClientRect(), pk = document.querySelector('#c25h').getBoundingClientRect(); return { fit: window.__mix25.cornerFit(), inside: bw.left >= hi.left - 1 && bw.right <= hi.right + 1 && bw.bottom <= hi.bottom + 1, offPark: bw.left >= pk.right - 1, n: document.querySelectorAll('#c25ch .bw .bt.bwb').length } })
