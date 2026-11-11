@@ -39,7 +39,8 @@ export function initMoments25(api, col, fx, o = {}) {
   const hideBall = (v) => { if (!M) return; const b = api.ballMesh?.(); if (b) b.visible = !v } // with no model loaded yet, nothing takes the ball
   const ease = (x) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 2
   const run = (fn) => { let t = 0; parts.push((dt) => fn((t += dt))) }
-  const log = []
+  const log = [] // (GPT round 2, 17: kept to the last 500)
+  const _push = log.push.bind(log); log.push = (...x) => { const n = _push(...x); if (log.length > 500) log.splice(0, log.length - 500); return n }
 
   // a glove rises from the seats under the ball and closes on it (bobble: it fumbles, open and shut, and lets go)
   function glove(at, onShut = null, bobble = false) {

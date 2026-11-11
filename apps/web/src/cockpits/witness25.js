@@ -37,8 +37,20 @@ export const openKeys = (games, now = Date.now()) => games.filter((g) => windowO
 // every count for one person. games: giants_games.json rows; hrs: home runs (anything; the Oracle ones are picked out); entry: { days, seats: { key: { sec, row, seat } } }
 // o.season: one season only (the year-end trophies); o.peakFt(ball): the zenith in feet (the engine's flight; altitude is null without it); o.distToSeat(ball, seat):
 // feet from where the ball came down to that seat (the golf game's closest; null without it); o.name(batterId): a name for YOUR GUY
+// (11 Nov, Andrew: "we should have a winner for most songs guessed on the jukebox for witness stand as well") the guessing jukebox's record, as the stand keeps it:
+// { opaque song id: [when guessed (ms), guesses it took, blanks hint 0/1, year hint 0/1] }; jkPack turns this browser's jukebox (c25.js, 'nn-jk-1') into it and
+// merges what the stand already has (another device), keeping the earlier guess of each song
+export function jkPack(mine, had = {}) {
+  const out = {}
+  for (const [id, v] of Object.entries(had ?? {})) if (/^k[0-9a-f]{10}$/.test(id) && Array.isArray(v)) out[id] = v
+  for (const [id, u] of Object.entries(mine?.u ?? {})) { if (!/^k[0-9a-f]{10}$/.test(id) || !u) continue; const v = [Math.round(u.at ?? 0), Math.max(1, Math.round(u.n ?? 1)), u.hb ? 1 : 0, u.hy ? 1 : 0]; if (!out[id] || v[0] < out[id][0]) out[id] = v }
+  return out
+}
 export function witnessStats(games, hrs, entry, o = {}) {
   const inSeason = (d) => !o.season || d.slice(0, 4) === String(o.season)
+  /* (GPT red team round 2, 8: the year a song was guessed in San Francisco, not in UTC; a guess on 31 Dec at 8 PM is that year's) */
+  const sfYear = (t) => Number(new Date(t).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric' }))
+  const jk = Object.values(entry?.jk ?? {}).filter((v) => Array.isArray(v) && Number(v[0]) > 0 && (!o.season || sfYear(v[0]) === Number(o.season)))
   const keys = [...new Set(entry?.days ?? [])].filter((k) => inSeason(String(k)))
   const seen = new Map() // gamePk -> { game, key }
   for (const k of keys) for (const g of gamesFor(k, games)) seen.set(String(g.pk), { g, key: k })
@@ -72,7 +84,7 @@ export function witnessStats(games, hrs, entry, o = {}) {
   return {
     games: n, wins, losses, winRuns, lossRuns, runDiff: winRuns - lossRuns,
     avgWin: wins ? winRuns / wins : null, avgLoss: losses ? lossRuns / losses : null,
-    winPct, theirPct, jinx: winPct != null && theirPct != null ? winPct - theirPct : null,
+    winPct, theirPct, jinx: winPct != null && theirPct != null ? (Math.round(winPct * 100) - Math.round(theirPct * 100)) / 100 : null, // (GPT round 2, 18: the gap between the two percentages as shown, so 67% against 33% is +34)
     giantsHR: giants.length, allHR: oracle.length, footitude: feet(oracle), giantsFeet: feet(giants),
     altitude: alt,
     longest: who(byFt[0]), shortest: who(byFt[byFt.length - 1]), closest,
@@ -81,6 +93,7 @@ export function witnessStats(games, hrs, entry, o = {}) {
     yourGuy: guy ? { b: guy.b, n: guy.n, ft: guy.ft, name: o.name?.(guy.b) ?? null } : null,
     topEv: topEv?.ev != null ? { mph: Math.round(topEv.ev * 10) / 10, ...who(topEv) } : null,
     seasons: [...seasons].sort(),
+    songs: jk.length, songsBlind: jk.filter((v) => !v[2] && !v[3]).length,
   }
 }
 
@@ -103,6 +116,9 @@ export const BOARDS = [
   { key: 'extra', title: 'EXTRA INNINGS', value: (s) => s.extra, better: 'high' },
   { key: 'walkoffs', title: 'WALK-OFFS', value: (s) => s.walkoffs, better: 'high' },
   { key: 'topEv', title: 'TOP EXIT SPEED', value: (s) => s.topEv?.mph ?? null, better: 'high', unit: 'MPH' },
+  // (11 Nov) the guessing jukebox: no games needed to be on these two
+  { key: 'songs', title: 'SONGS GUESSED', value: (s) => s.songs || null, better: 'high', min: 0 },
+  { key: 'songsBlind', title: 'SONGS GUESSED BLIND', value: (s) => s.songsBlind || null, better: 'high', min: 0 },
 ]
 // people: [{ name, stats }] -> [{ name, value, rank }], best first; no value (or too few games) and you are off the board; ties share a rank
 export function rankBoard(board, people) {
@@ -115,10 +131,20 @@ export function rankBoard(board, people) {
 // the year-end four (Andrew hands them out each season). 1 Nov, night (Andrew: "All of them should be like names of individuals like tycoon, it's a title that you
 // receive not a trophy"; 'auspicious' alliterated for the wins, 'curse' or 'jinx' for the losses; THE TATER TYCOON, THE DISTANCE DUKE and THE CURSED COUNT OF CANDLESTICK are his; the wins and losses are my picks of six each, weirder, 1 Nov, later): titles, the first the default, the
 // rest the other candidates. title is how it reads on the stand: THE TATER TYCOON: SAM
+// (11 Nov, Andrew: "each one to have its own row and have like a fun little pixel graphic to go with it and then it should say the user, their number and what the
+// number is"): each title's picture ('#', '+', '*' in its colors, '.' clear) and the words after the number (one, many)
+export const TITLE_ART = {
+  wins: { pal: { '#': '#f2bc40' }, rows: ['.....##.....', '....#..#....', '.....##.....', '.....##.....', '..########..', '.....##.....', '.....##.....', '.....##.....', '#....##....#', '##...##...##', '.##..##..##.', '..########..', '....####....'], say: ['WIN', 'WINS'] },
+  losses: { pal: { '#': '#5b616b', '*': '#ff7a00', '+': '#e8e1c9' }, rows: ['.#.......#..', '.##.....##..', '.#########..', '.#*#######..', '.#########..', '..#######...', '...#####....', '..#######...', '.#########..', '.##########.', '.#########.#', '.#########.#', '..#######.#.', '++++++++++++', '+..........+'], say: ['LOSS', 'LOSSES'] },
+  giantsHR: { pal: { '#': '#c8914f', '+': '#ffc21a', '*': '#7a4a24' }, rows: ['..+..++..+..', '..++++++++..', '..++++++++..', '...######...', '.##########.', '###*####*###', '############', '##*#####*###', '.##########.', '..########..'], say: ['GIANTS HOME RUN SEEN', 'GIANTS HOME RUNS SEEN'] },
+  footitude: { pal: { '#': '#e9b48c', '+': '#fd5a1e', '*': '#27251f' }, rows: ['..++++......', '..+**+......', '..++++......', '..+**+......', '..++++......', '..####......', '..#####.....', '..########..', '.##########.', '.###########', '.###########', '..#.#.#.##..'], say: ['FT OF HOME RUNS', 'FT OF HOME RUNS'] },
+  songs: { pal: { '#': '#fd5a1e', '+': '#ffc21a', '*': '#5ce1ff' }, rows: ['...######...', '..#++++++#..', '.#+######+#.', '.#+#****#+#.', '.#+#****#+#.', '.#+######+#.', '.#++++++++#.', '.#+#+#+#+##.', '.#++++++++#.', '.##########.', '.#........#.', '.##......##.'], say: ['SONG GUESSED', 'SONGS GUESSED'] },
+}
 export const TROPHIES = [
   { key: 'wins', board: 'wins', names: ['THE AUSPICIOUS ADMIRAL OF ALCATRAZ', 'THE AUSPICIOUS AUTARCH OF ALAMO SQUARE', 'THE AUSPICIOUS ALDERMAN OF ANGEL ISLAND', 'THE AUSPICIOUS ARCHON OF AQUATIC PARK', 'THE AUSPICIOUS ARCHMANDRITE', 'THE AUSPICIOUS ATTORNEY GENERAL', 'THE AUSPICIOUS AMIR OF THE ARCADE', 'THE AUSPICIOUS AUDITOR OF AUGURIES', 'THE AUSPICIOUS ASTROLOGER ROYAL', 'THE AUSPICIOUS ADMIRAL OF THE ARCADE'], vox: 'a voxel horseshoe, open end up, in Giants orange on a black plinth, a tiny W flag flying from one heel' },
   { key: 'losses', board: 'losses', names: ['THE CURSED COUNT OF CANDLESTICK'], vox: 'a voxel black cat sitting on a cracked home plate, its tail curled round the plinth, one orange eye' },
   { key: 'giantsHR', board: 'giantsHR', names: ['THE TATER TYCOON'], vox: 'a voxel horseshoe magnet with three orange-and-white baseballs stuck to its poles' },
+  { key: 'songs', board: 'songs', names: ['THE MAESTRO OF MCCOVEY COVE', 'THE JUKEBOX JUSTICE', 'THE BARD OF THE BLEACHERS'], vox: 'a voxel jukebox glowing Giants orange, a baseball spinning on it like a record' }, // (11 Nov: the first name is how it reads; the others are the options)
   { key: 'footitude', board: 'footitude', names: ['THE DISTANCE DUKE'], vox: 'a big hairy voxel foot in a Giants sock, standing on a stack of home plates' },
 ]
 
@@ -129,7 +155,7 @@ export function witnessStore(o = {}) {
   const read = (k, d) => { try { const v = S?.getItem(k); return v == null ? d : JSON.parse(v) } catch { return d } }
   const write = (k, v) => { try { S?.setItem(k, JSON.stringify(v)) } catch {} }
   // (2 Nov, night) and the calling card: a gamer tag (its case kept) and an emblem (emblem25.js, encoded)
-  const local = () => ({ name: read('nn-witness-name', ''), tag: read('nn-witness-tag', ''), emblem: read('nn-witness-emblem', ''), days: read('nn-witness', []), seats: read('nn-witness-seats', {}) })
+  const local = () => ({ name: read('nn-witness-name', ''), tag: read('nn-witness-tag', ''), emblem: read('nn-witness-emblem', ''), days: read('nn-witness', []), seats: read('nn-witness-seats', {}), jk: jkPack(read('nn-jk-1', {})) })
   const keepLocal = (e) => { write('nn-witness', e.days ?? []); write('nn-witness-seats', e.seats ?? {}); if (e.name != null) write('nn-witness-name', e.name); if (e.tag != null) write('nn-witness-tag', e.tag); if (e.emblem != null) write('nn-witness-emblem', e.emblem) }
   return {
     local,

@@ -176,7 +176,7 @@ export function makeSession(api) {
       const res = window.__dojo, st = api.state, hr = isHR(b)
       s.swings++; if (hr) { s.hrs++; s.streak++ } else s.streak = 0
       s.best = Math.max(s.best, Math.round(res.landFt))
-      s.log.push({ hr, n: s.swings, ev: st.ev, la: st.la, dir: st.dir, state: b.state, ft: Math.round(res.landFt) })
+      s.log.push({ hr, n: s.swings, ev: st.ev, la: st.la, dir: st.dir, state: b.state, ft: Math.round(res.landFt) }); if (s.log.length > 500) s.log.splice(0, s.log.length - 500) // (GPT round 2, 17: the last 500)
       s.committed = { path: res.path }
       return true
     }

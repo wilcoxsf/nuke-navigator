@@ -30,7 +30,7 @@ const e1 = { days: ['2025-04-01', '2025-04-05#1', '2025-04-02'], seats: { '2025-
 const s1 = witnessStats(G, H, e1, { name: (b) => names[b], peakFt: (b) => b.ft / 4, distToSeat: (b) => (b.ft === 420 ? 37.6 : b.ft === 360 ? 12.2 : null) })
 check('counts: 3 games, 2 wins, 1 loss, margins 4 and 1, 2 extra-inning games, 1 walk-off', s1.games === 3 && s1.wins === 2 && s1.losses === 1 && s1.winRuns === 4 && s1.lossRuns === 1 && s1.runDiff === 3 && s1.extra === 2 && s1.walkoffs === 1, JSON.stringify(s1))
 check('home runs: only Oracle home runs at those games; the Giants bat in the bottom', s1.allHR === 3 && s1.giantsHR === 2 && s1.footitude === 1181 && s1.giantsFeet === 821, JSON.stringify(s1))
-check('THE JINX: 67% against the Giants 60% over the season', Math.abs(s1.winPct - 2 / 3) < 1e-9 && Math.abs(s1.theirPct - 0.6) < 1e-9 && Math.abs(s1.jinx - (2 / 3 - 0.6)) < 1e-9, JSON.stringify([s1.winPct, s1.theirPct]))
+check('THE JINX: 67% against the Giants 60% over the season', Math.abs(s1.winPct - 2 / 3) < 1e-9 && Math.abs(s1.theirPct - 0.6) < 1e-9 && Math.abs(s1.jinx - 0.07) < 1e-9 /* (11 Nov: the gap as shown, 67 - 60 = +7, GPT round 2, 18) */, JSON.stringify([s1.winPct, s1.theirPct, s1.jinx]))
 check('golf: longest 420, shortest 360, closest to the seat 12 ft (the one a seat was given for)', s1.longest.ft === 420 && s1.shortest.ft === 360 && s1.closest?.away === 12 && s1.closest.ft === 360, JSON.stringify([s1.longest, s1.shortest, s1.closest]))
 check(`altitude in Coit Towers (${COIT_FT} ft) and Twin Peaks (${TWIN_PEAKS_FT} ft)`, s1.altitude.ft === 295 && Math.abs(s1.altitude.coit - 1181 / 4 / 210) < 1e-9, JSON.stringify(s1.altitude))
 check('hours at Oracle: 9 hours 10 minutes; YOUR GUY Buster (2); top exit speed 108.2', Math.abs(s1.hours - 550 / 60) < 1e-9 && s1.yourGuy.name === 'BUSTER' && s1.yourGuy.n === 2 && s1.topEv.mph === 108.2, JSON.stringify([s1.hours, s1.yourGuy, s1.topEv]))
@@ -55,7 +55,7 @@ check('GIANTS WALLOPS WITNESSED ranks most first', b('giantsHR')[0].name === 'JO
 check('SHORTEST ranks the least first (golf)', b('shortest')[0].value === 360, JSON.stringify(b('shortest')))
 check('THE JINX needs three games: two people on it, luckiest and cursed reversed', b('jinxHigh').length === 2 && b('jinxLow')[0].name === b('jinxHigh').at(-1).name, JSON.stringify(b('jinxHigh')))
 check('CLOSEST TO YOUR SEAT: only people who gave a seat and a way to measure', b('closest').length === 1 && b('closest')[0].name === 'ANDREW')
-check('the year-end four titles (THE TATER TYCOON his, the others five candidates each), no Dodger board', TROPHIES.length === 4 && TROPHIES.every((t) => (t.key === 'wins' ? t.names.length >= 5 : t.names.length === 1) && /^THE /.test(t.names[0]) && BOARDS.some((x) => x.key === t.board)) && TROPHIES.find((t) => t.key === 'giantsHR').names[0] === 'THE TATER TYCOON' && !BOARDS.some((x) => /DODG/.test(x.title)))
+check('the season titles (THE TATER TYCOON his, the wins five candidates, 11 Nov: THE MAESTRO OF MCCOVEY COVE with two others), no Dodger board', TROPHIES.length === 5 && TROPHIES.find((t) => t.key === 'songs')?.names[0] === 'THE MAESTRO OF MCCOVEY COVE' && TROPHIES.every((t) => (t.key === 'wins' ? t.names.length >= 5 : t.key === 'songs' ? t.names.length === 3 : t.names.length === 1) && /^THE /.test(t.names[0]) && BOARDS.some((x) => x.key === t.board)) && TROPHIES.find((t) => t.key === 'giantsHR').names[0] === 'THE TATER TYCOON' && !BOARDS.some((x) => /DODG/.test(x.title)))
 
 // ---- the store: the browser when the function is not there ----
 const mem = new Map(), storage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)) }
@@ -96,8 +96,13 @@ r = await call(T1, 'PUT', { name: 'ANDREW', days: ['2025-04-08'] })
 check('taking a game away is allowed whenever', r.status === 200 && (await r.json()).me.days.join() === '2025-04-08')
 r = await call(T2, 'PUT', { days: ['2025-04-08'], seats: { '2025-04-08': { sec: '301', row: '22', seat: '9' } } })
 check('a second friend saves', r.status === 200)
+// (11 Nov) the guessing jukebox's record rides along: good song ids kept, anything odd dropped, and everyone's shows on the stand
+r = await call(T2, 'PUT', { days: ['2025-04-08'], seats: { '2025-04-08': { sec: '301', row: '22', seat: '9' } }, jk: { k0123456789: [Date.parse('2025-04-09T20:00:00Z'), 3, 1, 0], kabcdefabcd: [Date.parse('2025-04-09T21:00:00Z'), 1, 0, 0], billiejean: [Date.parse('2025-04-09'), 1, 0, 0], kffffffffff: [Date.parse('2031-01-01'), 1, 0, 0], k1111111111: ['soon', 'x'] } })
+j = await r.json()
+check('the jukebox record keeps only real song ids with sane times and counts', r.status === 200 && Object.keys(j.me.jk ?? {}).sort().join() === 'k0123456789,kabcdefabcd' && j.me.jk.k0123456789.join() === [Date.parse('2025-04-09T20:00:00Z'), 3, 1, 0].join(), JSON.stringify(j.me.jk))
 r = await call(T1)
 j = await r.json()
+check('every friend’s jukebox record comes back with the stand, and counts on the SONGS boards', (() => { const f = j.all.find((p) => Object.keys(p.jk ?? {}).length === 2); if (!f) return false; const st = witnessStats([], [], f, {}); return st.songs === 2 && st.songsBlind === 1 })(), JSON.stringify(j.all.map((p) => p.jk)))
 const sam = j.all.find((p) => p.name === 'SAM')
 check('GET: everyone, with only a name, days and seat sections (no row, no seat, no token); you are marked', j.all.length === 2 && sam && sam.seats['2025-04-08'].sec === '301' && sam.seats['2025-04-08'].row === undefined && !JSON.stringify(j).includes(T1) && !JSON.stringify(j).includes(T2) && j.all.filter((p) => p.me).length === 1, JSON.stringify(j))
 check('KV keys are hashes, never the tokens', [...WITNESS.m.keys()].every((k) => /^w:[0-9a-f]{24}$/.test(k)))

@@ -114,9 +114,11 @@ export function initAwayWall25(api, { parks, wallFnOf, onData }) {
       cl = new THREE.Group(); cl.visible = false
       cl.add(cubes(color, post, 0.5), cubes(color, [ball], 1.4))
       const tp = new THREE.Vector3(wt.x, hi + 1, wt.z) // (a dojo swing can come up short of another park's wall; it says so; GPT red team 13: under a foot short is JUST SHORT, not a made-up foot)
-      cl.add(v.kind === 'WALL' ? (m > -1 ? tag(`JUST SHORT OF THE ${name} WALL`, null, tp, color) : tag(`SHORT OF THE ${name} WALL BY`, String(-by), tp, color)) : by >= 2 ? tag(`CLEARED THE ${name} WALL BY`, String(by), tp, color) : tag(`JUST OVER THE ${name} WALL`, null, tp, color))
+      /* (11 Nov, GPT red team round 2, 7: a real home run the flight puts a hair short of that park's wall is still a home run there: JUST OVER, not JUST SHORT) */
+      const realOut = v.kind === 'WALL' && b.real
+      cl.add(realOut ? tag(`JUST OVER THE ${name} WALL`, null, tp, color) : v.kind === 'WALL' ? (m > -1 ? tag(`JUST SHORT OF THE ${name} WALL`, null, tp, color) : tag(`SHORT OF THE ${name} WALL BY`, String(-by), tp, color)) : by >= 2 ? tag(`CLEARED THE ${name} WALL BY`, String(by), tp, color) : tag(`JUST OVER THE ${name} WALL`, null, tp, color))
       g.add(cl)
-      g.userData.cross = { wallFt: Math.round(v.wallFt), wallH: v.wallH, clearBy: by, kind: v.kind }
+      g.userData.cross = { wallFt: Math.round(v.wallFt), wallH: v.wallH, clearBy: realOut ? 0 : by, kind: realOut ? 'GONE' : v.kind }
     }
     return g
   }

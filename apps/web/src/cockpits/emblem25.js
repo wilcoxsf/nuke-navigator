@@ -17,6 +17,7 @@ export const MIRRORS = ['NONE', 'LR', 'UD', 'BOTH'] // the paint brush's symmetr
 
 // ---- stickers: rows of '#' (color 1), '+' (color 2) and '.' (clear), '/' between rows. The list ORDER is stored in every saved emblem: append, never reorder ----
 const gen = (w, h, f) => Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => f(x, y)).join(''))
+const segD = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)); return Math.hypot(px - ax - t * dx, py - ay - t * dy) }
 const ART = [
   ['skull', 'SKULL', '...######.../.##########./############/############/##...##...##/#.++.##.++.#/##...##...##/#####..#####/.####..####./..########../..##.##.##../..########../...######...'],
   ['flame', 'FLAME', '.....#..../....##..../....###.../...####.../..#####.#./..######../.###+####./.##++####./##++++###./##+++++##./##++++++##/.#++++++#./..#++++#../...####...'],
@@ -26,7 +27,7 @@ const ART = [
   ['ball', 'BASEBALL', '....####..../..########../.#+######+#./.##+####+##./###+####+###/####+##+####/####+##+####/###+####+###/.##+####+##./.#+######+#./..########../....####....'],
   ['bats', 'CROSSED BATS', '++..........##/+++........###/.+++......###./..+++....###../...+++..###.../....+++###..../.....+###...../......#+....../.....#..+...../....#....+..../...#......+.../..#........+../.#..........+./##..........++'],
   ['bat', 'BAT', '..........##/.........###/........###./.......###../......###.../.....###..../....##....../....#......./...#......../..+........./.+........../##..........'],
-  ['glove', 'GLOVE', '.......##.##.../....##+##+##+##/....##+##+##+##/....##+##+##+##/.#..##+##+##+##/.##.##+##+##+##/.##+##########./..#+##########./..##+#########./...##########../...##++++####../....#########../.....#######...'],
+  ['glove', 'MITT', '.......##.##.../....##+##+##+##/....##+##+##+##/....##+##+##+##/.#..##+##+##+##/.##.##+##+##+##/.##+##########./..#+##########./..##+#########./...##########../...##++++####../....#########../.....#######...'],
   ['wing', 'WING', '.........#####/......########/....##########/..#####+######/.#####+#######/#####+##+#####/.###+##+##+###/..#+##+##+####/...#..#..#.###/..........#.##'],
   ['sword', 'SWORD', '...#.../..###../..#+#../..#+#../..#+#../..#+#../..#+#../..#+#../..#+#../..#+#../..#+#../#######/.#.+.#./...+.../...+.../..###..'],
   ['gull', 'GULL', '...###........../..#####........./..#.####......../++#######.....##/.+.########.###./....##########../.....########.../.......#####..../........+..+..../.......++.++....'],
@@ -59,9 +60,30 @@ const ART = [
   ['crab', 'DUNGENESS', '.##..........##./#..#........#..#/#.##........##.#/.##..........##./..#..+....+..#../...##########.../..############../.##############./..############../.#.#.#....#.#.#./#.#.#......#.#.#'],
   ['bones', 'CROSSBONES', '##..........##/###........###/.###......###./...##....##.../....##..##..../.....####...../.....####...../....##..##..../...##....##.../.###......###./###........###/##..........##'],
   // a comic-book KAPOW: ten spikes, the middle in color 2
+  // (11 Nov, Andrew's new ones: a seagull, a hot dog that is not a sad hamburger, the bird, a lit joint, a better cable car, the Golden Gate side on, an atom, a
+  // bicycle, an AK-47, a piece of poo, the Transamerica Pyramid, a wave, a beer)
+
+  ['seagull', 'SEAGULL', '...###......../..#####......./++##.##......./..#####......./...####......./...#######..../..##########../..###########./...###########/....########../.....#####..../......+..+..../.....++.++....'],
+  ['hotdog2', 'HOT DOG', '...##########.../.##############./++++++++++++++++/++.++..++..++.++/+++..++..++..+++/++++++++++++++++/.##############./...##########...'],
+  ['finger', 'THE BIRD', '....###..../....#+#..../....###..../....###..../....###..../....###..../.##.###.##./###########/###########/#+#########/#++########/##+++######/.##########/..########./...######../...######..'],
+  ['joint', 'JOINT', '..........+.../.........++.+./.........++++./........#+++../.......###+.../......####..../.....###....../....###......./...###......../..##........../.##.........../##............'],
+  ['cablecar2', 'CABLE CAR', '...##########.../.##############./################/#..#++#++#++#..#/#..#++#++#++#..#/#..##########..#/################/#++++++++++++++#/################/..##........##../.#++#......#++#./..##........##..'],
+  ['bridge', 'GOLDEN GATE', '...##......##.../..+##+....+##+../.+.##.+..+.##.+./+..##..++..##..+/...##......##.../...##......##.../################/...##......##.../...##......##.../..####....####..'],
+  ['atom', 'ATOM', gen(16, 16, (x, y) => { const dx = x - 7.5, dy = y - 7.5; if (Math.hypot(dx, dy) <= 1.3) return '+'; for (const th of [0, Math.PI / 3, (2 * Math.PI) / 3]) { const u = dx * Math.cos(th) + dy * Math.sin(th), v = -dx * Math.sin(th) + dy * Math.cos(th), r = Math.hypot(u / 7.3, v / 2.4); if (Math.abs(r - 1) * 2.4 < 0.42) return '#' } return '.' })],
+  ['bike', 'BICYCLE', gen(16, 11, (x, y) => { const px = x + 0.5, py = y + 0.5, R = [[3.6, 7.2], [12.4, 7.2]]; if (R.some(([cx, cy]) => Math.abs(Math.hypot(px - cx, py - cy) - 3.1) < 0.6)) return '#'; const S = [[3.6, 7.2, 7.6, 7.2], [7.6, 7.2, 6.2, 3.2], [6.2, 3.2, 3.6, 7.2], [7.6, 7.2, 11.2, 3.2], [6.2, 3.2, 11.2, 3.2], [11.2, 3.2, 12.4, 7.2], [6.2, 3.2, 5.6, 1.6], [4.6, 1.4, 6.8, 1.4], [11.2, 3.2, 10.8, 1.4], [10.4, 1.2, 12.2, 1.2]]; return S.some((s) => segD(px, py, ...s) < 0.55) ? '+' : '.' })],
+  ['ak', 'AK-47', '......#.......#./+++..###########/++++######++++##/+++++#####++++../+++..##.##....../++...##..##...../.....#....##..../...........#....'],
+  ['poo', 'POO', '.....##...../....####..../...++++##.../..########../.+++++++###./.##########./+++++++++###/############/.##########.'],
+  ['pyramid', 'TRANSAMERICA', '.....#...../.....#...../....###..../...##+##.../....#+#..../....###..../...##+##.../...##+##.../..###+###../..###+###../.####+####./.####+####./#####+#####/#####+#####/###########/#.#.#.#.#.#'],
+  ['wave', 'WAVE', '........####..../......##++++#.../.....#++...++#../....#+.......+#./...#+...##....#./..#+...#..#...#./..#+...#.+#..##./.#+....##+..##../.#+.....+..##.../#++.......##..../##############../################'],
+  ['beer', 'BEER', '..++..+++...../.+++++++++..../+++++++++++.../###########.../##############/##.########..#/###########..#/#######.###..#/##############/###########.../##.########.../###########.../.#########....'],
   ['kapow', 'KAPOW', gen(16, 16, (x, y) => { const dx = x - 7.5, dy = y - 7.5, d = Math.hypot(dx, dy), a = Math.atan2(dy, dx) + Math.PI, t = ((a / (2 * Math.PI)) * 10) % 1, rad = 4.4 + 3.6 * (1 - Math.abs(t * 2 - 1)); return d > rad ? '.' : d > rad - 2.2 ? '#' : '+' })],
 ]
-export const STICKERS = ART.map(([id, name, rows]) => ({ id, name, rows: typeof rows === 'string' ? rows.split('/') : rows }))
+/* (11 Nov, Andrew: "I don't want any of the COD ones. I like the flame, the skull, the lightning bolt, the basball, the crossing bats, the single bat, the mitt, the
+   seal, the kayaker, the mushroom cloud, the money bag, the crab", then the new ones). The picker shows these, in this order; the rest stay in ART, hidden, because
+   saved emblems store a sticker by its place in the list (they still draw, they just cannot be picked) */
+export const SHOWN_IDS = ['flame', 'skull', 'bolt', 'ball', 'bats', 'bat', 'glove', 'sealion', 'kayak', 'nuke', 'money', 'crab', 'seagull', 'hotdog2', 'finger', 'joint', 'cablecar2', 'bridge', 'atom', 'bike', 'ak', 'poo', 'pyramid', 'wave', 'beer']
+export const STICKERS = ART.map(([id, name, rows]) => ({ id, name, rows: typeof rows === 'string' ? rows.split('/') : rows, hide: !SHOWN_IDS.includes(id) }))
+export const SHOWN = SHOWN_IDS.map((id) => STICKERS.find((s) => s.id === id))
 const BY_ID = new Map(STICKERS.map((s, i) => [s.id, i]))
 
 // a sticker turned r quarter turns clockwise, then flipped on screen (fx left-right, fy up-down): { w, h, g } with g a row-major Uint8Array (0 clear, 1 color 1, 2 color 2)
@@ -109,7 +131,7 @@ export const blankEmblem = () => normEmblem({ bg: { style: 'SOLID', a: 0, b: 1 }
 
 // CHAOS: something ridiculous. A big centerpiece, a pile of stickers (some in mirrored pairs, some turned), now and then a sprinkle of mirrored paint
 export function randomEmblem(rng = Math.random) {
-  const R = (n) => Math.min(n - 1, Math.floor(rng() * n)), col = () => R(16), sid = () => STICKERS[R(STICKERS.length)].id
+  const R = (n) => Math.min(n - 1, Math.floor(rng() * n)), col = () => R(16), sid = () => SHOWN[R(SHOWN.length)].id
   const a = col(); let b = R(15); if (b >= a) b++
   const L = [{ s: sid(), c: col(), c2: col(), x: 14 + R(5), y: 14 + R(5), k: 2 + (rng() < 0.3 ? 1 : 0), r: rng() < 0.2 ? R(4) : 0, fx: R(2), fy: 0 }]
   const n = 3 + R(10)
@@ -365,7 +387,7 @@ export function emblemEditor(host, o = {}) {
   lyHead.append(lyN, gap, bt('ADD', addLayer), bt('UP', () => moveLayer(1)), bt('DOWN', () => moveLayer(-1)), bt('DUP', dupLayer), bt('TWIN', twinLayer), bt('DEL', delLayer))
   lyHead.lastChild.title = 'DELETE THE LAYER'; lyHead.children[6].title = 'A FLIPPED COPY ON THE OTHER SIDE, FOR WING PAIRS'
   const lys = el('div', 'lys'), stg = el('div', 'stg')
-  const tiles = STICKERS.map((s) => { const t = el('span', 'stk'); t.title = s.name; t.dataset.s = s.id; t.append(shapeCanvas(shape(s.id), 1, 2, 32)); t.addEventListener('click', () => pickSticker(s.id)); stg.append(t); return t })
+  const tiles = SHOWN.map((s) => { const t = el('span', 'stk'); t.title = s.name; t.dataset.s = s.id; t.append(shapeCanvas(shape(s.id), 1, 2, 32)); t.addEventListener('click', () => pickSticker(s.id)); stg.append(t); return t })
   const sw1 = swatches('COLOR 1', (i) => setLayer({ c: i })), sw2 = swatches('COLOR 2', (i) => setLayer({ c2: i }))
   const xf = el('div', 'xf'), nud = (dx, dy) => () => { const l = cur(); if (l) setLayer({ x: l.x + dx, y: l.y + dy }) }
   const sX = stepper('X', nud(-1, 0), nud(1, 0)), sY = stepper('Y', nud(0, -1), nud(0, 1))

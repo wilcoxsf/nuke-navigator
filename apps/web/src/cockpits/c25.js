@@ -44,7 +44,7 @@ import { initGhost25 } from './ghost25.js'
 import { keepReadable, readable } from './vox25.js'
 import { screenTags, setTagStyle, setTagTie } from './stag25.js'
 import { LAND_LOOKS } from './landnum25.js'
-import { witnessStats, witnessStore, windowOpen, openKeys, gameKey, BOARDS, rankBoard, TROPHIES } from './witness25.js'
+import { witnessStats, witnessStore, windowOpen, openKeys, gameKey, BOARDS, rankBoard, TROPHIES, TITLE_ART, jkPack } from './witness25.js'
 import { initHappen25 } from './happen25.js'
 import { initPoles25, POLE_LOOKS } from './poles25.js'
 import { initWind25 } from './wind25.js'
@@ -929,6 +929,7 @@ export async function build(root, api, U) {
 #cp .c25 .ww .wtt{border:1px solid var(--acc);padding:8px 10px}
 #cp .c25 .ww .wtt b{display:block;color:var(--acc);font-weight:400}
 #cp .c25 .ww .wtt span{font-size:13px}
+#cp .c25 .ww .wts2{display:grid;gap:8px;margin:8px 0 16px}#cp .c25 .ww .wtr{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .ww .wti{width:48px;height:48px;image-rendering:pixelated;display:block;object-fit:contain}#cp .c25 .ww .wtx{display:grid;gap:3px;min-width:0}#cp .c25 .ww .wtx b{color:var(--acc);font-weight:400;overflow-wrap:anywhere}#cp .c25 .ww .wtx span{font-size:15px;overflow-wrap:anywhere}#cp .c25 .ww .wtx em{font-style:normal;color:var(--tx)}
 #cp .c25 .ww .wbds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 #cp .c25 .ww .wr{display:grid;grid-template-columns:3em 1fr auto;gap:10px;padding:4px 0;border-bottom:1px solid var(--ln)}
 #cp .c25 .ww .wr span{color:var(--dim)}
@@ -1181,6 +1182,11 @@ export async function build(root, api, U) {
   const E = (id) => root.querySelector(id), hero = E('#c25h'), grid = E('.c25')
   const setCard = (k) => { grid.dataset.card = k; root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.classList.toggle('on', b.dataset.card === k)); if (last) render(last) }
   root.querySelectorAll('#c25pt [data-card]').forEach((b) => b.addEventListener('click', () => { pressEl(b); setCard(b.dataset.card) }))
+  /* (11 Nov, Andrew: "hilarious when you hover skip right now it says the song name. I don't want any text when you hover any of these buttons") no hover tips in
+     the app at all: a title is moved to aria-label (screen readers still get it) and dropped, now and whenever one is set or a piece is redrawn */
+  const untip = (el) => { const t = el.getAttribute('title'); if (t == null) return; if (t && !el.hasAttribute('aria-label')) el.setAttribute('aria-label', t); el.removeAttribute('title') }
+  const untipAll = (n) => { if (n.nodeType !== 1) return; if (n.hasAttribute('title')) untip(n); n.querySelectorAll('[title]').forEach(untip) }
+  untipAll(document.body); new MutationObserver((ms) => { for (const m of ms) { if (m.type === 'attributes') untip(m.target); else m.addedNodes.forEach(untipAll) } }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] })
   setCard(q.get('card') ?? 'batter')
 
   // ---- the park wireframe: W1 GHOST ----
@@ -1510,7 +1516,7 @@ export async function build(root, api, U) {
   // drawn in its team's color, and where your swing crosses it comes up when the ball gets there, as for an away home run in DEJA-VU
   let dojoPark = null
   const awayBall = () => {
-    if (atOracle && mode === 'replay' && cur?.hr && cur.park && cur.park !== 'SF') return [cur, teamCol(cur.park)]
+    if (atOracle && mode === 'replay' && cur?.hr && cur.park && cur.park !== 'SF') return [{ ...cur, real: true }, teamCol(cur.park)] // (real: it went out there; GPT round 2, 7)
     if (atOracle && mode === 'whatif' && dojoPark && show !== 'hm') { /* (the second red team, 6) */ const s = api.state; return [{ park: dojoPark, d: '2026-06-01', ev: s.ev, la: s.la, dir: s.dir, hr: true }, teamCol(dojoPark)] }
     return [null, null]
   }
@@ -1885,8 +1891,15 @@ export async function build(root, api, U) {
   // ('nn-jk-1'); names, guesses and hints per song, for the leaderboards once there are logins on the token site.
   const JK_KEY = 'nn-jk-1'
   let jkMe = { u: {}, g: {}, h: {} }, jkGuessText = '', jkSaid = null
-  try { const v = JSON.parse(localStorage.getItem(JK_KEY) || 'null'); if (v && typeof v === 'object') jkMe = { u: v.u || {}, g: v.g || {}, h: v.h || {} } } catch (e) { /* (private window: nothing kept) */ }
-  const jkSave = () => { try { localStorage.setItem(JK_KEY, JSON.stringify(jkMe)) } catch (e) { /* (private window) */ } }
+  /* (GPT red team round 2, 2 and 13) a record read from storage is tidied (an old unlock without a count counts as 1 guess, without a time gets now); a save first
+     merges what another tab may have written (an unlock is kept, the earlier one wins; guesses take the larger count; a hint once taken stays); another tab's
+     save is merged in as it happens */
+  const jkTidy = (v) => { const o = { u: {}, g: {}, h: {} }; if (!v || typeof v !== 'object') return o; for (const [id, u] of Object.entries(v.u || {})) if (u && typeof u.name === 'string') o.u[id] = { ...u, n: Math.max(1, Math.round(Number(u.n) || 1)), at: Number(u.at) > 0 ? Number(u.at) : Date.now() }; for (const [id, n] of Object.entries(v.g || {})) if (Number(n) > 0) o.g[id] = Math.round(Number(n)); for (const [id, h] of Object.entries(v.h || {})) if (h && typeof h === 'object') o.h[id] = { b: !!h.b, y: !!h.y }; return o }
+  const jkMerge = (a, b) => { const o = jkTidy(a), t = jkTidy(b); for (const [id, u] of Object.entries(t.u)) if (!o.u[id] || u.at < o.u[id].at) o.u[id] = u; for (const [id, n] of Object.entries(t.g)) o.g[id] = Math.max(o.g[id] || 0, n); for (const [id, h] of Object.entries(t.h)) o.h[id] = { b: !!(o.h[id]?.b || h.b), y: !!(o.h[id]?.y || h.y) }; return o }
+  const jkRead = () => { try { return JSON.parse(localStorage.getItem(JK_KEY) || 'null') } catch (e) { return null } }
+  jkMe = jkTidy(jkRead())
+  const jkSave = () => { jkMe = jkMerge(jkMe, jkRead()); try { localStorage.setItem(JK_KEY, JSON.stringify(jkMe)) } catch (e) { /* (private window) */ } }
+  addEventListener('storage', (e) => { if (e.key !== JK_KEY) return; jkMe = jkMerge(jkMe, jkRead()); if (modal === 'jukebox') { jkNowPaint(); jkList() } })
   const songOf = (id) => jukebox.songs.find((x) => x.id === id)
   const known = (id) => { const x = songOf(id); return !!x && (!x.lock || !!jkMe.u[id]) }
   const songName = (id) => { const x = songOf(id); return !x ? '' : x.lock ? jkMe.u[id]?.name ?? '' : x.name ?? '' }
@@ -1898,18 +1911,27 @@ export async function build(root, api, U) {
   async function jkFill() { if (!globalThis.crypto?.subtle) return; let n = 0; for (const [id, u] of Object.entries(jkMe.u)) { if (u.artist != null) continue; const x = songOf(id); if (!x?.lock) continue; const v = u.v ?? jkTitleNorm(u.name), chk = hexOf(await sha(`nn-check|${id}|${v}`)).slice(0, 20), hit = x.lock.v.find((p) => p[0] === chk); u.v = v; u.artist = hit?.[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : ''; n++ } if (n) { jkSave(); if (modal === 'jukebox') jkList() } }
   const jkNowId = () => jukebox.at()?.id ?? jkPaused?.id ?? null
   // a guess at the song playing: true (unlocked), false (counted, wrong), null (nothing to guess)
+  let jkBusy = false // (GPT red team round 2, 4: a double Enter is one guess)
   async function jkGuess(text) {
+    if (jkBusy) return null
     const id = jkNowId(), x = songOf(id)
     if (!x?.lock || jkMe.u[id] || !globalThis.crypto?.subtle) return null
     const g = jkTitleNorm(text); if (!g) return null
+    jkBusy = true
+    try { return await jkGuess1(id, x, g) } finally { jkBusy = false }
+  }
+  async function jkGuess1(id, x, g) {
+    const h0 = { ...(jkMe.h[id] || {}) } // (GPT round 2, 9: a hint clicked while the guess is being checked does not count against it)
     jkMe.g[id] = (jkMe.g[id] || 0) + 1
     const tries = [...new Set([g, g.replace(/^THE /, '')].flatMap((v) => [v, v.replace(/ /g, '')]))]
     for (const v of tries) {
       const chk = hexOf(await sha(`nn-check|${id}|${v}`)).slice(0, 20), hit = x.lock.v.find((p) => p[0] === chk)
-      if (hit) { const h = jkMe.h[id] || {}; jkMe.u[id] = { name: await jkOpen(id, v, hit[1]), artist: hit[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : '', v, n: jkMe.g[id], hb: !!h.b, hy: !!h.y, at: Date.now() }; jkSave(); return true }
+      if (hit) { if (jkMe.u[id]) return true; const h = h0; jkMe.u[id] = { name: await jkOpen(id, v, hit[1]), artist: hit[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : '', v, n: jkMe.g[id], hb: !!h.b, hy: !!h.y, at: Date.now() }; jkSave(); jkToStand(); return true }
     }
     jkSave(); return false
   }
+  // (11 Nov) a song guessed goes on your WITNESS STAND entry too (SONGS GUESSED, and THE MAESTRO OF MCCOVEY COVE for the most this season)
+  function jkToStand() { if (typeof wsave !== 'function') return; const me = wData && !wData.then && wData.me ? wData.me : wstore.local(), next = { ...me, jk: jkPack(jkMe, me.jk) }; if (wData && !wData.then) wData = { ...wData, me: next }; wsave(next).then((r) => { if (r?.ok && r.me && wData && !wData.then) wData = { ...wData, me: r.me } }, () => {}) }
   function jkHint(kind) { const id = jkNowId(), x = songOf(id); if (!x?.lock || jkMe.u[id]) return; (jkMe.h[id] ??= {})[kind] = true; jkSave() }
   // one song's title (and year) as you have it: the hinted part in the hint colour
   const jkTitle = (id) => { const x = songOf(id), u = jkMe.u[id]; if (!x) return ''; if (!x.lock) return jkEsc(x.name ?? ''); if (!u) return '? ? ?'; return `<span class="${u.hb ? 'jkhn' : ''}">${jkEsc(u.name)}</span>${x.lock.year ? ` <span class="jky${u.hy ? ' jkhn' : ''}">${x.lock.year}</span>` : ''}` }
@@ -1962,8 +1984,8 @@ export async function build(root, api, U) {
     const el = E('#jkl'); if (!el) return
     /* (11 Nov, later, Andrew: "Every song should have a number so you can scroll through what you've guessed and what you don't yet know, and then you can click on
        any song to play it and guess. when we actually have the song guessed it should be a table with song, artist, year, guessed") */
-    const q = jkNorm(jkQ).trim(), now = jukebox.playing() ?? jkPaused?.id, T = jkTally()
-    const L = jukebox.songs.filter((x) => !q || (known(x.id) && jkNorm(songName(x.id) + ' ' + (jkMe.u[x.id]?.artist ?? '')).includes(q)))
+    const q = jkTitleNorm(jkQ), now = jukebox.playing() ?? jkPaused?.id, T = jkTally() // (GPT round 2, 12: accents folded like a guess)
+    const L = jukebox.songs.filter((x) => !q || (known(x.id) && jkTitleNorm(songName(x.id) + ' ' + (jkMe.u[x.id]?.artist ?? '')).includes(q)))
     E('#jkh').textContent = `YOUR JUKEBOX: ${T.n} OF ${T.of} GUESSED (${T.blind} BLIND, ${T.hinted} WITH A HINT)${q ? ` · ${L.length} FOUND` : ''}`
     const cell = (x) => { const u = jkMe.u[x.id], no = String(x.no ?? jukebox.songs.indexOf(x) + 1).padStart(2, '0'); if (!x.lock || u) { const yr = x.lock?.year; return `<i class="jkno">${no}</i><span class="jksn${u?.hb ? ' jkhn' : ''}">${jkEsc(songName(x.id))}</span><span class="jkmeta"><span class="jkar">${jkEsc(u?.artist ?? '')}</span><span class="jkyr${u?.hy ? ' jkhn' : ''}">${yr ?? ''}</span><span class="jkhow">${u ? jkHow(u) : ''}</span></span>` } return `<i class="jkno">${no}</i><span class="jksn jkun">? ? ?</span><span class="jkmeta"><span class="jkar"></span><span class="jkyr"></span><span class="jkhow">NOT YET</span></span>` }
     const head = L.length ? '<div class="r jk jkth" aria-hidden="true"><i class="jkno">#</i><span class="jksn">SONG</span><span class="jkmeta"><span class="jkar">ARTIST</span><span class="jkyr">YEAR</span><span class="jkhow">GUESSED</span></span><b></b><span></span></div>' : ''
@@ -2003,7 +2025,9 @@ export async function build(root, api, U) {
   const REF = { ev: 103, la: 28, dir: 0, hand: 1, wind: 0, xwind: 0, carry: 1, dws: 0, tab: true }
   const carryFt = (t, hpa) => api.fly({ ...api.state, ...REF, temp: t }, { hPa: hpa }).landFt
   const compass = (d) => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((d % 360) + 360) % 360 / 45) % 8]
-  const nowRow = (B) => { const H = B.hourly, i0 = Math.max(0, H.time.findIndex((t) => new Date(t).getTime() > Date.now() - 3600e3)); return { i0, low: H.cloud_cover_low[i0], vis: H.visibility[i0] } }
+  /* (GPT round 2, 14: the hours come back as San Francisco wall-clock strings; compare them with the hour in San Francisco, not this browser's time zone) */
+  const sfHour = () => new Date().toLocaleString('sv-SE', { timeZone: 'America/Los_Angeles' }).replace(' ', 'T').slice(0, 13)
+  const nowRow = (B) => { const H = B.hourly, h = sfHour(), i0 = Math.max(0, H.time.findIndex((t) => String(t).slice(0, 13) >= h)); return { i0, low: H.cloud_cover_low[i0], vis: H.visibility[i0] } }
   const karlIn = (B) => { const r = nowRow(B); return r.low >= 60 || r.vis < 5000 }
   function paintBay(body) {
     E('#c25mt').textContent = '/ B A Y   B A R O M E T E R /'
@@ -2093,6 +2117,7 @@ export async function build(root, api, U) {
     const q = id ?? jkQueue.shift(), n = q ?? nextSong(jukebox.songs.map((x) => x.id)); if (!n) return false // (the jukebox's queue first, then the shuffled bag)
     if (q) markPlayed(q) // (GPT red team 5)
     jkPaused = null
+    if (n !== (jukebox.playing() ?? null)) { jkSaid = null; jkGuessText = '' } // (GPT round 2, 5: the last song's NOPE and typing do not carry over)
     director.stopAll(); lastSong = { id: n }
     const ok = songCue(n, { prio: 0 })
     if (modal === 'jukebox') { shownSong = jukebox.playing(); jkNowPaint(); jkList(); jkQueuePaint() } // (the window follows at once, not on the next second)
@@ -2110,7 +2135,7 @@ export async function build(root, api, U) {
   E('#c25sk').addEventListener('click', () => { pressEl(E('#c25sk')); if (!sound.on()) sound.set(true); jkPaused = null; bgNext() }) // (with the sound off, SKIP turns it on)
   E('#c25jk').addEventListener('click', () => { pressEl(E('#c25jk')); sound.play('move'); openMod('jukebox') })
   let wChain = Promise.resolve() // (7 Nov, red team 4.8: one save at a time, in the order made)
-  const wsave = (e) => (wChain = wChain.then(() => wstore.save(e), () => wstore.save(e)))
+  const wsave = (e) => (wChain = wChain.then(() => wstore.save(e), () => wstore.save(e))).then((r) => { if (r?.ok && wData && !wData.then && Array.isArray(wData.all)) { const me = r.me ?? e; wData = { ...wData, all: wData.all.map((p) => (p.me ? { ...p, ...me, me: true, id: p.id } : p)) } } return r }) // (GPT red team round 2, 3: the stand's list follows your own saves)
   let wEd = null, wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
   const G = (gamesJ?.games ?? [])
   const wNow = () => (q.get('now') ? Date.parse(q.get('now')) : Date.now())
@@ -2215,18 +2240,24 @@ export async function build(root, api, U) {
   // a calling card: the emblem (or an empty frame) and the tag, or the plain name, or nothing yet
   const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
   const embImg = (code, px) => { const u = code ? emblemDataURL(code, 2) : ''; return u ? `<img class="wemb" src="${u}" width="${px}" height="${px}" alt="">` : `<span class="wemb none" style="width:${px}px;height:${px}px"></span>` }
+  // a title's pixel picture (witness25.js TITLE_ART) as an image, made once
+  const TITLE_IMG = new Map()
+  const titleImg = (k) => { if (!TITLE_IMG.has(k)) { const a = TITLE_ART[k]; let u = ''; if (a) { const S = 4, c = document.createElement('canvas'), W = a.rows[0].length, H = a.rows.length; c.width = W * S; c.height = H * S; const x = c.getContext('2d'); if (x) { a.rows.forEach((r, y) => [...r].forEach((ch, i) => { const col = a.pal[ch]; if (col) { x.fillStyle = col; x.fillRect(i * S, y * S, S, S) } })); u = c.toDataURL() } } TITLE_IMG.set(k, u) } const u = TITLE_IMG.get(k); return u ? `<img class="wti" src="${u}" alt="" width="48" height="48">` : '<span class="wti"></span>' }
   const cardHTML = (me, px) => `<span class="wcc">${embImg(me.emblem, px)}<b>${esc(me.tag || me.name || 'NO TAG YET')}</b></span>`
   function standHTML(me) {
     const season = wSeason()
-    const people = (wData.all?.length ? wData.all : [{ ...me, name: me.name || 'YOU' }]).map((p) => ({ name: p.tag || (p.name || 'NO NAME').toUpperCase(), entry: p }))
-    const cardOf = new Map(people.map((p) => [p.name, p.entry])) // (2 Nov, night: a tag keeps its case; the emblem goes beside it)
-    const all = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, wOpts) })), now = people.map((p) => ({ name: p.name, stats: witnessStats(G, R.balls, p.entry, { ...wOpts, season }) }))
-    const titles = TROPHIES.map((t) => { const b = BOARDS.find((x) => x.key === t.board), top = rankBoard(b, now).find((r) => r.value > 0); return `<div class="wtt"><b>${t.names[0]}</b><span>${top ? `${top.name} · ${wFmt(top.value)}${b.unit ? ' ' + b.unit : ''}` : 'UP FOR GRABS'}</span></div>` }).join('')
+    const people = (wData.all?.length ? wData.all : [{ ...me, name: me.name || 'YOU' }]).map((p, i) => ({ name: p.tag || (p.name || 'NO NAME').toUpperCase(), id: p.id ?? (p.me ? 'me' : 'p' + i), entry: p }))
+    const cardOf = new Map(people.map((p) => [p.id, p.entry])) // (2 Nov, night: a tag keeps its case; the emblem goes beside it) (GPT round 2, 11: by who it is, not by the name, which two can share)
+    const all = people.map((p) => ({ name: p.name, id: p.id, stats: witnessStats(G, R.balls, p.entry, wOpts) })), now = people.map((p) => ({ name: p.name, id: p.id, stats: witnessStats(G, R.balls, p.entry, { ...wOpts, season }) }))
+    /* (11 Nov, Andrew: each title on its own row, a little pixel picture, then who holds it, their number and what it is: "realOGman: 7 SONGS GUESSED"; GPT round 2,
+       10: everyone tied at the top holds it) */
+    const titles = TROPHIES.map((t) => { const b = BOARDS.find((x) => x.key === t.board), ranked = rankBoard(b, now), top = ranked.find((r) => r.value > 0), co = top ? ranked.filter((r) => r.value === top.value) : [], art = TITLE_ART[t.key], say = art ? art.say[top?.value === 1 ? 0 : 1] : b.unit ?? ''
+      return `<div class="wtr">${titleImg(t.key)}<div class="wtx"><b>${t.names[0]}</b><span>${top ? `${co.map((r) => `<em>${esc(r.name)}</em>`).join(' &amp; ')}: ${wFmt(top.value)} ${say}` : 'UP FOR GRABS'}</span></div></div>` }).join('')
     const board = BOARDS.find((b) => b.key === wBoard) ?? BOARDS[0], ranked = rankBoard(board, all)
     const val = (v) => (board.pct ? `${v >= 0 ? '+' : ''}${Math.round(v * 100)}` : board.key === 'altitude' ? v.toFixed(1) : wFmt(v)) + (board.unit ? ' ' + board.unit : board.pct ? ' POINTS' : '')
-    return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts">${titles}</div>
+    return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts2">${titles}</div>
       <div class="wbds">${BOARDS.filter((b) => b.key !== 'hours' || all.some((p) => p.stats.hours != null)).map((b) => `<span class="bt${b.key === board.key ? ' on' : ''}" data-bd="${b.key}">${b.title}</span>`).join('')}</div>
-      <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b class="wrn">${embImg(cardOf.get(r.name)?.emblem, 22)}<em>${esc(r.name)}</em></b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
+      <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b class="wrn">${embImg(cardOf.get(r.id)?.emblem, 22)}<em>${esc(r.name)}</em></b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
       ${wData.shared ? '' : '<div class="dds">ONLY YOU UP THERE UNTIL THE STAND GOES LIVE.</div>'}`
   }
   function statCols(res) {
@@ -3500,7 +3531,7 @@ export async function build(root, api, U) {
   applyLab()
   for (const ev of ['nn-wallodds', 'nn-crests']) addEventListener(ev, () => { try { if (!flying && !api.anim?.()) api.update() } catch {} }) // (GPT red team 8)
   window.__mix25 = { dojoPark: (k) => { if (k !== undefined) { dojoPark = k; paintAwayWall(); paintChooser(); api.update() } return dojoPark }, shotFrame: () => shotFrame, cornerFit: () => cornerFit, wallWords: (v) => window.__cpWallWords?.(v) ?? null, pOut: (c, k) => pOut(c, k), shotGhosts: () => shotGhosts.n(), stamp: (b) => situation(b)?.stamp ?? null, lastSong: () => lastSong, nextSong: () => nextSong(jukebox.songs.map((x) => x.id)), modFocusables: () => modFocusables().length, awayWall: () => awayWall.now(), batFlip: () => batFlip, director: () => director, birdForTest: () => flipBird(), stage: () => stage, colors: () => colors(), impact: () => impact, touches: () => touches, heat: () => heat, heatWho: (id) => { hmWho = id ?? ''; hmKey = ''; if (show === 'hm') paintHeat() }, heatMetric: (m) => { hmMetric = m; hmKey = ''; if (show === 'hm') paintHeat() }, heatOver: () => (hmOver ? cellWords(hmOver) : null), sc: () => sc, lookNow: () => (look ? { req: look.req, p1: look.p1?.toArray(), t1: look.t1?.toArray() } : null), openMod: (k) => openMod(k), shot: () => (scRes ? { ways: scRes.ways.map((w) => ({ ev: w.ev, evx: w.evx ?? w.ev, la: w.la, dir: w.dir, w: w.w })), seat: scRes.seat, sel: scSel, spot: scRes.spot } : null), seatPoint: (a, b, c) => se.seatPoint(a, b, c), seatOf: (p) => seatOf(p), callSeat: (a, b, c) => { const r = se.seatPoint(a, b, c); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }); return r }, shotPlaying: () => !!shotPlayS, playShot: () => playShot(), setMode: (m) => setMode(m), you: () => youK, bio: (id) => bio[id] ?? null, standIn: (id) => standInOpts(id == null ? null : String(id), {}),
-    fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, guess: (t) => jkGuess(t), hint: (k) => jkHint(k), mine: () => JSON.parse(JSON.stringify(jkMe)), forget: () => { jkMe = { u: {}, g: {}, h: {} }; jkSave() }, lands: () => lands, fires: () => fires,
+    fun: () => [...fun.list], flight: () => flight, poles: () => poles, seance: () => seRes, look: () => (look ? { out: look.out, moving: performance.now() - look.start < 1300 } : null), hasFace: (id) => !!facesRaw[String(id)], get: () => ({ ...mix }), set: (s) => { Object.assign(mix, parseMix(s)); applyMix('L') }, code: () => mixCode(mix), menu, fx, life, moments, offZone, tweak, play, mode: () => mode, reel: () => reel, cur: () => cur, lastMoment: () => lastMoment, pushing: () => !!push, water: () => water, pitchCam: () => pitchCam, jukebox, guess: (t) => jkGuess(t), hint: (k) => jkHint(k), mine: () => JSON.parse(JSON.stringify(jkMe)), forget: () => { jkMe = { u: {}, g: {}, h: {} }; try { localStorage.removeItem(JK_KEY) } catch (e) { /* (private window) */ } }, lands: () => lands, fires: () => fires,
     // for the tests: jump to the first real ball (any filter) that matches
     ball: (pred) => { if (mode !== 'replay') setMode('replay'); filter = 'all'; balls = filtered(); const i = balls.findIndex(pred); if (i >= 0) { idx = i; applyBall(balls[i]); paintChooser() } return i }, stopReel: () => stopReel(), stars: () => smRes, allBalls: () => R.balls, coke: () => coke, cut: () => cutN, karl: (on) => toggleKarl(on), setShow: (k) => setShow(k), diamond: () => diamond, ghost: () => ghost, happen: () => happen, wind: () => windFx, controls: () => ctl3d, pix: () => pix, lab: (k, n) => { if (k && n != null) setLab(k, n); return { ...lab } }, mySeat: () => mySeat, selMenu: () => menu, gagReel: () => ({ all: !!reelAll, list: reelList() }), readable: () => [...readable(), ...screenTags()] }
   return {

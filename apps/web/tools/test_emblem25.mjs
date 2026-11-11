@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const M = await import(pathToFileURL(resolve(here, '../src/cockpits/emblem25.js')).href)
-const { EMBLEM_N, STICKERS, EMBLEM_COLORS, BG_STYLES, MIRRORS, DEFAULT_EMBLEM, encodeEmblem, decodeEmblem, normEmblem, randomEmblem, drawEmblem, emblemPixels, emblemDataURL, cleanTag, EMBLEM_CSS, emblemEditor } = M
+const { SHOWN, EMBLEM_N, STICKERS, EMBLEM_COLORS, BG_STYLES, MIRRORS, DEFAULT_EMBLEM, encodeEmblem, decodeEmblem, normEmblem, randomEmblem, drawEmblem, emblemPixels, emblemDataURL, cleanTag, EMBLEM_CSS, emblemEditor } = M
 
 let fails = 0
 const check = (name, ok, extra = '') => { if (!ok) fails++; console.log(ok ? 'PASS' : 'FAIL', name, ok ? '' : extra) }
@@ -29,6 +29,13 @@ check(`stickers: ${STICKERS.length} (at least 30)`, STICKERS.length >= 30)
 check('stickers rectangular, 4 to 16 a side, only # + .', bad.length === 0, bad.map((s) => s.id).join(' '))
 check('sticker ids unique, names in caps', new Set(STICKERS.map((s) => s.id)).size === STICKERS.length && STICKERS.every((s) => s.name === s.name.toUpperCase()))
 const want = ['skull', 'flame', 'bolt', 'crown', 'star', 'ball', 'bats', 'bat', 'glove', 'wing', 'sword', 'gull', 'sealion', 'cablecar', 'gate', 'fog', 'kayak', 'splash', 'nuke', 'rad', 'rocket', 'dice', 'money', 'diamond', 'fist', 'heart', 'eye', 'shades', 'garlic', 'hotdog', 'ghost', 'trophy', 'chevrons', 'shield', 'ring', 'frame', 'tri']
+{ // (11 Nov) the picker: his twelve keepers and his thirteen new ones, in his order; the rest hidden but still drawn in saved emblems; CHAOS-style randoms use only the shown ones
+  const mine = ['flame', 'skull', 'bolt', 'ball', 'bats', 'bat', 'glove', 'sealion', 'kayak', 'nuke', 'money', 'crab', 'seagull', 'hotdog2', 'finger', 'joint', 'cablecar2', 'bridge', 'atom', 'bike', 'ak', 'poo', 'pyramid', 'wave', 'beer']
+  check('the sticker picker shows exactly his 25, in his order', SHOWN.map((x) => x.id).join() === mine.join(), SHOWN.map((x) => x.id).join())
+  const used = new Set(); for (let i = 0; i < 200; i++) for (const l of randomEmblem(seeded(i + 7)).layers) used.add(l.s)
+  check('random emblems only use stickers in the picker', [...used].every((id) => mine.includes(id)), [...used].filter((id) => !mine.includes(id)).join())
+  const old = normEmblem({ layers: [{ s: 'crown' }, { s: 'wing' }] }); check('an old emblem with a hidden sticker still decodes and draws', decodeEmblem(encodeEmblem(old)).layers.length === 2 && emblemPixels(old).some((v) => v >= 0))
+}
 check('every asked-for sticker is there', want.every((id) => STICKERS.some((s) => s.id === id)), want.filter((id) => !STICKERS.some((s) => s.id === id)).join(' '))
 
 // ---- packing ----
