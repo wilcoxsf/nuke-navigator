@@ -162,7 +162,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   const jk = await page.evaluate(() => { const rows = [...document.querySelectorAll('#c25mb [data-song]')]; return { n: rows.length, on: rows.find((r) => r.classList.contains('on'))?.dataset.song ?? null, pick: rows.find((r) => !r.classList.contains('on'))?.dataset.song } })
   await page.click(`#c25mb [data-song="${jk.pick}"] b`); await page.waitForTimeout(900)
   const s2 = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), on: document.querySelector('#c25mb .jk.on')?.dataset.song ?? null }))
-  check('JUKEBOX lists the songs you have guessed (five and the walk-off song) with the one playing marked, and a click plays that one', jk.n === 6 && jk.on === s1g && s2.playing === jk.pick && s2.on === jk.pick, JSON.stringify({ jk, s2 }))
+  check('JUKEBOX lists every song, numbered (11 Nov, later: guessed or not, any one plays from its row), with the one playing marked, and a click plays that one', jk.n === (await page.evaluate(() => window.__mix25.jukebox.songs.length)) && jk.on === s1g && s2.playing === jk.pick && s2.on === jk.pick, JSON.stringify({ jk, s2 }))
   // (10 Nov, later) the mini player: search, + QUEUE (it plays next, before the shuffle), PAUSE and PLAY again from where it was
   await page.fill('#jks', 'billie'); await page.waitForTimeout(400)
   const sr = await page.evaluate(() => [...document.querySelectorAll('#c25mb [data-song]')].map((r) => r.dataset.song))
