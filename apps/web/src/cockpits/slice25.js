@@ -69,9 +69,9 @@ export function sliceSVG(o, W, H) {
 
 // one line under the slice: how the bat's path met the pitch's path (a bat swinging up at the same angle the pitch comes down is "on plane")
 export function sliceCaption(o) {
-  if (!o.real) return 'WHAT-IF SWING: THE BALL ONLY. NO REAL PITCH OR BAT.'
+  if (!o.real) return 'YOUR SWING' // (10 Nov, his copy pass)
   if (o.aa == null) return 'NO BAT TRACKING ON THIS ONE: THE PITCH AND THE BALL ONLY.'
   const plane = -(o.vaa ?? -6), d = o.aa - plane, gap = o.la - o.aa
-  const pl = Math.abs(d) <= 2 ? 'ON THE PITCH\'S PLANE' : `${Math.abs(Math.round(d))}° ${d > 0 ? 'STEEPER' : 'FLATTER'} THAN THE PITCH'S PLANE`
-  return `THE BAT'S PATH WAS ${pl}. BALL LEFT ${Math.abs(Math.round(gap))}° ${gap >= 0 ? 'ABOVE' : 'BELOW'} THE BAT'S PATH.`
+  const pl = Math.abs(d) <= 2 ? 'ON THE PITCH\'S PLANE' : `${Math.abs(Math.round(d))}° ${d > 0 ? 'STEEPER' : 'FLATTER'} THAN THE PITCH`
+  return `SWING ${pl} · BALL ${Math.abs(Math.round(gap))}° ${gap >= 0 ? 'ABOVE' : 'BELOW'} THE SWING`
 }

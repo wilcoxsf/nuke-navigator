@@ -16,11 +16,12 @@ export const RUNNER_LOOKS = [
 const BONE = '#e8e1c9', FT = 0.3048
 // (5 Nov, Andrew: "I like ghosts on base but let's give them giants hats too"): a black cap, an orange SF patch on the front, the bill out over the eyes
 const WISP = '#e6ecff', WISP2 = '#d5ddf5'
-const GHOST = () => { const c = [], W = '#f4f3ee', K = '#16181b', O = '#ff7a00'; for (let y = 2; y < 9; y++) { const r = y > 6 ? 1 : 2; for (let x = -r; x <= r; x++) for (let z = -1; z <= 1; z++) c.push([x, y, z, W]) }
+// (10 Nov, later, Andrew: "Let's have the ghosts wear the hat of whatever team they represent if it's an away batter"): cap and patch are the batting team's (c25.js capOf)
+const GHOST = (cap = '#16181b', patch = '#ff7a00') => { const c = [], W = '#f4f3ee', K = '#16181b', O = patch, H = cap; for (let y = 2; y < 9; y++) { const r = y > 6 ? 1 : 2; for (let x = -r; x <= r; x++) for (let z = -1; z <= 1; z++) c.push([x, y, z, W]) }
   // the hem: a ragged row, then three tails that thin out and drift
   for (let x = -2; x <= 2; x++) c.push([x, 1, 0, WISP]); c.push([-1, 1, 1, WISP], [1, 1, -1, WISP])
   for (const [x, z] of [[-2, 0], [0, 1], [2, -1]]) { c.push([x, 0, z, WISP2]); c.push([x + (x < 0 ? -1 : x > 0 ? 1 : 0), -1, z, WISP2]) }
-  c.push([-3, -2, 0, WISP2], [3, -2, -1, WISP2]); c.push([-1, 6, 2, K], [1, 6, 2, K]); for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) c.push([x, 9, z, K]); c.push([0, 10, 0, K], [0, 10, 1, K], [-1, 10, 0, K], [1, 10, 0, K]); for (let x = -1; x <= 1; x++) c.push([x, 9, 2, K], [x, 9, 3, K]); c.push([0, 10, 2, O], [-1, 10, 1, O], [1, 10, 1, O]); return c }
+  c.push([-3, -2, 0, WISP2], [3, -2, -1, WISP2]); c.push([-1, 6, 2, K], [1, 6, 2, K]); for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) c.push([x, 9, z, H]); c.push([0, 10, 0, H], [0, 10, 1, H], [-1, 10, 0, H], [1, 10, 0, H]); for (let x = -1; x <= 1; x++) c.push([x, 9, 2, H], [x, 9, 3, H]); c.push([0, 10, 2, O], [-1, 10, 1, O], [1, 10, 1, O]); return c }
 
 export function initStage25(api, o = {}) {
   const { THREE, scene } = api.NN
@@ -38,12 +39,12 @@ export function initStage25(api, o = {}) {
   const BASES = [[0, 0], [19.4, 19.4], [0, 38.8], [-19.4, 19.4]].map(([x, y]) => W(x, y, 0))
   let crew = null, crewKey = '', runs = [] // runs: lights running home after a home run
   const basic = (c, op = 1) => new THREE.MeshBasicMaterial({ color: c, transparent: op < 1, opacity: op, depthWrite: op >= 1, fog: false })
-  function marker(L, k) {
+  function marker(L, k, cap) {
     const m = new THREE.Group(), at = BASES[k]
     if (L === 2 || L === 5) { for (let y = 0; y < 4; y++) { const b = hide(new THREE.Mesh(new THREE.BoxGeometry(2.6 - y * 0.5, 0.6, 2.6 - y * 0.5), basic(y === 3 ? '#ffffff' : BONE))); b.position.set(0, 0.3 + y * 0.6, 0); b.rotation.y = Math.PI / 4; m.add(b) } }
     if (L === 3) { const b = hide(new THREE.Mesh(new THREE.BoxGeometry(0.5, 16, 0.5), basic(BONE, 0.55))); b.position.y = 8; m.add(b); const cap = hide(new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 1.4), basic('#ffffff'))); cap.position.y = 0.25; cap.rotation.y = Math.PI / 4; m.add(cap) }
     if (L === 4) {
-      const v = voxCells(THREE, GHOST(), 0.42)
+      const v = voxCells(THREE, cap ? GHOST(cap[0], cap[1]) : GHOST(), 0.42)
       // their own see-through materials (the voxel ones are shared), no ink round them, so they read as sheets of mist; a soft dark spot on the bag under each
       v.traverse((c) => { if (c.material) { const wisp = ['#e6ecff', '#d5ddf5'].includes('#' + c.material.color.getHexString()); c.material = c.material.clone(); c.material.transparent = true; c.material.opacity = wisp ? 0.3 : 0.62; c.material.depthWrite = false; c.userData.ownMat = true; c.userData.wisp = wisp; c.renderOrder = 24; hide(c) } })
       v.userData.float = true; m.add(v)
@@ -56,11 +57,11 @@ export function initStage25(api, o = {}) {
   function sync({ ball, mode }) {
     const L = look()
     if (L.gr === 1 || !ball || mode !== 'replay') { if (crew || runs.length) clearCrew(); return }
-    const key = [ball.d, ball.b, ball.ev, ball.r1, ball.r2, ball.r3, L.gr].join() // (red team 2.8)
+    const cap = o.capOf?.(ball) ?? null, key = [ball.d, ball.b, ball.ev, ball.r1, ball.r2, ball.r3, L.gr, cap?.join()].join() // (red team 2.8)
     if (key === crewKey) return
     clearCrew(); crewKey = key
     const on = [[1, ball.r1], [2, ball.r2], [3, ball.r3]].filter(([, x]) => x).map(([k]) => k)
-    crew = { on, marks: on.map((k) => marker(L.gr, k)), L: L.gr }
+    crew = { on, marks: on.map((k) => marker(L.gr, k, cap)), L: L.gr }
   }
   function score() { // LIT BASES THAT SCORE: a light from each taken base, and one from home, runs the bases to home
     if (!crew || crew.L !== 5) return

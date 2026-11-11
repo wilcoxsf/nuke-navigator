@@ -11,7 +11,7 @@ export const MENU_CSS = `
 #cp .c25 .sm .smx{position:fixed;top:14px;right:18px;display:inline-flex;gap:8px;align-items:center;pointer-events:auto;cursor:pointer}
 #cp .c25 .sm .smx kbd{font:inherit;font-size:.8em;border:1px solid currentColor;padding:0 4px}
 #cp .c25 .sm .smt{font-family:PS2P,monospace;font-size:clamp(22px,4.2vw,46px);color:var(--acc);letter-spacing:.04em;text-align:center;line-height:1.15;text-shadow:4px 4px 0 var(--ln)}
-#cp .c25 .sm .sms{font-family:PS2P,monospace;font-size:10px;color:var(--dim);letter-spacing:.2em}
+#cp .c25 .sm .sms{font-family:PS2P,monospace;font-size:8px;color:var(--dim);letter-spacing:.2em}
 #cp .c25 .sm .sml{display:grid;gap:3px;width:min(780px,90vw)}
 #cp .c25 .sm .smi{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:16px;align-items:baseline;padding:7px 12px;cursor:pointer;border:1px solid transparent}
 #cp .c25 .sm .smi b{font-family:PS2P,monospace;font-weight:400;font-size:clamp(11px,1.5vw,15px);color:var(--tx);white-space:nowrap}
@@ -20,7 +20,7 @@ export const MENU_CSS = `
 #cp .c25 .sm .smi.hero{grid-template-columns:minmax(0,1fr);gap:6px;padding:10px 12px}#cp .c25 .sm .smi.hero b{font-size:clamp(15px,2.3vw,24px)}#cp .c25 .sm .smi.hero span{color:var(--tx);white-space:normal}
 #cp .c25 .sm .smi.on b{color:var(--acc)}
 #cp .c25 .sm .smi.dis b,#cp .c25 .sm .smi.dis span{opacity:.45}
-#cp .c25 .sm .smf{font-family:PS2P,monospace;font-size:9px;color:var(--dim);letter-spacing:.12em;text-align:center;line-height:1.8}
+#cp .c25 .sm .smf{font-family:PS2P,monospace;font-size:8px;color:var(--dim);letter-spacing:.125em;text-align:center;line-height:1.8}
 #cp .c25 .sm .artbox{width:780px;max-width:90vw;aspect-ratio:780/120;display:flex;align-items:center;justify-content:center}
 #cp .c25 .sm .ins2{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:pointer}
 #cp .c25 .sm .art{font-family:PS2P,monospace;font-size:9px;color:var(--dim);letter-spacing:.12em;text-align:center;margin-top:-8px;cursor:pointer}
@@ -39,8 +39,8 @@ export const MENU_CSS = `
 export function selectMenu(host, items, o = {}) {
   const el = document.createElement('div')
   el.className = 'sm'
-  el.innerHTML = `<div class="smb"><div class="lgo"></div><div class="sms">SELECT MODE</div><div class="sml"></div><div class="artbox"><canvas class="ins2" width="${GAG_W * GAG_U}" height="${GAG_H * GAG_U}" role="img" aria-label="a little pixel scene"></canvas></div><div class="art" role="button"></div>
-    <div class="smf">UP / DOWN OR 1 TO 4 TO CHOOSE &nbsp; ENTER TO START &nbsp; ESC COMES BACK HERE</div><span class="bt smx" role="button" tabindex="0">CLOSE<kbd>ESC</kbd></span></div>`
+  el.innerHTML = `<div class="smb"><div class="lgo"></div><div class="sms">SELECT MODE</div><div class="sml"></div><div class="artbox"><canvas class="ins2" width="${GAG_W * GAG_U}" height="${GAG_H * GAG_U}" role="img" aria-label="a little pixel scene"></canvas></div>
+    <div class="smf">&uarr; &darr; AND ENTER &nbsp;·&nbsp; ESC COMES BACK HERE</div><span class="bt smx" role="button" tabindex="0">CLOSE<kbd>ESC</kbd></span></div>`
   host.appendChild(el)
   // (1 Nov, night; playtest: a mouse user could not leave the menu) a CLOSE in the corner, and a click outside the box
   el.querySelector('.smx').addEventListener('click', () => { sound.play('back'); close() })
@@ -55,18 +55,15 @@ export function selectMenu(host, items, o = {}) {
   const paintLogo = () => { el.querySelector('.lgo').innerHTML = LOGO[logo] ?? LOGO[1] }
   paintLogo()
   // the bottom of the menu (28 Oct, Andrew, in place of 1 PLAYER FREE PLAY): little pixel cartoons, now the twelve in menugags25.js (10 Nov: Q1 and Q2, his picks,
-  // no words in them). Each plays once, start to finish, then a random other one comes (A plays them all in turn; the arrows and a click step through them).
+  // no words in them). Each plays once, start to finish, then a random other one comes; nothing steps through them.
   // Drawn at 12 frames a second; one still frame, the punchline, under reduced motion.
   const cv = el.querySelector('.ins2'), cx2 = cv.getContext('2d'), SCENES = GAGS
   let sceneKey = 'snag', lastKey = null
-  const KEYS = Object.keys(SCENES), artEl = el.querySelector('.art')
-  let allArt = false, artT0 = 0
-  const paintArt = () => { artEl.innerHTML = `${KEYS.indexOf(sceneKey) + 1} / ${KEYS.length} &nbsp; &larr; &rarr; MORE &nbsp; A: ${allArt ? 'STOP' : 'ALL IN TURN'}`; cv.setAttribute('aria-label', SCENES[sceneKey].label) } // (no gag names: they speak for themselves)
+  const KEYS = Object.keys(SCENES)
+  let artT0 = 0
+  const paintArt = () => cv.setAttribute('aria-label', SCENES[sceneKey].label) // (no names, no counter, no way to step through them: 10 Nov, Andrew: "just having them is enough")
   const setScene = (k) => { sceneKey = k; lastKey = k; artT0 = performance.now(); lastTick = -1; paintArt() }
-  const stepArt = (d) => setScene(KEYS[(KEYS.indexOf(sceneKey) + d + KEYS.length) % KEYS.length])
   const pickScene = () => { const keys = KEYS.filter((k) => k !== lastKey); setScene(keys[Math.floor(Math.random() * keys.length)]) }
-  cv.addEventListener('click', () => { stepArt(1); sound.play('move') })
-  artEl.addEventListener('click', () => { allArt = !allArt; if (allArt) setScene(KEYS[0]); else paintArt(); sound.play('move') })
   const still = matchMedia?.('(prefers-reduced-motion: reduce)').matches
   function scene(t) { drawGag(cx2, sceneKey, t, getComputedStyle(host).getPropertyValue('--acc').trim() || '#f0802a') }
   let raf = 0, lastTick = -1
@@ -76,7 +73,7 @@ export function selectMenu(host, items, o = {}) {
     if (tk !== lastTick) {
       lastTick = tk
       const e = (now - artT0) / 1000
-      if (e >= SCENES[sceneKey].dur) { if (allArt) stepArt(1); else pickScene() }
+      if (e >= SCENES[sceneKey].dur) pickScene()
       scene((now - artT0) / 1000)
     }
     raf = requestAnimationFrame(loop)
@@ -101,8 +98,6 @@ export function selectMenu(host, items, o = {}) {
     else if (e.key === 'ArrowUp') { e.preventDefault(); i = (i - 1 + items.length) % items.length; sound.play('move'); paint() }
     else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick() }
     else if (e.key === 'Escape') { e.preventDefault(); sound.play('back'); close() }
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); stepArt(e.key === 'ArrowLeft' ? -1 : 1); sound.play('move') }
-    else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); allArt = !allArt; if (allArt) setScene(KEYS[0]); else paintArt(); sound.play('move') }
     else if ((e.key === 'j' || e.key === 'J') && o.onJukebox) { e.preventDefault(); sound.play('pick'); close(); o.onJukebox() }
     else if (e.key === 's' || e.key === 'S') { sound.set(!sound.on()); if (!sound.on()) director.stopAll(); paint(); sound.play('move') }
     else if (/^[1-9]$/.test(e.key) && Number(e.key) <= items.length) { i = Number(e.key) - 1; pick() }
@@ -110,5 +105,5 @@ export function selectMenu(host, items, o = {}) {
   }, true)
   el.addEventListener('pointermove', kick)
   // scene: which loop is up (and, for the tests, set one: k, drawn at t when given)
-  return { show, close, isOpen: () => open, el, setLogo(n) { logo = n; paintLogo() }, scenes: Object.keys(SCENES), scene(k, t) { if (k && SCENES[k]) { setScene(k); if (t != null) scene(t) } return sceneKey }, allArt: () => allArt }
+  return { show, close, isOpen: () => open, el, setLogo(n) { logo = n; paintLogo() }, scenes: Object.keys(SCENES), scene(k, t) { if (k && SCENES[k]) { setScene(k); if (t != null) scene(t) } return sceneKey } }
 }

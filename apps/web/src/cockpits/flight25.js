@@ -128,9 +128,11 @@ export function initFlight25(api, colors) {
     const top = toWorld(src[ai].p)
     const zen = new THREE.Group()
     // the two posts in the pitch color, like the dots (29 Oct, evening, Andrew: the zenith and home-run height lines in ICE too)
-    const zPost = cubes(geo, lam(c.mk || c.pc || c.tx), column(top.x, top.z, ground, top.y - 1.4, 1.5).reverse(), 0.45); zen.add(zPost)
-    zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1, 1, c.mk || c.pc || c.tx))
-    const zDot = cubes(geo, lam(c.mk ?? c.tx), [top], 1.4); zen.add(zDot) // the dot at the top of the flight
+    // (10 Nov, later, Andrew: "we make the zenith dropdown the color of their team as well"): the hitter's team color when the page gives one (c25.js __cpZenith), else as before
+    const zc = window.__cpZenith?.() ?? null
+    const zPost = cubes(geo, lam(zc ?? (c.mk || c.pc || c.tx)), column(top.x, top.z, ground, top.y - 1.4, 1.5).reverse(), 0.45); zen.add(zPost)
+    zen.add(tag('ZENITH', `${Math.round(res.peakFt)} FT`, top.clone().add(new THREE.Vector3(0, 1, 0)), c.tx, -1, 1, zc ?? (c.mk || c.pc || c.tx)))
+    const zDot = cubes(geo, lam(zc ?? c.mk ?? c.tx), [top], 1.4); zen.add(zDot) // the dot at the top of the flight
     zen.userData.dot = top.clone(); zen.userData.form = { post: zPost, dot: zDot, at: top.clone(), pts: column(top.x, top.z, ground, top.y - 1.4, 1.5).reverse(), s: 0.45, size: 1.4, look: 4 }
     g.add(zen); g.userData.reveal.push([ai / Math.max(1, src.length - 1), zen])
     // the clearance post: from the top of the wall to the ball as it crossed (GONE), or from the top down to where it hit (WALL)
@@ -156,7 +158,7 @@ export function initFlight25(api, colors) {
       const end = toWorld(src[src.length - 1].p), lp = res.landing?.point ?? end, base = lp.clone(); base.y = Math.max(base.y, ground)
       const gone = v.kind === 'GONE', over = gone && v.wallFt ? src.findIndex((s) => Math.hypot(s.p[0], s.p[1]) / FT >= v.wallFt) : -1
       // 2 Nov, later (Andrew: "pitch color until it's gone, after which I want to see both orange and the nuke color"): COUNT-UP COLOR, 1 ORANGE or 2 GEIGER
-      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: c.pc || c.tx, hot: landCol === 2 ? c.nk || c.acc : c.acc, up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3, avoid: at(1.5), splash: res.landing?.kind === 'SPLASH', wallFt: v.wallFt, geiger: () => window.__cpGeiger?.(), chip: () => window.__cpChipSnd?.() }) // (2 Nov, night: it keeps off the arc; a splash takes a dip)
+      const ld = landNumber(api, { at: base, ft: res.landFt, from: toWorld(src[0].p), cool: window.__cpZenith?.() ?? (c.pc || c.tx), hot: c.nk || c.acc, /* (10 Nov, later, Andrew: "The counting number should be the batter color as it's counting up and then still geiger green once it crosses the threshold") */ up: c.mk || c.pc || c.tx, gone, look: landLook, spot: landLook === 3, avoid: at(1.5), splash: res.landing?.kind === 'SPLASH', wallFt: v.wallFt, geiger: () => window.__cpGeiger?.(), chip: () => window.__cpChipSnd?.() }) // (2 Nov, night: it keeps off the arc; a splash takes a dip)
       ld.userData.src = src; ld.userData.over = over < 0 ? Infinity : over
       g.add(ld); g.userData.reveal.push([0, ld]); g.userData.ld = ld
       if (window.__fixedTime !== undefined) ld.userData.settle()

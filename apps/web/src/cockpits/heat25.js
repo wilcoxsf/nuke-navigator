@@ -207,7 +207,11 @@ export function initHeat25(api, o = {}) {
     if (!api.NN.stadium) { addEventListener('nn-stadium', () => seatGridAsync(done, slice), { once: true }); return }
     if (!gridPart) { api.NN.stadium?.updateMatrixWorld(true); gridPart = { rows: [], C: gridCtx() } }
     const P = gridPart
-    const tick = () => { if (grid) { done?.(grid); return } if (gridPart !== P) return; const t = performance.now(); while (P.rows.length < N && performance.now() - t < slice) P.rows.push(gridRow(P.rows.length, P.C)); if (P.rows.length < N) setTimeout(tick, 16); else { grid = P.rows; gridPart = null; done?.(grid) } }
+    if (done) (P.waiters ??= []).push(done)
+    if (P.running) return // (10 Nov, night; the second red team, 10: one loop works the grid out; later callers wait for it)
+    P.running = true
+    const fin = () => { for (const f of P.waiters ?? []) f(grid); P.waiters = [] }
+    const tick = () => { if (grid) { fin(); return } if (gridPart !== P) return; const t = performance.now(); while (P.rows.length < N && performance.now() - t < slice) P.rows.push(gridRow(P.rows.length, P.C)); if (P.rows.length < N) setTimeout(tick, 16); else { grid = P.rows; gridPart = null; fin() } }
     setTimeout(tick, 0)
   }
   // ---- HOW HARD ----
@@ -501,7 +505,7 @@ export function initHeat25(api, o = {}) {
       let line = null
       if (L.ct !== 3 && pt.trail?.length > 1 && (L.ct !== 2 || pt.gone)) {
         const g = new THREE.BufferGeometry().setFromPoints(pt.trail)
-        line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: pt.gone ? '#9dff00' : '#e8e1c9', transparent: true, opacity: pt.gone ? 0.15 : 0.07, depthWrite: false, fog: false }))
+        line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: bodyC, transparent: true, opacity: pt.gone ? 0.2 : 0.08, depthWrite: false, fog: false })) // (10 Nov, later: in the color of the park it was hit in, as the arcs are; brighter if it goes out here)
         line.renderOrder = 21; group.add(line); api.NN.hideForNormal?.push(line); (group.userData.sheets ??= []).push(line)
       }
       drops.push({ m, line, n: pt.trail?.length ?? 0, at: m.position.clone(), gone: pt.gone, ref: pt.b, home: park === 'SF', d: String(pt.b?.d ?? ''), b: where(pt.at).b })

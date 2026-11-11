@@ -216,7 +216,7 @@ export function landingParty(api, balls, o = {}) {
       const res = api.fly(st, { floor: -8 })
       const hit = res.verdict.kind === 'GONE' || res.verdict.kind === 'FOUL' ? api.findLanding(res.path) : { point: api.toWorld(res.path[res.path.length - 1].p), kind: 'SHORT' }
       const p = hit.point, bear = (Math.atan2(p.x, -p.z) * 180) / Math.PI
-      const where = hit.kind === 'SPLASH' ? 'MCCOVEY COVE' : hit.kind === 'STREET' ? 'OUT OF THE PARK' : hit.kind === 'SHORT' ? 'SHORT IN THE ENGINE' : ZONES.find((z) => bear >= z[0] && bear < z[1])?.[2] ?? (bear < 0 ? 'LEFT-FIELD STANDS' : 'ARCADE')
+      const where = hit.kind === 'SPLASH' ? 'MCCOVEY COVE' : hit.kind === 'STREET' ? 'OUT OF THE PARK' : hit.kind === 'SHORT' ? 'STAYS IN' : ZONES.find((z) => bear >= z[0] && bear < z[1])?.[2] ?? (bear < 0 ? 'LEFT-FIELD STANDS' : 'ARCADE')
       const pts = res.path.filter((_, k) => k % 5 === 0).map((q) => api.toWorld(q.p))
       if (o.vox) {
         // Study 25 (28 Oct, night): a voxel number on a voxel stake where it came down, the flight as a few faint cubes

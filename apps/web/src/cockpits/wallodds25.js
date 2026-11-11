@@ -6,7 +6,7 @@
 // Used where the question is a what-if: an away ball flown at Oracle, a dojo swing, a tweaked ball, the GONE IN N OF 30 PARKS count. A real ball at its own
 // park needs no odds: what happened is known.
 let ODDS = { SF: { k: 0.575, a: 1.585 }, all: { k: 0.450, a: -0.656 } } // (the 10 Nov fit, until the file comes in)
-fetch('/wall_odds.json').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.SF && d?.all) ODDS = d }).catch(() => {})
+fetch('/wall_odds.json').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.SF && d?.all) { ODDS = d; dispatchEvent(new Event('nn-wallodds')) } }).catch(() => {}) // (GPT red team 8: the page repaints when the real odds arrive)
 const sig = (z) => 1 / (1 + Math.exp(-Math.max(-40, Math.min(40, z))))
 export function pOut(clearFt, park = 'SF') {
   if (clearFt == null || !Number.isFinite(clearFt)) return null

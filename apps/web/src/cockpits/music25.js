@@ -98,6 +98,8 @@ let tick = 0
 export const jukebox = {
   songs: SONGS,
   playing: () => playing?.id ?? null,
+  // where the song is: seconds in, and how long it is (10 Nov: the jukebox's progress bar, and pause)
+  at: () => (playing && ac ? { id: playing.id, t: Math.max(0, ac.currentTime - playing.t0), len: playing.len } : null),
   level: (id) => { const s = SONGS.find((x) => x.id === id); return s ? levelOf(build(s)) : null },
   // plays a song once (or loops it); a second play stops the first. vol: 0 to 1, on top of the song's own level. from: seconds into the song
   play(id, o = {}) {
@@ -121,20 +123,20 @@ export const jukebox = {
       for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length)
       const noise = (at, f, q, gain, type) => { const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; g.gain.value = gain; s.connect(fl).connect(g).connect(M); s.start(at); nodes.push(s); s.onended = () => { const i = nodes.indexOf(s); if (i >= 0) nodes.splice(i, 1) } }
       const L = [['mel', 'square', () => PEAK.mel], ['harm', 'square', () => PEAK.harm], ['bass', 'triangle', (n) => (n[3] === 'bass5' ? PEAK.bass5 : PEAK.bass)]]
-      const at = Object.fromEntries(L.map(([k]) => [k, Math.max(0, B[k].findIndex((n) => n[0] >= from))])); let bi = Math.max(0, B.beats.findIndex((t) => t >= from)), pi = Math.max(0, B.perc.findIndex((t) => t >= from))
-      if (B.mel.every((n) => n[0] < from)) at.mel = B.mel.length
+      const at = Object.fromEntries(L.map(([k]) => [k, Math.max(0, B[k].findIndex((n) => n[0] + n[1] > from))])); let bi = Math.max(0, B.beats.findIndex((t) => t >= from)), pi = Math.max(0, B.perc.findIndex((t) => t >= from))
+      if (B.mel.every((n) => n[0] + n[1] <= from)) at.mel = B.mel.length // (GPT red team 6: a note still sounding at the resume point plays its rest)
       const my = ++tick
       const pump = () => { // what falls in the next 1.2 s
         if (master !== M || tick !== my) return
         const until = Math.min(end, ac.currentTime - t0 + 1.2)
-        for (const [k, type, pk] of L) { const A2 = B[k]; let i = at[k]; while (i < A2.length && A2[i][0] < until) { const n = A2[i]; if (n[0] >= from && n[0] < end) voice(type, hz(n[2]), t0 + n[0], Math.min(n[1], 4, end - n[0]), pk(n)); i++ } at[k] = i }
+        for (const [k, type, pk] of L) { const A2 = B[k]; let i = at[k]; while (i < A2.length && A2[i][0] < until) { const n = A2[i]; if (n[0] + n[1] > from && n[0] < end) { const st = Math.max(n[0], from); voice(type, hz(n[2]), t0 + st, Math.min(n[0] + n[1] - st, 4, end - st), pk(n)) } i++ } at[k] = i }
         while (bi < B.beats.length && B.beats[bi] < until) { if (B.beats[bi] >= from) noise(t0 + B.beats[bi], 6000, 0, 0.05, 'highpass'); bi++ }
         while (pi < B.perc.length && B.perc[pi] < until) { if (B.perc[pi] >= from) noise(t0 + B.perc[pi], 1500, 0.8, 0.16, 'bandpass'); pi++ }
       }
       pump()
       const iv = setInterval(pump, 150)
       const len = end - from + 0.3
-      playing = { id, until: t0 + end, iv, timer: setTimeout(() => { if (playing?.id === id && tick === my) { clearInterval(iv); playing = null; if (o.loop) jukebox.play(id, o); else o.onEnd?.() } }, len * 1000 + 100) }
+      playing = { id, t0, len: B.len, until: t0 + end, iv, timer: setTimeout(() => { if (playing?.id === id && tick === my) { clearInterval(iv); playing = null; if (o.loop) jukebox.play(id, o); else o.onEnd?.() } }, len * 1000 + 100) }
       return true
     } catch { return false }
   },

@@ -65,21 +65,38 @@ export function initAwayWall25(api, { parks, wallFnOf, onData }) {
   }
 
   // show(ball, color): the away ball's real wall; anything else (an Oracle ball, no ball, a park we do not know) clears it. The crossing post waits for the swing.
+  // (10 Nov, evening; GPT red team 3) the wall is kept while the park, season and color stay; the crossing is redone whenever anything that moves the flight changes
+  // (speed, angle, aim, air, wind both ways, the hand, the carry), not only the first three
+  // (10 Nov, evening, Andrew: "I think the fenway wall is broken it has lines dropping down from the wall"): the face is a dark sheet, not posts every 3 degrees,
+  // which read as drips on the Green Monster's 38 ft
+  let wkey = ''
+  const dispose = (root) => root?.traverse((o) => { if (o.isMesh && !o.userData.vox) { o.geometry?.dispose(); (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m?.map?.dispose(); m?.dispose() }) } })
   function show(b, color) {
     const w = b && b.park && b.park !== 'SF' ? wallOf(b) : null
-    const k = w ? `${b.park}|${b.d}|${b.ev}|${b.la}|${b.dir}|${color}|${fences ? 1 : 0}|${w.crest ? 1 : 0}` : ''
+    const s = api.state
+    const wk = w ? `${b.park}|${b.d}|${color}|${fences ? 1 : 0}|${w.crest ? 1 : 0}` : ''
+    const k = w ? [wk, s.ev, s.la, s.dir, s.temp, s.wind, s.xwind ?? 0, s.hand, s.carry, s.dws ?? 0, s.tab ? 1 : 0, s.carryOverride ?? ''].join('|') : ''
     if (k === key) return g
-    key = k; drop()
-    if (!w) return null
-    const { fn, venue } = w, ground = toWorld([0, 0, 0]).y + 0.3, dark = '#' + new THREE.Color(color).lerp(new THREE.Color('#000000'), 0.45).getHexString()
-    g = new THREE.Group(); g.name = 'awaywall25'; g.userData.team = w.team; g.userData.crest = w.crest
-    const top = [], face = []
-    for (let br = -45; br <= 45.001; br += 0.5) { const [ft, h] = fn(br); top.push(at(ft, h, br)) }
-    for (let br = -45; br <= 45.001; br += 3) { const [ft, h] = fn(br), q = at(ft, h, br); for (let y = ground; y < q.y - 0.4; y += 0.7) face.push(new THREE.Vector3(q.x, y, q.z)) }
-    g.add(cubes(color, top, 0.62, true), cubes(dark, face, 0.3))
+    key = k
+    if (!w) { wkey = ''; drop(); return null }
+    const { fn, venue } = w
+    if (wk !== wkey || !g) {
+      drop(); wkey = wk
+      const ground = toWorld([0, 0, 0]).y + 0.3, dark = '#' + new THREE.Color(color).lerp(new THREE.Color('#000000'), 0.45).getHexString()
+      g = new THREE.Group(); g.name = 'awaywall25'; g.userData.team = w.team; g.userData.crest = w.crest
+      const top = [], pos = []
+      for (let br = -45; br <= 45.001; br += 0.5) { const [ft, h] = fn(br); top.push(at(ft, h, br)) }
+      for (let i = 0; i < top.length - 1; i++) { const a = top[i], c = top[i + 1]; pos.push(a.x, a.y - 0.3, a.z, c.x, c.y - 0.3, c.z, c.x, ground, c.z, a.x, a.y - 0.3, a.z, c.x, ground, c.z, a.x, ground, a.z) }
+      const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+      const sheet = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: dark, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, fog: false })); sheet.frustumCulled = false
+      g.add(cubes(color, top, 0.62, true), sheet)
+      g.userData.venue = venue
+      scene.add(g)
+    }
     // the same flight against that park's wall: where it crosses, and by how much
-    const s = { ...api.state }, res = api.fly(s, { wallFn: fn }), v = res?.verdict, P = res?.path ?? []
-    hang = Math.max(0.1, api.fly(s).hang ?? 1) // (the flight on the screen is Oracle's: the post comes up when its ball reaches the crossing time)
+    if (cl) { cl.parent?.remove(cl); dispose(cl); cl = null } crossT = Infinity; delete g.userData.cross
+    const res = api.fly({ ...s }, { wallFn: fn }), v = res?.verdict, P = res?.path ?? []
+    hang = Math.max(0.1, api.fly({ ...s }).hang ?? 1) // (the flight on the screen is Oracle's: the post comes up when its ball reaches the crossing time)
     if (v && v.wallFt && v.cross != null && (v.kind === 'GONE' || v.kind === 'WALL')) {
       let i = P.findIndex((q) => Math.hypot(q.p[0], q.p[1]) / FT >= v.wallFt)
       if (i < 1) i = 1
@@ -88,15 +105,14 @@ export function initAwayWall25(api, { parks, wallFnOf, onData }) {
       crossT = a.t + (c.t - a.t) * f
       const wt = toWorld([x, y, v.wallH * FT]), ball = toWorld([x, y, v.cross * FT]), lo = Math.min(wt.y, ball.y), hi = Math.max(wt.y, ball.y), post = []
       for (let yy = lo; yy <= hi; yy += 0.8) post.push(new THREE.Vector3(wt.x, yy, wt.z))
-      const by = Math.round(v.cross - v.wallH), name = shortName(venue)
+      const m = v.cross - v.wallH, by = Math.round(m), name = shortName(venue)
       cl = new THREE.Group(); cl.visible = false
       cl.add(cubes(color, post, 0.5), cubes(color, [ball], 1.4))
-      cl.add(by >= 2 ? tag(`CLEARED THE ${name} WALL BY`, String(by), new THREE.Vector3(wt.x, hi + 1, wt.z), color) : tag(`JUST OVER THE ${name} WALL`, null, new THREE.Vector3(wt.x, hi + 1, wt.z), color))
+      const tp = new THREE.Vector3(wt.x, hi + 1, wt.z) // (a dojo swing can come up short of another park's wall; it says so; GPT red team 13: under a foot short is JUST SHORT, not a made-up foot)
+      cl.add(v.kind === 'WALL' ? (m > -1 ? tag(`JUST SHORT OF THE ${name} WALL`, null, tp, color) : tag(`SHORT OF THE ${name} WALL BY`, String(-by), tp, color)) : by >= 2 ? tag(`CLEARED THE ${name} WALL BY`, String(by), tp, color) : tag(`JUST OVER THE ${name} WALL`, null, tp, color))
       g.add(cl)
       g.userData.cross = { wallFt: Math.round(v.wallFt), wallH: v.wallH, clearBy: by, kind: v.kind }
     }
-    g.userData.venue = venue
-    scene.add(g)
     return g
   }
   return {
@@ -105,7 +121,8 @@ export function initAwayWall25(api, { parks, wallFnOf, onData }) {
     fire() { if (cl) cl.visible = false },
     reveal(fr) { if (cl && !cl.visible && fr * hang >= crossT) cl.visible = true },
     done() { if (cl) cl.visible = true },
-    clear: () => { key = ''; drop() },
+    clear: () => { key = ''; wkey = ''; drop() },
+    venueOf: (b) => wallOf(b)?.venue ?? null, // (10 Nov: the park window's title for an away ball)
     now: () => (g ? { venue: g.userData.venue, cross: g.userData.cross ?? null, shown: !!cl?.visible } : null),
   }
 }

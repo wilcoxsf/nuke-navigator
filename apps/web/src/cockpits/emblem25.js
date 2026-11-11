@@ -319,7 +319,7 @@ export function emblemEditor(host, o = {}) {
   const bt = (txt, fn, cls = '') => { const b = el('span', 'bt' + (cls ? ' ' + cls : ''), txt); b.tabIndex = 0; b.setAttribute('role', 'button'); b.addEventListener('click', (e) => { e.preventDefault(); fn(e) }); return b }
   const accent = () => { try { return getComputedStyle(root).getPropertyValue('--acc').trim() || '#ff7a00' } catch { return '#ff7a00' } }
 
-  let E = toEmblem(o.value), sel = E.layers.length - 1, mode = 'stk', tool = 'brush', size = 1, pc = 2, pick = E.layers[sel]?.s ?? STICKERS[0].id, drag = null, lastNudge = -1e9
+  let E = toEmblem(o.value), sel = E.layers.length - 1, mode = 'stk', tool = 'brush', size = 1, pc = 2, pick = E.layers[sel]?.s ?? null, /* (10 Nov, later: nothing picked until he picks it) */ drag = null, lastNudge = -1e9
   const undo = [], redo = []
   const push = () => { undo.push(encodeEmblem(E)); if (undo.length > 60) undo.shift(); redo.length = 0 }
   const fixSel = () => { if (sel >= E.layers.length) sel = E.layers.length - 1; if (sel < 0 && E.layers.length) sel = E.layers.length - 1 }
@@ -338,7 +338,7 @@ export function emblemEditor(host, o = {}) {
   const mctx = mini.getContext('2d')
   const tgr = el('label', 'tgr'), tin = el('input', 'tin')
   Object.assign(tin, { type: 'text', maxLength: 28, spellcheck: false, autocomplete: 'off', placeholder: 'xX_YourName_Xx', value: String(o.tag ?? '') })
-  tgr.append(el('span', 'lb', 'GAMER TAG'), tin)
+  tgr.append(el('span', 'lb', 'CALLING CARD'), tin) // (10 Nov, later, Andrew: "we can do better than calling it 'gamer tag'")
   const msg = el('div', 'msg'), sv = el('div', 'row sv')
   sv.append(bt('SAVE', save, 'go'), bt('CANCEL', cancel))
   left.append(cvw, card, tgr, msg, sv)
@@ -372,7 +372,7 @@ export function emblemEditor(host, o = {}) {
   const sK = stepper('SIZE', () => cur() && setLayer({ k: cur().k - 1 }), () => cur() && setLayer({ k: cur().k + 1 })), sR = stepper('TURN', () => cur() && setLayer({ r: cur().r + 3 }), () => cur() && setLayer({ r: cur().r + 1 }))
   const bFx = bt('FLIP H', () => cur() && setLayer({ fx: cur().fx ? 0 : 1 })), bFy = bt('FLIP V', () => cur() && setLayer({ fy: cur().fy ? 0 : 1 }))
   xf.append(sX.w, sY.w, sK.w, sR.w, bFx, bFy)
-  pS.append(lyHead, lys, el('span', 'lb', 'STICKERS (CLICK = SWAP, ADD = NEW LAYER)'), stg, sw1.row, sw2.row, xf)
+  pS.append(lyHead, lys, el('span', 'lb', 'STICKERS'), stg, sw1.row, sw2.row, xf)
 
   // paint pane
   const pP = el('div', 'pane p-pnt')
@@ -381,7 +381,7 @@ export function emblemEditor(host, o = {}) {
   const cM = choice('MIRROR', [['NONE', 'NONE'], ['LR', 'LEFT-RIGHT'], ['UD', 'UP-DOWN'], ['BOTH', 'BOTH']], (v) => change(() => { E.mirror = v }))
   const pRow = el('div', 'row'), bUnder = bt('PAINT UNDER', () => change(() => { E.under = !E.under })); pRow.append(bUnder, bt('CLEAR PAINT', () => change(() => { E.paint.fill(-1) }, 'thud')))
   const swP = swatches('PAINT', (i) => { pc = i; if (tool === 'erase') tool = 'brush'; snd('pick'); sync() })
-  pP.append(cT.row, cZ.row, cM.row, pRow, swP.row, el('div', 'hint', 'DRAG ON THE EMBLEM TO PAINT. FILL TAKES THE WHOLE PATCH OF ONE COLOR YOU CLICK. PAINT SITS OVER THE STICKERS UNLESS PAINT UNDER IS ON.'))
+  pP.append(cT.row, cZ.row, cM.row, pRow, swP.row) // (10 Nov, his copy pass: no paint instructions)
 
   // backdrop pane
   const pB = el('div', 'pane p-bg'), bgs = el('div', 'bgs')
@@ -391,8 +391,8 @@ export function emblemEditor(host, o = {}) {
   pB.append(el('span', 'lb', 'STYLE'), bgs, swA.row, swB.row, bRow)
 
   const acts = el('div', 'row acts'), bU = bt('UNDO', doUndo), bRd = bt('REDO', doRedo)
-  acts.append(bU, bRd, el('span', 'gap'), bt('CHAOS', () => change(() => { E = randomEmblem(); sel = E.layers.length - 1 }, 'thud'), 'go'), bt('CLEAR', () => change(() => { E = blankEmblem(); sel = -1 }, 'thud')))
-  acts.lastChild.title = 'START FROM NOTHING (UNDO BRINGS IT BACK)'; acts.children[3].title = 'A RIDICULOUS RANDOM EMBLEM'
+  acts.append(bU, bRd, el('span', 'gap'), bt('CLEAR', () => change(() => { E = blankEmblem(); sel = -1 }, 'thud'))) // (10 Nov, later, Andrew: "No chaos button either")
+  acts.lastChild.title = 'START FROM NOTHING (UNDO BRINGS IT BACK)'
   right.append(tabs, pS, pP, pB, acts)
   root.append(left, right)
   host.append(root)
@@ -405,6 +405,7 @@ export function emblemEditor(host, o = {}) {
   }
   function addLayer() {
     if (E.layers.length >= MAX_LAYERS) return say('SIXTEEN LAYERS IS THE LIMIT')
+    if (!pick) return say('PICK A STICKER FIRST')
     const l = cur()
     change(() => { E.layers.push(normLayer({ s: pick, c: l?.c ?? 1, c2: l?.c2 ?? 2, x: 16, y: 16, k: 1 })); sel = E.layers.length - 1 })
   }

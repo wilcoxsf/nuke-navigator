@@ -41,7 +41,7 @@ export function hist25(D, key, v, o = {}) {
   // a hover box on every bin: its range, how many balls, what share left the park
   M.all.forEach((c, i) => {
     const a = M.lo + i * M.step, b = a + M.step, r = c ? M.hr[i] / c : 0
-    g += `<rect class="hv" x="${(1 + i * bw).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${base}" fill="transparent"><title>${fmt(a)} TO ${fmt(b)}${unit}: ${c.toLocaleString()} BALLS, ${M.hr[i].toLocaleString()} HOME RUNS (${c >= minN ? Math.round(r * 100) + '%' : 'TOO FEW TO SAY'})</title></rect>`
+    g += `<rect class="hv" x="${(1 + i * bw).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${base}" fill="transparent"><title>${fmt(a)}-${fmt(b)}${unit}: ${M.hr[i].toLocaleString()} OF ${c.toLocaleString()} GONE</title></rect>`
   })
   return { svg: `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${g}</svg>`, pct: Math.round((100 * cum) / tot), mean, maxRate, peakAt: M.lo + (peakI + 0.5) * M.step, here, n: M.n ?? tot }
 }

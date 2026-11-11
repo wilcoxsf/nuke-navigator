@@ -103,13 +103,13 @@ for (const [w, h] of SIZES) {
     check('the replay has no number strip, its own title, and the odds meter', r0.strip === 'none' && /DÉJÀ-VU/.test(r0.title) && r0.meter === 20 && /\d+%|<1%|>99%/.test(r0.rd.replace(/\s+/g, '')), JSON.stringify(r0).slice(0, 160))
     // the side-on drawing: pitch, bat and ball on a real ball with bat tracking
     const sv = await page.evaluate(() => ({ t: document.querySelector('#c25sv').textContent, cap: document.querySelector('#c25cap').textContent }))
-    check('CONTACT, SIDE ON draws the pitch, the bat and the ball', /PITCH \d+ MPH/.test(sv.t) && /BAT \d+ MPH/.test(sv.t) && /BALL \d+ MPH/.test(sv.t) && /PLANE/.test(sv.cap), JSON.stringify(sv).slice(0, 200))
+    check('CONTACT, SIDE ON draws the pitch, the bat and the ball', /PITCH \d+ MPH/.test(sv.t) && /BAT \d+ MPH/.test(sv.t) && /BALL \d+ MPH/.test(sv.t) && /^SWING .* · BALL \d+° (ABOVE|BELOW) THE SWING$/.test(sv.cap) /* (10 Nov, his copy pass) */, JSON.stringify(sv).slice(0, 200))
     // the histograms: rate in the label, the peak on the line, hover numbers on every bar, and the ORACLE switch
     const hs = await page.evaluate(() => ({ lb: [...document.querySelectorAll('#c25hb .lb')].map((x) => x.textContent), pk: document.querySelectorAll('#c25hb svg .pk').length, hv: document.querySelectorAll('#c25hb svg .hv title').length, key: document.querySelector('#c25hb').textContent }))
-    check('histograms say what share went out, label the peak, explain themselves', hs.lb.length === 3 && hs.lb.every((t) => /\d+% WENT OUT|-- WENT OUT/.test(t)) && hs.pk >= 1 && hs.hv > 60 && /SHARE OF THEM THAT WENT OUT/.test(hs.key) && /ALL 30 PARKS/.test(hs.key), JSON.stringify(hs).slice(0, 220))
+    check('histograms say what share went out, label the peak, explain themselves', hs.lb.length === 3 && hs.lb.every((t) => /\d+% WENT OUT|-- WENT OUT/.test(t)) && hs.pk >= 1 && hs.hv > 60 && /% OUT/.test(hs.key) /* (10 Nov, his copy pass) */, JSON.stringify(hs).slice(0, 220))
     await page.click('#c25hw [data-w="sf"]'); await page.waitForTimeout(1500)
     const ho = await page.evaluate(() => ({ key: document.querySelector('#c25hb').textContent, on: document.querySelector('#c25hw [data-w="sf"]').classList.contains('on') }))
-    check('ORACLE switches the histograms to Oracle Park only', ho.on && /AT ORACLE/.test(ho.key) && /15,198/.test(ho.key), ho.key.slice(-120))
+    check('ORACLE switches the histograms to Oracle Park only', ho.on && /% OUT/.test(ho.key) /* (10 Nov, his copy pass: the key no longer counts the balls) */, ho.key.slice(-120))
     let X = await layout(page); check('Oracle-only histograms fit', X.fits.length === 0, X.fits.join('; '))
     await page.click('#c25hw [data-w="mlb"]'); await page.waitForTimeout(800)
     // OFF THE MENU: the filter keeps only home runs off pitches outside the zone, and the pitch panel names where
@@ -123,7 +123,7 @@ for (const [w, h] of SIZES) {
     const ev0 = await page.evaluate(() => Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]))
     await page.click('#c25tw'); await page.waitForTimeout(2600) // (4 Nov: the panels fit themselves to the dojo's numbers after the first draw; a loaded machine takes a couple of seconds)
     const tw = await page.evaluate(() => ({ mode: window.__mix25.mode(), strip: getComputedStyle(document.querySelector('.c25>.strip')).display, ch: document.querySelector('#c25ch').textContent, title: document.querySelector('#c25ti').textContent, ball: Number(document.querySelector('#c25sv').textContent.match(/BALL (\d+) MPH/)?.[1]), rd: Number(document.querySelector('#c25d').dataset.v) }))
-    check('TWEAK THE TATER carries the home run into the dojo, flying the real distance until you change something', tw.mode === 'whatif' && tw.strip !== 'none' && /REAL BALL/.test(tw.ch) && /RESET TO THE REAL BALL/.test(tw.ch) && /TWEAK THE TATER/.test(tw.title) && Math.abs(tw.ball - ev0) <= 1 && Number(tw.ch.match(/: (\d+) FT/)?.[1]) === tw.rd, JSON.stringify(tw).slice(0, 260))
+    check('TWEAK THE TATER carries the home run into the dojo, flying the real distance until you change something', tw.mode === 'whatif' && tw.strip !== 'none' && /THE REAL ONE: \d+ FT/.test(tw.ch) && /RESET TO THE REAL BALL/.test(tw.ch) && /TWEAK THIS TATER/.test(tw.title) && Math.abs(tw.ball - ev0) <= 1 && Number(tw.ch.match(/: (\d+) FT/)?.[1]) === tw.rd, JSON.stringify(tw).slice(0, 260))
     X = await layout(page); check('the dojo with the strip fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
     // TWEAK THE TATER has sliders: five of them (not BATTER), and dragging one moves the swing
     const sld = await page.evaluate(() => { const ss = [...document.querySelectorAll('.c25 .strip .sld')], s0 = window.__cp.state.ev; const sl = ss[0]; sl.value = '900'; sl.dispatchEvent(new Event('input', { bubbles: true })); return { n: ss.length, before: s0, after: window.__cp.state.ev, visible: ss.every((x) => x.getBoundingClientRect().width > 40) } })
@@ -155,7 +155,7 @@ for (const [w, h] of SIZES) {
     if (await page.$('#c25ch [data-px]')) { await page.click('#c25ch [data-px]'); await page.waitForTimeout(300) }
     // THE SITUATION and BIG ONES: the game state line, a stamp on the big home runs
     const si = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
-    check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WPA/.test(si), si)
+    check('a real ball shows its situation in the score bug', /[▲▼]\d+/.test(si) && /\d-\d/.test(si) && /WIN CHANCE/.test(si), si)
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && /WALK-OFF|GRAND SLAM/.test(window.__mix25.stamp(b) ?? ''))); await page.waitForTimeout(1500) // (9 Nov: the REEL is gone; straight to a big one)
     const bo = await page.evaluate(() => ({ rl: !!document.querySelector('#c25rl'), st: document.querySelector('#c25v .st').textContent }))
     check('no REEL button, and a big home run is stamped', !bo.rl && /WALK-OFF|GRAND SLAM/.test(bo.st), JSON.stringify(bo))
@@ -323,7 +323,7 @@ if (!process.env.PHONE_ONLY && on('B')) {
     await page.evaluate((s) => window.__mix25.ball(new Function('b', 'return ' + s)), `b.d === '${want.d}' && b.b === ${want.b} && b.pn === ${want.pn} && b.in === ${want.in}`); await page.waitForTimeout(700)
     const t = await page.evaluate(() => document.querySelector('#c25bug').textContent.replace(/\s+/g, ' '))
     const w0 = Math.round(want.bwe * 100), w1 = Math.round(Math.max(0, Math.min(1, want.bwe + wpa(want))) * 100), w = Math.round(wpa(want) * 100)
-    const ok = t.includes(`WIN CHANCE ${w0}% → ${w1}%`) && t.includes(`${w >= 0 ? '+' : '-'}${Math.abs(w)}% WPA`)
+    const ok = t.includes(`WIN CHANCE ${w0}% → ${w1}%`) && !/WPA/.test(t) // (10 Nov, his copy pass: no WPA in the bug)
     check(`WPA: ${lab} (${want.d}) reads ${w0}% → ${w1}%, ${w >= 0 ? '+' : ''}${w}%`, ok, t)
   }
   // the bug sits clear of the flight: every point of the projected path stays outside it
@@ -342,7 +342,7 @@ if (!process.env.PHONE_ONLY && on('B')) {
   check('S2 READOUT LINE puts the situation and WPA under the distance', /WPA/.test(s2.sit) && s2.bug === 'none', JSON.stringify(s2))
   await page.evaluate(() => window.__mix25.set('L2P5A2T1R1S3')); await page.waitForTimeout(800)
   const s3 = await page.evaluate(() => ({ t: document.querySelector('#c25bugc').textContent, d: getComputedStyle(document.querySelector('#c25bugc')).display, park: getComputedStyle(document.querySelector('#c25bug')).display }))
-  check('S3 BATTER CARD puts the bug under the face', /WPA/.test(s3.t) && s3.d === 'grid' && s3.park === 'none', JSON.stringify(s3).slice(0, 160))
+  check('S3 BATTER CARD puts the bug under the face', /WIN CHANCE/.test(s3.t) && s3.d === 'grid' && s3.park === 'none', JSON.stringify(s3).slice(0, 160))
   X = await layout(page); check('S3 fits', X.overlaps.concat(X.fits, X.titles).length === 0, X.overlaps.concat(X.fits, X.titles).join('; '))
   // the faces: the five canvas styles each draw and fit; the braille one still renders as text (on a batter with a photo: one without gets the D stand-in)
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && window.__mix25.hasFace(b.b))); await page.waitForTimeout(600)
@@ -403,10 +403,10 @@ if (!process.env.PHONE_ONLY && on('B')) {
     const ff = await felt()
     await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.pt === 'CU' && b.hz < -8)); await page.waitForTimeout(800)
     const cu = await felt()
-    check('the arrow is the movement a batter feels: a typical four-seamer barely moves, a curveball drops hard, in the pitch color matching the side view', Math.hypot(ff.dx, ff.dy) < 6 && Number(ff.drop ?? ff.brk ?? 0) <= 3 && cu.dy > 20 && Number(cu.drop) >= 15 && cu.col === 'var(--pc)' && cu.pc === '#6da7de' && cu.side, JSON.stringify({ ff, cu }))
+    check('the arrow is the movement a batter feels: a typical four-seamer barely moves, a curveball drops hard, in the pitch color matching the side view', Math.hypot(ff.dx, ff.dy) < 6 && Number(ff.drop ?? ff.brk ?? 0) <= 3 && cu.dy > 20 && Number(cu.drop) >= 15 && cu.col === 'var(--pc)' && cu.pc === '#9a9ea6' && cu.side, JSON.stringify({ ff, cu }))
     const ys = []
     for (let Y = 1; Y <= 10; Y++) { await page.evaluate((c) => window.__mix25.set(c), 'L2P5A2T16I2R1Z1Y' + Y); await page.waitForTimeout(200); ys.push(await page.evaluate(() => getComputedStyle(document.querySelector('.c25')).getPropertyValue('--pc').trim().toLowerCase())) }
-    check('Y1 to Y10: ten different pitch colors, all real hex colors', new Set(ys).size === 10 && ys.every((c) => /^#[0-9a-f]{6}$/.test(c)) && ys[1] === '#3ee6a0', JSON.stringify(ys))
+    check('the pitch color is one neutral grey whatever Y says (10 Nov, later: "now too many colors")', ys.every((c) => c === '#9a9ea6'), JSON.stringify(ys))
     await page.evaluate(() => window.__mix25.set('L2P5A2T16I2R1S1Z1Y1')); await page.waitForTimeout(300)
   }
   // after TWEAK THE TATER the dojo keeps the original game's bug; a fresh dojo swing has none
@@ -440,7 +440,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
   await page.keyboard.press('j'); await page.waitForTimeout(500)
   const jb = await page.evaluate(() => ({ open: document.querySelector('#c25m').classList.contains('open'), rows: document.querySelectorAll('#c25mb .jk, #c25mb [data-song]').length, mix: document.querySelectorAll('#c25mb [data-snd]').length, t: document.querySelector('#c25mt')?.textContent }))
   const songs = await page.evaluate(() => window.__mix25.jukebox.songs.map((x) => x.id).sort().join())
-  check('J opens SOUND (the mixer and, since 10 Nov, the jukebox list again), and the songs are the ones kept', jb.open && jb.rows >= 60 && jb.mix === 4 && /S O U N D/.test(jb.t) && /byebye/.test(songs) && !/imperial/.test(songs) /* (10 Nov: the Star Wars track is out too) */ && /(^|,)sf(,|$)/.test(songs) && !/ballgame|charge|anthem|mountain|sailor|valkyries|saints|hava|ode|cancan|tell|(^|,)imperial(,|$)|(^|,)entertainer(,|$)/.test(songs) /* (9 Nov: his song picks) */, JSON.stringify({ ...jb, songs }))
+  check('J opens THE JUKEBOX (the song list, the sound levels folded under it), and the songs are the ones kept', jb.open && jb.rows >= 60 && jb.mix === 4 && /J U K E B O X/.test(jb.t) && /byebye/.test(songs) && !/imperial/.test(songs) /* (10 Nov: the Star Wars track is out too) */ && /(^|,)sf(,|$)/.test(songs) && !/ballgame|charge|anthem|mountain|sailor|valkyries|saints|hava|ode|cancan|tell|(^|,)imperial(,|$)|(^|,)entertainer(,|$)/.test(songs) /* (9 Nov: his song picks) */, JSON.stringify({ ...jb, songs }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(300)
   const ARGS = { odometer: { n: 12 }, cable: { ft: 457 }, flip: { word: 'GO-AHEAD', bat: 'SF', fld: 'LAD', b0: 3, b1: 5, f: 4 } }
   const pk = await page.evaluate((A) => { const L = window.__mix25.life; return L.names().map((n) => { const d = L.dur(n), r = [0.15, 0.5, 0.85].map((f) => L.peek(n, d * f, A[n] ?? {}).lit); return { n, r } }) }, ARGS)
@@ -527,7 +527,7 @@ if (!process.env.PHONE_ONLY && on('C')) {
 if (!process.env.PHONE_ONLY && on('D')) {
   const page = await open(1440, 820, '&mix=L1P5A3T1')
   const m0 = await page.evaluate(() => ({ open: document.querySelector('.c25 .sm').classList.contains('open'), n: document.querySelectorAll('.c25 .sm .smi').length, on: document.querySelector('.c25 .sm .smi.on b')?.textContent }))
-  check('the SELECT menu opens on arrival with five lines: the modes (3 Nov, later: BLAST RADIUS is the fifth; nothing else)', m0.open && m0.n === 5 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
+  check('the SELECT menu opens on arrival with six lines: the modes (BLAST RADIUS the fifth, JUKEBOX the last, 10 Nov)', m0.open && m0.n === 6 && /DÉJÀ-VU/.test(m0.on), JSON.stringify(m0))
   const mc = await page.evaluate(() => { const on = document.querySelector('.c25 .sm .smi.on'); return { arrows: document.querySelectorAll('.c25 .sm .cur').length, anim: [on, ...on.children].map((e) => getComputedStyle(e).animationName).filter((a) => a !== 'none'), border: getComputedStyle(on).borderTopColor } })
   check('the chosen menu line is a plain boxed button: no arrow, nothing blinking (28 Oct)', mc.arrows === 0 && mc.anim.length === 0 && mc.border !== 'rgba(0, 0, 0, 0)', JSON.stringify(mc))
   // the menu's bottom line is a little game: pitcher, batter, a line drive back to the mound (it moves, and draws pixels)
@@ -614,8 +614,8 @@ if (!process.env.PHONE_ONLY && on('E')) {
   const fl = await page.evaluate(() => { const t = window.__mix25.flight().last(); const rv = t.userData.reveal; let cubes = 0; t.traverse((o) => { if (o.isInstancedMesh) cubes += o.count }); return { posts: rv.length, shown: rv.filter(([, o]) => o.visible).length, cubes, ballVox: !!window.__cp.ballMesh().userData.vox?.isObject3D, sphereHidden: window.__cp.ballMesh().material.visible === false } })
   check('a home run draws its arc in voxels with the zenith, the wall clearance and the landing distance posted', fl.posts === 3 && fl.shown === 3 && fl.cubes > 60 && fl.ballVox && fl.sphereHidden, JSON.stringify(fl))
   // X: a dot in the line at the zenith and where it cleared the wall, in the X color (X5 MINT by default); the voxel ball's seams follow E
-  const dots = await page.evaluate(() => { const t = window.__mix25.flight().last(), out = []; for (const [, o] of t.userData.reveal.slice(0, 2)) o.traverse((m) => { if (m.isInstancedMesh && m.count === 1) out.push(m.material.color.getHexString()) }); let sm = null; window.__cp.ballMesh().userData.vox?.traverse?.((o) => { if (o.userData.seam) sm = o.material.color.getHexString() }); return { out, sm, signs: window.__mix25.life.signCount() } })
-  check('the zenith gets a dot in the line in the pitch color (X2), the wall one in GEIGER (2 Nov, later); the voxel ball has red seams under E4', dots.out.length === 2 && dots.out[0] === '5ce1ff' && dots.out[1] === '9dff00' && dots.sm === 'e4002b', JSON.stringify(dots))
+  const dots = await page.evaluate(() => { const t = window.__mix25.flight().last(), out = []; for (const [, o] of t.userData.reveal.slice(0, 2)) o.traverse((m) => { if (m.isInstancedMesh && m.count === 1) out.push(m.material.color.getHexString()) }); let sm = null; window.__cp.ballMesh().userData.vox?.traverse?.((o) => { if (o.userData.seam) sm = o.material.color.getHexString() }); return { out, sm, signs: window.__mix25.life.signCount(), zc: (window.__cpZenith?.() ?? '').replace('#', '').toLowerCase() } })
+  check('the zenith gets a dot in the batting team color (10 Nov, T1; it was the pitch color, X2), the wall one in GEIGER (2 Nov, later); the voxel ball has red seams under E4', dots.out.length === 2 && dots.out[0] === dots.zc && dots.out[1] === '9dff00' && dots.sm === 'e4002b', JSON.stringify(dots))
   check('the ORACLE PARK sign over the board lit up for the home run', dots.signs >= 1, JSON.stringify(dots))
   for (const U of [1, 2, 3, 4, 5]) {
     await page.evaluate((c) => window.__mix25.set(c), 'U' + U); await page.waitForTimeout(500)
@@ -667,13 +667,13 @@ if (!process.env.PHONE_ONLY && on('E')) {
   const t0 = await page.evaluate(() => ({ line: document.querySelector('#c25ch .r2').textContent, slots: document.querySelectorAll('.strip .bt').length, ghost: (window.__mix25.flight().ghost() ?? []).length }))
   await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp'); await page.waitForTimeout(800)
   const t1 = await page.evaluate(() => ({ line: document.querySelector('#c25ch .r2').textContent, dv: document.querySelector('.strip .bt .dv')?.textContent }))
-  check('TWEAK THE TATER: five numbers and SWING (no batter hand), the real flight ghosted, and the line says what +3 MPH did', t0.slots === 6 && t0.ghost > 10 && /REAL BALL/.test(t0.line) && /\+3 MPH: \d+ FT \(\+\d+\)/.test(t1.line) && t1.dv === '+3', JSON.stringify({ t0, t1 }))
+  check('TWEAK THE TATER: five numbers and SWING (no batter hand), the real flight ghosted, and the line says what +3 MPH did', t0.slots === 6 && t0.ghost > 10 && /REAL ONE/.test(t0.line) && /\+3 MPH: \d+ FT \(\+\d+\)/.test(t1.line) && t1.dv === '+3', JSON.stringify({ t0, t1 }))
   await page.click('#c25rst'); await page.waitForTimeout(800)
-  check('RESET TO THE REAL BALL puts the numbers back', /REAL BALL, /.test(await page.evaluate(() => document.querySelector('#c25ch .r2').textContent)))
+  check('RESET TO THE REAL BALL puts the numbers back', /THE REAL ONE: /.test(await page.evaluate(() => document.querySelector('#c25ch .r2').textContent)))
   // leaving through the menu and coming back to TWEAK THE TATER is a fresh dojo, not the old tweak
   await page.keyboard.press('Escape'); await page.waitForTimeout(400)
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
-  const fr = await page.evaluate(() => { const s = window.__cp.state, R = (q) => document.querySelector(q).getBoundingClientRect(); return { fresh: !/REAL BALL/.test(document.querySelector('#c25ch .r2').textContent) && !document.querySelector('#c25rst') && !window.__mix25.flight().ghost(), st: [s.ev, s.la, s.dir, s.temp, s.carry, s.dws], title: document.querySelector('#c25ti').textContent, dj: document.querySelector('.c25').classList.contains('dj'), strip: R('.c25>.strip'), park: R('#c25h'), pitch: getComputedStyle(document.querySelector('.c25>.pitch')).display, clock: window.__mix25.life.clock().live } })
+  const fr = await page.evaluate(() => { const s = window.__cp.state, R = (q) => document.querySelector(q).getBoundingClientRect(); return { fresh: !/REAL ONE/.test(document.querySelector('#c25ch .r2').textContent) && !document.querySelector('#c25rst') && !window.__mix25.flight().ghost(), st: [s.ev, s.la, s.dir, s.temp, s.carry, s.dws], title: document.querySelector('#c25ti').textContent, dj: document.querySelector('.c25').classList.contains('dj'), strip: R('.c25>.strip'), park: R('#c25h'), pitch: getComputedStyle(document.querySelector('.c25>.pitch')).display, clock: window.__mix25.life.clock().live } })
   check('DINGER DOJO from the menu is a blank swing (103 mph, 28°, dead center, 62°), no stale tweak, the clock on the time now', fr.fresh && fr.st.join() === '103,28,0,62,1,0' && /DINGER DOJO/.test(fr.title) && fr.clock, JSON.stringify(fr))
   check('the dojo\'s controls sit top left where the pitch was', fr.dj && fr.pitch === 'none' && fr.strip.right <= fr.park.left && fr.strip.top < 120 && fr.strip.height > 250, JSON.stringify(fr))
   // the stand-in: the batter's team kit (home whites, road greys), his own height; no mascots, no WHO'S UP (29 Oct, later: no nicknames)
@@ -783,7 +783,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
   // a seat by its numbers maps to a spot that reads back as the same seat; a row or section that does not exist says so
   const sp = await page.evaluate(() => { const m = window.__mix25, out = []; for (const [a, b, c] of [['140', '12', '8'], ['136', 'A', '3'], ['148', '2', '10'], ['143', '20', '15']]) { const r = m.seatPoint(a, b, c); out.push([r.line ?? r.err, r.at ? m.seatOf(r.at).line : null]) } return { out, e1: m.seatPoint('140', '30', '1').err, e2: m.seatPoint('200', '1', '1').err, e3: m.seatPoint('140', '5', '999').err } })
   check('a typed seat finds its spot on the stands and reads back as the same seat', sp.out.every(([a, b]) => a === b), JSON.stringify(sp.out))
-  check('a seat that is not there says what is', /HAS ROWS A, 1 TO 26/.test(sp.e1) && /NO SECTION 200/.test(sp.e2) && /HAS SEATS 1 TO \d+/.test(sp.e3), JSON.stringify(sp))
+  check('a seat that is not there says what is', /HAS ROWS A, 1 TO 26/.test(sp.e1) && /SECTION 200 DOESN'T EXIST/.test(sp.e2) && /HAS SEATS 1 TO \d+/.test(sp.e3), JSON.stringify(sp))
   // typing it: keys in the form are not shortcuts (m would leave the mode); Enter finds it
   await page.selectOption('#c25ss', '140'); await page.fill('#c25sr', '12'); await page.click('#c25st'); await page.keyboard.type('8'); await page.keyboard.press('m'); await page.keyboard.press('Backspace'); await page.keyboard.press('Enter')
   await page.waitForFunction(() => window.__mix25.shot(), null, { timeout: 60000 })
@@ -840,7 +840,7 @@ if (!process.env.PHONE_ONLY && on('G')) {
 if (on('F')) {
   const page = await open(390, 844, '&mix=L1P5A3T1', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   const sm = await page.evaluate(() => { const items = [...document.querySelectorAll('.c25 .sm .smi')]; const R = (e) => e.getBoundingClientRect(); return { open: document.querySelector('.c25 .sm').classList.contains('open'), n: items.length, side: document.documentElement.scrollWidth > innerWidth + 1, out: items.filter((i) => R(i).left < -1 || R(i).right > innerWidth + 1).length, cut: items.filter((i) => [...i.children].some((c) => c.scrollWidth > c.clientWidth + 2 && getComputedStyle(c).textOverflow !== 'ellipsis')).length } })
-  check('the SELECT screen fits a phone (the five modes)', sm.open && sm.n === 5 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
+  check('the SELECT screen fits a phone (the six lines, JUKEBOX last)', sm.open && sm.n === 6 && !sm.side && sm.out === 0 && sm.cut === 0, JSON.stringify(sm))
   await page.click('.c25 .sm .smi:nth-child(2)'); await page.waitForTimeout(1200)
   check('tapping a mode on the phone starts it', await page.evaluate(() => window.__mix25.mode() === 'whatif'))
   await page._ctx.close()

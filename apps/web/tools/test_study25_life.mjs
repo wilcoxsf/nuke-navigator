@@ -34,19 +34,19 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 {
   await landed(); await page.waitForTimeout(800)
   const live = () => page.evaluate(() => window.__mix25.moments.shown())
-  await page.click('#c25mm'); await page.waitForTimeout(300)
+  await page.evaluate(() => document.querySelector('#c25mm').click()); await page.waitForTimeout(300)
   await page.click('.mmenu .mi[data-mm="pinata"]'); await page.waitForTimeout(60)
   await page.click('.mmenu [data-mm="x"]'); await page.waitForTimeout(1200)
   check('MOMENTS: a moment picked and closed at once never plays', (await live()) === 0, JSON.stringify({ live: await live() }))
-  await page.click('#c25mm'); await page.waitForTimeout(300)
+  await page.evaluate(() => document.querySelector('#c25mm').click()); await page.waitForTimeout(300)
   await page.click('.mmenu .mi[data-mm="all"]'); await page.waitForTimeout(900)
-  await page.click('#c25tabs [data-tab="whatif"]'); await page.waitForTimeout(6500)
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="whatif"]').click()); await page.waitForTimeout(6500)
   check('MOMENTS: PLAY ALL stops when the tab changes (nothing still playing 6 s later)', (await live()) === 0, JSON.stringify({ live: await live() }))
 }
 // ---- 3. (7 Nov, red team 4.7) Escape closes MOMENTS and ends what it was playing, as the X does ----
 {
-  await page.click('#c25tabs [data-tab="replay"]').catch(() => {}); await page.waitForTimeout(800)
-  if (!(await page.evaluate(() => document.querySelector('.mmenu')?.classList.contains('on')))) { await page.click('#c25mm'); await page.waitForTimeout(300) } // (the PLAY ALL check before may leave it open)
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="replay"]').click()); await page.waitForTimeout(800)
+  if (!(await page.evaluate(() => document.querySelector('.mmenu')?.classList.contains('on')))) { await page.evaluate(() => document.querySelector('#c25mm').click()); await page.waitForTimeout(300) } // (the PLAY ALL check before may leave it open)
   await page.click('.mmenu .mi[data-mm="hand"]')
   await until(() => window.__mix25.moments.shown() > 0, 8000)
   const playing = await page.evaluate(() => window.__mix25.moments.shown())
@@ -61,7 +61,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   await p2.reload()
   await p2.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000, polling: 500 })
   await p2.waitForTimeout(1500)
-  await p2.click('#c25tabs [data-tab="witness"]')
+  await p2.evaluate(() => document.querySelector('#c25tabs [data-tab="witness"]').click())
   await p2.waitForFunction(() => !!document.querySelector('#c25wcard'), null, { timeout: 30000, polling: 250 }).catch(() => {})
   const onMine = await p2.evaluate(() => document.querySelector('[data-wt="mine"]')?.classList.contains('on'))
   await p2.click('#c25wcard'); await p2.waitForTimeout(800)
@@ -79,12 +79,40 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   await page.evaluate(() => { window.__f0 = window.__mix25.fires() }); await page.click('#c25nk') // (the swing button: Space would press whatever button has the focus)
   await until(() => window.__mix25.fires() > window.__f0, 30000); await until(() => !!(window.__cp.anim?.() && window.__cp.anim().exploded), 30000); await page.waitForTimeout(800) // (the new swing's landing, not the last one's)
   check('after the swing, the clearance over that wall is up', (await page.evaluate(() => window.__mix25.awayWall()?.shown)) === true)
+  // (10 Nov, later) A2: the park window says the park, in its team's color; T1 T2: who is batting and who is pitching, by team, color and word
+  const who = await page.evaluate(() => { const t = document.querySelector('.c25>.park>.t'), b = document.querySelector('.c25>.batter'), p = document.querySelector('.c25>.pitch'), c = window.__mix25.cur(), bat = c.tb === 'Top' ? c.at : c.ht
+    return { title: t.textContent.replace(/\s+/g, ''), color: t.style.color, bat, word: b.querySelector('.tmw')?.textContent, bOut: b.classList.contains('tm') && !!b.style.getPropertyValue('--tm') && getComputedStyle(b).outlineStyle === 'none' && getComputedStyle(b).backgroundImage.includes('gradient') ? 'corners' : 'no', by: p.querySelector('.pby')?.textContent.replace(/\s+/g, ' ').trim(), pWord: p.querySelector('.pby .tmw')?.textContent, pOut: p.classList.contains('tm') && getComputedStyle(p).outlineStyle === 'none' ? 'corners' : 'no' } })
+  check('an away home run: the park window is titled COORS FIELD in a team color, not Oracle', /COORSFIELD/.test(who.title) && !!who.color, JSON.stringify(who))
+  const want = (t) => (t === 'SF' ? 'GIANT' : t === 'LAD' ? 'LOSER' : 'VILLAIN')
+  check('the batter box and the pitch panel wear their teams: colored corners (no full border), GIANT, VILLAIN or LOSER, and THROWN BY the pitcher', who.word === want(who.bat) && who.bOut === 'corners' && /^THROWN BY \S/.test(who.by ?? '') && ['GIANT', 'VILLAIN', 'LOSER'].includes(who.pWord) && who.pWord !== who.word && who.pOut === 'corners', JSON.stringify(who))
+  const dg = await page.evaluate(() => { const i = window.__mix25.ball((b) => b.hr && (b.tb === 'Top' ? b.at : b.ht) === 'LAD'); return i < 0 ? 'none' : document.querySelector('.c25>.batter .tmw')?.textContent }); await page.waitForTimeout(400)
+  check('a Dodger hitting one out is a LOSER', dg === 'none' || dg === 'LOSER', JSON.stringify(dg))
   const old = await page.evaluate(() => { const i = window.__mix25.ball((b) => b.hr && b.park === 'ATH' && String(b.d).startsWith('2024')); return i < 0 ? 'none' : window.__mix25.awayWall() }); await page.waitForTimeout(800)
   check('a 2024 Athletics home run gets the Coliseum, the wall that stood that season', old === 'none' || /Coliseum/.test(old?.venue ?? ''), JSON.stringify(old))
   const bal = await page.evaluate(() => { const i = window.__mix25.ball((b) => b.hr && b.park === 'BAL' && String(b.d).startsWith('2024')); return i < 0 ? 'none' : window.__mix25.awayWall() }); await page.waitForTimeout(800)
   check('a 2024 Orioles home run (the fence that moved) still draws Camden Yards and finds where it crossed', bal === 'none' || (/Camden/.test(bal?.venue ?? '') && bal.cross?.wallFt > 300), JSON.stringify(bal))
   await page.evaluate(() => window.__mix25.ball((b) => b.hr && b.park === 'SF')); await page.waitForTimeout(800)
   check('an Oracle home run has no away wall', (await page.evaluate(() => window.__mix25.awayWall())) === null)
+  const ot = await page.evaluate(() => ({ title: document.querySelector('.c25>.park>.t').textContent.replace(/\s+/g, ''), color: document.querySelector('.c25>.park>.t').style.color }))
+  check('an Oracle home run puts the park window back to ORACLE PARK', /ORACLEPARK|^$/.test(ot.title) && !ot.color, JSON.stringify(ot))
+  // (10 Nov, night; the second red team) Oracle's tag within a foot of the wall top: JUST OVER / JUST SHORT, never "0 FT"
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="whatif"]').click()); await page.waitForTimeout(1200)
+  const sub = await page.evaluate(() => { const M = window.__mix25; return { wallHair: M.wallWords({ kind: 'WALL', short: 0.3 }), goneHair: M.wallWords({ kind: 'GONE', clearBy: 0.4 }), wall3: M.wallWords({ kind: 'WALL', short: 3 }) } })
+  check('a what-if within a foot of the top says JUST SHORT or JUST OVER, no number; 3 ft short gives the feet', /^JUST SHORT OF THE TOP/.test(sub.wallHair?.[0] ?? '') && sub.wallHair?.[1] === null && /^JUST OVER ORACLE'S WALL/.test(sub.goneHair?.[0] ?? '') && sub.goneHair?.[1] === null && sub.wall3?.[1] === '3 FT', JSON.stringify(sub))
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="replay"]').click()); await page.waitForTimeout(1200)
+  // the menu out of BLAST RADIUS: DEJA-VU really leaves it (it used to keep the heat map, the title and the camera)
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="blast"]').click()); await page.waitForTimeout(2500)
+  await page.evaluate(() => document.activeElement?.blur?.()); await page.keyboard.press('Escape'); await page.waitForTimeout(800)
+  await page.click('.c25 .sm .smi:nth-child(1)'); await page.waitForTimeout(1500)
+  const bout = await page.evaluate(() => ({ mode: window.__mix25.mode(), blast: document.querySelector('.c25').classList.contains('blast'), nuke: getComputedStyle(document.querySelector('#c25nk')).display }))
+  check('BLAST RADIUS, Esc, DINGER DEJA-VU from the menu: out of BLAST RADIUS, NUKE IT back', bout.mode === 'replay' && !bout.blast && bout.nuke !== 'none', JSON.stringify(bout))
+  // (10 Nov, later) OTHER PARKS? in the dojo: another park's wall for your own swing
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="whatif"]').click()); await page.waitForTimeout(1500)
+  const op0 = await page.evaluate(() => ({ btn: document.querySelector('#c25op')?.textContent ?? null, wall: window.__mix25.awayWall() }))
+  await page.click('#c25op'); await page.waitForTimeout(400); await page.click('#c25ch [data-op="COL"]'); await page.waitForTimeout(1200)
+  const op1 = await page.evaluate(() => ({ btn: document.querySelector('#c25op')?.textContent ?? null, wall: window.__mix25.awayWall() }))
+  check('the dojo has OTHER PARKS?: nothing until you pick one, then that park\'s wall for your swing', /OTHER PARKS\?/.test(op0.btn ?? '') && op0.wall === null && /COORS/.test(op1.btn ?? '') && /Coors/.test(op1.wall?.venue ?? ''), JSON.stringify({ op0, op1 }))
+  await page.evaluate(() => window.__mix25.dojoPark(null)); await page.evaluate(() => document.querySelector('#c25tabs [data-tab="replay"]').click()); await page.waitForTimeout(1200)
   // (10 Nov) the clearance tag in words: a real Oracle ball says what happened, a what-if near the wall gives the odds
   const ww = await page.evaluate(() => { const M = window.__mix25; return { real: M.wallWords({ kind: 'WALL', short: 1 }), p0: M.pOut(0, 'SF'), pFar: M.pOut(-20, 'SF'), pCol: M.pOut(0, 'COL'), pAll: M.pOut(0, 'none'), lastWords: M.wallWords({ kind: 'GONE', clearBy: 30 }) } })
   check('a real Oracle home run the flight puts just short says it just went over, with no number', ww.real?.[0] === "JUST OVER ORACLE'S WALL" && ww.real?.[1] === null && /CLEARED ORACLE'S WALL BY/.test(ww.lastWords?.[0] ?? ''), JSON.stringify(ww))
@@ -122,11 +150,25 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   await page.click('#c25sk'); await page.waitForTimeout(900)
   const s1 = await page.evaluate(() => window.__mix25.jukebox.playing())
   check('SKIP plays a different song straight away', !!s1 && s1 !== s0, JSON.stringify({ s0, s1 }))
-  await page.click('#c25jk'); await page.waitForTimeout(900)
+  await page.evaluate(() => { document.activeElement?.blur?.() }); await page.keyboard.press('j'); await page.waitForTimeout(900)
   const jk = await page.evaluate(() => { const rows = [...document.querySelectorAll('#c25mb [data-song]')]; return { n: rows.length, on: rows.find((r) => r.classList.contains('on'))?.dataset.song ?? null, pick: rows.find((r) => !r.classList.contains('on'))?.dataset.song } })
-  await page.click(`#c25mb [data-song="${jk.pick}"]`); await page.waitForTimeout(900)
+  await page.click(`#c25mb [data-song="${jk.pick}"] b`); await page.waitForTimeout(900)
   const s2 = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), on: document.querySelector('#c25mb .jk.on')?.dataset.song ?? null }))
   check('JUKEBOX lists every song with the one playing marked, and a click plays that one', jk.n >= 60 && jk.on === s1 && s2.playing === jk.pick && s2.on === jk.pick, JSON.stringify({ jk, s2 }))
+  // (10 Nov, later) the mini player: search, + QUEUE (it plays next, before the shuffle), PAUSE and PLAY again from where it was
+  await page.fill('#jks', 'billie'); await page.waitForTimeout(400)
+  const sr = await page.evaluate(() => [...document.querySelectorAll('#c25mb [data-song]')].map((r) => r.dataset.song))
+  check('the jukebox search finds a song by its name', sr.length >= 1 && sr.includes('billiejean') && sr.length < 5, JSON.stringify(sr))
+  await page.click('#c25mb [data-jq="billiejean"]'); await page.waitForTimeout(300)
+  const q1 = await page.evaluate(() => document.querySelector('#jkq').textContent)
+  await page.click('#jksk'); await page.waitForTimeout(900)
+  const q2 = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), q: document.querySelector('#jkq').textContent }))
+  check('+ QUEUE puts it up next, and SKIP plays the queue before the shuffle', /BILLIE JEAN/.test(q1) && q2.playing === 'billiejean' && /NOTHING QUEUED/.test(q2.q), JSON.stringify({ q1, q2 }))
+  await page.waitForTimeout(1500); await page.click('#jkpp'); await page.waitForTimeout(1300)
+  const pz = await page.evaluate(() => ({ playing: window.__mix25.jukebox.playing(), btn: document.querySelector('#jkpp').textContent }))
+  await page.click('#jkpp'); await page.waitForTimeout(900)
+  const pl = await page.evaluate(() => ({ at: window.__mix25.jukebox.at(), btn: document.querySelector('#jkpp').textContent }))
+  check('PAUSE stops it and the shuffle waits; PLAY carries on from where it was', pz.playing === null && pz.btn === 'PLAY' && pl.at?.id === 'billiejean' && pl.at.t > 0.5 && pl.btn === 'PAUSE', JSON.stringify({ pz, pl }))
   await page.keyboard.press('Escape'); await page.waitForTimeout(600)
   // (10 Nov, later) the menu's gags: twelve, no mock game, and not one letter drawn in any frame of any of them
   const gg = await page.evaluate(() => {
@@ -144,7 +186,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 }
 // ---- 4d. (9 Nov) BAD LUCK (the mirror and the ladder) plays from the MOMENTS menu; THE ROLL-UP is on the board ----
 {
-  if (!(await page.evaluate(() => document.querySelector('.mmenu')?.classList.contains('on')))) { await page.click('#c25mm'); await page.waitForTimeout(300) }
+  if (!(await page.evaluate(() => document.querySelector('.mmenu')?.classList.contains('on')))) { await page.evaluate(() => document.querySelector('#c25mm').click()); await page.waitForTimeout(300) }
   await page.click('.mmenu .mi[data-mm="mirror"]'); await page.waitForTimeout(900)
   const mr = await page.evaluate(() => ({ last: window.__mix25.moments.log().slice(-1)[0], up: window.__mix25.moments.shown() }))
   check('BAD LUCK: the mirror and the ladder go up from the MOMENTS menu', mr.last === 'mirror' && mr.up >= 2, JSON.stringify(mr))
@@ -154,7 +196,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
 }
 // ---- 5. (red team 4.3) ALL / AT ORACLE / AWAY: the landing puffs and rings go when they finish; nothing piles up in the map ----
 {
-  await page.click('#c25tabs [data-tab="blast"]')
+  await page.evaluate(() => document.querySelector('#c25tabs [data-tab="blast"]').click())
   await page.waitForFunction(() => !!document.querySelector('#c25hmw'), null, { timeout: 120000, polling: 500 })
   await page.waitForTimeout(800); await page.click('#c25hmw'); await page.waitForTimeout(400); await page.keyboard.type('FLORES', { delay: 30 }); await page.keyboard.press('Enter')
   await until(() => (window.__mix25.heat()?.bombCounts?.()?.all ?? 0) > 0, 240000)

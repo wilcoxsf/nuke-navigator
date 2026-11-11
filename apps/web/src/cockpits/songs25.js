@@ -15,3 +15,5 @@ export function nextSong(ids) {
   last = bag.pop()
   return last
 }
+// (10 Nov, evening; GPT red team 5) a song picked by hand or from the queue: off the bag, and the last one, so the shuffle never plays it straight after
+export function markPlayed(id) { if (!id) return; bag = bag.filter((x) => x !== id); last = id }

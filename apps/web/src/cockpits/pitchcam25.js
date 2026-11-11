@@ -65,7 +65,7 @@ export function initPitchArc(api, col) {
     if (!P || run) return false
     clear()
     run = { P, D: dense(P.pts), done, c: o.color ?? col().pc ?? col().tx, dur: o.dur ?? 0.9, hold: o.hold ?? 0.25, t0: performance.now(), shown: 0 }
-    run.ball = sprite(run.c, 0.5, toWorld(P.pts[0])) // (5 Nov, Andrew: "the ball and trail need to be the pitch color")
+    run.ball = sprite('#f4f1e8', 0.5, toWorld(P.pts[0])) // (10 Nov, later, Andrew: "When the ball gets pitched it is still grey ... Ball can be white as its flying through the air": the ball white, the trail stays the (grey) pitch color)
     return true
   }
   // stop: call the pitch off (no hit); finish: skip to the hit now

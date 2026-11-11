@@ -54,7 +54,7 @@ export function initHappen25(api, o = {}) {
   }
   for (const [y, z] of [[0, 4], [0, -4], [4, 0], [-4, 0]]) for (let x = -13; x <= -10; x++) B.push([x, y + Math.sign(y) * (x + 13 > 1 ? 0 : 1), z + Math.sign(z) * (x + 13 > 1 ? 0 : 1), ORANGE.o])
   for (let x = -2; x <= 2; x++) for (let z = -1; z <= 1; z++) B.push([x, -6, z, '#2b2e33'])
-  const blimp = build(B, 1.4)
+  const blimp = build(B, 1.4); blimp.visible = false // (10 Nov, Andrew: "The blimp right now is in an awful place it's right where the screen should be, let's kill the blimp"; kept unseen, so nothing else that reads it changes)
   const mid = P(0, 90, 0)
   const F = []
   for (let x = -9; x <= 9; x++) for (let z = -3; z <= 3; z++) { const taper = Math.abs(x) > 7 ? Math.abs(x) - 7 : 0; if (Math.abs(z) > 3 - taper) continue; F.push([x, 0, z, '#f4f2ea'], [x, 1, z, Math.abs(z) === 3 - taper ? '#2f5bd3' : '#f4f2ea']) }

@@ -69,7 +69,7 @@ await set(page, { ev: 85, la: 20, dir: 0 })
 await page.waitForTimeout(1200)
 {
   const r = await page.evaluate(() => ({ se: !!window.__mix25.seance(), g: window.__mix25.ghost().shown(), t: document.querySelector('#c25hb').innerText }))
-  check('Seance: a ball that stays in gets a line, no ghost, no call', !r.se && !r.g && /STAYS IN THE PARK/.test(r.t), JSON.stringify(r).slice(0, 200))
+  check('Seance: a ball that stays in gets a line, no ghost, no call', !r.se && !r.g && /STAYS IN: NO SEAT/.test(r.t), JSON.stringify(r).slice(0, 200))
 }
 await set(page, { ev: 112, la: 27, dir: -8 }); await set(page, { ev: 114, la: 28, dir: -6 }); await set(page, { ev: 116, la: 28, dir: -5 }) // a no-doubter to left-center
 {

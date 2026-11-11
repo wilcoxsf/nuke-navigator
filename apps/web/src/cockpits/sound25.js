@@ -523,7 +523,7 @@ addEventListener('keydown', (e) => {
 // ---- the mixer, drawn into the JUKEBOX window ----
 const ROWS = [['master', 'MASTER'], ['music', 'MUSIC'], ['sfx', 'EFFECTS'], ['amb', 'CROWD']]
 export function mixerHTML() {
-  return `<style>#cp .snd .r{grid-template-columns:auto 1fr auto;gap:10px;align-items:center}#cp .snd input[type=range]{accent-color:var(--acc);width:100%;min-width:0;margin:0}</style><div class="bulh">SOUND · S TURNS IT ALL ${soundOn() ? 'OFF' : 'ON'}</div><div class="btab snd">` + ROWS.map(([k, w]) => `<div class="r mo"><span>${w}</span><input type="range" min="0" max="100" step="5" value="${Math.round(mix[k] * 100)}" data-snd="${k}" aria-label="${w} volume"><b>${Math.round(mix[k] * 100)}</b></div>`).join('') + `<div class="r mo"><span>EASTER EGGS</span><b>TYPE 777, 415 OR 2010</b></div></div>`
+  return `<style>#cp .snd .r{grid-template-columns:auto 1fr auto;gap:10px;align-items:center}#cp .snd input[type=range]{accent-color:var(--acc);width:100%;min-width:0;margin:0}</style><div class="btab snd">` + ROWS.map(([k, w]) => `<div class="r mo"><span>${w}</span><input type="range" min="0" max="100" step="5" value="${Math.round(mix[k] * 100)}" data-snd="${k}" aria-label="${w} volume"><b>${Math.round(mix[k] * 100)}</b></div>`).join('') + '</div>'
 }
 export function bindMixer(el) {
   el.querySelectorAll('[data-snd]').forEach((x) => x.addEventListener('input', () => { setLevel(x.dataset.snd, x.value / 100); const b = x.parentElement.querySelector('b'); if (b) b.textContent = x.value }))

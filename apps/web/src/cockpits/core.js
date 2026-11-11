@@ -115,7 +115,7 @@ export async function loadParks() {
   // each park's measured crest (the wall a ball flown THERE meets, dojo.js), loaded behind the page; until one is in, that park uses its five-bearing fence.
   // (1 Nov, night; playtest: Boston read +43 from Oracle and +33 once flown there, the Monster lost between five fence points)
   parksData.crests = {}
-  for (const p of parksData.parks) if (p.abbr !== 'SF') fetch(`/parks/${p.abbr}/crest.json`).then((r) => (r.ok ? r.json() : null)).then((c) => { if (c?.bearing?.length) parksData.crests[p.abbr] = c }).catch(() => {})
+  Promise.allSettled(parksData.parks.filter((p) => p.abbr !== 'SF').map((p) => fetch(`/parks/${p.abbr}/crest.json`).then((r) => (r.ok ? r.json() : null)).then((c) => { if (c?.bearing?.length) parksData.crests[p.abbr] = c }).catch(() => {}))).then(() => dispatchEvent(new Event('nn-crests'))) // (GPT red team 8: one repaint once every crest is in)
   return parksData
 }
 export function wallFnOf(data, p) {
@@ -147,8 +147,10 @@ export function evalParks(data, api) {
 // ready: what to call when the band is in (the whole engine by default; Study 25 repaints only its line, because a full update mid-swing replaced the flight with the preview)
 export function goneWord(data, api, pr, ready = () => api.update()) {
   // (10 Nov: the count is the parks' odds added up, each from how far the flight clears that park's wall: science/otherpark_study.md, wallodds25.js)
-  const n = Math.round(pr.reduce((s, r) => s + (pOut(clearanceOf(r.v), r.p.abbr) ?? (r.k === 'GONE' ? 1 : 0)), 0)), b = bandPeek(api.state, api.fly, data.parks, (p) => wallFnOf(data, p), ready)
-  return b ? bandWord(b, pr.length) : `${n} OF ${pr.length}`
+  // (10 Nov, evening; GPT red team 1: the old carry band came back in its place once cached; it is no longer used here)
+  const n = Math.round(pr.reduce((s, r) => s + (pOut(clearanceOf(r.v), r.p.abbr) ?? (r.k === 'GONE' ? 1 : 0)), 0))
+  void ready
+  return `${n} OF ${pr.length}`
 }
 export function fencePoly(data, p, step = 5) {
   const f = wallFnOf(data, p), pts = []
