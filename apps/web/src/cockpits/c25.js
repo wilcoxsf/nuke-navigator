@@ -531,10 +531,10 @@ export const mixCode = (m) => ORDER.map((k) => k + m[k]).join(' ')
 // ---- layouts: the park takes the most room in every one; the dojo adds the number strip as a last row, the replay has none (class ns) ----
 const RAIL = 'clamp(280px,19vw,380px)', RAIL2 = 'clamp(300px,21vw,420px)'
 const LAY = {
-  1: { cols: `${RAIL} minmax(0,1fr) ${RAIL2}`, rows: ['48px', 'minmax(0,.62fr)', 'minmax(0,.38fr)', 'minmax(0,1fr)'], areas: ['hdr hdr hdr', 'batter park hists', 'slice park hists', 'slice park pitch'] },
-  2: { cols: `${RAIL2} minmax(0,1fr) ${RAIL}`, rows: ['48px', 'minmax(0,.7fr)', 'minmax(0,.3fr)', 'minmax(0,1fr)'], // (10 Nov, later: the batter box taller, "we have space to spare")
+  1: { cols: `${RAIL} minmax(0,1fr) ${RAIL2}`, rows: ['26px', 'minmax(0,.62fr)', 'minmax(0,.38fr)', 'minmax(0,1fr)'], areas: ['hdr hdr hdr', 'batter park hists', 'slice park hists', 'slice park pitch'] },
+  2: { cols: `${RAIL2} minmax(0,1fr) ${RAIL}`, rows: ['26px', 'minmax(0,.7fr)', 'minmax(0,.3fr)', 'minmax(0,1fr)'], // (10 Nov, later: the batter box taller, "we have space to spare")
       areas: ['hdr hdr hdr', 'pitch park batter', 'pitch park hists', 'slice park hists'] },
-  3: { cols: 'minmax(0,.72fr) minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1.2fr)', rows: ['48px', 'minmax(0,2.25fr)', 'minmax(0,1fr)'], areas: ['hdr hdr hdr hdr', 'park park park park', 'batter pitch slice hists'] },
+  3: { cols: 'minmax(0,.72fr) minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1.2fr)', rows: ['26px', 'minmax(0,2.25fr)', 'minmax(0,1fr)'], areas: ['hdr hdr hdr hdr', 'park park park park', 'batter pitch slice hists'] },
 }
 const LAYOUT_CSS = `
 #cp .c25{position:absolute;inset:10px;display:grid;gap:14px}
@@ -572,8 +572,8 @@ const FRAME_CSS = `
 const PHONE_CSS = `
 #cp .c25>.ptabs{display:none}
 @media (max-width:900px){
-#cp .c25.c25{inset:6px;gap:8px;grid-template-columns:minmax(0,1fr);grid-template-rows:48px minmax(0,1.25fr) 26px minmax(0,1fr) 104px;grid-template-areas:"hdr" "park" "ptabs" "card" "strip"}
-#cp .c25.c25.ns{grid-template-rows:48px minmax(0,1.25fr) 26px minmax(0,1fr);grid-template-areas:"hdr" "park" "ptabs" "card"}
+#cp .c25.c25{inset:6px;gap:8px;grid-template-columns:minmax(0,1fr);grid-template-rows:26px minmax(0,1.25fr) 26px minmax(0,1fr) 104px;grid-template-areas:"hdr" "park" "ptabs" "card" "strip"}
+#cp .c25.c25.ns{grid-template-rows:26px minmax(0,1.25fr) 26px minmax(0,1fr);grid-template-areas:"hdr" "park" "ptabs" "card"}
 #cp .c25.c25>.batter,#cp .c25.c25>.slice,#cp .c25.c25>.hists,#cp .c25.c25>.pitch{grid-area:card;display:none;z-index:1}
 #cp .c25.c25[data-card="batter"]>.batter,#cp .c25.c25[data-card="hists"]>.hists,#cp .c25.c25[data-card="pitch"]>.pitch{display:block}
 #cp .c25.c25[data-card="slice"]>.slice{display:grid}
@@ -592,7 +592,7 @@ const PHONE_CSS = `
 #cp .c25 .chip .hd{font-size:calc(17px * var(--ts))}
 #cp .c25 .chip .sb{font-size:calc(12px * var(--ts))}
 #cp .c25 .bsel,#cp .c25.c25.ns .bsel{left:8px;right:8px;bottom:52px;font-size:calc(13px * var(--ts))} /* (phones: the chooser over the button, full width) */
-#cp .c25 .nuke{right:6px;bottom:6px;height:40px;min-width:0;padding:0 8px;gap:6px}#cp .c25 .nuke b{font-size:11px}#cp .c25 .nuke i{display:none}#cp .c25 .nuke .nkw{width:24px;height:30px}#cp .c25 .nuke .nkw svg{width:auto;height:24px}
+#cp .c25 .nuke{right:6px;bottom:6px;height:40px;min-width:0;padding:0 8px;gap:6px}#cp .c25 .nuke b{font-size:calc(var(--lsz) * 2)}#cp .c25 .nuke i{display:none}#cp .c25 .nuke .nkw{width:24px;height:30px}#cp .c25 .nuke .nkw svg{width:auto;height:24px}
 #cp .c25 .bsel .bt{padding:3px 6px}
 #cp .c25 .tly{display:none}
 #cp .c25.c25.c25 .park .bug.bug{display:none}
@@ -614,7 +614,7 @@ const PHONE_CSS = `
 #cp .c25 .legend,#cp .c25 .allst,#cp .c25 .tys{grid-template-columns:minmax(0,1fr)}
 #cp .c25 .ddbig{font-size:calc(34px * var(--ts))}
 #cp .c25 .banner{font-size:22px}
-#cp .c25.c25.ns.dj{grid-template-rows:48px minmax(0,1.25fr) 26px minmax(0,1fr) 104px;grid-template-areas:"hdr" "park" "ptabs" "card" "strip"}
+#cp .c25.c25.ns.dj{grid-template-rows:26px minmax(0,1.25fr) 26px minmax(0,1fr) 104px;grid-template-areas:"hdr" "park" "ptabs" "card" "strip"}
 #cp .c25.c25.ns.dj>.strip{grid-area:strip;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));padding:0}
 #cp .c25.c25.dj>.strip::before{display:none}
 #cp .c25.c25.dj>.strip .bt{flex-direction:column;align-items:stretch;padding:4px 26px 14px 6px}
@@ -635,7 +635,7 @@ const TYPE_CSS = TYPE_FONTS + `
 export async function build(root, api, U) {
   const { css, loadParks, evalParks, windowSync } = U
   const BASE = `
-#cp .c25 .hdr{display:grid;grid-template-rows:22px 22px;gap:4px;min-width:0}
+#cp .c25 .hdr{display:grid;grid-template-rows:22px;gap:4px;min-width:0}#cp .c25 .hdr .h2{display:none} /* (10 Nov, night; the third red team, 5: the tabs' row was an empty band) */
 #cp .c25 .hdr .h1{display:flex;justify-content:space-between;align-items:center;gap:12px;white-space:nowrap;min-width:0}
 #cp .c25 .hdr .h2{display:flex;justify-content:flex-start;align-items:center;gap:22px;white-space:nowrap;min-width:0}
 #cp .c25 .hdr .tabs{display:none !important} /* (10 Nov, later, Andrew: "we can kill the upper menu where you can hot swap between modes they can all be hidden behind escape") */
@@ -682,7 +682,7 @@ export async function build(root, api, U) {
 #cp .c25 .lpr[data-n]{cursor:pointer}
 #cp .c25 .lpr[data-n]:hover b,#cp .c25 .lpr[data-n]:focus b,#cp .c25 .lpr.pt b{color:var(--acc)}
 #cp .c25 .lpr[data-n]:hover .nm,#cp .c25 .lpr[data-n]:focus .nm,#cp .c25 .lpr.pt .nm{text-decoration:underline}
-#cp .c25 .rd.pick>*{display:none}#cp .c25 .rd.pick::before{content:'PICK A SEAT';display:block;font-family:PS2P,monospace;font-size:calc(var(--lsz) * 3);color:var(--tx)}#cp .c25 .rd.pick::after{content:'CLICK ONE IN THE PARK, OR TYPE IT TOP LEFT';display:block;margin-top:10px;color:var(--dim)}#cp .c25 .chip.pick{display:none}
+#cp .c25 .rd.pick>*{display:none}#cp .c25 .rd.pick::before{content:'PICK A SEAT';display:block;font-family:PS2P,monospace;font-size:calc(var(--lsz) * 3);color:var(--tx)}#cp .c25 .rd.pick::after{content:'PICK ONE IN THE PARK, OR TYPE IT IN';display:block;margin-top:10px;color:var(--dim)}#cp .c25 .chip.pick{display:none}
 #cp .c25 .rd .gn{color:var(--acc);font-size:17px;margin-top:6px;pointer-events:auto;cursor:pointer;display:inline-block}
 #cp .c25 .rd .fun{color:var(--tx);font-size:15px;margin-top:4px;max-width:620px;line-height:1.2}
 #cp .c25 .rd .fun span{display:block}
@@ -750,8 +750,9 @@ export async function build(root, api, U) {
 #cp .c25 .bsel .bt.bwb.on{background:var(--acc);color:var(--k);border-color:var(--acc)}#cp .c25 .bsel .bt.bwb.on em{color:var(--k)}
 #cp .c25 .bsel .bw .ppl{left:auto;right:0}
 #cp .c25 .bt[hidden]{display:none !important}
+@media (hover:none) and (pointer:coarse){#cp .c25 .hdr kbd,#cp .c25 .sm .smx kbd,#cp .c25 .sm .smf,#cp .c25 .nuke i{display:none}#cp .c25 .hdr .mhint .k{display:none}#cp .c25 .hdr .mhint .t{display:inline !important}} /* (the third red team, 4: no keyboard hints on a touch screen) */
 @media (max-width:900px){#cp .c25 #c25op{display:none}} /* (the phone's chooser has no room for OTHER PARKS?) */
-@media (max-height:760px){#cp .c25.L2{grid-template-rows:48px minmax(0,.62fr) minmax(0,.38fr) minmax(0,1fr) 84px}#cp .c25.L2.ns{grid-template-rows:48px minmax(0,.62fr) minmax(0,.38fr) minmax(0,1fr)}} /* (10 Nov, later: a short screen keeps the old split, so the corner still fits under the histograms) */
+@media (max-height:760px){#cp .c25.L2{grid-template-rows:26px minmax(0,.62fr) minmax(0,.38fr) minmax(0,1fr) 84px}#cp .c25.L2.ns{grid-template-rows:26px minmax(0,.62fr) minmax(0,.38fr) minmax(0,1fr)}} /* (10 Nov, later: a short screen keeps the old split, so the corner still fits under the histograms) */
 #cp .c25.P5 .pnl.tm{background:linear-gradient(var(--tm),var(--tm)) top left/14px 1px no-repeat,linear-gradient(var(--tm),var(--tm)) top left/1px 14px no-repeat,linear-gradient(var(--tm),var(--tm)) top right/14px 1px no-repeat,linear-gradient(var(--tm),var(--tm)) top right/1px 14px no-repeat,linear-gradient(var(--tm),var(--tm)) bottom left/14px 1px no-repeat,linear-gradient(var(--tm),var(--tm)) bottom left/1px 14px no-repeat,linear-gradient(var(--tm),var(--tm)) bottom right/14px 1px no-repeat,linear-gradient(var(--tm),var(--tm)) bottom right/1px 14px no-repeat,var(--k)} /* (10 Nov, later, Andrew: "I don't want the whole border to be that color I only want the corner bezels to be that color") */#cp .c25 .tmw{display:block;font-weight:400;text-shadow:1px 0 0 currentColor;letter-spacing:.12em}#cp .c25 .info .tmw{font-size:15px;line-height:1.1;flex:none}#cp .c25 .pby{display:flex;gap:6px;align-items:baseline;margin-bottom:2px;white-space:nowrap;overflow:hidden;min-width:0}#cp .c25 .pby>b:first-of-type{font-weight:400;color:var(--tx);overflow:hidden;text-overflow:ellipsis;min-width:0}#cp .c25 .pby span{color:var(--dim);font-size:13px;flex:none}#cp .c25 .pby .tmw{display:inline;flex:none}#cp .c25 .bug .btm{text-decoration:underline;text-underline-offset:2px}
 #cp .c25 .bsel .bw.inhi{justify-items:stretch}#cp .c25 .bsel .bw.inhi .bwr{display:flex;gap:6px}#cp .c25 .bsel .bw.inhi .bt.bwb{flex:1 1 0;min-width:0;font-size:15px;padding:5px 4px;white-space:normal;overflow-wrap:anywhere}#cp .c25 .bsel .bw.inhi.tight .bt.bwb{padding:2px 4px}#cp .c25 .bsel .bw.inhi.tight .bt.bwb em{display:none} /* (10 Nov: under the histograms) */
 @media (max-width:900px){#cp .c25 .bsel .bw{position:static;justify-items:start}#cp .c25 .bsel .bwr{justify-content:flex-start;flex-wrap:wrap}#cp .c25 .bsel .bt.bwb{min-width:0}}
@@ -887,7 +888,7 @@ export async function build(root, api, U) {
 #cp .c25 .btab .r b.y{color:var(--acc)}
 #cp .c25 .btab .r b.n{color:var(--dim)}
 #cp .c25 .btab .r.mo{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.2fr);font-size:17px}
-#cp .c25 .btab .r.mo b{text-align:right}#cp .c25 .btab.jkl .r.jk{grid-template-columns:minmax(0,1fr) auto auto;cursor:pointer;font-size:17px;align-items:center}#cp .c25 .jkb{display:grid;gap:10px;pointer-events:auto}#cp .c25 .jkn{display:grid;gap:6px;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .jkt{display:grid;gap:2px}#cp .c25 .jkt span{color:var(--dim);font-size:13px;letter-spacing:.12em}#cp .c25 .jkt b{font-weight:400;font-size:22px;color:var(--acc)}#cp .c25 .jkbar{height:6px;border:1px solid var(--tx)}#cp .c25 .jkbar i{display:block;height:100%;background:var(--acc);width:0}#cp .c25 .jkr{display:flex;gap:10px;align-items:center;justify-content:space-between}#cp .c25 .jkr .bt{min-width:6em;text-align:center}#cp .c25 .jks{font:inherit;font-size:17px;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:6px 8px;width:100%;box-sizing:border-box}#cp .c25 .jks:focus{outline:none}#cp .c25 .jkc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16em);gap:14px}@media (max-width:700px){#cp .c25 .jkc{grid-template-columns:minmax(0,1fr)}}#cp .c25 .btab.jkl{max-height:46vh;overflow:auto}#cp .c25 .jkq{display:grid;gap:4px}#cp .c25 .jqi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;font-size:17px}#cp .c25 .jqi span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#cp .c25 .jke{color:var(--dim);font-size:15px}#cp .c25 .jkm summary{cursor:pointer;color:var(--dim);letter-spacing:.12em;font-size:13px}#cp .c25 .btab.jkl .r.jk:hover,#cp .c25 .btab.jkl .r.jk:focus-visible{outline:1px solid var(--acc)}#cp .c25 .btab.jkl .r.jk span{overflow:hidden;text-overflow:ellipsis}#cp .c25 .btab.jkl .r.jk.on{color:var(--acc)}
+#cp .c25 .btab .r.mo b{text-align:right}#cp .c25 .btab.jkl .r.jk{grid-template-columns:minmax(0,1fr) auto auto;cursor:pointer;font-size:17px;align-items:center}#cp .c25 .jkb{display:grid;gap:10px;pointer-events:auto}#cp .c25 .jkn{display:grid;gap:6px;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .jkt{display:grid;gap:2px}#cp .c25 .jkt span{color:var(--dim);font-size:13px;letter-spacing:.12em}#cp .c25 .jkt b{font-weight:400;font-size:22px;color:var(--acc)}#cp .c25 .jkbar{height:6px;border:1px solid var(--tx)}#cp .c25 .jkbar i{display:block;height:100%;background:var(--acc);width:0}#cp .c25 .jkr{display:flex;gap:6px 10px;align-items:center;justify-content:space-between;flex-wrap:wrap}#cp .c25 .jkb,#cp .c25 .jkb>*,#cp .c25 .jkn,#cp .c25 .jkt{min-width:0}#cp .c25 .jkt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap} /* (the phone: the SOUND button made the row too wide) */#cp .c25 .jkr .bt{min-width:6em;text-align:center}#cp .c25 .jks{font:inherit;font-size:17px;background:var(--k);color:var(--tx);border:1px solid var(--tx);padding:6px 8px;width:100%;box-sizing:border-box}#cp .c25 .jks:focus{outline:none}#cp .c25 .jkc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16em);gap:14px}@media (max-width:700px){#cp .c25 .jkc{grid-template-columns:minmax(0,1fr)}}#cp .c25 .btab.jkl{max-height:46vh;overflow:auto}#cp .c25 .jkq{display:grid;gap:4px}#cp .c25 .jqi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;font-size:17px}#cp .c25 .jqi span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#cp .c25 .jke{color:var(--dim);font-size:15px}#cp .c25 .jkm summary{cursor:pointer;color:var(--dim);letter-spacing:.12em;font-size:13px}#cp .c25 .btab.jkl .r.jk:hover,#cp .c25 .btab.jkl .r.jk:focus-visible{outline:1px solid var(--acc)}#cp .c25 .btab.jkl .r.jk span{overflow:hidden;text-overflow:ellipsis}#cp .c25 .btab.jkl .r.jk.on{color:var(--acc)}
 #cp .c25 .ddk{color:var(--acc);font-size:15px}
 #cp .c25 .ddbig{font-size:54px;line-height:1}
 #cp .c25 .dds{color:var(--dim);font-size:17px}
@@ -989,7 +990,7 @@ export async function build(root, api, U) {
 #cp .c25 .bfh{display:grid;gap:4px;margin:0 0 16px}
 #cp .c25 .bfh b{font-weight:400;color:var(--acc);font-size:calc(26px * var(--ts))}
 #cp .c25 .bfh span,#cp .c25 .bfs{color:var(--dim);font-size:13px;line-height:16px}
-#cp .c25 .bfs{margin:0 0 8px;white-space:normal}
+#cp .c25 .bfs{margin:0 0 8px;white-space:normal}#cp .c25 .bfs:empty{min-height:16px}#cp .c25 .bsel .r2:empty{display:none}
 #cp .c25 .pk{display:grid;grid-template-columns:repeat(10,64px);gap:4px}
 #cp .c25 .pk .tile{height:46px}
 #cp .c25 .legend{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:18px 26px}
@@ -1127,7 +1128,8 @@ export async function build(root, api, U) {
 #cp .c25 .ty .tyx{display:inline-flex;align-self:start;justify-self:start;font-family:var(--lf),monospace;font-size:var(--lsz);font-weight:var(--lw,400);border:1px solid var(--tx);padding:3px 8px}
 `
   // every px font size in this study scales with the type set (T); labels in the label face keep their own size
-  const scaled = (s) => s.replace(/font-size:(\d+(?:\.\d+)?)px/g, 'font-size:calc($1px * var(--ts))')
+  // (10 Nov, night: the consistency pass) small text has a floor: in compact mode (ts down to about 0.83) the 13 px lines went to 10.8 px; anything set at 15 px or less never goes under 12
+  const scaled = (s) => s.replace(/font-size:(?:calc\()?(\d+(?:\.\d+)?)px(?: \* var\(--ts\)\))?/g, (m, n) => (Number(n) <= 15 ? `font-size:max(12px, calc(${n}px * var(--ts)))` : `font-size:calc(${n}px * var(--ts))`))
   css('cp25', SKEL_CSS + THEME_CSS + JUICE_CSS + ART_CSS + LAYOUT_CSS + FRAME_CSS + scaled(BASE) + TYPE_CSS + MENU_CSS + PIXCTL_CSS + PHONE_CSS + EMBLEM_CSS + CARD_CSS)
   root.classList.add('skel')
   window.__cpBead = 3.4
@@ -1160,7 +1162,7 @@ export async function build(root, api, U) {
   const cs0 = () => getComputedStyle(root)
   let last = null, mode = q.get('mode25') || 'replay', filter = 'fv', idx = 0, edited = false, balls = [], cur = null, bird = q.get('bird') === '1', modal = null, stepped = null
 
-  root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh">ESC = MENU, ANY TIME</span></span><span class="rt">
+  root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh"><span class="k">ESC = MENU, ANY TIME</span><span class="t" style="display:none">TAP MENU TO CHANGE MODE</span></span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
     <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><!-- (10 Nov, later, Andrew: "We don't need a moments thing on the top right, and we can get rid of options too. Just a skip track button on the top right": MOMENTS, OPTIONS and JUKEBOX are hidden; ? still opens the options, J the jukebox) --><span class="bt" id="c25sk" aria-label="skip to the next song" title="skip to the next song">SKIP</span><span class="bt" id="c25jk" hidden aria-label="jukebox (J)" title="pick a song (J)">JUKEBOX</span><span class="bt" id="c25mm" hidden aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" hidden aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
     <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
@@ -1287,7 +1289,7 @@ export async function build(root, api, U) {
   const goPark = (abbr) => { const u = new URL(location.href); if (abbr === 'SF') u.searchParams.delete('park'); else u.searchParams.set('park', abbr); u.searchParams.set('mix', mixCode(mix).replace(/ /g, '')); u.searchParams.set('mode25', mode); u.searchParams.set('menu', '0'); if (mode === 'replay') { u.searchParams.set('ball', String(idx)); u.searchParams.set('filter', filter) } else { for (const k of ['ev', 'la', 'dir', 'hand', 'temp']) u.searchParams.set('w' + k, String(api.state[k])) } location.href = u.toString() }
   E('#c25bl').addEventListener('click', () => { pressEl(E('#c25bl')); openMod('bulletin') })
   E('#c25ww').addEventListener('click', () => { pressEl(E('#c25ww')); openMod('witness') })
-  const goTab = (m) => { if (!uiReady) return; sound.play('move'); try { mmStop?.(); moments.clear() } catch (err) { void err } /* (red team 2.1, 2.2) */ if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } if (modal) closeMod(); if (m === 'blast') { if (mode !== 'whatif') setMode('whatif'); if (show !== 'hm') { Object.assign(api.state, NORMAL_NIGHT); api.update(); setShow('hm') } paintTabs(); return } if (show === 'hm') setShow('hm'); if (m !== mode) setMode(m); paintTabs() }
+  const goTab = (m) => { if (!uiReady) return; sound.play('move'); try { mmStop?.(); moments.clear() } catch (err) { void err } /* (red team 2.1, 2.2) */ if (m === 'witness') { if (modal !== 'witness') openMod('witness'); paintTabs(); return } if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } if (modal) closeMod(); if (m === 'blast') { if (mode !== 'whatif') setMode('whatif'); if (show !== 'hm') { Object.assign(api.state, NORMAL_NIGHT); api.update(); setShow('hm') } if (innerWidth < 900) setCard('hists'); paintTabs(); return } if (show === 'hm') setShow('hm'); if (m !== mode) setMode(m); paintTabs() }
   // BLAST RADIUS's frame (5 Nov): its own zoom (windowSync above), and the park centred in what is left once the AIR and WIND boxes are counted out
   function blastFrame() {
     syncCam?.()
@@ -1342,8 +1344,8 @@ export async function build(root, api, U) {
     if (w0 != null && w1 != null) {
       const lo = Math.min(w0, w1), hi = Math.max(w0, w1)
       bar = `<div class="wb" aria-label="win chance ${P(w0)}% before, ${P(w1)}% after">${Array.from({ length: 20 }, (_, i) => { const c = (i + 0.5) / 20; return `<s class="${c < lo ? 'a' : c < hi ? (w1 >= w0 ? 'g' : 'l') : ''}"></s>` }).join('')}</div>
-        <div class="wl"><span>WIN CHANCE ${P(w0)}% &rarr; ${P(w1)}%</span></div>`
-    } else if (w != null) bar = `<div class="wl"><span>WIN CHANCE ${w >= 0 ? '+' : '-'}${Math.abs(P(w))}%</span></div>`
+        <div class="wl"><span>${bat ?? ''} WIN CHANCE ${P(w0)}% &rarr; ${P(w1)}%</span></div>`
+    } else if (w != null) bar = `<div class="wl"><span>${bat ?? ''} WIN CHANCE ${w >= 0 ? '+' : '-'}${Math.abs(P(w))} POINTS</span></div>`
     return `<div class="br1"><span class="inn">${b.tb === 'Top' ? '&#9650;' : '&#9660;'}${b.in}</span>${dia}${outs}<span class="cnt">${b.bl ?? '-'}-${b.sk ?? '-'}</span>${score}</div>${bar}`
   }
   const seenDays = () => { try { return JSON.parse(store('nn-witness') ?? '[]').map((k) => String(k).slice(0, 10)) } catch { return [] } } // (a doubleheader's game is date#2)
@@ -1541,6 +1543,7 @@ export async function build(root, api, U) {
     paintChooser()
     if (uiReady) paintTabs()
     if (uiReady) paintBug() // (1 Nov, later: a fresh dojo swing has no game; in the dojo nothing else repaints it until a ball flies)
+    if (innerWidth < 900 && m === 'shot') setCard('pitch') // (the third red team, 8: on a phone the seat form is in the PITCH card)
   }
   // the grid for the mode: ns (no number strip along the bottom: the replay, Shot Caller, and the dojo, whose controls sit top left in the pitch's place, dj); the title
   function syncMode() {
@@ -1605,7 +1608,7 @@ export async function build(root, api, U) {
     cornerFit = room >= bw.offsetHeight
     if (!cornerFit) { bw.classList.add('tight'); cornerFit = room >= bw.offsetHeight }
   }
-  { let q = 0; const re = () => { cancelAnimationFrame(q); q = requestAnimationFrame(() => placeCorner(E('#c25ch'))) }; const hb = E('#c25hb'); if (hb) new MutationObserver(re).observe(hb, { childList: true, subtree: true }); addEventListener('resize', re) } // (the histograms redraw: the space under them changes)
+  { let q = 0; const re = () => { clearTimeout(q); q = setTimeout(() => placeCorner(E('#c25ch')), 0) }; /* (a timer, not a frame: a slow machine draws few frames) */ const hb = E('#c25hb'); if (hb) new MutationObserver(re).observe(hb, { childList: true, subtree: true }); addEventListener('resize', re); if (window.ResizeObserver) { const ro = new ResizeObserver(re); for (const q of ['#c25hi', '#c25h', '#c25ch']) { const el = E(q); if (el) ro.observe(el) } } } { let q2 = 0; const pit = E('.c25>.pitch'); if (pit && window.ResizeObserver) new ResizeObserver(() => { clearTimeout(q2); q2 = setTimeout(() => { try { if (uiReady) paintPitch() } catch {} }, 0) }).observe(pit) } /* (the pitch panel drops rows to fit only when painted; it repaints when it changes size) */ /* (10 Nov, night: a layout or type change moves the panels without a resize; the block follows them) */ // (the histograms redraw: the space under them changes)
   function paintChooser() {
     const el = E('#c25ch')
     { const nk = E('#c25nk'), w = nk?.offsetWidth ?? 0; if (w && innerWidth >= 900) { const r = w + (compactK() < 1 ? 22 : 30) + 'px'; if (el.style.right !== r) el.style.right = r } } // (3 Nov: the buttons wrap short of NUKE IT, however wide it is)
@@ -1880,7 +1883,7 @@ export async function build(root, api, U) {
     E('#c25mt').textContent = '/ J U K E B O X /'
     body.innerHTML = `<div class="jkb"><div class="jkn" id="jkn"></div><input class="jks" id="jks" type="search" placeholder="SEARCH THE SONGS" aria-label="search the songs" autocomplete="off" value="${jkEsc(jkQ)}">
       <div class="jkc"><div><div class="bulh" id="jkh"></div><div class="btab jkl" id="jkl"></div></div><div><div class="bulh">UP NEXT</div><div class="jkq" id="jkq"></div></div></div>
-      <details class="jkm"><summary>SOUND LEVELS${sound.on() ? '' : ' · OFF: PRESS S'}</summary>${sound.mixerHTML()}</details></div>`
+      <details class="jkm"><summary>SOUND LEVELS</summary>${sound.mixerHTML()}</details></div>`
     sound.bindMixer(body)
     const inp = body.querySelector('#jks')
     inp.addEventListener('input', () => { jkQ = inp.value; jkList() })
@@ -1892,8 +1895,9 @@ export async function build(root, api, U) {
   function jkNowPaint0() {
     const el = E('#jkn'); if (!el) return
     const a = jukebox.at(), id = a?.id ?? jkPaused?.id ?? null
-    el.innerHTML = `<div class="jkt"><span>${jkPaused ? 'PAUSED' : a ? 'NOW PLAYING' : 'NOTHING PLAYING YET'}</span><b>${id ? jkEsc(songName(id)) : 'PICK ONE'}</b></div><div class="jkbar"><i id="jkbi"></i></div><div class="jkr"><span id="jkt0">0:00</span><span class="bt" id="jkpp" role="button" tabindex="0">${jkPaused ? 'PLAY' : 'PAUSE'}</span><span class="bt" id="jksk" role="button" tabindex="0">SKIP</span><span id="jkt1">0:00</span></div>`
+    el.innerHTML = `<div class="jkt"><span>${jkPaused ? 'PAUSED' : a ? 'NOW PLAYING' : 'NOTHING PLAYING YET'}</span><b>${id ? jkEsc(songName(id)) : 'PICK ONE'}</b></div><div class="jkbar"><i id="jkbi"></i></div><div class="jkr"><span id="jkt0">0:00</span><span class="bt" id="jkpp" role="button" tabindex="0">${jkPaused ? 'PLAY' : 'PAUSE'}</span><span class="bt" id="jksk" role="button" tabindex="0">SKIP</span><span class="bt" id="jkso" role="button" tabindex="0" title="the sound, all of it (S)">${sound.on() ? 'SOUND OFF' : 'SOUND ON'}</span><span id="jkt1">0:00</span></div>`
     const pp = el.querySelector('#jkpp'), sk = el.querySelector('#jksk'), key = (b, f) => { b.addEventListener('click', f); b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); f() } }) }
+    const so = el.querySelector('#jkso'); key(so, () => { pressEl(so); soundKey() }) // (the third red team, 3: a phone had no way to turn it off)
     key(pp, () => { pressEl(pp); jkPause() }); key(sk, () => { pressEl(sk); if (!sound.on()) sound.set(true); jkPaused = null; bgNext() })
     jkTick()
   }
@@ -2109,7 +2113,7 @@ export async function build(root, api, U) {
       const sec = body.querySelector('#c25wsec').value.trim(), row = body.querySelector('#c25wrow').value.trim().toUpperCase(), seat = body.querySelector('#c25wst').value.trim()
       // (1 Nov, night; playtest: only outfield seats could be logged, and most friends sit elsewhere) any section at Oracle goes in; the outfield ones are
       // checked against the seat map so the golf game's closest works, the others are kept as typed
-      if (!/^\d{3}$/.test(sec) || Number(sec) < 101 || Number(sec) > 399) { wMsg = 'A SECTION IS THREE DIGITS'; sound.play('thud'); paintWitness(body); return }
+      if (!/^\d{3}$/.test(sec) || Number(sec) < 101 || Number(sec) > 399) { wMsg = 'SECTIONS RUN 101 TO 399'; sound.play('thud'); paintWitness(body); return }
       if (!row || !seat) { wMsg = 'ROW AND SEAT TOO'; sound.play('thud'); paintWitness(body); return }
       const r = se.seatPoint(sec, row, Number(seat)), inMap = se.SECTIONS?.some((x) => x[2] === sec)
       if (inMap && r.err) { wMsg = r.err; sound.play('thud'); paintWitness(body); return }
@@ -2200,15 +2204,16 @@ export async function build(root, api, U) {
   // 1 Nov, evening (Andrew: "kill daily dinger ... no more options, no more gag reel, it's just dinger deja vu, dinger dojo, shot caller, wallop witness"): the four, and
   // WHAT'S NEW; the gags still play in the park and on a scoreboard click
   // a mode from the menu: BLAST RADIUS stood down first, then setMode always (it is what makes DINGER DOJO a fresh blank swing even from a tweak)
-  const menuGo = (m) => { if (show === 'hm') setShow('hm'); setMode(m); paintTabs() }
+  const menuGo = (m) => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } if (modal) closeMod(); if (show === 'hm') setShow('hm'); setMode(m); paintTabs() } // (the third red team, 1: WALLOP WITNESS stayed on top)
+  const menuJuke = () => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } openMod('jukebox') }
   menu = selectMenu(grid, [
-    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'EVERY GIANTS HOME RUN, FLYING AGAIN', run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
+    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'EVERY ORACLE HOME RUN, FLYING AGAIN' /* (his pick said GIANTS; the default list is every home run at Oracle, theirs too: the third red team, 6) */, run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
     { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT YOUR OWN', run: () => menuGo('whatif') },
     { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT. SEE WHAT IT TAKES TO REACH IT', run: () => menuGo('shot'), off: () => !atOracle },
     { k: 'witness', name: NAMES.witness, blurb: 'LOG YOUR GAMES. CLIMB THE STAND', run: () => goTab('witness') },
     { k: 'blast', name: 'BLAST RADIUS', blurb: 'HOW HARD IT IS TO GO DEEP, ANYWHERE IN THE PARK', run: () => goTab('blast'), off: () => !atOracle },
-    { k: 'jukebox', name: 'JUKEBOX', blurb: 'PICK THE MUSIC', run: () => openMod('jukebox') }, // (10 Nov, later, Andrew: "a little mini spotify")
-  ], { onIdle: attract, onJukebox: () => openMod('jukebox'), onClose: () => { unAttract(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
+    { k: 'jukebox', name: 'JUKEBOX', blurb: 'PICK THE MUSIC', run: () => menuJuke() }, // (10 Nov, later, Andrew: "a little mini spotify")
+  ], { onIdle: attract, onJukebox: () => menuJuke(), onClose: () => { unAttract(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const menuKey = () => (modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
   // S: the sound off or on; on again clears a jukebox pause (the second red team, 8: the music stayed silent until SKIP)
@@ -2425,10 +2430,10 @@ export async function build(root, api, U) {
     if (!c) return null
     const d = hmData(), M = hmWho ? 'player' : hmMetric === 'many' ? 'many' : 'hard'
     if (!d) return null
-    if (M === 'hard') { const x = c.kind === 'wedge' ? d.wall[c.i] : d.seat[c.i][c.j]; return { place: placeOf(c), main: x ? `${x.ev} MPH` : 'OUT OF REACH', sub: x ? `${x.ev} MPH AT ${x.la}° GETS ONE OUT HERE` : 'NOTHING UP TO 132 MPH GETS THERE', ev: x?.ev ?? null } }
+    if (M === 'hard') { const x = c.kind === 'wedge' ? d.wall[c.i] : d.seat[c.i][c.j]; return { place: placeOf(c), main: x ? `${x.ev} MPH` : 'OUT OF REACH', sub: x ? `AT ${x.la}° IT GETS OUT HERE` : 'NOTHING UP TO 132 MPH GETS THERE', ev: x?.ev ?? null } }
     if (M === 'many') { const n = c.kind === 'wedge' ? d.wedge[c.i] : d.seat[c.i][c.j]; return { place: placeOf(c), main: `${n} HOME RUN${n === 1 ? '' : 'S'}`, sub: c.kind === 'wedge' ? 'CAME DOWN SOMEWHERE OUT THIS WAY, SINCE JULY 2023' : 'CAME DOWN IN THESE SEATS, SINCE JULY 2023', n } }
     // a player (4 Nov, evening; the red team: say what the numbers are out of, and no percent from a handful)
-    if (c.kind === 'wedge') { const n = d.n5[c.i], out = d.out5[c.i]; return { place: placeOf(c), main: `${pc1(d.field[c.i])} OF THEIR BALLS GO THIS WAY`, sub: n ? `${out} OF THEIR ${n} GO OUT HERE` : 'NONE OF THEIR HOME RUNS WENT THIS WAY' } }
+    if (c.kind === 'wedge') { const n = d.n5[c.i], out = d.out5[c.i]; return { place: placeOf(c), main: `${pc1(d.field[c.i])} OF THEIR BALLS GO THIS WAY`, sub: n ? `${out} OF THEIR ${n} HOME RUNS THIS WAY GO OUT HERE` : 'NONE OF THEIR HOME RUNS WENT THIS WAY' } }
     const sh = d.seat[c.i][c.j], k = d.hrSeat[c.i][c.j]
     return { place: placeOf(c), main: sh ? `${pc1(sh)} OF THEIR LIKELY LANDINGS` : '' /* (6 Nov: nothing said for a seat they do not land in) */, sub: k ? `${k} OF THEIR REAL ONES LAND HERE` : 'NONE OF THEIR REAL ONES LAND HERE' }
   }
@@ -2440,7 +2445,7 @@ export async function build(root, api, U) {
     if (hmBomb?.b) { const B = hmBomb.b, html = `<b>${hmName(B.b)} · ${dayOf(B.d)}</b><em>${B.ft} FT${B.park && B.park !== 'SF' ? ` AT ${B.park}` : ' AT ORACLE'}</em><i>${hmBomb.gone ? 'GOES OUT HERE' : 'STAYS IN HERE'} · CLICK TO WATCH</i>`; if (box.innerHTML !== html) box.innerHTML = html; return }
     const w = cellWords(hmOver), p = cellWords(hmPin)
     let html = w ? `<b>${w.place}</b><em>${w.main}</em><i>${w.sub}</i>` : `<i>${hmWho ? 'POINT AT ANYTHING. CLICK A BOMB TO WATCH IT' : 'POINT AT ANYTHING'}</i>`
-    if (p) { const diff = w && p.ev != null && w.ev != null && hmOver !== hmPin ? w.ev - p.ev : null; html += `<span class="hpin">KEPT: ${p.place}${p.main ? `, ${p.main}` : ""}${diff != null ? ` · THIS ONE TAKES ${Math.abs(diff)} MPH ${diff > 0 ? 'MORE' : diff < 0 ? 'LESS' : ''}${diff === 0 ? 'THE SAME' : ''}` : ''}</span>` }
+    if (p) { const diff = w && p.ev != null && w.ev != null && hmOver !== hmPin ? w.ev - p.ev : null; html += `<span class="hpin">KEPT: ${p.place}${p.main ? `, ${p.main}` : ""}${diff != null ? ` · ${diff === 0 ? 'THE SAME SPEED' : `THIS ONE TAKES ${Math.abs(diff)} MPH ${diff > 0 ? 'MORE' : 'LESS'}`}` : ''}</span>` }
     if (box.innerHTML !== html) box.innerHTML = html
   }
   function paintHeat() {
@@ -3063,12 +3068,12 @@ export async function build(root, api, U) {
     const chip = E('#c25v'), b = ses.beat, v = last?.verdict
     const committed = b && !b.preview
     const realSF = mode === 'replay' && cur && !edited && cur.park === 'SF' && atOracle // (the second red team, 5: what really happened, as the tag says)
-    const REAL_WORD = { field_out: 'CAUGHT', sac_fly: 'SAC FLY', double: 'DOUBLE', triple: 'TRIPLE', single: 'SINGLE', field_error: 'AN ERROR', fielders_choice: 'IN PLAY', force_out: 'IN PLAY' }
+    const REAL_WORD = { field_out: 'CAUGHT', sac_fly: 'SAC FLY', double: 'DOUBLE', triple: 'TRIPLE', single: 'SINGLE', field_error: 'SAFE ON AN ERROR', double_play: 'DOUBLE PLAY', fielders_choice: 'IN PLAY', force_out: 'IN PLAY' }
     chip.classList.toggle('hr', realSF ? !!cur.hr : committed ? isHR(b) : v?.kind === 'GONE')
     chip.classList.toggle('done', !!committed) // (home stretch: a home run that has flown is GEIGER, "confirmed gone"; the preview stays orange)
     const live = v ? (v.kind === 'GONE' ? 'HOME RUN' : v.kind === 'WALL' ? 'OFF THE WALL' : v.kind === 'FOUL' ? 'FOUL BALL' : 'IN PLAY') : ''
-    const realSub = mode === 'replay' && cur ? (edited ? 'EDITED' : cur.hr ? 'THE REAL ONE: HOME RUN' : 'THE REAL ONE: ' + (cur.ev_ ?? '').replace(/_/g, ' ').toUpperCase()) : 'PREVIEW'
-    chip.querySelector('.hd').textContent = realSF && committed ? (cur.hr ? (isHR(b) ? plainHead(b) : 'HOME RUN') : (isHR(b) || v?.kind === 'WALL' ? REAL_WORD[cur.ev_] ?? 'IN PLAY' : plainHead(b))) : committed ? plainHead(b) : live
+    const realSub = mode === 'replay' && cur ? (edited ? 'EDITED' : cur.hr ? 'THE REAL ONE: HOME RUN' : 'THE REAL ONE: ' + (REAL_WORD[cur.ev_] ?? (cur.ev_ ?? '').replace(/_/g, ' ').toUpperCase())) : 'PREVIEW'
+    chip.querySelector('.hd').textContent = realSF && !committed ? (cur.hr ? 'HOME RUN' : REAL_WORD[cur.ev_] ?? 'IN PLAY') : realSF && committed ? (cur.hr ? (isHR(b) ? plainHead(b) : 'HOME RUN') : (isHR(b) || v?.kind === 'WALL' ? REAL_WORD[cur.ev_] ?? 'IN PLAY' : plainHead(b))) : committed ? plainHead(b) : live
     chip.querySelector('.sb').textContent = committed ? (b.sub ?? '') : realSub
     // (2 Nov, later; playtest: an away home run replayed at Oracle said IN PLAY under a GRAND SLAM stamp) a real ball from another park that stays in here keeps its
     // stamp, but the stamp says where it was one, and the line under it says this park keeps it

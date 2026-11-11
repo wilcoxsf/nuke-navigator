@@ -9,15 +9,16 @@ export const MENU_CSS = `
 #cp .c25 .sm.open{display:flex}
 #cp .c25 .sm .smb{display:grid;gap:16px;justify-items:center;max-width:min(920px,94vw);max-height:94vh;overflow:auto;padding:10px 12px}
 #cp .c25 .sm .smx{position:fixed;top:14px;right:18px;display:inline-flex;gap:8px;align-items:center;pointer-events:auto;cursor:pointer}
-#cp .c25 .sm .smx kbd{font:inherit;font-size:.8em;border:1px solid currentColor;padding:0 4px}
-#cp .c25 .sm .smt{font-family:PS2P,monospace;font-size:clamp(22px,4.2vw,46px);color:var(--acc);letter-spacing:.04em;text-align:center;line-height:1.15;text-shadow:4px 4px 0 var(--ln)}
+#cp .c25 .sm .smx kbd{font:inherit;font-size:calc(15px * var(--ts));border:1px solid currentColor;padding:0 4px}
+#cp .c25 .sm .smt{font-family:PS2P,monospace;font-size:24px;color:var(--acc);letter-spacing:0;text-align:center;line-height:1.15;text-shadow:4px 4px 0 var(--ln)}
 #cp .c25 .sm .sms{font-family:PS2P,monospace;font-size:8px;color:var(--dim);letter-spacing:.2em}
 #cp .c25 .sm .sml{display:grid;gap:3px;width:min(780px,90vw)}
 #cp .c25 .sm .smi{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:16px;align-items:baseline;padding:7px 12px;cursor:pointer;border:1px solid transparent}
-#cp .c25 .sm .smi b{font-family:PS2P,monospace;font-weight:400;font-size:clamp(11px,1.5vw,15px);color:var(--tx);white-space:nowrap}
+#cp .c25 .sm .smi b{font-family:PS2P,monospace;font-weight:400;font-size:16px;color:var(--tx);white-space:nowrap}
 #cp .c25 .sm .smi span{font-size:calc(17px * var(--ts));color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cp .c25 .sm .smi.on{border-color:var(--acc)}
-#cp .c25 .sm .smi.hero{grid-template-columns:minmax(0,1fr);gap:6px;padding:10px 12px}#cp .c25 .sm .smi.hero b{font-size:clamp(15px,2.3vw,24px)}#cp .c25 .sm .smi.hero span{color:var(--tx);white-space:normal}
+#cp .c25 .sm .smi.hero{grid-template-columns:minmax(0,1fr);gap:6px;padding:10px 12px}#cp .c25 .sm .smi.hero b{font-size:16px}#cp .c25 .sm .smi.hero span{color:var(--tx);white-space:normal}
+@media (min-width:700px){#cp .c25 .sm .smt{font-size:32px}}@media (min-width:1100px){#cp .c25 .sm .smt{font-size:48px}#cp .c25 .sm .smi.hero b{font-size:24px}} /* (10 Nov, night: the label face on its 8 px grid, 16 / 24 / 32 / 48, not clamped in between) */
 #cp .c25 .sm .smi.on b{color:var(--acc)}
 #cp .c25 .sm .smi.dis b,#cp .c25 .sm .smi.dis span{opacity:.45}
 #cp .c25 .sm .smf{font-family:PS2P,monospace;font-size:8px;color:var(--dim);letter-spacing:.125em;text-align:center;line-height:1.8}

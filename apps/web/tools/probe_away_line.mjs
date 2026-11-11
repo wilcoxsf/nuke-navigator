@@ -24,9 +24,9 @@ const post = await page.evaluate(() => ({ html: document.querySelector('#c25rd .
 say(/FT OVER THE WALL AT|JUST OVER THE WALL AT/.test(post.html ?? '') && /FENWAY PARK/.test(post.html ?? ''), 'after it lands: N FT OVER THE WALL AT FENWAY PARK, from Fenway\'s own wall', post)
 // the dojo with OTHER PARKS: changing only the wind redoes the crossing
 await page.evaluate(() => document.querySelector('#c25tabs [data-tab="whatif"]').click()); await page.waitForTimeout(1200)
-await page.evaluate(() => { window.__mix25.dojoPark('COL'); Object.assign(window.__cp.state, { ev: 108, la: 29, dir: -18, wind: 0, xwind: 0 }); window.__cp.update() }); await page.waitForTimeout(800)
+await page.evaluate(() => { window.__mix25.dojoPark('COL'); Object.assign(window.__cp.state, { ev: 108, la: 29, dir: -18, wind: 0, xwind: 0 }); window.__cp.update() }); await page.waitForTimeout(2000)
 const c0 = await page.evaluate(() => window.__mix25.awayWall())
-await page.evaluate(() => { Object.assign(window.__cp.state, { wind: -12 }); window.__cp.update() }); await page.waitForTimeout(800)
+await page.evaluate(() => { Object.assign(window.__cp.state, { wind: -12 }); window.__cp.update() }); await page.waitForTimeout(2000)
 const c1 = await page.evaluate(() => window.__mix25.awayWall())
 say(!!c0?.cross && JSON.stringify(c0.cross) !== JSON.stringify(c1?.cross ?? null), 'OTHER PARKS: a wind change alone moves the crossing', { c0, c1 })
 say(errs.length === 0, 'no page errors', errs)

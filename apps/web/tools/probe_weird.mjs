@@ -80,7 +80,7 @@ await tab('blast'); await wait(2500); s = await state(); say(s.wall === null && 
 await tab('replay'); await wait(1500)
 
 // 7. a resize with the corner up
-await page.setViewportSize({ width: 1280, height: 720 }); await wait(1500)
+await page.setViewportSize({ width: 1280, height: 720 }); await wait(4000) // (headless draws about a frame a second; the compact layout lands a beat after the resize)
 let c = await ev(() => ({ fit: window.__mix25.cornerFit(), r: document.querySelector('#c25ch .bw')?.getBoundingClientRect().right, hi: document.querySelector('#c25hi')?.getBoundingClientRect().right }))
 say(c.fit !== null && Math.abs(c.r - c.hi) < 20, '7a DEJA-VU resized to 1280: the corner follows the histogram panel', c)
 await tab('whatif'); await wait(1500)

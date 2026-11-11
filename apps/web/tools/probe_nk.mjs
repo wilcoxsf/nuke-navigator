@@ -1,0 +1,21 @@
+// one-off (10 Nov, night): on a phone, what is under NUKE IT, and does a tap swing? and in the dojo, does a Coors wall get a crossing for a long fly?
+import { chromium } from 'playwright-core'
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+const page = await ctx.newPage(), errs = []
+page.on('pageerror', (e) => errs.push(e.message.slice(0, 200)))
+await page.route('**/api.open-meteo.com/**', (r) => r.abort())
+await page.goto('http://localhost:5195/?mode=dojo&ui=K&cp=25&seed=7&ir=0&menu=0')
+await page.waitForFunction(() => window.__ready && window.__ready() && window.__dojoReady && window.__cpReady && window.__mix25, null, { timeout: 180000 })
+await page.waitForTimeout(1500)
+const at = () => page.evaluate(() => { const n = document.querySelector('#c25nk'), r = n.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { mode: window.__mix25.mode(), nk: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], disp: getComputedStyle(n).display, top: e === n || n.contains(e) ? 'nuke' : (e?.id || e?.className || e?.tagName), dorm: n.classList.contains('dorm'), fires: window.__mix25.fires() } })
+console.log('start', JSON.stringify(await at()))
+await page.tap('#c25nk'); await page.waitForTimeout(2500)
+console.log('after tap', JSON.stringify(await at()))
+await page.tap('#c25mn'); await page.waitForTimeout(700); await page.tap('.c25 .sm .smi:nth-child(4)'); await page.waitForTimeout(1500)
+await page.tap('#c25cl').catch(() => {}); await page.waitForTimeout(800)
+console.log('after witness', JSON.stringify(await at()))
+await page.tap('#c25nk'); await page.waitForTimeout(2500)
+console.log('after 2nd tap', JSON.stringify(await at()))
+console.log('errors', JSON.stringify(errs))
+await browser.close()
