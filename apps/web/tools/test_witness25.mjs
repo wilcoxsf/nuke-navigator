@@ -70,10 +70,17 @@ check('no function: saving keeps it in the browser', sv0.ok && !sv0.shared && JS
 const kv = () => { const m = new Map(); return { m, get: async (k) => (m.has(k) ? m.get(k) : null), put: async (k, v) => { m.set(k, v) }, list: async ({ prefix }) => ({ keys: [...m.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })), list_complete: true }) } }
 const TOKENS = kv(), WITNESS = kv()
 const T1 = 'tokenAAAAAAAAAAAAAAAA1', T2 = 'tokenBBBBBBBBBBBBBBBB2'
-await TOKENS.put(T1, JSON.stringify({ name: 'Andrew Wilcox' })); await TOKENS.put(T2, JSON.stringify({ name: 'Sam' }))
+/* (11 Nov: signed-in sessions now, lib/auth.js) a user and a session each */
+await TOKENS.put('u:andrew wilcox', JSON.stringify({ name: 'andrew wilcox', display: 'Andrew Wilcox' })); await TOKENS.put('s:' + T1, JSON.stringify({ name: 'andrew wilcox' }))
+await TOKENS.put('u:sam', JSON.stringify({ name: 'sam', display: 'Sam' })); await TOKENS.put('s:' + T2, JSON.stringify({ name: 'sam' }))
 const GAMES = { games: G }
-const env = { TOKENS, WITNESS, ASSETS: { fetch: async () => new Response(JSON.stringify(GAMES)) } }
-const call = (token, method = 'GET', body) => onRequest({ env, request: new Request('https://nn.example/api/witness', { method, headers: { Cookie: `nn_t=${token}`, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }) })
+// (11 Nov) the files the function reads, by path: the games, the coming schedule, and a song file whose two songs carry the hash of a right guess's proof
+const { createHash: _h } = await import('node:crypto'), SH = (t) => _h('sha256').update(t).digest('hex')
+const proof = (id, v) => SH(`nn-proof|${id}|${v}`)
+const SONGS = { songs: [{ id: 'k0123456789', lock: { v: [['c', 's', 'a', SH('nn-pf|' + proof('k0123456789', 'TAKE ME OUT'))]] } }, { id: 'kabcdefabcd', lock: { v: [['c', 's', 'a', SH('nn-pf|' + proof('kabcdefabcd', 'CENTERFIELD'))]] } }] }
+const SCHED = { games: [{ d: '2027-04-02', pk: 1, opp: 'LAD', start: '2027-04-02T20:05:00Z', dh: 0 }, { d: '2027-05-05', pk: 2, opp: 'SD', start: '2027-05-05T02:15:00Z', dh: 0 }] }
+const env = { TOKENS, WITNESS, ASSETS: { fetch: async (u) => { const p = new URL(u).pathname; return new Response(JSON.stringify(p === '/songs_private.json' ? SONGS : p === '/giants_schedule.json' ? SCHED : GAMES)) } } }
+const call = (token, method = 'GET', body) => onRequest({ env, request: new Request('https://nn.example/api/witness', { method, headers: { Cookie: `nn_s=${token}`, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }) })
 const realNow = Date.now
 const at = (ms) => { Date.now = () => ms }
 at(Date.parse('2025-04-02T05:00:00Z')) // three hours after game 1's first pitch
@@ -97,15 +104,37 @@ check('taking a game away is allowed whenever', r.status === 200 && (await r.jso
 r = await call(T2, 'PUT', { days: ['2025-04-08'], seats: { '2025-04-08': { sec: '301', row: '22', seat: '9' } } })
 check('a second friend saves', r.status === 200)
 // (11 Nov) the guessing jukebox's record rides along: good song ids kept, anything odd dropped, and everyone's shows on the stand
-r = await call(T2, 'PUT', { days: ['2025-04-08'], seats: { '2025-04-08': { sec: '301', row: '22', seat: '9' } }, jk: { k0123456789: [Date.parse('2025-04-09T20:00:00Z'), 3, 1, 0], kabcdefabcd: [Date.parse('2025-04-09T21:00:00Z'), 1, 0, 0], billiejean: [Date.parse('2025-04-09'), 1, 0, 0], kffffffffff: [Date.parse('2031-01-01'), 1, 0, 0], k1111111111: ['soon', 'x'] } })
+r = await call(T2, 'PUT', { days: ['2025-04-08'], seats: { '2025-04-08': { sec: '301', row: '22', seat: '9' } }, jk: { k0123456789: [Date.parse('2025-04-09T20:00:00Z'), 3, 1, 0, proof('k0123456789', 'TAKE ME OUT')], kabcdefabcd: [Date.parse('2025-04-09T21:00:00Z'), 1, 0, 0, proof('kabcdefabcd', 'CENTERFIELD')], kfake000000: [Date.parse('2025-04-09'), 1, 0, 0, proof('k0123456789', 'TAKE ME OUT')], k0123456788: [Date.parse('2025-04-09'), 1, 0, 0, 'f'.repeat(64)], billiejean: [Date.parse('2025-04-09'), 1, 0, 0], kffffffffff: [Date.parse('2031-01-01'), 1, 0, 0], k1111111111: ['soon', 'x'] } })
 j = await r.json()
-check('the jukebox record keeps only real song ids with sane times and counts', r.status === 200 && Object.keys(j.me.jk ?? {}).sort().join() === 'k0123456789,kabcdefabcd' && j.me.jk.k0123456789.join() === [Date.parse('2025-04-09T20:00:00Z'), 3, 1, 0].join(), JSON.stringify(j.me.jk))
+check('the jukebox record keeps only real song ids with sane times and counts, each with the proof of a right guess (a copied or made-up proof is dropped)', r.status === 200 && Object.keys(j.me.jk ?? {}).sort().join() === 'k0123456789,kabcdefabcd' && j.me.jk.k0123456789.join() === [Date.parse('2025-04-09T20:00:00Z'), 3, 1, 0].join() && !j.me.jk.k0123456788 && !j.me.jk.kfake000000, JSON.stringify(j.me.jk))
+// (11 Nov) the off-season back-fill, tickets, and the note box
+at(Date.parse('2026-11-11T20:00:00Z'))
+r = await call(T1, 'PUT', { name: 'ANDREW', days: ['2026-06-01'], tickets: ['2027-04-02', '2020-01-01', '2027-07-07', '2027-05-05'] })
+j = await r.json()
+check('back-fill: a 2026 game long shut can be logged in November; tickets keep only coming games in the schedule', r.status === 200 && j.me.days.includes('2026-06-01') && j.me.tickets.join() === '2027-04-02,2027-05-05', JSON.stringify(j.me))
+r = await call(T1, 'PUT', { name: 'ANDREW', days: ['2026-06-01', '2025-06-01'] })
+check('back-fill: a 2025 game is still shut', r.status === 422)
+at(Date.parse('2027-03-26T20:00:00Z'))
+r = await call(T1, 'PUT', { name: 'ANDREW', days: ['2026-06-01', '2026-06-02'] })
+check('after Opening Day 2027 the back-fill is over: a new 2026 game is refused, the one already logged stays', r.status === 422 && (await r.json()).refused.join() === '2026-06-02')
+check('the page and the function agree on the back-fill', windowOpen('2026-06-02', G, Date.parse('2026-11-11T20:00:00Z')) && !windowOpen('2026-06-02', G, Date.parse('2027-03-26T20:00:00Z')) && !windowOpen('2025-06-02', G, Date.parse('2026-11-11T20:00:00Z')))
+r = await call(T2, 'PUT', { days: ['2025-04-08'], seats: { '2025-04-08': { sec: '301', row: '22', seat: '9' } }, tickets: ['2027-04-02'] })
+r = await call(T1); j = await r.json()
+check('GET shows each friend’s tickets, so you can see who else is going', j.all.some((p) => (p.tickets ?? []).includes('2027-04-02') && !p.me), JSON.stringify(j.all.map((p) => p.tickets)))
+const { onRequest: note } = await import('../functions/api/note.js')
+const post = (token, body) => note({ env, request: new Request('https://nn.example/api/note', { method: 'POST', headers: { Cookie: `nn_s=${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }) })
+r = await post(T1, { text: '  the GUESS box ate my homework  ', where: 'replay' })
+const notes = [...WITNESS.m.keys()].filter((k) => k.startsWith('n:'))
+check('SEND A NOTE keeps the note with the friend’s name', r.status === 200 && notes.length === 1 && JSON.parse(WITNESS.m.get(notes[0])).text === 'the GUESS box ate my homework' && JSON.parse(WITNESS.m.get(notes[0])).name === 'Andrew Wilcox')
+check('an empty note is refused, and so is one without a token', (await post(T1, { text: '   ' })).status === 400 && (await post('nottoken', { text: 'hi' })).status === 403)
+for (let k = 0; k < 29; k++) await post(T1, { text: 'n' + k })
+check('thirty notes a day, then it says so', (await post(T1, { text: 'one too many' })).status === 429)
 r = await call(T1)
 j = await r.json()
 check('every friend’s jukebox record comes back with the stand, and counts on the SONGS boards', (() => { const f = j.all.find((p) => Object.keys(p.jk ?? {}).length === 2); if (!f) return false; const st = witnessStats([], [], f, {}); return st.songs === 2 && st.songsBlind === 1 })(), JSON.stringify(j.all.map((p) => p.jk)))
 const sam = j.all.find((p) => p.name === 'SAM')
 check('GET: everyone, with only a name, days and seat sections (no row, no seat, no token); you are marked', j.all.length === 2 && sam && sam.seats['2025-04-08'].sec === '301' && sam.seats['2025-04-08'].row === undefined && !JSON.stringify(j).includes(T1) && !JSON.stringify(j).includes(T2) && j.all.filter((p) => p.me).length === 1, JSON.stringify(j))
-check('KV keys are hashes, never the tokens', [...WITNESS.m.keys()].every((k) => /^w:[0-9a-f]{24}$/.test(k)))
+check('KV keys are hashes, never the tokens (entries, and the notes with their daily counts)', [...WITNESS.m.keys()].every((k) => /^w:[0-9a-f]{24}$|^n:[0-9TZ:.-]+:[0-9a-f]{12}$|^nc:[0-9-]+:[0-9a-f]{12}$/.test(k)) && ![...WITNESS.m.keys()].some((k) => k.includes(T1) || k.includes(T2)), JSON.stringify([...WITNESS.m.keys()].slice(0, 6)))
 r = await call('notarealtokenatall12345')
 check('an unknown token gets 403', r.status === 403)
 r = await call(T1, 'PUT', { days: ['not-a-date'] })

@@ -44,7 +44,7 @@ import { initGhost25 } from './ghost25.js'
 import { keepReadable, readable } from './vox25.js'
 import { screenTags, setTagStyle, setTagTie } from './stag25.js'
 import { LAND_LOOKS } from './landnum25.js'
-import { witnessStats, witnessStore, windowOpen, openKeys, gameKey, BOARDS, rankBoard, TROPHIES, TITLE_ART, jkPack } from './witness25.js'
+import { witnessStats, witnessStore, windowOpen, openKeys, gameKey, BOARDS, rankBoard, TROPHIES, TITLE_ART, jkPack, BACKFILL, ticketOpen } from './witness25.js'
 import { initHappen25 } from './happen25.js'
 import { initPoles25, POLE_LOOKS } from './poles25.js'
 import { initWind25 } from './wind25.js'
@@ -929,7 +929,7 @@ export async function build(root, api, U) {
 #cp .c25 .ww .wtt{border:1px solid var(--acc);padding:8px 10px}
 #cp .c25 .ww .wtt b{display:block;color:var(--acc);font-weight:400}
 #cp .c25 .ww .wtt span{font-size:13px}
-#cp .c25 .ww .wts2{display:grid;gap:8px;margin:8px 0 16px}#cp .c25 .ww .wtr{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .ww .wti{width:48px;height:48px;image-rendering:pixelated;display:block;object-fit:contain}#cp .c25 .ww .wtx{display:grid;gap:3px;min-width:0}#cp .c25 .ww .wtx b{color:var(--acc);font-weight:400;overflow-wrap:anywhere}#cp .c25 .ww .wtx span{font-size:15px;overflow-wrap:anywhere}#cp .c25 .ww .wtx em{font-style:normal;color:var(--tx)}
+#cp .c25 .ww .wtks{display:grid;gap:4px;margin:6px 0 12px}#cp .c25 .ww .wtk1{display:grid;grid-template-columns:minmax(9em,auto) minmax(0,1fr);gap:12px;font-size:16px}#cp .c25 .ww .wtk1 b{font-weight:400;color:var(--acc)}#cp .c25 .ww .wtk1 em{font-style:normal}#cp .c25 .ww .wts2{display:grid;gap:8px;margin:8px 0 16px}#cp .c25 .ww .wtr{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .ww .wti{width:48px;height:48px;image-rendering:pixelated;display:block;object-fit:contain}#cp .c25 .ww .wtx{display:grid;gap:3px;min-width:0}#cp .c25 .ww .wtx b{color:var(--acc);font-weight:400;overflow-wrap:anywhere}#cp .c25 .ww .wtx span{font-size:15px;overflow-wrap:anywhere}#cp .c25 .ww .wtx em{font-style:normal;color:var(--tx)}
 #cp .c25 .ww .wbds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 #cp .c25 .ww .wr{display:grid;grid-template-columns:3em 1fr auto;gap:10px;padding:4px 0;border-bottom:1px solid var(--ln)}
 #cp .c25 .ww .wr span{color:var(--dim)}
@@ -1467,7 +1467,10 @@ export async function build(root, api, U) {
   }
   const dockTo = (k) => { dockAx = k; store('nn-dock25', k); paintDock(); dock.focus({ preventScroll: true }) }
   const seeIt = (k) => { if (k === 'G') { life?.play(life.nextGag(), {}, 0, true); return } if (k === 'O') { if (mode !== 'replay') setMode('replay'); openMod('before'); return } if (k === 'Q' || k === 'C') { lookThere(k); return } if (k === 'N') { if (mode !== 'shot') setMode('shot'); if (!scRes) { const r = se.seatPoint('140', '12', '8'); if (!r.err) shotAt(r.at, { what: 'seat', sec: r.sec, area: r.area, row: r.row, seat: r.seat, line: r.line }) } return } if (k === 'D') { if (mode === 'replay') { const n = balls.findIndex((b) => !facesRaw[String(b.b)]); if (n >= 0) { idx = n; applyBall(balls[n]); paintChooser() } else setMode('whatif') } return } if (k === 'K') toggleKarl(true); else if (k === 'M') openMenu(null); else fire() }
+  /* (11 Nov, Andrew: "6 yeah kill it", OPTIONS goes away) the look dock opens only with ?lab=1 in the link (and in the test browser) */
+  const LABS = q.get('lab') === '1' || !!navigator.webdriver
   function toggleDock(on) {
+    if (!LABS && on !== false) return
     const v = on ?? !grid.classList.contains('dk')
     grid.classList.toggle('dk', v)
     if (v) { paintDock(); dock.focus({ preventScroll: true }) } else { dock.innerHTML = ''; dock.blur() }
@@ -1793,6 +1796,8 @@ export async function build(root, api, U) {
     if (modal === 'type') { paintTypes(body); return }
     if (modal === 'moon') { paintMoon(body); return }
     if (modal === 'jukebox') { paintJukebox(body); return }
+    if (modal === 'note') { paintNote(body); return }
+    if (modal === 'hello') { paintHello(body); return }
     if (modal === 'news') { // (30 Oct, night) what is new, and the things you would not find by looking
       E('#c25mt').textContent = "/ W H A T ' S   N E W /"
       const L = [['THE MENU', 'FOUR THINGS NOW: DINGER DÉJÀ-VU, DINGER DOJO, SHOT CALLER, WALLOP WITNESS (DAILY DINGER AND THE GAG REEL ARE GONE; THE GAGS STILL PLAY IN THE PARK)'],
@@ -1908,7 +1913,7 @@ export async function build(root, api, U) {
   const hexOf = (b) => b.map((x) => x.toString(16).padStart(2, '0')).join('')
   async function jkOpen(id, v, c, tag = 'nn-key') { const b = Uint8Array.from(atob(c), (ch) => ch.charCodeAt(0)), ks = []; for (let i = 0; ks.length < b.length; i++) ks.push(...(await sha(`${tag}|${id}|${v}|${i}`))); return new TextDecoder().decode(b.map((x, i) => x ^ ks[i])) }
   // (11 Nov, later) songs guessed before the table had an ARTIST column: read it with the title's own spelling
-  async function jkFill() { if (!globalThis.crypto?.subtle) return; let n = 0; for (const [id, u] of Object.entries(jkMe.u)) { if (u.artist != null) continue; const x = songOf(id); if (!x?.lock) continue; const v = u.v ?? jkTitleNorm(u.name), chk = hexOf(await sha(`nn-check|${id}|${v}`)).slice(0, 20), hit = x.lock.v.find((p) => p[0] === chk); u.v = v; u.artist = hit?.[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : ''; n++ } if (n) { jkSave(); if (modal === 'jukebox') jkList() } }
+  async function jkFill() { if (!globalThis.crypto?.subtle) return; let n = 0; for (const [id, u] of Object.entries(jkMe.u)) { if (u.artist != null && u.pf) continue; if (u.artist != null) { u.pf = hexOf(await sha(`nn-proof|${id}|${u.v ?? jkTitleNorm(u.name)}`)); n++; continue } const x = songOf(id); if (!x?.lock) continue; const v = u.v ?? jkTitleNorm(u.name), chk = hexOf(await sha(`nn-check|${id}|${v}`)).slice(0, 20), hit = x.lock.v.find((p) => p[0] === chk); u.v = v; u.artist = hit?.[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : ''; u.pf = hexOf(await sha(`nn-proof|${id}|${v}`)); n++ } if (n) { jkSave(); if (modal === 'jukebox') jkList() } }
   const jkNowId = () => jukebox.at()?.id ?? jkPaused?.id ?? null
   // a guess at the song playing: true (unlocked), false (counted, wrong), null (nothing to guess)
   let jkBusy = false // (GPT red team round 2, 4: a double Enter is one guess)
@@ -1926,7 +1931,7 @@ export async function build(root, api, U) {
     const tries = [...new Set([g, g.replace(/^THE /, '')].flatMap((v) => [v, v.replace(/ /g, '')]))]
     for (const v of tries) {
       const chk = hexOf(await sha(`nn-check|${id}|${v}`)).slice(0, 20), hit = x.lock.v.find((p) => p[0] === chk)
-      if (hit) { if (jkMe.u[id]) return true; const h = h0; jkMe.u[id] = { name: await jkOpen(id, v, hit[1]), artist: hit[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : '', v, n: jkMe.g[id], hb: !!h.b, hy: !!h.y, at: Date.now() }; jkSave(); jkToStand(); return true }
+      if (hit) { if (jkMe.u[id]) return true; const h = h0; jkMe.u[id] = { name: await jkOpen(id, v, hit[1]), artist: hit[2] ? await jkOpen(id, v, hit[2], 'nn-key2') : '', v, pf: hexOf(await sha(`nn-proof|${id}|${v}`)), n: jkMe.g[id], hb: !!h.b, hy: !!h.y, at: Date.now() }; jkSave(); jkToStand(); return true }
     }
     jkSave(); return false
   }
@@ -2136,6 +2141,8 @@ export async function build(root, api, U) {
   E('#c25jk').addEventListener('click', () => { pressEl(E('#c25jk')); sound.play('move'); openMod('jukebox') })
   let wChain = Promise.resolve() // (7 Nov, red team 4.8: one save at a time, in the order made)
   const wsave = (e) => (wChain = wChain.then(() => wstore.save(e), () => wstore.save(e))).then((r) => { if (r?.ok && wData && !wData.then && Array.isArray(wData.all)) { const me = r.me ?? e; wData = { ...wData, all: wData.all.map((p) => (p.me ? { ...p, ...me, me: true, id: p.id } : p)) } } return r }) // (GPT red team round 2, 3: the stand's list follows your own saves)
+  if (q.get('backfill') === '0') BACKFILL.until = 0 // (11 Nov: a link can switch the off-season back-fill off, for the tests of the 72-hour rule)
+  let GS = null // (11 Nov) the coming season's home games, for tickets (public/giants_schedule.json, tools/fetch_schedule.mjs)
   let wEd = null, wPrefill = null, wPicked = false, wData = null, wTab = 'mine', wBoard = 'wins', wAsk = null, wMsg = '', wOff = null, wAll = false
   const G = (gamesJ?.games ?? [])
   const wNow = () => (q.get('now') ? Date.parse(q.get('now')) : Date.now())
@@ -2152,6 +2159,7 @@ export async function build(root, api, U) {
   const shortDate = (d) => new Date(d.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
   function paintWitness(body) {
     E('#c25mt').textContent = '/ W A L L O P   W I T N E S S /'
+    if (!GS) { GS = fetch('/giants_schedule.json').then((r) => (r.ok ? r.json() : { games: [] })).then((j) => { GS = j.games ?? [] }).catch(() => { GS = [] }).finally(() => { if (modal === 'witness') paintWitness(E('#c25mb')) }) }
     if (!wData) { wData = wstore.load().then((d) => { wData = d }).catch(() => { wData = { me: wstore.local(), all: [], shared: false } }).finally(() => { if (modal === 'witness') paintWitness(E('#c25mb')) }) }
     if (wData instanceof Promise) { body.innerHTML = '<div class="bay">OPENING THE BOOKS...</div>'; return }
     const me = { name: '', days: [], seats: {}, ...wData.me }
@@ -2179,6 +2187,7 @@ export async function build(root, api, U) {
     body.querySelectorAll('[data-wt]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wTab = x.dataset.wt; wPicked = true; wMsg = ''; paintWitness(body) }))
     if (wTab === 'stand') { body.querySelectorAll('[data-bd]').forEach((x) => x.addEventListener('click', () => { pressEl(x); sound.play('move'); wBoard = x.dataset.bd; paintWitness(body) })); return }
     const save = async (next, ok) => { wMsg = 'SAVING...'; paintWitness(body); wData = { ...wData, me: next }; const r = await wsave(next); if (r.ok) { wData = { ...wData, me: r.me ?? next }; wMsg = r.shared === false ? ok + ' (SAVED HERE ONLY: THE STAND IS DOWN)' : ok } else wMsg = r.refused?.length ? 'THAT GAME CLOSED: 72 HOURS AFTER FIRST PITCH' : 'NOT SAVED. TRY AGAIN.'; if (modal === 'witness') paintWitness(E('#c25mb')) }
+    body.querySelectorAll('[data-tk]').forEach((x) => x.addEventListener('click', () => { const k = x.dataset.tk, had = (me.tickets ?? []).includes(k); pressEl(x); sound.play(had ? 'back' : 'pick'); save({ ...me, tickets: had ? me.tickets.filter((y) => y !== k) : [...(me.tickets ?? []), k] }, had ? 'TICKET TAKEN OFF' : `GOT TICKETS: ${shortDate(k)}. YOUR FRIENDS CAN SEE IT`) }))
     body.querySelectorAll('.wd').forEach((x) => x.addEventListener('click', () => {
       const k = x.dataset.d
       if (me.days.includes(k)) { pressEl(x); if (wOff !== k) { wOff = k; sound.play('move'); wMsg = `${shortDate(k)} IS LOGGED. CLICK IT AGAIN TO TAKE IT OFF`; paintWitness(body); return } wOff = null; sound.play('back'); const seats = { ...me.seats }; delete seats[k]; wAsk = null; save({ ...me, days: me.days.filter((y) => y !== k), seats }, 'TAKEN OFF'); return }
@@ -2232,9 +2241,16 @@ export async function build(root, api, U) {
     const season = wSeason(), keep = (g) => wAll || g.d.startsWith(season) || me.days.some((k) => k.startsWith(g.d.slice(0, 4)))
     for (const g of [...G].filter(keep).sort((a, b) => b.d.localeCompare(a.d) || b.dh - a.dh)) (byMonth[g.d.slice(0, 7)] ??= []).push(g)
     const cal = Object.entries(byMonth).map(([m, gs]) => `<div class="wm"><span>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</span><div>${gs.map((g) => { const k = gameKey(g), n = hrsAt.get(String(g.pk)) ?? 0, on = me.days.includes(k) || me.days.includes(g.d), op = wOpen(k); return `<span class="bt wd${on ? ' on' : ''}${op ? ' open' : ' shut'}${wAsk === k ? ' ask' : ''}" data-d="${k}" title="${g.win ? 'W' : 'L'} ${g.sf}-${g.opp_r} V ${g.opp}${g.dh ? ' (GAME ' + g.dh + ')' : ''}${n ? ` · ${n} HOME RUN${n === 1 ? '' : 'S'}` : ''}${op ? ' · OPEN NOW' : ''}">${Number(g.d.slice(8))}${g.dh ? '<u>' + g.dh + '</u>' : ''}${n ? `<sup>${n}</sup>` : ''}</span>` }).join('')}</div></div>`).join('')
-    return `<div class="bulh">LOG A GAME WITHIN 72 HOURS OF FIRST PITCH. ${openNow.length ? `OPEN NOW: ${openNow.map(shortDate).join(', ')}.` : 'NOTHING IS OPEN. THE NEXT HOME GAME OPENS AT FIRST PITCH.'}</div>
+    const backfill = wNow() < BACKFILL.until
+    const others = (wData.all ?? []).filter((p) => !p.me), going = (k) => others.filter((p) => (p.tickets ?? []).includes(k)).map((p) => esc(p.tag || (p.name || 'A FRIEND').toUpperCase()))
+    const sched = Array.isArray(GS) ? GS.filter((g) => ticketOpen(gameKey(g), GS, wNow())) : [], mineT = me.tickets ?? [], tm = {}
+    for (const g of sched) (tm[g.d.slice(0, 7)] ??= []).push(g)
+    const tickets = sched.length ? `<div class="bulh">YOUR ${sched[0].d.slice(0, 4)} TICKETS: CLICK A GAME YOU HAVE TICKETS TO. YOUR FRIENDS SEE WHO'S GOING, SO YOU CAN MEET UP</div>
+      ${mineT.length ? `<div class="wtks">${mineT.filter((k) => sched.some((g) => gameKey(g) === k)).sort().map((k) => { const g = sched.find((x) => gameKey(x) === k), w = going(k); return `<div class="wtk1"><b>${shortDate(k)} V ${g.opp}</b><span>${w.length ? 'ALSO GOING: ' + w.join(', ') : 'NOBODY ELSE YET'}</span></div>` }).join('')}</div>` : ''}
+      <div class="wgrid">${Object.entries(tm).map(([m, gs]) => `<div class="wm"><span>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}</span><div>${gs.map((g) => { const k = gameKey(g), on = mineT.includes(k), w = going(k).length; return `<span class="bt wd wtt0${on ? ' on' : ''}" data-tk="${k}" role="button" tabindex="0">${Number(g.d.slice(8, 10))}<i>${g.opp}${w ? ' +' + w : ''}</i></span>` }).join('')}</div></div>`).join('')}</div>` : ''
+    return `<div class="bulh">${backfill ? `ALL OF ${BACKFILL.season} IS OPEN UNTIL OPENING DAY: CLICK ANY HOME GAME YOU WENT TO. FROM THEN ON, A GAME OPENS FOR 72 HOURS FROM FIRST PITCH.` : `LOG A GAME WITHIN 72 HOURS OF FIRST PITCH. ${openNow.length ? `OPEN NOW: ${openNow.map(shortDate).join(', ')}.` : 'NOTHING IS OPEN. THE NEXT HOME GAME OPENS AT FIRST PITCH.'}`}</div>
       <div class="wme wcard">${cardHTML(me, 48)}<span class="bt" id="c25wcard" role="button" tabindex="0">${me.tag || me.emblem ? 'EDIT YOUR CALLING CARD' : 'MAKE YOUR CALLING CARD'}</span><label>OR JUST A NAME <input id="c25wnm" maxlength="20" value="${(me.name ?? '').replace(/"/g, '')}" placeholder="NAME"></label>${wData.shared ? '' : '<i>KEPT IN THIS BROWSER FOR NOW</i>'}</div>
-      ${ask}${wMsg ? `<div class="wmsg">${wMsg}</div>` : ''}${stats}<div class="wkey">SMALL NUMBER: HOME RUNS · OUTLINED: OPEN</div><div class="wgrid">${cal}</div><span class="bt" id="c25wold">${wAll ? 'THIS SEASON ONLY' : 'SHOW OLDER SEASONS'}</span>`
+      ${ask}${wMsg ? `<div class="wmsg">${wMsg}</div>` : ''}${stats}<div class="wkey">SMALL NUMBER: HOME RUNS · OUTLINED: OPEN</div><div class="wgrid">${cal}</div><span class="bt" id="c25wold">${wAll ? 'THIS SEASON ONLY' : 'SHOW OLDER SEASONS'}</span>${tickets}`
   }
   // THE WITNESS STAND: one board at a time, everyone on it; the season's titles across the top (who holds each right now; Andrew hands them out at the end)
   // a calling card: the emblem (or an empty frame) and the tag, or the plain name, or nothing yet
@@ -2255,7 +2271,8 @@ export async function build(root, api, U) {
       return `<div class="wtr">${titleImg(t.key)}<div class="wtx"><b>${t.names[0]}</b><span>${top ? `${co.map((r) => `<em>${esc(r.name)}</em>`).join(' &amp; ')}: ${wFmt(top.value)} ${say}` : 'UP FOR GRABS'}</span></div></div>` }).join('')
     const board = BOARDS.find((b) => b.key === wBoard) ?? BOARDS[0], ranked = rankBoard(board, all)
     const val = (v) => (board.pct ? `${v >= 0 ? '+' : ''}${Math.round(v * 100)}` : board.key === 'altitude' ? v.toFixed(1) : wFmt(v)) + (board.unit ? ' ' + board.unit : board.pct ? ' POINTS' : '')
-    return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts2">${titles}</div>
+    const sched2 = Array.isArray(GS) ? GS.filter((g) => ticketOpen(gameKey(g), GS, wNow())) : [], goingRows = sched2.map((g) => { const k = gameKey(g), who = people.filter((p) => (p.entry.tickets ?? []).includes(k)).map((p) => `<em>${esc(p.name)}</em>`); return who.length ? `<div class="wtk1"><b>${shortDate(k)} V ${g.opp}</b><span>${who.join(', ')}</span></div>` : '' }).filter(Boolean)
+    return `<div class="bulh">${season} TITLES, AS THEY STAND</div><div class="wts2">${titles}</div>${goingRows.length ? `<div class="bulh">WHO'S GOING</div><div class="wtks">${goingRows.join('')}</div>` : ''}
       <div class="wbds">${BOARDS.filter((b) => b.key !== 'hours' || all.some((p) => p.stats.hours != null)).map((b) => `<span class="bt${b.key === board.key ? ' on' : ''}" data-bd="${b.key}">${b.title}</span>`).join('')}</div>
       <div class="wrk">${ranked.length ? ranked.map((r) => `<div class="wr"><span>${r.rank}</span><b class="wrn">${embImg(cardOf.get(r.id)?.emblem, 22)}<em>${esc(r.name)}</em></b><i>${val(r.value)}</i></div>`).join('') : '<div class="dds">NOBODY ON THIS BOARD YET.</div>'}</div>
       ${wData.shared ? '' : '<div class="dds">ONLY YOU UP THERE UNTIL THE STAND GOES LIVE.</div>'}`
@@ -2293,6 +2310,28 @@ export async function build(root, api, U) {
   const menuGo = (m) => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } if (modal) closeMod(); if (show === 'hm') setShow('hm'); setMode(m); paintTabs() } // (the third red team, 1: WALLOP WITNESS stayed on top)
   /* (11 Nov, later, Andrew: "We should have a guess button at the top right near the skip button") */
   E('#c25gs')?.addEventListener('click', () => { const b = E('#c25gs'); pressEl(b); if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } sound.play('move'); if (modal !== 'jukebox') openMod('jukebox'); setTimeout(() => { const gi = E('#jkgi'); if (gi) { gi.focus(); gi.select() } else E('#jkn')?.scrollIntoView?.({ block: 'nearest' }) }, 60) })
+  /* (11 Nov, Andrew: yes to a "something's broken" box) SEND A NOTE: a few lines to Andrew, kept on the site (functions/api/note.js; he reads them with ops/notes.mjs) */
+  let noteText = ''
+  function paintNote(body) {
+    E('#c25mt').textContent = '/ S E N D   A   N O T E /'
+    body.innerHTML = `<div class="jkb"><div class="bulh">SOMETHING BROKEN, WEIRD OR GREAT? TELL ANDREW. IT GOES STRAIGHT TO HIM WITH YOUR NAME.</div><textarea class="jks" id="c25nt" rows="6" maxlength="1500" placeholder="WHAT HAPPENED, AND WHAT YOU WERE DOING">${jkEsc(noteText)}</textarea><div class="jkr"><span class="jkgn" id="c25nst"></span><span class="bt" id="c25nsd" role="button" tabindex="0">SEND</span></div></div>`
+    const ta = body.querySelector('#c25nt'), st = body.querySelector('#c25nst'), sd = body.querySelector('#c25nsd')
+    ta.addEventListener('input', () => { noteText = ta.value }); setTimeout(() => ta.focus(), 30)
+    let busy = false
+    const go = async () => { if (busy) return; const t = ta.value.trim(); if (!t) { st.textContent = 'TYPE SOMETHING FIRST'; return } busy = true; pressEl(sd); st.textContent = 'SENDING...'
+      try { const r = await fetch('/api/note', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: t, where: `${menuKey()} ${modal ?? ''} ${innerWidth}x${innerHeight}` }) }); if (r.ok) { noteText = ''; ta.value = ''; st.textContent = 'SENT. THANKS.'; sound.play('pick') } else st.textContent = r.status === 429 ? 'THAT IS A LOT OF NOTES FOR ONE DAY' : r.status === 404 ? 'THE NOTE BOX WORKS ON THE REAL SITE ONLY' : 'NOT SENT. TRY AGAIN.' } catch (e) { st.textContent = 'NOT SENT. TRY AGAIN.' } busy = false }
+    sd.addEventListener('click', go); sd.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go() } })
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); go() } })
+  }
+  /* (11 Nov, Andrew: yes to a first-visit card; "stipulate they should use it on big monitors") shown once, when the menu first closes */
+  function paintHello(body) {
+    E('#c25mt').textContent = '/ W E L C O M E /'
+    body.innerHTML = `<div class="jkb"><div class="bulh">NUKE NAVIGATOR, BETA. BEST ON A BIG SCREEN: A LAPTOP OR A MONITOR, NOT A PHONE.</div>
+      <div class="btab">${[['ESC OR MENU', 'EVERY MODE, ANY TIME'], ['WALLOP WITNESS', `LOG THE GAMES YOU WENT TO (ALL OF ${BACKFILL.season} IS OPEN), THE ONES YOU HAVE TICKETS TO, AND MAKE YOUR CALLING CARD`], ['GUESS', 'TOP RIGHT: NAME THE SONG PLAYING. YOUR JUKEBOX FILLS UP AS YOU GET THEM'], ['SEND A NOTE', 'IN THE MENU: ANYTHING BROKEN OR WEIRD']].map(([a, b]) => `<div class="r mo"><span>${a}</span><b></b><span>${b}</span></div>`).join('')}</div>
+      <div class="jkr"><span></span><span class="bt" id="c25hok" role="button" tabindex="0">LET'S GO</span></div></div>`
+    const ok = body.querySelector('#c25hok'); ok.addEventListener('click', () => { pressEl(ok); closeMod() }); setTimeout(() => ok.focus(), 30)
+  }
+  const hello = () => { if (store('nn-hello-1') === '1' || (navigator.webdriver && q.get('hello') !== '1')) return; store('nn-hello-1', '1'); setTimeout(() => { if (!modal) openMod('hello') }, 400) }
   const menuJuke = () => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } openMod('jukebox') }
   menu = selectMenu(grid, [
     { k: 'replay', name: NAMES.replay, hero: true, blurb: 'EVERY HOME RUN IN A GIANTS GAME, FLYING AGAIN' /* (11 Nov, Andrew: "it's not only oracle home runs it's home runs at other sites too - so I think it's GIANTS but we include the opponents too") */, run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
@@ -2301,7 +2340,8 @@ export async function build(root, api, U) {
     { k: 'witness', name: NAMES.witness, blurb: 'LOG YOUR GAMES. CLIMB THE STAND', run: () => goTab('witness') },
     { k: 'blast', name: 'BLAST RADIUS', blurb: 'HOW HARD IT IS TO GO DEEP, ANYWHERE IN THE PARK', run: () => goTab('blast'), off: () => !atOracle },
     { k: 'jukebox', name: 'JUKEBOX', blurb: 'PICK THE MUSIC', run: () => menuJuke() }, // (10 Nov, later, Andrew: "a little mini spotify")
-  ], { onIdle: attract, onJukebox: () => menuJuke(), onClose: () => { unAttract(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
+    { k: 'note', name: 'SEND A NOTE', blurb: 'SOMETHING BROKEN? TELL ANDREW', run: () => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } openMod('note') } }, // (11 Nov: not a mode, so after the JUKEBOX, the last of the modes)
+  ], { onIdle: attract, onJukebox: () => menuJuke(), onClose: () => { unAttract(); hello(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const menuKey = () => (modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
   // S: the sound off or on; on again clears a jukebox pause (the second red team, 8: the music stayed silent until SKIP)
@@ -2327,7 +2367,7 @@ export async function build(root, api, U) {
     else if (e.key === ']' || e.key === '.') { e.preventDefault(); step(1) } else if (e.key === '[' || e.key === ',') { e.preventDefault(); step(-1) }
     else if (e.key === 'm' || e.key === 'M') setMode(mode === 'replay' ? 'whatif' : 'replay')
     else if ((e.key === 'a' || e.key === 'A') && (cur || stepped)) openMod('before')
-    else if (e.key === '?') toggleDock()
+    else if (e.key === '?' && LABS) toggleDock()
     else if (e.key === 't' || e.key === 'T') openMod('type')
     else if (e.key === 'l' || e.key === 'L') { if (mode === 'shot') setMode('replay'); setShow('lp') } // (as the header buttons do: Shot Caller has no panels of its own)
     else if (e.key === 'g' || e.key === 'G') { if (mode === 'shot') setMode('replay'); setShow('se') }

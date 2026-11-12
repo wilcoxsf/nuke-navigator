@@ -64,3 +64,4 @@ apps/web/public/batter_bust.json
 
 # copyrighted song transcriptions for the private site only (music25.js loads them)
 apps/web/public/songs_private.json
+apps/web/public/giants_schedule.json

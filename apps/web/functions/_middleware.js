@@ -1,39 +1,19 @@
-// Token gate for the whole site: every request, including static assets, needs a valid invite token.
-// A token arrives as ?t=... on the first visit, is checked against the TOKENS KV namespace, and is kept in a cookie so the page's own
-// asset requests pass. Revoke an invite by deleting its key (ops/tokens.mjs revoke <token>); there are no passwords and no accounts.
-const cache = new Map(); // token -> expiry ms; keeps KV reads low (a revoked token stops working within about a minute)
-const TTL = 60_000;
-
-async function valid(env, token) {
-  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) return false;
-  const hit = cache.get(token);
-  if (hit && hit > Date.now()) return true;
-  const rec = await env.TOKENS.get(token);
-  if (rec === null) {
-    cache.delete(token);
-    return false;
-  }
-  cache.set(token, Date.now() + TTL);
-  return true;
-}
-
+// The gate for the whole site (11 Nov 2026: passwords, not invite links; lib/auth.js). Every request needs a signed-in session, except the sign-in page and the
+// sign-in call. Someone still on the password Andrew gave them is sent to pick their own before anything else. The old ?t= invite links no longer work.
+import { whoIs, LOGIN_HTML } from '../lib/auth.js'
+const page = (html, status = 200) => new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' } })
+const OPEN = new Set(['/login', '/api/login'])
 export async function onRequest({ request, env, next }) {
-  const url = new URL(request.url);
-  const fromUrl = url.searchParams.get('t');
-  const m = /(?:^|;\s*)nn_t=([^;]+)/.exec(request.headers.get('Cookie') || '');
-  // a stale or mistyped ?t= must not lock out someone whose cookie is still good: try the link token first, then the cookie
-  const urlOk = await valid(env, fromUrl);
-  const token = urlOk ? fromUrl : m && (await valid(env, m[1])) ? m[1] : null;
-  if (token) {
-    const res = await next();
-    const headers = new Headers(res.headers);
-    if (urlOk) headers.append('Set-Cookie', `nn_t=${fromUrl}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`);
-    headers.set('Cache-Control', 'private, max-age=600');
-    headers.set('X-Robots-Tag', 'noindex, nofollow');
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  const url = new URL(request.url), path = url.pathname
+  if (OPEN.has(path)) {
+    if (path === '/login' && request.method === 'GET') { const w = await whoIs(request, env); if (w && !w.user.must && !url.searchParams.has('set')) return Response.redirect(new URL('/', url), 302); return page(LOGIN_HTML(w?.user.must || url.searchParams.has('set') ? (w ? 'set' : 'in') : 'in')) }
+    return next()
   }
-  return new Response('This link is private. Ask for an invite.', {
-    status: 403,
-    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' },
-  });
+  const w = await whoIs(request, env)
+  if (!w) return path.startsWith('/api/') ? new Response(JSON.stringify({ error: 'sign in' }), { status: 401, headers: { 'content-type': 'application/json' } }) : Response.redirect(new URL('/login', url), 302)
+  if (w.user.must && path !== '/api/password' && path !== '/api/logout') return path.startsWith('/api/') ? new Response(JSON.stringify({ error: 'pick a password first' }), { status: 403, headers: { 'content-type': 'application/json' } }) : Response.redirect(new URL('/login?set=1', url), 302)
+  const res = await next(), headers = new Headers(res.headers)
+  headers.set('Cache-Control', path.startsWith('/api/') ? 'no-store' : 'private, max-age=600')
+  headers.set('X-Robots-Tag', 'noindex, nofollow')
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
 }

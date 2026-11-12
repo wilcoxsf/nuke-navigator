@@ -26,11 +26,18 @@ export function firstPitch(key, games) {
   const m = KEY.exec(String(key ?? ''))
   return m ? Date.parse(m[1] + 'T19:05:00-07:00') : NaN
 }
-// open from first pitch until 72 hours after it
+// (11 Nov, Andrew: "yes to 3") the beta opens in the off-season, so any 2026 home game already played can be logged until Opening Day 2027 (25 Mar, the first
+// game in giants_schedule.json); after that it is 72 hours again. functions/api/witness.js has the same rule (tools/test_witness25.mjs checks they agree)
+export const BACKFILL = { season: '2026', until: Date.parse('2027-03-25T07:00:00Z') }
+// open from first pitch until 72 hours after it (or, in the back-fill, any time after first pitch)
 export function windowOpen(key, games, now = Date.now(), hours = WINDOW_HOURS) {
   const h = (now - firstPitch(key, games)) / 3.6e6
+  if (h >= 0 && String(key).startsWith(BACKFILL.season) && now < BACKFILL.until) return true
   return h >= 0 && h <= hours
 }
+// (11 Nov, Andrew: "let's have people be able to log what they have tickets to as well so you could meet up with your buddies") a ticket is a home game still to
+// come (giants_schedule.json), kept by its day key; the stand shows who else has the same game
+export const ticketOpen = (key, sched, now = Date.now()) => { const g = gamesFor(key, sched)[0]; return !!g && Date.parse(g.start) > now - 6 * 3.6e6 }
 export const gameKey = (g) => (g.dh ? `${g.d}#${g.dh}` : g.d)
 export const openKeys = (games, now = Date.now()) => games.filter((g) => windowOpen(gameKey(g), games, now)).map(gameKey)
 
@@ -43,7 +50,7 @@ export const openKeys = (games, now = Date.now()) => games.filter((g) => windowO
 export function jkPack(mine, had = {}) {
   const out = {}
   for (const [id, v] of Object.entries(had ?? {})) if (/^k[0-9a-f]{10}$/.test(id) && Array.isArray(v)) out[id] = v
-  for (const [id, u] of Object.entries(mine?.u ?? {})) { if (!/^k[0-9a-f]{10}$/.test(id) || !u) continue; const v = [Math.round(u.at ?? 0), Math.max(1, Math.round(u.n ?? 1)), u.hb ? 1 : 0, u.hy ? 1 : 0]; if (!out[id] || v[0] < out[id][0]) out[id] = v }
+  for (const [id, u] of Object.entries(mine?.u ?? {})) { if (!/^k[0-9a-f]{10}$/.test(id) || !u) continue; const v = [Math.round(u.at ?? 0), Math.max(1, Math.round(u.n ?? 1)), u.hb ? 1 : 0, u.hy ? 1 : 0, u.pf ?? '']; if (!out[id] || v[0] < out[id][0]) out[id] = v } // (the fifth: the proof of the guess, which the stand checks; GPT-proofing, 11 Nov)
   return out
 }
 export function witnessStats(games, hrs, entry, o = {}) {
@@ -131,14 +138,14 @@ export function rankBoard(board, people) {
 // the year-end four (Andrew hands them out each season). 1 Nov, night (Andrew: "All of them should be like names of individuals like tycoon, it's a title that you
 // receive not a trophy"; 'auspicious' alliterated for the wins, 'curse' or 'jinx' for the losses; THE TATER TYCOON, THE DISTANCE DUKE and THE CURSED COUNT OF CANDLESTICK are his; the wins and losses are my picks of six each, weirder, 1 Nov, later): titles, the first the default, the
 // rest the other candidates. title is how it reads on the stand: THE TATER TYCOON: SAM
-// (11 Nov, later: his picks from title-art.html: C BOW TIE AND CIGAR, B THE OLD SALT, A THE COUNT, A BATON UP, and a ruler for the Duke; 16 x 16)
+// (11 Nov, later: his picks from title-art.html: C BOW TIE AND CIGAR, B THE OLD SALT, A THE COUNT, A BATON UP; the Duke a blue devil measuring, hands high and low ("I want everything to look like a person"); 16 x 16)
 // (11 Nov, Andrew: "each one to have its own row and have like a fun little pixel graphic to go with it and then it should say the user, their number and what the
 // number is"): each title's picture ('#', '+', '*' in its colors, '.' clear) and the words after the number (one, many)
 export const TITLE_ART = {
   wins: { pal: {'a': '#f4f1e8', 'b': '#ffc21a', 'c': '#22315e', 'd': '#16120e', 'e': '#e9b48c', 'f': '#b97a52', 'g': '#cfd3da', 'h': '#8a8f99', 'i': '#6b4426'}, rows: ['................', '....aaaaaaaa....', '..aaaaaaaaaaaa..', '.aaaaaabbaaaaaa.', '.aaaaaaaaaaaaaa.', '..cccccccccccc..', '...ddeeeeeedd...', '....eeeeeeee....', '...eeedeeedee...', '...eeeeefeeee...', '...egggggggge...', '...gggggggggg..h', '...gggggggiii.i.', '...gggggggggiii.', '...gggggggggg...', '.....gggggg.....'], say: ['WIN', 'WINS'] },
   losses: { pal: {'a': '#16120e', 'b': '#a77be0', 'c': '#ffc21a', 'd': '#e4002b', 'e': '#3a3f47', 'f': '#f4f1e8'}, rows: ['................', '.....aaaaaa.....', '....aaaaaaaa....', '...aaaabbaaaa...', '...aabbbbbcaa...', '....bbbbbcbc....', '....bbabcbabc...', '....bbbbbcbc....', '....bbbbbbcb....', 'd....baaaaa....d', 'dd.eeebfbfeee.dd', 'edde........edde', 'eedde......eddee', 'eeeddddddddddeee', 'eeeeeeeeeeeeeeee', 'eeeeeeeeeeeeeeee'], say: ['LOSS', 'LOSSES'] },
   giantsHR: { pal: {'a': '#c8914f', 'b': '#ffc21a', 'c': '#8a8f99', 'd': '#f4f1e8', 'e': '#16120e', 'f': '#8e5f2e', 'g': '#e4002b', 'h': '#9c0019'}, rows: ['................', '................', '................', '......aaa.......', '....aaaaaaa.....', '...abbbaaaaa..c.', '..abdabbaaaaa...', '.aabaeabaeaaaa.c', '.aabbabbaaaaaa..', '.aafbbbaaaaafac.', '.aaaaaaaaaaaaa..', '..aaaffffdddddg.', '...afaaaaaaa....', '....aaaaaaaf....', '....ggaagg......', '....gghhgg......'], say: ['GIANTS HOME RUN SEEN', 'GIANTS HOME RUNS SEEN'] },
-  footitude: { pal: {'a': '#c7921c', 'b': '#f2bc40', 'c': '#16120e'}, rows: ['................', '................', '................', '................', 'aaaaaaaaaaaaaaaa', 'bbcbcbcbcbcbcbcb', 'bbbbcbbbcbbbcbbb', 'bbbbbbbbcbbbbbbb', 'bbbbbbbbcbbbbbbb', 'bbbbbbbbbbbbbbbb', 'bbbbbbbbbbbbbbbb', 'aaaaaaaaaaaaaaaa', '................', '................', '................', '................'], say: ['FT OF HOME RUNS', 'FT OF HOME RUNS'] },
+  footitude: { pal: {'a': '#f4f1e8', 'b': '#5c8dff', 'c': '#12276e', 'd': '#2250d6', 'e': '#f2bc40', 'f': '#e4002b'}, rows: ['................', '.aaab...c....c..', '...bd...c.d.c...', '..a..d..ddddd...', '......d.ddddd...', '..a...dddeded...', '.......dddddd...', '..a.....dccc....', '.........dddd...', '..a......dbdd...', '.........dddd...', '..a....ddddddd..', '.....dd..d..dddf', '..abd....d..d.d.', '.aaab...d....df.', '........d....d..'], say: ['FT OF HOME RUNS', 'FT OF HOME RUNS'] },
   songs: { pal: {'a': '#f4f1e8', 'b': '#cfd3da', 'c': '#e9b48c', 'd': '#16120e', 'e': '#e4002b'}, rows: ['...............a', '....bbbbbb....a.', '...bbccccbb..aa.', '...bccccccb..a..', '....cccccc..a...', '.c..ccdcdc..d...', '.d..cccccc.d....', '..d..cccc.dd....', '...dddeeddd.....', '....ddaadd......', '....ddaadd......', '....ddaadd......', '....ddaadd......', '....dddddd......', '....dddddd......', '....dd..dd......'], say: ['SONG GUESSED', 'SONGS GUESSED'] },
 }
 export const TROPHIES = [
@@ -156,8 +163,8 @@ export function witnessStore(o = {}) {
   const read = (k, d) => { try { const v = S?.getItem(k); return v == null ? d : JSON.parse(v) } catch { return d } }
   const write = (k, v) => { try { S?.setItem(k, JSON.stringify(v)) } catch {} }
   // (2 Nov, night) and the calling card: a gamer tag (its case kept) and an emblem (emblem25.js, encoded)
-  const local = () => ({ name: read('nn-witness-name', ''), tag: read('nn-witness-tag', ''), emblem: read('nn-witness-emblem', ''), days: read('nn-witness', []), seats: read('nn-witness-seats', {}), jk: jkPack(read('nn-jk-1', {})) })
-  const keepLocal = (e) => { write('nn-witness', e.days ?? []); write('nn-witness-seats', e.seats ?? {}); if (e.name != null) write('nn-witness-name', e.name); if (e.tag != null) write('nn-witness-tag', e.tag); if (e.emblem != null) write('nn-witness-emblem', e.emblem) }
+  const local = () => ({ name: read('nn-witness-name', ''), tag: read('nn-witness-tag', ''), emblem: read('nn-witness-emblem', ''), days: read('nn-witness', []), seats: read('nn-witness-seats', {}), tickets: read('nn-witness-tickets', []), jk: jkPack(read('nn-jk-1', {})) })
+  const keepLocal = (e) => { write('nn-witness', e.days ?? []); if (e.tickets) write('nn-witness-tickets', e.tickets); write('nn-witness-seats', e.seats ?? {}); if (e.name != null) write('nn-witness-name', e.name); if (e.tag != null) write('nn-witness-tag', e.tag); if (e.emblem != null) write('nn-witness-emblem', e.emblem) }
   return {
     local,
     async load() {
