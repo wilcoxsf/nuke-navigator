@@ -81,7 +81,7 @@ export function selectMenu(host, items, o = {}) {
   }
   const list = el.querySelector('.sml')
   const paint = () => {
-    list.innerHTML = items.map((it, n) => `<div class="smi${n === i ? ' on' : ''}${it.off?.() ? ' dis' : ''}${it.hero ? ' hero' : ''}" data-n="${n}" role="button" aria-label="${it.name}"><b>${it.name}</b><span>${it.blurb}</span></div>`).join('')
+    list.innerHTML = items.map((it, n) => `<div class="smi${n === i ? ' on' : ''}${it.off?.() ? ' dis' : ''}${it.hero ? ' hero' : ''}" data-n="${n}" role="button" aria-label="${it.name}"><b>${it.name}</b><span>${typeof it.blurb === 'function' ? it.blurb() : it.blurb}</span></div>`).join('') /* (12 Nov: a line can be live, DEJA-VU's count and its latest) */
     { const sn = el.querySelector('.snd'); if (sn) sn.textContent = sound.on() ? 'ON' : 'OFF' }
     list.querySelectorAll('.smi').forEach((x) => {
       x.addEventListener('mouseenter', () => { if (i !== Number(x.dataset.n)) { i = Number(x.dataset.n); sound.play('move'); paint() } })

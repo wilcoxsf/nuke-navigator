@@ -709,7 +709,7 @@ export async function build(root, api, U) {
 #cp .c25 .nuke.dorm{opacity:.35;filter:grayscale(1)}
 #cp .c25 .bt.hot.dim{opacity:.4}
 #cp .c25 .chip .sb{font-size:15px;color:var(--dim);margin-top:3px}
-#cp .c25 .chip .st{display:inline-block;margin-top:8px;font-family:PS2P,monospace;font-size:12px;letter-spacing:.04em;background:var(--acc);color:var(--k);padding:5px 7px;transform:rotate(-3deg)}
+#cp .c25 .chip .st{display:inline-flex;align-items:center;gap:7px;margin-top:8px;font-family:PS2P,monospace;font-size:12px;letter-spacing:.08em;color:var(--stc,var(--acc));background:var(--k);padding:6px 9px;position:relative;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--stc,var(--acc)) 35%,transparent)}#cp .c25 .chip .st::before,#cp .c25 .chip .st::after{content:'';position:absolute;width:6px;height:6px;border:2px solid var(--stc,var(--acc))}#cp .c25 .chip .st::before{left:-2px;top:-2px;border-right:0;border-bottom:0}#cp .c25 .chip .st::after{right:-2px;bottom:-2px;border-left:0;border-top:0}#cp .c25 .chip .st .stm{fill:currentColor;shape-rendering:crispEdges;flex:none} /* (12 Nov: a framed plate in the batting team's color, the app's corner marks, no tilt) */
 #cp .c25 .rd .sit{color:var(--tx);font-size:15px;margin-top:6px}
 #cp .c25 .rd .vd{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
 #cp .c25 .rd .vd .vh{font-weight:400;font-size:calc(26px * var(--ts));line-height:1;color:var(--tx)}
@@ -929,6 +929,12 @@ export async function build(root, api, U) {
 #cp .c25 .ww .wtt{border:1px solid var(--acc);padding:8px 10px}
 #cp .c25 .ww .wtt b{display:block;color:var(--acc);font-weight:400}
 #cp .c25 .ww .wtt span{font-size:13px}
+#cp .c25 .tops{position:absolute;right:14px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:min(64%,560px);z-index:3;pointer-events:auto}#cp .c25.cmp .tops{right:8px}#cp .c25 .tops .bt{white-space:nowrap}#cp .c25 .tops .was{flex-basis:100%;display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;background:var(--k);border:1px solid var(--ln);padding:4px 8px}#cp .c25 .tops .was .wtn{display:inline-flex;gap:5px;align-items:center}#cp .c25 .tops .was b{font-weight:400;color:var(--acc)}#cp .c25 .tops .was i{font-style:normal;color:var(--dim);font-size:.85em;letter-spacing:.1em}
+#cp .c25 .bw.inhi .bwr .bwb{height:var(--nkh,auto);box-sizing:border-box;display:inline-flex;flex-direction:column;justify-content:center} /* (12 Nov: as tall as NUKE IT) */
+#cp .c25 .ppl .bt.dis{opacity:.4;cursor:not-allowed}#cp .c25 .ppl .ppr .bt em{display:block;font-style:normal;font-size:.72em;color:var(--dim)}#cp .c25 .ppl .ppr .bt.on em{color:inherit}#cp .c25 .ppl .ppn{margin-top:6px;font-size:13px;color:var(--dim)}
+#cp .c25 .ppsort .pps{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}#cp .c25 .ppsort .pps:last-of-type{grid-template-columns:1fr}#cp .c25 .ppsort .pps .bt{display:grid;gap:3px;text-align:left;padding:7px 9px}#cp .c25 .ppsort .pps .bt i{font-style:normal;font-size:.72em;letter-spacing:.06em;color:var(--dim)}#cp .c25 .ppsort .pps .bt.on i{color:inherit}
+#cp .c25 #c25ch .r1 .stp{white-space:nowrap;height:var(--bwh,auto);display:inline-flex;align-items:center;box-sizing:border-box;vertical-align:bottom}#cp .c25 #c25ch .r1 select{height:var(--bwh,auto);box-sizing:border-box;vertical-align:bottom}#cp .c25 #c25ch .r1 .bof{white-space:nowrap;display:inline-flex;align-items:center;height:var(--bwh,auto);vertical-align:bottom;padding:0 4px}
+#cp .c25 .hdr #c25mu{display:inline-flex;align-items:center;justify-content:center}
 #cp .c25 .ww .wtks{display:grid;gap:4px;margin:6px 0 12px}#cp .c25 .ww .wtk1{display:grid;grid-template-columns:minmax(9em,auto) minmax(0,1fr);gap:12px;font-size:16px}#cp .c25 .ww .wtk1 b{font-weight:400;color:var(--acc)}#cp .c25 .ww .wtk1 em{font-style:normal}#cp .c25 .ww .wts2{display:grid;gap:8px;margin:8px 0 16px}#cp .c25 .ww .wtr{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center;border:1px solid var(--acc);padding:8px 10px}#cp .c25 .ww .wti{width:48px;height:48px;image-rendering:pixelated;display:block;object-fit:contain}#cp .c25 .ww .wtx{display:grid;gap:3px;min-width:0}#cp .c25 .ww .wtx b{color:var(--acc);font-weight:400;overflow-wrap:anywhere}#cp .c25 .ww .wtx span{font-size:15px;overflow-wrap:anywhere}#cp .c25 .ww .wtx em{font-style:normal;color:var(--tx)}
 #cp .c25 .ww .wbds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 #cp .c25 .ww .wr{display:grid;grid-template-columns:3em 1fr auto;gap:10px;padding:4px 0;border-bottom:1px solid var(--ln)}
@@ -1167,11 +1173,11 @@ export async function build(root, api, U) {
 
   root.innerHTML = `<div class="c25"><div class="hdr"><div class="h1"><span class="lt"><span class="bt" id="c25mn" aria-label="menu (Esc)">MENU<span class="mnm" id="c25mnm"></span><kbd>ESC</kbd></span><span class="ps" id="c25ti" role="button" title="open the menu">NUKE NAVIGATOR // ${NAMES.replay}</span><span class="mhint" id="c25mh"><span class="k">ESC = MENU, ANY TIME</span><span class="t" style="display:none">TAP MENU TO CHANGE MODE</span></span></span><span class="rt">
     <span class="grp" id="c25vw">VIEW <span class="bt" id="c25b">BIRD'S EYE</span><span class="bt" id="c25pk">PARK</span></span>
-    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><!-- (10 Nov, later, Andrew: "We don't need a moments thing on the top right, and we can get rid of options too. Just a skip track button on the top right": MOMENTS, OPTIONS and JUKEBOX are hidden; ? still opens the options, J the jukebox) --><span class="bt" id="c25gs" aria-label="guess the song playing" title="guess the song playing">GUESS</span><span class="bt" id="c25sk" aria-label="skip to the next song" title="skip to the next song">SKIP</span><span class="bt" id="c25jk" hidden aria-label="jukebox (J)" title="pick a song (J)">JUKEBOX</span><span class="bt" id="c25mm" hidden aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" hidden aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
+    <span class="grp" id="c25mx"${HDR_AX.length ? "" : " style=\"display:none\""}>MIX ${HDR_AX.map((k) => `<span class="bt mx" data-ax="${k}"></span>`).join('')}</span><span class="grp" id="c25og"><!-- (10 Nov, later, Andrew: "We don't need a moments thing on the top right, and we can get rid of options too. Just a skip track button on the top right": MOMENTS, OPTIONS and JUKEBOX are hidden; ? still opens the options, J the jukebox) --><span class="bt" id="c25mu" aria-label="the jukebox"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M6 13c0 1.105-1.12 2-2.5 2S1 14.105 1 13s1.12-2 2.5-2 2.5.896 2.5 2m9-2c0 1.105-1.12 2-2.5 2s-2.5-.895-2.5-2 1.12-2 2.5-2 2.5.895 2.5 2"/><path fill-rule="evenodd" d="M14 11V2h1v9zM6 3v10H5V3z"/><path d="M5 2.905a1 1 0 0 1 .9-.995l8-.8a1 1 0 0 1 1.1.995V3L5 4z"/></svg></span><span class="bt" id="c25gs" aria-label="guess the song playing" title="guess the song playing">GUESS</span><span class="bt" id="c25sk" aria-label="skip to the next song" title="skip to the next song">SKIP</span><span class="bt" id="c25jk" hidden aria-label="jukebox (J)" title="pick a song (J)">JUKEBOX</span><span class="bt" id="c25mm" hidden aria-label="landing moments" title="every landing moment, on demand">MOMENTS</span><span class="bt" id="c25lg" hidden aria-label="options (?)" title="options (?)">OPTIONS</span></span></span></div>
     <div class="h2"><span class="grp tabs" id="c25tabs" role="tablist">${TABS.map(([m, l], i) => `<span class="bt tab" data-tab="${m}" role="tab" tabindex="0" title="${l} (${i + 1})"><kbd>${i + 1}</kbd>${l}</span>`).join('')}</span>
     <span class="old" hidden><span class="bt" id="c25lp">LANDING PARTY</span><span class="bt" id="c25se">SEAT SEANCE</span><span class="bt" id="c25my">MY SEAT</span><span class="bt" id="c25sc">SHOT CALLER</span><span class="bt" id="c25rc">ODDS RECEIPT</span><span class="bt" id="c25sm">STAR MAP</span><span class="bt" id="c25bb">BAY BAROMETER</span><span class="bt" id="c25kl">KARL</span><span class="bt" id="c25bl">BLAST BULLETIN</span><span class="bt" id="c25ww">WALLOP WITNESS</span></span></div></div>
   <div class="pnl clear win park" id="c25h"><span class="t">/ O R A C L E &nbsp; P A R K /</span><div class="cflash" id="c25fl"></div>
-    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tly" id="c25t"></div><div class="nuke" id="c25nk" role="button" tabindex="0" aria-label="nuke it"><span class="nkw"></span><b>NUKE IT</b><i>SPACE</i></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div><div class="dock" id="c25dk" tabindex="-1" role="dialog" aria-label="options"></div></div>
+    <div class="rd" id="c25rd"></div><div class="chip" id="c25v"><div class="hd"></div><div class="sb"></div><div class="st"></div></div><div class="bsel p" id="c25ch"></div><div class="tops" id="c25tops" style="display:none"></div><div class="tly" id="c25t"></div><div class="nuke" id="c25nk" role="button" tabindex="0" aria-label="nuke it"><span class="nkw"></span><b>NUKE IT</b><i>SPACE</i></div><div class="bug" id="c25bug"></div><div class="banner" id="c25bn"></div><div class="dock" id="c25dk" tabindex="-1" role="dialog" aria-label="options"></div></div>
   <div class="pnl p pitch"><span class="t">/ T H E &nbsp; P I T C H /</span><div class="pin"><div class="zg" id="c25zg"></div><div class="pl" id="c25pl"></div></div></div>
   <div class="pnl p batter"><span class="t">/ B A T T E R /</span><div class="bin"><div class="fbox" id="c25f"><pre class="art"></pre></div><div class="info" id="c25i"></div><div class="bug bugc" id="c25bugc"></div></div></div>
   <div class="pnl p slice"><span class="t">/ C O N T A C T , &nbsp; S I D E &nbsp; O N /</span><div class="sfig" id="c25sv"></div><div class="cap" id="c25cap"></div></div>
@@ -1308,7 +1314,7 @@ export async function build(root, api, U) {
     if (l > W0.l) api.NN.setWindow({ ...W0, l, z: W0.z * Math.max(0.6, left / Math.max(1, full)) })
   }
   // the header names what is on: the lit tab (BLAST RADIUS and WALLOP WITNESS sit over a mode), else the mode
-  function paintCrumb() { const t = E('#c25ti'); if (!t) return; const nm = modal === 'witness' ? NAMES.witness : show === 'hm' ? 'BLAST RADIUS' : mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo; t.textContent = 'NUKE NAVIGATOR // ' + nm; const mm = E('#c25mnm'); if (mm) mm.textContent = ': ' + nm } /* (11 Nov, Andrew: the mode on the MENU button on a phone, where the title is hidden) */
+  function paintCrumb() { const t = E('#c25ti'); if (!t) return; const nm = modal === 'witness' ? NAMES.witness : show === 'hm' ? 'BLAST RADIUS' : mode === 'replay' ? NAMES.replay : mode === 'shot' ? NAMES.shot : stepped ? NAMES.tweak : NAMES.dojo; t.textContent = nm; /* (12 Nov, Andrew: "we don't need to say nuke navigator anymore whatever sub mode we are in is enough") */ const mm = E('#c25mnm'); if (mm) mm.textContent = ': ' + nm } /* (11 Nov, Andrew: the mode on the MENU button on a phone, where the title is hidden) */
   function paintTabs() { paintCrumb(); director.check(); grid.classList.toggle('wwopen', modal === 'witness'); const on = modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode; { const was = grid.classList.contains('blast'); grid.classList.toggle('blast', show === 'hm'); if (show !== 'hm') { grid.classList.remove('hmwho'); hmValk = '' } if (was !== (show === 'hm')) requestAnimationFrame(blastFrame); if (was && show !== 'hm') { heat?.cancel(); clearTimeout(hmTick) } } /* (red team 6: leaving it stops the work) */ if (ctl3d) ctl3d.visible = mode === 'whatif' && show !== 'hm'; { const fl = flight?.last?.(); if (fl) fl.visible = !(mode === 'shot' && !scRes) && show !== 'hm' } root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.classList.toggle('on', t.dataset.tab === on); t.setAttribute('aria-selected', String(t.dataset.tab === on)); if (t.dataset.tab === 'shot') t.style.display = atOracle ? '' : 'none' }) }
   root.querySelectorAll('#c25tabs [data-tab]').forEach((t) => { t.addEventListener('click', () => { pressEl(t); goTab(t.dataset.tab) }); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressEl(t); goTab(t.dataset.tab) } }) })
   const pname = (id) => R.players?.[String(id)] ?? null
@@ -1322,6 +1328,10 @@ export async function build(root, api, U) {
     const where = off === dt ? 'high' : off === db ? 'low' : inside ? 'inside' : 'away'
     return { inches: off * 12, where, word: NAMES[where], side: where === 'high' ? 'ABOVE THE ZONE' : where === 'low' ? 'BELOW THE ZONE' : where === 'inside' ? 'OFF THE INSIDE EDGE' : 'OFF THE OUTSIDE EDGE' }
   }
+  /* (12 Nov, Andrew: "we can do better than the sort of lame 'ties it' graphic right now it looks just slightly off theme") the moment plate's mark: four lit bases for a
+     slam, an open door for a walk-off, two bars level for a tie, an arrow up for a go-ahead; 7 x 7 pixels in the plate's color */
+  const pxMark = (rows) => `<svg class="stm" viewBox="0 0 7 7" width="14" height="14" aria-hidden="true">${rows.flatMap((r, y) => [...r].map((c, x) => (c === '#' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : ''))).join('')}</svg>`
+  const STAMP_MARK = { tie: pxMark(['.......', '#######', '#######', '.......', '#######', '#######', '.......']), ahead: pxMark(['...#...', '..###..', '.#####.', '#######', '..###..', '..###..', '..###..']), slam: pxMark(['...#...', '..###..', '#..#..#', '##...##', '#..#..#', '..###..', '...#...']), walk: pxMark(['#####..', '#...#..', '#...##.', '#...#.#', '#...#..', '#...#..', '#####..']) }
   const situation = (b) => {
     if (!b || b.in == null) return null
     const on = (b.r1 ? 1 : 0) + (b.r2 ? 1 : 0) + (b.r3 ? 1 : 0), d = (b.bsc ?? 0) - (b.fsc ?? 0), runs = 1 + on
@@ -1369,6 +1379,17 @@ export async function build(root, api, U) {
   const byD = (a, b) => String(b.d).localeCompare(String(a.d))
   // (9 Nov, Andrew's names: the BOMB BINDER only sorts; the plain meaning is each button's tooltip)
   const NERD_S = { new: ['FRESH FRANKS', null, 'newest first'], old: ['DUSTY DINGERS', (a, b) => -byD(a, b), 'oldest first'], far: ['DEEPEST DINGERS', (a, b) => b.ft - a.ft, 'longest first'], short: ['SQUEAKERS', (a, b) => a.ft - b.ft, 'shortest first'], hard: ['LASERBEAMS', (a, b) => b.ev - a.ev, 'hardest hit first'], soft: ['TENDER TATERS', (a, b) => a.ev - b.ev, 'softest hit first'], high: ['SKY SCRAPERS', (a, b) => b.la - a.la, 'steepest first'], low: ['WORM BURNERS', (a, b) => a.la - b.la, 'flattest first'], hot: ['SIZZLE SWATS', (a, b) => (b.temp ?? 0) - (a.temp ?? 0), 'warmest night first'], cold: ['FROSTY FRANKS', (a, b) => (a.temp ?? 99) - (b.temp ?? 99), 'coldest night first'], random: ['RANDOM', 'shuffle', 'a new random order every time you press it'] } // (10 Nov, Andrew: "have a random button too")
+  /* (12 Nov, Andrew: "The sort the shots menu can be a little more expository - it should have the opposites on the same line as one another, and it should give like a
+     3-4 word description below each") the pairs, and the few words under each */
+  const SORT_PAIRS = [['new', 'old'], ['far', 'short'], ['hard', 'soft'], ['high', 'low'], ['hot', 'cold'], ['random']]
+  const SORT_SAY = { new: 'NEWEST HOME RUNS FIRST', old: 'OLDEST HOME RUNS FIRST', far: 'LONGEST DISTANCE FIRST', short: 'SHORTEST DISTANCE FIRST', hard: 'HIGHEST EXIT VELOCITY', soft: 'LOWEST EXIT VELOCITY', high: 'STEEPEST LAUNCH ANGLE', low: 'FLATTEST LAUNCH ANGLE', hot: 'WARMEST NIGHTS FIRST', cold: 'COLDEST NIGHTS FIRST', random: 'A FRESH SHUFFLE EVERY PRESS' }
+  /* (12 Nov, Andrew: "on the LHS with the butons left and right they should say somewhere older / newer or whatever the current mode is") the words on the arrows */
+  const SORT_STEP = { new: ['NEWER', 'OLDER'], old: ['OLDER', 'NEWER'], far: ['LONGER', 'SHORTER'], short: ['SHORTER', 'LONGER'], hard: ['HARDER', 'SOFTER'], soft: ['SOFTER', 'HARDER'], high: ['STEEPER', 'FLATTER'], low: ['FLATTER', 'STEEPER'], hot: ['WARMER', 'COLDER'], cold: ['COLDER', 'WARMER'], random: ['BACK', 'NEXT'] }
+  /* (12 Nov, Andrew: "the drop down there should then allow you to select or filter by whatever we're actually sorting by") the dropdown lists the sort's own bands:
+     nights for the date sorts (and RANDOM), 10 ft for distance, 1 mph for exit speed, 2 degrees for launch angle, 5 degrees F for the night's temperature */
+  const SORT_BAND = { far: (b) => (b.ft == null ? null : [Math.floor(b.ft / 10) * 10, (x) => `${x}-${x + 9} FT`]), short: (b) => SORT_BAND.far(b), hard: (b) => (b.ev == null ? null : [Math.floor(b.ev), (x) => `${x} MPH`]), soft: (b) => SORT_BAND.hard(b), high: (b) => (b.la == null ? null : [Math.floor(b.la / 2) * 2, (x) => `${x}-${x + 1}°`]), low: (b) => SORT_BAND.high(b), hot: (b) => (b.temp == null ? null : [Math.floor(b.temp / 5) * 5, (x) => `${x}-${x + 4}°F NIGHTS`]), cold: (b) => SORT_BAND.hot(b) }
+  /* (12 Nov, Andrew: yes to "show the number you're sorting by") the ball's own value for the sort, beside BALL N OF M */
+  const sortVal = (k, b) => { if (!b) return ''; const v = k === 'far' || k === 'short' ? (b.ft != null ? `${Math.round(b.ft)} FT` : '') : k === 'hard' || k === 'soft' ? (b.ev != null ? `${b.ev.toFixed(1)} MPH` : '') : k === 'high' || k === 'low' ? (b.la != null ? `${Math.round(b.la)}°` : '') : k === 'hot' || k === 'cold' ? (b.temp != null ? `${Math.round(b.temp)}°F` : '') : k === 'random' ? '' : b.d ? nightName(b.d) + (b.temp != null ? ` · ${Math.round(b.temp)}°F` : '') : ''; return v ? ` · ${v}` : '' }
   const fvList = () => { let L = R.balls.filter((b) => (fv.any || b.hr) && (fv.where === 'all' || (fv.where === 'oracle') === (b.park === 'SF')) && (fv.who === 'all' || (fv.who === 'giants') === !!b.g)); for (const k of fv.f) if (NERD_F[k]) L = L.filter(NERD_F[k][1]); const so = NERD_S[fv.sort]?.[1]; if (so === 'shuffle') { const k = fv.shuf ?? new Map(); return [...L].sort((a, b) => (k.get(a) ?? 0) - (k.get(b) ?? 0)) } return so ? [...L].sort(so) : L }
   const filtered = () => (filter === 'big' ? R.balls.filter(big) : filter === 'all' ? R.balls : fvList())
 
@@ -1596,10 +1617,15 @@ export async function build(root, api, U) {
   function fvButtons() {
     const v = filter === 'fv' ? fv : { where: 'all', who: 'all', sort: 'new', f: new Set(), any: filter === 'all' }, n = v.f.size + (v.sort !== 'new' ? 1 : 0)
     const w = WHERE.find((x) => x[0] === v.where)[1], o = WHO.find((x) => x[0] === v.who)[1]
-    const opt = (L, cur, attr) => L.map(([k, l]) => `<span class="bt${cur === k ? ' on' : ''}" ${attr}="${k}">${l}</span>`).join('')
-    const panel = ppOpen === 'where' ? `<div class="ppl" role="dialog" aria-label="where"><div class="pph">WHERE IT WAS HIT</div><div class="ppr">${opt(WHERE, v.where, 'data-pw')}</div></div>`
-      : ppOpen === 'who' ? `<div class="ppl" role="dialog" aria-label="who"><div class="pph">WHO HIT IT</div><div class="ppr">${opt(WHO, v.who, 'data-po')}</div></div>`
-      : ppOpen === 'bb' ? `<div class="ppl" role="dialog" aria-label="sort the shots"><div class="pph">SORT THE SHOTS</div><div class="ppr">${Object.entries(NERD_S).map(([k, [l, , t]]) => `<span class="bt${v.sort === k ? ' on' : ''}" data-ps="${k}" title="${t}">${l}</span>`).join('')}</div><div class="ppr ppe"><span class="bt" data-px="1">DONE</span></div></div>` : ''
+    /* (12 Nov, Andrew: "When I clicked on away it stayed as oracle ... I had jiggered with the HR filter portion of it already"): the data's away home runs are all the
+       Giants' own, so OPPONENTS and AWAY together is nothing, and with the banners off the refusal was silent. Each choice now says how many home runs it would give;
+       one that would give none is greyed, and says why */
+    const countWith = (k, val) => { const was = fvCopy(), f0 = filter; if (filter !== 'fv') { fvAll(); fv.any = false } fv[k] = val; const n = fvList().length; fvSet(was); filter = f0; return n }
+    const opt = (L, cur, attr, k) => L.map(([key, l]) => { const n = ppOpen ? countWith(k, key) : 1; return `<span class="bt${cur === key ? ' on' : ''}${n ? '' : ' dis'}" ${attr}="${key}"${n ? '' : ' aria-disabled="true"'}>${l}<em>${n ? n + ' HR' : 'NONE'}</em></span>` }).join('')
+    const why = (k, L) => (L.some(([key]) => !countWith(k, key)) ? `<div class="ppn">${fv.who === 'opp' || (k === 'who' && fv.where === 'away') ? 'THE AWAY HOME RUNS HERE ARE ALL THE GIANTS’ OWN: NO OPPONENTS AWAY.' : 'GREYED: NOTHING LIKE THAT WITH THE REST OF YOUR MIX.'}</div>` : '')
+    const panel = ppOpen === 'where' ? `<div class="ppl" role="dialog" aria-label="where"><div class="pph">WHERE IT WAS HIT</div><div class="ppr">${opt(WHERE, v.where, 'data-pw', 'where')}</div>${why('where', WHERE)}</div>`
+      : ppOpen === 'who' ? `<div class="ppl" role="dialog" aria-label="who"><div class="pph">WHO HIT IT</div><div class="ppr">${opt(WHO, v.who, 'data-po', 'who')}</div>${why('who', WHO)}</div>`
+      : ppOpen === 'bb' ? `<div class="ppl ppsort" role="dialog" aria-label="sort the shots"><div class="pph">SORT THE SHOTS</div>${SORT_PAIRS.map((row) => `<div class="pps">${row.map((k) => `<span class="bt${v.sort === k ? ' on' : ''}" data-ps="${k}" aria-label="${NERD_S[k][0]}: ${SORT_SAY[k].toLowerCase()}"><b>${NERD_S[k][0]}</b><i>${SORT_SAY[k]}</i></span>`).join('')}</div>`).join('')}<div class="ppr ppe"><span class="bt" data-px="1">DONE</span></div></div>` : ''
     return `${panel}<div class="bwr"><span class="bt bwb${ppOpen === 'where' ? ' on' : ''}" id="c25fw" title="where it was hit" aria-expanded="${ppOpen === 'where'}">WHERE?<em>${w}</em></span><span class="bt bwb${ppOpen === 'who' ? ' on' : ''}" id="c25fo" title="who hit it" aria-expanded="${ppOpen === 'who'}">WHO?<em>${o}</em></span><span class="bt bwb${ppOpen === 'bb' ? ' on' : ''}" id="c25pp" title="sort them by the numbers, or at random" aria-expanded="${ppOpen === 'bb'}">SORT THE SHOTS?<em>${n ? NERD_S[v.sort][0] : 'FRESH FRANKS'}</em></span></div>`
   }
   // (10 Nov, Andrew: "the where who bomb binder things I want like on the menu lower RHS not over the park, in the empty space below the histograms"): the block sits
@@ -1618,10 +1644,50 @@ export async function build(root, api, U) {
     const room = h.bottom - 8 - used - 10
     cornerFit = room >= bw.offsetHeight
     if (!cornerFit) { bw.classList.add('tight'); cornerFit = room >= bw.offsetHeight }
+    /* (12 Nov, Andrew: "the height of this portion of the interface and the height of the where who sort the shots buttons should be the same so they're flush"; then,
+       with a screenshot: "where who and sort are currently still higher than nuke it"): NUKE IT sets the line. The three corner buttons take its height and its bottom
+       edge (while they stay inside the histogram panel), and the arrows and the dropdown take the same height */
+    const bb = bw.querySelector('.bwr .bwb'), nk = E('#c25nk')
+    if (bb && nk && nk.offsetParent) {
+      const N = nk.getBoundingClientRect()
+      bw.style.setProperty('--nkh', Math.round(N.height) + 'px'); el.style.setProperty('--bwh', Math.round(N.height) + 'px')
+      const B = bb.getBoundingClientRect(), d = N.bottom - B.bottom
+      if (Math.abs(d) > 0.5 && B.bottom + d <= h.bottom + 1 && B.top + d - (bw.offsetHeight - bb.offsetHeight) >= used + 4) bw.style.bottom = `${(parseFloat(bw.style.bottom) || 0) - d}px`
+    } else if (bb) el.style.setProperty('--bwh', bb.offsetHeight + 'px')
   }
   { let q = 0; const re = () => { clearTimeout(q); q = setTimeout(() => placeCorner(E('#c25ch')), 0) }; /* (a timer, not a frame: a slow machine draws few frames) */ const hb = E('#c25hb'); if (hb) new MutationObserver(re).observe(hb, { childList: true, subtree: true }); addEventListener('resize', re); if (window.ResizeObserver) { const ro = new ResizeObserver(re); for (const q of ['#c25hi', '#c25h', '#c25ch']) { const el = E(q); if (el) ro.observe(el) } } } { let q2 = 0; const pit = E('.c25>.pitch'); if (pit && window.ResizeObserver) new ResizeObserver(() => { clearTimeout(q2); q2 = setTimeout(() => { try { if (uiReady) paintPitch() } catch {} }, 0) }).observe(pit) } /* (the pitch panel drops rows to fit only when painted; it repaints when it changes size) */ /* (10 Nov, night: a layout or type change moves the panels without a resize; the block follows them) */ // (the histograms redraw: the space under them changes)
+  /* (12 Nov, Andrew: "3 great idea") WAS THERE: whoever logged this ball's game on the WITNESS STAND, their calling card and name, on a line of its own under the score
+     bug. The stand loads once in the background for it (the same load WALLOP WITNESS uses) */
+  let wasLoad = null
+  const wasThere = (b) => { try { return wasThere1(b) } catch (e) { return '' } } // (the stand's pieces are made further down; before they are, nothing to say)
+  const wasThere1 = (b) => {
+    if (!b?.d) return ''
+    if (!wData && !wasLoad) wasLoad = wstore.load().then((d) => { if (!wData) wData = d }).catch(() => {}).finally(() => { if (mode === 'replay') paintChooser() })
+    if (!wData || wData.then) return ''
+    const g = G.find((x) => String(x.pk) === String(b.gm)), keys = new Set([b.d, g ? gameKey(g) : b.d])
+    const ppl = (wData.all?.length ? wData.all : wData.me ? [{ ...wData.me, me: true }] : []).filter((p) => (p.days ?? []).some((k) => keys.has(k)))
+    if (!ppl.length) return ''
+    const names = ppl.map((p) => `<span class="wtn">${embImg(p.emblem, 18)}<b>${p.me ? 'YOU' : esc(p.tag || (p.name || 'A FRIEND').toUpperCase())}</b></span>`)
+    return `<div class="was">${names.join('')}<i>${ppl.length === 1 && ppl[0].me ? 'WERE THERE' : ppl.length === 1 ? 'WAS THERE' : 'WERE THERE'}</i></div>`
+  }
+  /* (12 Nov, Andrew: "the tweak this tater, landing party, and seat seance buttons can drop to top RHS just below the scorecard") a row of its own under the result card */
+  function paintTops(html) {
+    const t = E('#c25tops'); if (!t) return
+    if (t.dataset.h !== html) { t.innerHTML = html; t.dataset.h = html; wireBall(t) }
+    t.style.display = html ? '' : 'none'
+    placeTops()
+  }
+  // under the score bug when it is up (the scorecard, top right of the park), else under the result card, else at the top
+  function placeTops() {
+    const t = E('#c25tops'); if (!t) return
+    const bug = E('#c25bug'), chip = E('#c25v'), shown = (e) => e && getComputedStyle(e).display !== 'none' && e.offsetHeight > 0
+    const base = t.offsetParent?.getBoundingClientRect().top ?? 0, under = (e) => Math.round(e.getBoundingClientRect().bottom - base + 8) // (as drawn: the bug is scaled down on small screens)
+    const top = shown(bug) ? under(bug) : shown(chip) ? under(chip) : 14
+    if (t.style.top !== top + 'px') t.style.top = top + 'px'
+  }
   function paintChooser() {
     const el = E('#c25ch')
+    if (mode === 'shot') paintTops('')
     { const nk = E('#c25nk'), w = nk?.offsetWidth ?? 0; if (w && innerWidth >= 900) { const r = w + (compactK() < 1 ? 22 : 30) + 'px'; if (el.style.right !== r) el.style.right = r } } // (3 Nov: the buttons wrap short of NUKE IT, however wide it is)
     grid.classList.toggle('called', !!scRes) // (1 Nov, night; playtest: before a seat is picked, Shot Caller showed the dojo's leftover numbers)
     if (mode === 'shot') { paintShotBar(el); return }
@@ -1631,10 +1697,11 @@ export async function build(root, api, U) {
       const opList = (parks?.parks ?? []).filter((p) => p.abbr !== 'SF').sort((a, b) => a.name.localeCompare(b.name))
       const opPanel = ppOpen === 'op' ? `<div class="ppl" role="dialog" aria-label="other parks"><div class="pph">ANOTHER PARK'S WALL</div><div class="ppr"><span class="bt${!dojoPark ? ' on' : ''}" data-op="">NONE</span>${opList.map((p) => `<span class="bt${dojoPark === p.abbr ? ' on' : ''}" data-op="${p.abbr}" title="${p.name}">${p.abbr}</span>`).join('')}</div></div>` : ''
       const opBtn = mode === 'whatif' && atOracle ? `<span class="bt bwb${ppOpen === 'op' ? ' on' : ''}" id="c25op" title="draw another park's wall: does your swing go out there too?" aria-expanded="${ppOpen === 'op'}">OTHER PARKS?<em>${opName}</em></span>` : ''
-      el.innerHTML = `<div class="r1">${stepped ? '<span class="bt" id="c25back">BACK TO THE REPLAY</span><span class="bt" id="c25rst">RESET TO THE REAL BALL</span>' : ''}${atOracle ? `<div class="bw">${opPanel}<div class="bwr">${opBtn}${ballBtns()}</div></div>` : ''}</div><div class="r2">${tweakLine()}</div>`
+      el.innerHTML = `<div class="r1">${stepped ? '<span class="bt" id="c25back">BACK TO THE REPLAY</span><span class="bt" id="c25rst">RESET TO THE REAL BALL</span>' : ''}${atOracle && opBtn ? `<div class="bw">${opPanel}<div class="bwr">${opBtn}</div></div>` : ''}</div><div class="r2">${tweakLine()}</div>`
+      paintTops(atOracle ? ballBtns() : '')
       el.querySelector('#c25op')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); ppOpen = ppOpen === 'op' ? null : 'op'; paintChooser() })
       el.querySelectorAll('[data-op]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); dojoPark = b.dataset.op || null; ppOpen = null; paintAwayWall(); paintChooser(); api.update() }))
-      wireBall(el); placeCorner(el)
+      placeCorner(el)
       el.querySelector('#c25rst')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('back'); Object.assign(api.state, stepped.real); api.update(); paintChooser() })
       el.querySelector('#c25back')?.addEventListener('click', () => { pressEl(el.querySelector('#c25back')); backToReplay() })
       return
@@ -1642,9 +1709,13 @@ export async function build(root, api, U) {
     const bn = pname(cur?.b), pn = pname(cur?.p)
     const nights = [...new Set(balls.map((b) => b.d))], perNight = new Map()
     for (const b of balls) perNight.set(b.d, (perNight.get(b.d) ?? 0) + 1)
-    el.innerHTML = `<div class="r1"><span class="bt" data-st="-1" aria-label="newer ball" title="newer ([)">&lt;</span><span class="bt" data-st="1" aria-label="older ball" title="older (])">&gt;</span> BALL ${idx + 1} OF ${balls.length} <select id="c25nt" aria-label="go back to a night">${nights.map((d) => `<option value="${d}"${d === cur?.d ? ' selected' : ''}>${nightName(d)} · ${perNight.get(d)} HR</option>`).join('')}</select>
-      <div class="bw">${fvButtons()}<div class="bwr"><span class="bt bwb" id="c25tw" title="${NAMES.tweak} (X): this home run in the dojo, to change one thing">${NAMES.tweak}</span>${ballBtns()}</div></div></div>
-      <div class="r2">${cur?.d ? nightName(cur.d) : ''}${cur?.temp != null ? ` · ${Math.round(cur.temp)}°F` : ''}</div>`
+    const sk = filter === 'fv' ? fv.sort : 'new', [wPrev, wNext] = SORT_STEP[sk] ?? SORT_STEP.new, band = SORT_BAND[sk]
+    let dd
+    if (band) { const B = new Map(); for (const [i, b] of balls.entries()) { const r = band(b); if (!r) continue; if (!B.has(r[0])) B.set(r[0], { i, n: 0, say: r[1](r[0]) }); B.get(r[0]).n++ } const now = cur ? band(cur)?.[0] : null; dd = `<select id="c25nt" aria-label="jump to a band" data-band="1">${[...B.entries()].map(([k, x]) => `<option value="${x.i}"${k === now ? ' selected' : ''}>${x.say} · ${x.n} HR</option>`).join('')}</select>` }
+    else dd = `<select id="c25nt" aria-label="go back to a night">${nights.map((d) => `<option value="${d}"${d === cur?.d ? ' selected' : ''}>${nightName(d)} · ${perNight.get(d)} HR</option>`).join('')}</select>`
+    el.innerHTML = `<div class="r1"><span class="bt stp" data-st="-1" aria-label="${wPrev.toLowerCase()} ball">&lt; ${wPrev}</span><span class="bt stp" data-st="1" aria-label="${wNext.toLowerCase()} ball">${wNext} &gt;</span><span class="bof">BALL ${idx + 1} OF ${balls.length}${sortVal(sk, cur)}</span>${dd}
+      <div class="bw">${fvButtons()}</div></div>
+      <div class="r2" style="display:none"></div>` /* (12 Nov: the night and its temperature are beside BALL N OF M now, so the row can sit on NUKE IT's line) */
     el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { pressEl(b); step(Number(b.dataset.st)) }))
     // WHERE and WHO cycle; the BOMB BINDER opens up over the bar; a mix with nothing in it is refused and says so
     const tryFv = (fn) => { const was = fvCopy(), f0 = filter; if (filter !== 'fv') { fvAll(); fv.any = false; filter = 'fv' } fn(); const L = fvList(); if (!L.length) { fvSet(was); filter = f0; banner('NO HOME RUNS LIKE THAT', 'TRY ANOTHER MIX'); paintChooser(); return } balls = L; idx = 0; if (balls[0] !== cur) applyBall(balls[0]); paintChooser() } // (a new mix starts at its first ball: a sort lands on the top one)
@@ -1653,18 +1724,19 @@ export async function build(root, api, U) {
     el.querySelector('#c25fw')?.addEventListener('click', tog('where'))
     el.querySelector('#c25fo')?.addEventListener('click', tog('who'))
     el.querySelector('#c25pp')?.addEventListener('click', tog('bb'))
-    el.querySelectorAll('[data-pw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); ppOpen = null; tryFv(() => { fv.where = b.dataset.pw }) }))
-    el.querySelectorAll('[data-po]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); ppOpen = null; tryFv(() => { fv.who = b.dataset.po }) }))
+    el.querySelectorAll('[data-pw]').forEach((b) => b.addEventListener('click', () => { pressEl(b); if (b.classList.contains('dis')) { sound.play('thud'); return } sound.play('pick'); ppOpen = null; tryFv(() => { fv.where = b.dataset.pw }) }))
+    el.querySelectorAll('[data-po]').forEach((b) => b.addEventListener('click', () => { pressEl(b); if (b.classList.contains('dis')) { sound.play('thud'); return } sound.play('pick'); ppOpen = null; tryFv(() => { fv.who = b.dataset.po }) }))
     void cyc
     el.querySelectorAll('[data-ps]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); tryFv(() => { fv.sort = b.dataset.ps; if (fv.sort === 'random') { const r = new Map(); for (const x of R.balls) r.set(x, Math.random()); fv.shuf = r } }) })) // (RANDOM: a fresh shuffle on every press)
     el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { pressEl(b); sound.play('pick'); tryFv(() => { const k = b.dataset.f; if (fv.f.has(k)) fv.f.delete(k); else fv.f.add(k) }) }))
     el.querySelector('[data-pa]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('pick'); tryFv(() => { fv.any = !fv.any }) })
     // (10 Nov, Andrew: "The clear button is broken": CLEAR is gone; a sort replaces the last one, FRESH FRANKS is where it starts)
     el.querySelector('[data-px]')?.addEventListener('click', (e) => { pressEl(e.currentTarget); sound.play('move'); ppOpen = null; paintChooser() })
-    E('#c25tw').addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
-    wireBall(el); placeCorner(el)
+    paintTops(`${wasThere(cur)}<span class="bt bwb" id="c25tw">${NAMES.tweak}</span>${ballBtns()}`)
+    E('#c25tw')?.addEventListener('click', () => { pressEl(E('#c25tw')); tweak() })
+    placeCorner(el)
     // (9 Nov, Andrew: "Kill the reel": the REEL button is gone; the highlight-reel code stays unused)
-    el.querySelector('#c25nt')?.addEventListener('change', (e) => { const i = balls.findIndex((b) => b.d === e.target.value); if (i < 0) return; sound.play('move'); idx = i; applyBall(balls[idx]); paintChooser() })
+    el.querySelector('#c25nt')?.addEventListener('change', (e) => { const i = e.target.dataset.band ? Number(e.target.value) : balls.findIndex((b) => b.d === e.target.value); if (!(i >= 0) || !balls[i]) return; sound.play('move'); idx = i; applyBall(balls[idx]); paintChooser() })
     for (const x of el.querySelectorAll('.bt')) { x.tabIndex = 0; x.setAttribute('role', 'button'); if (!x.getAttribute('aria-label')) x.setAttribute('aria-label', x.textContent.trim()) }
   }
   // TWEAK THE TATER, made plain (28 Oct, night, Andrew: "really difficult to discern... think through this interface"): the strip is the swing (speed, angle, where it's
@@ -2294,7 +2366,7 @@ export async function build(root, api, U) {
   // (1 Nov, later; an audit) the ball you were on comes back when the menu closes: attract mode used to leave you on a random long one, maybe mid-flight
   let attractFrom = null
   const attract = () => {
-    if (mode !== 'replay' || !balls.length || reduced) return
+    if (mode !== 'replay' || !balls.length || reduced || true) return // (12 Nov: off; see the menu's options)
     attractFrom ??= { idx, filter, fv: fvCopy() }
     const long = balls.map((b, i) => [b, i]).filter(([b]) => b.ft >= 420)
     const [b, i] = long.length ? long[Math.floor(Math.random() * long.length)] : [balls[0], 0]
@@ -2314,8 +2386,8 @@ export async function build(root, api, U) {
   let noteText = ''
   function paintNote(body) {
     E('#c25mt').textContent = '/ S E N D   A   N O T E /'
-    body.innerHTML = `<div class="jkb"><div class="bulh">SOMETHING BROKEN, WEIRD OR GREAT? TELL ANDREW. IT GOES STRAIGHT TO HIM WITH YOUR NAME.</div><textarea class="jks" id="c25nt" rows="6" maxlength="1500" placeholder="WHAT HAPPENED, AND WHAT YOU WERE DOING">${jkEsc(noteText)}</textarea><div class="jkr"><span class="jkgn" id="c25nst"></span><span class="bt" id="c25nsd" role="button" tabindex="0">SEND</span></div></div>`
-    const ta = body.querySelector('#c25nt'), st = body.querySelector('#c25nst'), sd = body.querySelector('#c25nsd')
+    body.innerHTML = `<div class="jkb"><div class="bulh">SOMETHING BROKEN, WEIRD OR GREAT? TELL ANDREW. IT GOES STRAIGHT TO HIM WITH YOUR NAME.</div><textarea class="jks" id="c25ntx" rows="6" maxlength="1500" placeholder="WHAT HAPPENED, AND WHAT YOU WERE DOING">${jkEsc(noteText)}</textarea><div class="jkr"><span class="jkgn" id="c25nst"></span><span class="bt" id="c25nsd" role="button" tabindex="0">SEND</span></div></div>`
+    const ta = body.querySelector('#c25ntx'), st = body.querySelector('#c25nst'), sd = body.querySelector('#c25nsd')
     ta.addEventListener('input', () => { noteText = ta.value }); setTimeout(() => ta.focus(), 30)
     let busy = false
     const go = async () => { if (busy) return; const t = ta.value.trim(); if (!t) { st.textContent = 'TYPE SOMETHING FIRST'; return } busy = true; pressEl(sd); st.textContent = 'SENDING...'
@@ -2332,16 +2404,17 @@ export async function build(root, api, U) {
     const ok = body.querySelector('#c25hok'); ok.addEventListener('click', () => { pressEl(ok); closeMod() }); setTimeout(() => ok.focus(), 30)
   }
   const hello = () => { if (store('nn-hello-1') === '1' || (navigator.webdriver && q.get('hello') !== '1')) return; store('nn-hello-1', '1'); setTimeout(() => { if (!modal) openMod('hello') }, 400) }
+  E('#c25mu')?.addEventListener('click', () => { const b = E('#c25mu'); pressEl(b); sound.play('move'); menuJuke() }) // (12 Nov, Andrew: "Let's put a music icon on the top right by the guess and skip buttons"; the icon is Bootstrap's music-note-beamed, MIT, from ~/icons)
   const menuJuke = () => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } openMod('jukebox') }
   menu = selectMenu(grid, [
-    { k: 'replay', name: NAMES.replay, hero: true, blurb: 'EVERY HOME RUN IN A GIANTS GAME, FLYING AGAIN' /* (11 Nov, Andrew: "it's not only oracle home runs it's home runs at other sites too - so I think it's GIANTS but we include the opponents too") */, run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
-    { k: 'dojo', name: NAMES.dojo, hero: true, blurb: 'HIT YOUR OWN', run: () => menuGo('whatif') },
-    { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT. SEE WHAT IT TAKES TO REACH IT', run: () => menuGo('shot'), off: () => !atOracle },
-    { k: 'witness', name: NAMES.witness, blurb: 'LOG YOUR GAMES. CLIMB THE STAND', run: () => goTab('witness') },
-    { k: 'blast', name: 'BLAST RADIUS', blurb: 'HOW HARD IT IS TO GO DEEP, ANYWHERE IN THE PARK', run: () => goTab('blast'), off: () => !atOracle },
+    { k: 'replay', name: NAMES.replay, hero: true, blurb: () => { const H = R.balls.filter((b) => b.hr), last = [...H].sort((a, b) => b.d.localeCompare(a.d))[0], who = last ? pname(last.b)?.[0] : null; return `EVERY HOME RUN IN A GIANTS GAME, FLYING AGAIN · ${H.length} OF THEM${last ? ` · THE LATEST ${nightName(last.d).replace(/, \d{4}$/, '')}${who ? ', ' + String(who).toUpperCase() : ''}` : ''}` } /* (12 Nov, Andrew: yes to a live line) */ /* (11 Nov, Andrew: "it's not only oracle home runs it's home runs at other sites too - so I think it's GIANTS but we include the opponents too") */, run: () => menuGo('replay') } /* (the second red team, 1: setMode alone left BLAST RADIUS up) */,
+    { k: 'dojo', name: NAMES.dojo, blurb: 'HIT YOUR OWN', run: () => menuGo('whatif') }, // (12 Nov, Andrew: "Let's make dinger deja vu the only main mode and the rest the smaller text modes")
+    { k: 'shot', name: NAMES.shot, blurb: 'PICK A SEAT, SEE WHAT IT TAKES', run: () => menuGo('shot'), off: () => !atOracle },
+    { k: 'witness', name: NAMES.witness, blurb: 'LOG YOUR GAMES, CLIMB THE STAND', run: () => goTab('witness') },
+    { k: 'blast', name: 'BLAST RADIUS', blurb: 'HOW HARD IT IS TO GO DEEP', run: () => goTab('blast'), off: () => !atOracle },
     { k: 'jukebox', name: 'JUKEBOX', blurb: 'PICK THE MUSIC', run: () => menuJuke() }, // (10 Nov, later, Andrew: "a little mini spotify")
     { k: 'note', name: 'SEND A NOTE', blurb: 'SOMETHING BROKEN? TELL ANDREW', run: () => { if (wEd) { banner('YOUR CALLING CARD IS OPEN', 'SAVE IT OR CANCEL FIRST'); return } openMod('note') } }, // (11 Nov: not a mode, so after the JUKEBOX, the last of the modes)
-  ], { onIdle: attract, onJukebox: () => menuJuke(), onClose: () => { unAttract(); hello(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
+  ], { /* (12 Nov, Andrew: "In the menu it shouldn't be plyaing shots in the background": no attract replay) */ onJukebox: () => menuJuke(), onClose: () => { unAttract(); hello(); if (store('nn-mhint25') === '1') return; store('nn-mhint25', '1'); const h = E('#c25mh'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go') } })
   // three ways in (Andrew, 28 Oct: he could not find it): the MENU button with its ESC keycap, the title next to it, and Esc
   const menuKey = () => (modal === 'witness' ? 'witness' : show === 'hm' ? 'blast' : mode === 'replay' ? 'replay' : mode === 'shot' ? 'shot' : 'dojo')
   // S: the sound off or on; on again clears a jukebox pause (the second red team, 8: the music stayed silent until SKIP)
@@ -3188,6 +3261,7 @@ export async function build(root, api, U) {
     // S1 hangs under the verdict chip in the top-right corner: clear of the chooser, and above where flights to right field and the Cove come down
     const chip = E('#c25v'), top = chip.offsetTop + chip.offsetHeight + 8 + 'px'
     if (E('#c25bug').style.top !== top) E('#c25bug').style.top = top
+    placeTops()
   }
   function paintTally() {
     E('#c25t').innerHTML = `<div class="c"><span>SWINGS </span>${String(ses.swings).padStart(2, '0')} <span> HR </span>${String(ses.hrs).padStart(2, '0')}</div><div><span>BEST </span>${ses.best || '---'}</div>` + ses.log.slice(-2).map((l, i, a) => `<div class="${i === a.length - 1 ? 'n' : ''}">${ses.line(l)}</div>`).join('')
@@ -3211,7 +3285,9 @@ export async function build(root, api, U) {
     let stp = mode === 'replay' && cur && !edited ? situation(cur)?.stamp : null
     if (stp && staysHere) stp = `${stp} AT ${cur.park}`
     const se = chip.querySelector('.st')
-    if (se.textContent !== (stp ?? '')) { se.textContent = stp ?? ''; if (stp) restamp(se) }
+    { const tc = (cur && teamCol(batTeam(cur))) || 'var(--acc)', mark = !stp ? '' : /SLAM/.test(stp) ? STAMP_MARK.slam : /WALK-OFF/.test(stp) ? STAMP_MARK.walk : /TIES/.test(stp) ? STAMP_MARK.tie : STAMP_MARK.ahead
+      se.style.setProperty('--stc', tc)
+      if (se.dataset.t !== (stp ?? '')) { se.dataset.t = stp ?? ''; se.innerHTML = stp ? `${mark}<span>${jkEsc(stp)}</span>` : ''; if (stp) restamp(se) } }
     se.style.display = stp ? '' : 'none'
     if (stampIt) restamp(chip.querySelector('.hd'))
     // 3 Nov (Andrew: "multiple times we're telling people how far it went (top left, top right, far right, voxel) - let's have the outcome be on the top left, and then

@@ -190,7 +190,7 @@ const landed = () => until(() => !!(window.__cp.anim?.() && window.__cp.anim().e
   // (10 Nov) WHERE? WHO? BOMB BINDER and the three under them sit under the histograms, not over the park
   await page.evaluate(() => window.__mix25.setMode('replay')); await page.waitForTimeout(1500)
   const cn = await page.evaluate(() => { const bw = document.querySelector('#c25ch .bw').getBoundingClientRect(), hi = document.querySelector('#c25hi').getBoundingClientRect(), pk = document.querySelector('#c25h').getBoundingClientRect(); return { fit: window.__mix25.cornerFit(), inside: bw.left >= hi.left - 1 && bw.right <= hi.right + 1 && bw.bottom <= hi.bottom + 1, offPark: bw.left >= pk.right - 1, n: document.querySelectorAll('#c25ch .bw .bt.bwb').length } })
-  check('the corner buttons sit in the space under the histograms, off the park', cn.fit === true && cn.inside && cn.offPark && cn.n >= 6, JSON.stringify(cn))
+  check('the corner buttons sit in the space under the histograms, off the park (12 Nov: WHERE? WHO? SORT THE SHOTS?; the other three went up under the score bug)', cn.fit === true && cn.inside && cn.offPark && cn.n >= 3, JSON.stringify(cn))
 }
 // ---- 4d. (9 Nov) BAD LUCK (the mirror and the ladder) plays from the MOMENTS menu; THE ROLL-UP is on the board ----
 {
