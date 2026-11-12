@@ -84,9 +84,11 @@ function build(song) {
     B = { mel, harm: [], bass, beats, perc: [], len: sec(P.n) }
   }
   if (!B.len) B.len = Math.max(0, ...[...B.mel, ...B.harm, ...B.bass].map((n) => n[0] + n[1]))
+  // (11 Nov, Andrew on Take Me Out: "the vocal part needs to be louder") a song can carry its own mix: { mel, harm, bass } times the usual levels
+  const MX = { mel: 1, harm: 1, bass: 1, ...(song.mix ?? {}) }; B.mx = MX
   // loudness: the energy of each voice (peak squared times the time it sounds), per second, the lead weighted up because the ear follows it
   const E = (L, p) => L.reduce((s, n) => s + Math.min(n[1], 4) * (typeof p === 'function' ? p(n) : p) ** 2, 0)
-  const e = (E(B.mel, PEAK.mel) * 1.6 + E(B.harm, PEAK.harm) + E(B.bass, (n) => (n[3] === 'bass5' ? PEAK.bass5 : PEAK.bass)) * 0.7) / Math.max(1, B.len)
+  const e = (E(B.mel, PEAK.mel * MX.mel) * 1.6 + E(B.harm, PEAK.harm * MX.harm) + E(B.bass, (n) => (n[3] === 'bass5' ? PEAK.bass5 : PEAK.bass) * MX.bass) * 0.7) / Math.max(1, B.len)
   B.e = e
   built.set(song.id, B)
   return B
@@ -122,7 +124,7 @@ export const jukebox = {
       const nb = ac.createBuffer(1, ac.sampleRate * 0.05, ac.sampleRate), d = nb.getChannelData(0)
       for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length)
       const noise = (at, f, q, gain, type) => { const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; g.gain.value = gain; s.connect(fl).connect(g).connect(M); s.start(at); nodes.push(s); s.onended = () => { const i = nodes.indexOf(s); if (i >= 0) nodes.splice(i, 1) } }
-      const L = [['mel', 'square', () => PEAK.mel], ['harm', 'square', () => PEAK.harm], ['bass', 'triangle', (n) => (n[3] === 'bass5' ? PEAK.bass5 : PEAK.bass)]]
+      const L = [['mel', 'square', () => PEAK.mel * B.mx.mel], ['harm', 'square', () => PEAK.harm * B.mx.harm], ['bass', 'triangle', (n) => (n[3] === 'bass5' ? PEAK.bass5 : PEAK.bass) * B.mx.bass]]
       const at = Object.fromEntries(L.map(([k]) => [k, Math.max(0, B[k].findIndex((n) => n[0] + n[1] > from))])); let bi = Math.max(0, B.beats.findIndex((t) => t >= from)), pi = Math.max(0, B.perc.findIndex((t) => t >= from))
       if (B.mel.every((n) => n[0] + n[1] <= from)) at.mel = B.mel.length // (GPT red team 6: a note still sounding at the resume point plays its rest)
       const my = ++tick
