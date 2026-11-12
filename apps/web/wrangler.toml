@@ -5,3 +5,8 @@ compatibility_date = "2026-10-01"
 [[kv_namespaces]]
 binding = "TOKENS"
 id = "2417dbdcbf8041078341950c98b78e85"
+
+# (11 Nov 2026) the WITNESS STAND's entries and the notes (functions/api/witness.js, functions/api/note.js)
+[[kv_namespaces]]
+binding = "WITNESS"
+id = "61aa468915be47abb6f64fc10fc9060c"
